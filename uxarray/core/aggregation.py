@@ -1,10 +1,7 @@
 import numpy as np
-import dask.array as da
-
-from uxarray.grid.connectivity import get_face_node_partitions
 
 import uxarray.core.dataarray
-
+from uxarray.grid.connectivity import get_face_node_partitions
 
 NUMPY_AGGREGATIONS = {
     "mean": np.mean,
@@ -73,6 +70,8 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
 
 def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
     """Applies a Node to Face Topological aggregation."""
+    import dask.array as da
+
     if not uxda._node_centered():
         raise ValueError(
             f"Data Variable must be mapped to the corner nodes of each face, with dimension "
@@ -139,6 +138,8 @@ def _apply_node_to_face_aggregation_dask(*args, **kwargs):
 
 def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
     """Applies a Node to Edge Topological aggregation."""
+    import dask.array as da
+
     if not uxda._node_centered():
         raise ValueError(
             f"Data Variable must be mapped to the corner nodes of each face, with dimension "

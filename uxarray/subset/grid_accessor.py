@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING, List, Optional, Set, Tuple, Union
 
-from typing import TYPE_CHECKING, Union, Tuple, List, Optional, Set
+import numpy as np
 
 if TYPE_CHECKING:
     from uxarray.grid import Grid

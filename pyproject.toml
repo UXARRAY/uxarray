@@ -48,8 +48,7 @@ dependencies = [
 # minimal dependencies end
 
 [project.optional-dependencies]
-complete = ["uxarray[math, dev]"]
-math = ['gmpy2']
+complete = ["uxarray[dev]"]
 dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov', 'ruff', 'asv']
 
 [project.urls]
@@ -74,6 +73,11 @@ fallback_version = "9999"
 [tool.ruff]
 extend-exclude = ["test","benchmarks"]
 
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["uxarray"]
 
 [tool.ruff.lint.per-file-ignores]
 "docs/*" = ["E402", "F401"]

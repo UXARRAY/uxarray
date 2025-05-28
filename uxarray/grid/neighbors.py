@@ -1,16 +1,11 @@
-import numpy as np
-from numpy import deg2rad
-
-import xarray as xr
-
-from numba import njit
-
-from sklearn.neighbors import BallTree as SKBallTree
-from sklearn.neighbors import KDTree as SKKDTree
-
 from typing import Optional, Union
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
+import numpy as np
+import xarray as xr
+from numba import njit
+from numpy import deg2rad
+
+from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 
 
 class KDTree:
@@ -80,6 +75,7 @@ class KDTree:
     def _build_from_nodes(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from corner
         nodes."""
+        from sklearn.neighbors import KDTree as SKKDTree
 
         if self._tree_from_nodes is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -114,6 +110,7 @@ class KDTree:
     def _build_from_face_centers(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from face
         centers."""
+        from sklearn.neighbors import KDTree as SKKDTree
 
         if self._tree_from_face_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -148,6 +145,8 @@ class KDTree:
     def _build_from_edge_centers(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from edge
         centers."""
+        from sklearn.neighbors import KDTree as SKKDTree
+
         if self._tree_from_edge_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "cartesian":
@@ -468,6 +467,7 @@ class BallTree:
     def _build_from_face_centers(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from face
         centers."""
+        from sklearn.neighbors import BallTree as SKBallTree
 
         if self._tree_from_face_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -503,6 +503,7 @@ class BallTree:
     def _build_from_nodes(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from corner
         nodes."""
+        from sklearn.neighbors import BallTree as SKBallTree
 
         if self._tree_from_nodes is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -530,6 +531,8 @@ class BallTree:
     def _build_from_edge_centers(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from edge
         centers."""
+        from sklearn.neighbors import BallTree as SKBallTree
+
         if self._tree_from_edge_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "spherical":
@@ -822,9 +825,6 @@ class SpatialHash:
         self._xmax = lon_max + self._dh
         self._ymax = lat_max + self._dh
 
-        print(self._xmin, self._xmax)
-        print(self._ymin, self._ymax)
-
         # Number of x points in the hash grid; used for
         # array flattening
         Lx = self._xmax - self._xmin
@@ -995,7 +995,6 @@ def _barycentric_coordinates(nodes, point):
         a2 = max(_triangle_area(point, vi, vi1), ERROR_TOLERANCE)
         sum_wi += a0 / (a1 * a2)
         w.append(a0 / (a1 * a2))
-
     barycentric_coords = [w_i / sum_wi for w_i in w]
 
     return barycentric_coords

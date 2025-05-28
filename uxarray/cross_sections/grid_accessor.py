@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union, List, Set, Tuple
+from typing import TYPE_CHECKING, List, Set, Tuple, Union
 
 if TYPE_CHECKING:
     from uxarray.grid import Grid

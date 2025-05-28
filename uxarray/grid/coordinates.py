@@ -1,14 +1,12 @@
-import xarray as xr
-import numpy as np
-import warnings
 import math
-
-from uxarray.conventions import ugrid
-
-from numba import njit, prange
-from uxarray.constants import ERROR_TOLERANCE
 from typing import Union
 
+import numpy as np
+import xarray as xr
+from numba import njit, prange
+
+from uxarray.constants import ERROR_TOLERANCE
+from uxarray.conventions import ugrid
 from uxarray.grid.utils import _small_angle_of_2_vectors
 
 
@@ -53,7 +51,7 @@ def _xyz_to_lonlat_rad_no_norm(
         Latitude in radians
     """
 
-    lon = np.atan2(y, x)
+    lon = np.arctan2(y, x)
     lat = np.asin(z)
 
     # set longitude range to [0, pi]
@@ -76,7 +74,7 @@ def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
         y /= denom
         z /= denom
 
-    lon = np.atan2(y, x)
+    lon = np.arctan2(y, x)
     lat = np.asin(z)
 
     # Set longitude range to [0, 2*pi]
@@ -252,15 +250,15 @@ def _populate_face_centroids(grid, repopulate=False):
     repopulate : bool, optional
         Bool used to turn on/off repopulating the face coordinates of the centroids
     """
-    warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
-
-    node_x = grid.node_x.values
-    node_y = grid.node_y.values
-    node_z = grid.node_z.values
-    face_nodes = grid.face_node_connectivity.values
-    n_nodes_per_face = grid.n_nodes_per_face.values
+    # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
 
     if "face_lon" not in grid._ds or repopulate:
+        node_x = grid.node_x.values
+        node_y = grid.node_y.values
+        node_z = grid.node_z.values
+        face_nodes = grid.face_node_connectivity.values
+        n_nodes_per_face = grid.n_nodes_per_face.values
+
         # Construct the centroids if there are none stored
         if "face_x" not in grid._ds:
             centroid_x, centroid_y, centroid_z = _construct_face_centroids(
@@ -271,7 +269,7 @@ def _populate_face_centroids(grid, repopulate=False):
             # If there are cartesian centroids already use those instead
             centroid_x, centroid_y, centroid_z = grid.face_x, grid.face_y, grid.face_z
 
-        # Convert from xyz to latlon TODO
+        # Convert from xyz to latlon
         centroid_lon, centroid_lat = _xyz_to_lonlat_deg(
             centroid_x, centroid_y, centroid_z, normalize=False
         )
@@ -528,7 +526,6 @@ def _populate_face_centerpoints(grid, repopulate=False):
     -------
     None, populates the grid with the face centerpoints: face_lon, face_lat
     """
-    # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
 
     node_lon = grid.node_lon.values
     node_lat = grid.node_lat.values
@@ -778,7 +775,7 @@ def _xyz_to_lonlat_rad_no_norm(
         Latitude in radians
     """
 
-    lon = np.atan2(y, x)
+    lon = np.arctan2(y, x)
     lat = np.asin(z)
 
     # set longitude range to [0, pi]
@@ -790,22 +787,6 @@ def _xyz_to_lonlat_rad_no_norm(
     lon = np.where(z_mask, 0.0, lon)
 
     return lon, lat
-
-
-def _normalize_xyz(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Normalizes a set of Cartesiain coordinates."""
-    denom = np.linalg.norm(
-        np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2, axis=0
-    )
-
-    x_norm = x / denom
-    y_norm = y / denom
-    z_norm = z / denom
-    return x_norm, y_norm, z_norm
 
 
 @njit(cache=True)
@@ -885,3 +866,41 @@ def prepare_points(points, normalize):
         )
 
     return np.vstack([x, y, z]).T
+
+
+def points_atleast_2d_xyz(points):
+    """
+    Ensure the input is at least 2D and return Cartesian (x, y, z) coordinates.
+
+    Parameters
+    ----------
+    points : array_like, shape (N, 2) or (N, 3)
+        - If shape is (N, 2), interpreted as [longitude, latitude] in degrees.
+        - If shape is (N, 3), interpreted as Cartesian [x, y, z] coordinates.
+
+    Returns
+    -------
+    points_xyz : ndarray, shape (N, 3)
+        Cartesian coordinates [x, y, z] for each input point.
+
+    Raises
+    ------
+    ValueError
+        If `points` (after `np.atleast_2d`) does not have 2 or 3 columns.
+
+    """
+
+    points = np.atleast_2d(points)
+
+    if points.shape[1] == 2:
+        points_lonlat_rad = np.deg2rad(points)
+        x, y, z = _lonlat_rad_to_xyz(points_lonlat_rad[:, 0], points_lonlat_rad[:, 1])
+        points_xyz = np.vstack([x, y, z]).T
+    elif points.shape[1] == 3:
+        points_xyz = points
+    else:
+        raise ValueError(
+            "Points are neither Cartesian (shape N x 3) nor Spherical (shape N x 2)."
+        )
+
+    return points_xyz
