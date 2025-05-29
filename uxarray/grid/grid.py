@@ -1875,6 +1875,12 @@ class Grid:
             out_ds = _encode_ugrid(self._ds)
 
         elif grid_type == "Exodus":
+            # For HEALPix or other formats where grids constructed with pixels_only=True etc., node boundaries/coords
+            # are not populated by default. Accessing node_lon will trigger their
+            # population.
+            if "node_lon" not in self._ds.variables:
+                _ = self.node_lon #populate node_lon and node_lat required for exodus encoding
+                
             out_ds = _encode_exodus(self._ds)
 
         elif grid_type == "SCRIP":
