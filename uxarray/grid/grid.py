@@ -817,7 +817,7 @@ class Grid:
     @property
     def n_node(self) -> int:
         """Total number of nodes."""
-        return self._ds.sizes["n_node"]
+        return self.face_node_connectivity.shape[0]
 
     @property
     def n_edge(self) -> int:
