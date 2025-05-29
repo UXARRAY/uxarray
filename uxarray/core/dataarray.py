@@ -18,6 +18,11 @@ from uxarray.core.gradient import (
     _calculate_edge_node_difference,
     _calculate_grad_on_edge_from_faces,
 )
+from uxarray.core.vector_calculus import (
+    _calculate_divergence,
+    _calculate_curl,
+    _laplacian,
+)
 from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.core.zonal import _compute_non_conservative_zonal_mean
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
@@ -1023,36 +1028,40 @@ class UxDataArray(xr.DataArray):
         on each edge. The gradient of a node-centered data variable can be approximated by computing the nodal average
         and then computing the gradient.
 
-        The aboslute value of the gradient is used, since UXarray does not yet support representing the direction
-        of the gradient.
+        The gradient magnitude is stored as values on edges, with connectivity information preserved through
+        the uxgrid's edge_face_connectivity.
 
         The expression for calculating the gradient on each edge comes from Eq. 22 in Ringler et al. (2010), J. Comput. Phys.
-
-        Code is adapted from https://github.com/theweathermanda/MPAS_utilities/blob/main/mpas_calc_operators.py
-
 
         Parameters
         ----------
         use_magnitude : bool, default=True
-            Whether to use the magnitude (aboslute value) of the resulting gradient
-        normalize: bool, default=None
+            Whether to use the magnitude (absolute value) of the resulting gradient
+        normalize: bool, default=False
             Whether to normalize (l2) the resulting gradient
+
+        Returns
+        -------
+        UxDataArray
+            Gradient magnitude values on edges with shape (n_edge,)
+            Connectivity information available through uxgrid.edge_face_connectivity
 
         Example
         -------
-        >>> uxds["var"].gradient()
-        >>> uxds["var"].topological_mean(destination="face").gradient()
+        >>> grad = uxds["var"].gradient()
+        >>> print(f"Gradient shape: {grad.shape}")
+        >>> print(f"Edge-face connectivity: {grad.uxgrid.edge_face_connectivity}")
         """
 
         if not self._face_centered():
             raise ValueError(
-                "Gradient computations are currently only supported for face-centered data variables. For node-centered"
+                "Gradient computations are currently only supported for face-centered data variables. For node-centered "
                 "data, consider performing a nodal average or remapping to faces."
             )
 
         if use_magnitude is False:
             warnings.warn(
-                "Gradients can only be represented in terms of their aboslute value, since UXarray does not "
+                "Gradients can only be represented in terms of their absolute value, since UXarray does not "
                 "currently store any information for representing the sign."
             )
 
@@ -1067,14 +1076,145 @@ class UxDataArray(xr.DataArray):
         dims = list(self.dims)
         dims[-1] = "n_edge"
 
+        # Create coordinate for terminating face indices for easier interpretation
+        terminating_faces = self.uxgrid.edge_face_connectivity.values[:, 1]
+        
         uxda = UxDataArray(
             _grad,
             uxgrid=self.uxgrid,
             dims=dims,
+            coords={"terminating_face": ("n_edge", terminating_faces)},
             name=self.name + "_grad" if self.name is not None else "grad",
         )
 
         return uxda
+
+    def divergence(self, normalize: Optional[bool] = False):
+        """Computes the divergence of a vector field defined on edges.
+        
+        The divergence is a measure of the "outflow" of a vector field from a point.
+        In UXarray, the divergence of an edge-centered field produces a face-centered field.
+        
+        Parameters
+        ----------
+        normalize : bool, optional
+            Whether to normalize by face areas, by default False
+            
+        Returns
+        -------
+        UxDataArray
+            The divergence field defined on faces
+            
+        Raises
+        ------
+        ValueError
+            If the input field is not edge-centered
+            
+        Examples
+        --------
+        >>> # First calculate a gradient (edge-centered field)
+        >>> grad_field = uxds['temperature'].gradient()
+        >>> # Then calculate its divergence (face-centered field)
+        >>> div_field = grad_field.divergence()
+        """
+        if not self._edge_centered():
+            raise ValueError("Divergence can only be calculated for edge-centered fields")
+        
+        div_values = _calculate_divergence(self.values, self.uxgrid, normalize)
+        
+        dims = self.dims[:-1] + ('n_face',)
+        
+        div_array = UxDataArray(
+            data=div_values,
+            dims=dims,
+            name=f"div_{self.name}" if self.name is not None else "divergence",
+            uxgrid=self.uxgrid
+        )
+        
+        return div_array
+        
+    def curl(self, normalize: Optional[bool] = False):
+        """Computes the curl of a vector field defined on faces.
+        
+        The curl is a measure of the "rotation" of a vector field.
+        In UXarray, the curl of a face-centered field produces an edge-centered field.
+        
+        Parameters
+        ----------
+        normalize : bool, optional
+            Whether to normalize the result, by default False
+            
+        Returns
+        -------
+        UxDataArray
+            The curl field defined on edges
+            
+        Raises
+        ------
+        ValueError
+            If the input field is not face-centered
+            
+        Examples
+        --------
+        >>> # Calculate curl of a face-centered field
+        >>> curl_field = uxds['vorticity'].curl()
+        """
+        if not self._face_centered():
+            raise ValueError("Curl can only be calculated for face-centered fields")
+        
+        curl_values = _calculate_curl(self.values, self.uxgrid, normalize)
+        
+        dims = self.dims[:-1] + ('n_edge',)
+        
+        curl_array = UxDataArray(
+            data=curl_values,
+            dims=dims,
+            name=f"curl_{self.name}" if self.name is not None else "curl",
+            uxgrid=self.uxgrid
+        )
+        
+        return curl_array
+        
+    def laplacian(self, normalize: Optional[bool] = False):
+        """Computes the Laplacian of a scalar field defined on faces.
+        
+        The Laplacian is the divergence of the gradient and is commonly used in
+        partial differential equations like the diffusion equation.
+        In UXarray, the Laplacian of a face-centered field produces another face-centered field.
+        
+        Parameters
+        ----------
+        normalize : bool, optional
+            Whether to normalize the result, by default False
+            
+        Returns
+        -------
+        UxDataArray
+            The Laplacian field defined on faces
+            
+        Raises
+        ------
+        ValueError
+            If the input field is not face-centered
+            
+        Examples
+        --------
+        >>> # Calculate Laplacian of a face-centered field
+        >>> laplacian_field = uxds['temperature'].laplacian()
+        """
+        if not self._face_centered():
+            raise ValueError("Laplacian can only be calculated for face-centered fields")
+        
+        laplacian_values = _laplacian(self.values, self.uxgrid, normalize)
+        
+        laplacian_array = UxDataArray(
+            data=laplacian_values,
+            dims=self.dims,
+            name=f"laplacian_{self.name}" if self.name is not None else "laplacian",
+            uxgrid=self.uxgrid
+        )
+        
+        return laplacian_array
 
     def difference(self, destination: Optional[str] = "edge"):
         """Computes the absolute difference of a data variable.
