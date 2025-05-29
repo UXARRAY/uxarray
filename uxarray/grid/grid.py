@@ -1879,8 +1879,10 @@ class Grid:
             # are not populated by default. Accessing node_lon will trigger their
             # population.
             if "node_lon" not in self._ds.variables:
-                _ = self.node_lon #populate node_lon and node_lat required for exodus encoding
-                
+                _ = (
+                    self.node_lon
+                )  # populate node_lon and node_lat required for exodus encoding
+
             out_ds = _encode_exodus(self._ds)
 
         elif grid_type == "SCRIP":
