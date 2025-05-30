@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import os
 import xarray as xr
+import pandas as pd
 from pathlib import Path
 
 
@@ -37,6 +38,17 @@ def test_boundaries(resolution_level):
 
     # check for the correct number of boundary nodes
     assert (uxgrid.n_node == uxgrid.n_face + 2)
+
+@pytest.mark.parametrize("pixels_only", [True, False])
+def test_time_dimension_roundtrip(pixels_only):
+    ds = xr.open_dataset(ds_path)
+    dummy_time = pd.to_datetime(["2025-01-01T00:00:00"])
+    ds_time = ds.expand_dims(time=dummy_time)
+    uxds = ux.UxDataset.from_healpix(ds_time, pixels_only=pixels_only)
+
+    # Ensure time dimension is preserved and that the conversion worked
+    assert "time" in uxds.dims
+    assert uxds.sizes["time"] == 1
 
 def test_dataset():
     uxds = ux.UxDataset.from_healpix(ds_path)
