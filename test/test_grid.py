@@ -265,23 +265,26 @@ def test_operators_ne():
 
 def test_face_areas_calculate_total_face_area_triangle():
     """Create a uxarray grid from vertices and saves an exodus file."""
-    verts = [[[0.57735027, -5.77350269e-01, -0.57735027],
-              [0.57735027, 5.77350269e-01, -0.57735027],
-              [-0.57735027, 5.77350269e-01, -0.57735027]]]
+    verts = [
+    [[0.02974582, -0.74469018, 0.66674712],
+    [0.1534193, -0.88744577, 0.43462917],
+    [0.18363692, -0.72230586, 0.66674712]]
+    ]
 
     grid_verts = ux.open_grid(verts, latlon=False)
 
     # validate the grid
     assert grid_verts.validate()
 
-    # calculate area
-    area_gaussian = grid_verts.calculate_total_face_area(
-        quadrature_rule="gaussian", order=5)
-    nt.assert_almost_equal(area_gaussian, constants.TRI_AREA, decimal=3)
-
+    # calculate area without correction
     area_triangular = grid_verts.calculate_total_face_area(
         quadrature_rule="triangular", order=4)
     nt.assert_almost_equal(area_triangular, constants.TRI_AREA, decimal=1)
+
+    # calculate area
+    area_gaussian = grid_verts.calculate_total_face_area(
+        quadrature_rule="gaussian", order=5, latitude_adjusted_area=True)
+    nt.assert_almost_equal(area_gaussian, constants.CORRECTED_TRI_AREA, decimal=3)
 
 
 def test_face_areas_calculate_total_face_area_file():
@@ -767,76 +770,10 @@ def test_normalize_existing_coordinates_norm_initial():
     assert _check_normalization(uxgrid)
 
 
-def test_number_of_faces_found():
-    """Test function for `self.get_face_containing_point`,
-    to ensure the correct number of faces is found, depending on where the point is."""
-    grid = ux.open_grid(gridfile_mpas)
-    partial_grid = ux.open_grid(quad_hex_grid_path)
-
-    # For a face center only one face should be found
-    point_xyz = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values], dtype=np.float64)
-
-    assert len(grid.get_faces_containing_point(point_xyz=point_xyz)) == 1
-
-    # For an edge two faces should be found
-    point_xyz = np.array([grid.edge_x[100].values, grid.edge_y[100].values, grid.edge_z[100].values], dtype=np.float64)
-
-    assert len(grid.get_faces_containing_point(point_xyz=point_xyz)) == 2
-
-    # For a node three faces should be found
-    point_xyz = np.array([grid.node_x[100].values, grid.node_y[100].values, grid.node_z[100].values], dtype=np.float64)
-
-    assert len(grid.get_faces_containing_point(point_xyz=point_xyz)) == 3
-
-    partial_grid.normalize_cartesian_coordinates()
-
-    # Test for a node on the edge where only 2 faces should be found
-    point_xyz = np.array([partial_grid.node_x[1].values, partial_grid.node_y[1].values, partial_grid.node_z[1].values], dtype=np.float64)
-
-    assert len(partial_grid.get_faces_containing_point(point_xyz=point_xyz)) == 2
 
 
-def test_whole_grid():
-    """Tests `self.get_faces_containing_point`on an entire grid,
-    checking that for each face center, one face is found to contain it"""
 
-    grid = ux.open_grid(gridfile_mpas_two)
-    grid.normalize_cartesian_coordinates()
 
-    # Ensure a face is found on the grid for every face center
-    for i in range(len(grid.face_x.values)):
-        point_xyz = np.array([grid.face_x[i].values, grid.face_y[i].values, grid.face_z[i].values], dtype=np.float64)
-
-        assert len(grid.get_faces_containing_point(point_xyz=point_xyz)) == 1
-
-def test_point_types():
-    """Tests that `self.get_faces_containing_point` works with cartesian and lonlat"""
-
-    # Open the grid
-    grid = ux.open_grid(gridfile_mpas)
-
-    # Assign a cartesian point and a lon/lat point
-    point_xyz = np.array([grid.node_x[100].values, grid.node_y[100].values, grid.node_z[100].values], dtype=np.float64)
-    point_lonlat = np.array([grid.node_lon[100].values, grid.node_lat[100].values])
-
-    # Test both points find faces
-    assert len(grid.get_faces_containing_point(point_xyz=point_xyz)) != 0
-    assert len(grid.get_faces_containing_point(point_lonlat=point_lonlat)) !=0
-
-def test_point_along_arc():
-    node_lon = np.array([-40, -40, 40, 40])
-    node_lat = np.array([-20, 20, 20, -20])
-    face_node_connectivity = np.array([[0, 1, 2, 3]], dtype=np.int64)
-
-    uxgrid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
-
-    # point at exactly 20 degrees latitude
-    out1 = uxgrid.get_faces_containing_point(point_lonlat=np.array([0, 20], dtype=np.float64))
-
-    # point at 25.41 degrees latitude (max along the great circle arc)
-    out2 = uxgrid.get_faces_containing_point(point_lonlat=np.array([0, 25.41], dtype=np.float64))
-
-    nt.assert_array_equal(out1, out2)
 
 def test_from_topology():
     node_lon = np.array([-20.0, 0.0, 20.0, -20, -40])

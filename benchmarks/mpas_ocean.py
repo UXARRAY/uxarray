@@ -3,7 +3,6 @@ import urllib.request
 from pathlib import Path
 
 import numpy as np
-from polars.testing.parametric import dtypes
 
 import uxarray as ux
 
@@ -121,6 +120,8 @@ class RemapDownsample:
     def time_inverse_distance_weighted_remapping(self):
         self.uxds_120["bottomDepth"].remap.inverse_distance_weighted(self.uxds_480.uxgrid)
 
+    def time_bilinear_remapping(self):
+        self.uxds_120["bottomDepth"].remap.bilinear(self.uxds_480.uxgrid)
 
 class RemapUpsample:
 
@@ -136,6 +137,9 @@ class RemapUpsample:
 
     def time_inverse_distance_weighted_remapping(self):
         self.uxds_480["bottomDepth"].remap.inverse_distance_weighted(self.uxds_120.uxgrid)
+
+    def time_bilinear_remapping(self):
+        self.uxds_480["bottomDepth"].remap.bilinear(self.uxds_120.uxgrid)
 
 
 class HoleEdgeIndices(DatasetBenchmark):
@@ -170,8 +174,8 @@ class CheckNorm:
         from uxarray.grid.validation import _check_normalization
         _check_normalization(self.uxgrid)
 
-class CrossSection:
-    param_names = DatasetBenchmark.param_names + ['lat_step']
+class CrossSections(DatasetBenchmark):
+    param_names = DatasetBenchmark.param_names + ['n_lat']
     params = DatasetBenchmark.params + [[1, 2, 4]]
 
     def setup(self, resolution, lat_step):
@@ -180,13 +184,6 @@ class CrossSection:
         self.lats = np.arange(-45, 45, lat_step)
         _ = self.uxgrid.bounds
 
-class CrossSections(DatasetBenchmark):
-    param_names = DatasetBenchmark.param_names + ['n_lat']
-    params = DatasetBenchmark.params + [[1, 2, 4, 8]]
-
-    def time_constant_lat_fast(self, resolution, n_lat):
-        for lat in np.linspace(-89, 89, n_lat):
-            self.uxds.uxgrid.constant_latitude_cross_section(lat, method='fast')
     def teardown(self, resolution, lat_step):
         del self.uxgrid
 

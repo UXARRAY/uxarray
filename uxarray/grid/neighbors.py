@@ -1,16 +1,11 @@
-import numpy as np
-from numpy import deg2rad
-
-import xarray as xr
-
-from numba import njit
-
-from sklearn.neighbors import BallTree as SKBallTree
-from sklearn.neighbors import KDTree as SKKDTree
-
 from typing import Optional, Union
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+import numpy as np
+import xarray as xr
+from numba import njit
+from numpy import deg2rad
+
+from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 
 
 class KDTree:
@@ -80,6 +75,7 @@ class KDTree:
     def _build_from_nodes(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from corner
         nodes."""
+        from sklearn.neighbors import KDTree as SKKDTree
 
         if self._tree_from_nodes is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -114,6 +110,7 @@ class KDTree:
     def _build_from_face_centers(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from face
         centers."""
+        from sklearn.neighbors import KDTree as SKKDTree
 
         if self._tree_from_face_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -148,6 +145,8 @@ class KDTree:
     def _build_from_edge_centers(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from edge
         centers."""
+        from sklearn.neighbors import KDTree as SKKDTree
+
         if self._tree_from_edge_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "cartesian":
@@ -468,6 +467,7 @@ class BallTree:
     def _build_from_face_centers(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from face
         centers."""
+        from sklearn.neighbors import BallTree as SKBallTree
 
         if self._tree_from_face_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -503,6 +503,7 @@ class BallTree:
     def _build_from_nodes(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from corner
         nodes."""
+        from sklearn.neighbors import BallTree as SKBallTree
 
         if self._tree_from_nodes is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -530,6 +531,8 @@ class BallTree:
     def _build_from_edge_centers(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from edge
         centers."""
+        from sklearn.neighbors import BallTree as SKBallTree
+
         if self._tree_from_edge_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "spherical":
@@ -779,6 +782,222 @@ class BallTree:
                 f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
                 f"or 'edge centers'"
             )
+
+
+class SpatialHash:
+    """Custom data structure that is used for performing grid searches using Spatial Hashing. This class constructs an overlying
+    uniformly spaced structured grid, called the "hash grid" on top an unstructured grid. Faces in the unstructured grid are related
+    to the cells in the hash grid by determining the hash cells the bounding box of the unstructured face cells overlap with.
+
+    Parameters
+    ----------
+    grid : ux.Grid
+        Source grid used to construct the hash grid and hash table
+    reconstruct : bool, default=False
+        If true, reconstructs the spatial hash
+
+    Note
+    ----
+    Does not currently support queries on periodic elements.
+    """
+
+    def __init__(
+        self,
+        grid,
+        reconstruct: bool = False,
+    ):
+        self._source_grid = grid
+        self._nelements = self._source_grid.n_face
+
+        self.reconstruct = reconstruct
+
+        # Hash grid size
+        self._dh = self._hash_cell_size()
+
+        # Lower left corner of the hash grid
+        lon_min = np.deg2rad(self._source_grid.node_lon.min().to_numpy())
+        lat_min = np.deg2rad(self._source_grid.node_lat.min().to_numpy())
+        lon_max = np.deg2rad(self._source_grid.node_lon.max().to_numpy())
+        lat_max = np.deg2rad(self._source_grid.node_lat.max().to_numpy())
+
+        self._xmin = lon_min - self._dh
+        self._ymin = lat_min - self._dh
+        self._xmax = lon_max + self._dh
+        self._ymax = lat_max + self._dh
+
+        # Number of x points in the hash grid; used for
+        # array flattening
+        Lx = self._xmax - self._xmin
+        Ly = self._ymax - self._ymin
+        self._nx = int(np.ceil(Lx / self._dh))
+        self._ny = int(np.ceil(Ly / self._dh))
+
+        # Generate the mapping from the hash indices to unstructured grid elements
+        self._face_hash_table = None
+        self._face_hash_table = self._initialize_face_hash_table()
+
+    def _hash_cell_size(self):
+        """Computes the size of the hash cells from the source grid.
+        The hash cell size is set to 1/2 of the median edge length in the grid (in radians)"""
+        return self._source_grid.edge_node_distances.median().to_numpy() * 0.5
+
+    def _hash_index2d(self, coords):
+        """Computes the 2-d hash index (i,j) for the location (x,y), where x and y are given in spherical
+        coordinates (in degrees)"""
+
+        i = ((coords[:, 0] - self._xmin) / self._dh).astype(INT_DTYPE)
+        j = ((coords[:, 1] - self._ymin) / self._dh).astype(INT_DTYPE)
+        return i, j
+
+    def _hash_index(self, coords):
+        """Computes the flattened hash index for the location (x,y), where x and y are given in spherical
+        coordinates (in degrees). The single dimensioned hash index orders the flat index with all of the
+        i-points first and then all the j-points."""
+        i, j = self._hash_index2d(coords)
+        return i + self._nx * j
+
+    def _initialize_face_hash_table(self):
+        """Create a mapping that relates unstructured grid faces to hash indices by determining
+        which faces overlap with which hash cells"""
+
+        if self._face_hash_table is None or self.reconstruct:
+            index_to_face = [[] for i in range(self._nx * self._ny)]
+            lon_bounds = np.sort(self._source_grid.face_bounds_lon.to_numpy(), 1)
+            lat_bounds = self._source_grid.face_bounds_lat.to_numpy()
+
+            coords = np.column_stack(
+                (
+                    np.deg2rad(lon_bounds[:, 0].flatten()),
+                    np.deg2rad(lat_bounds[:, 0].flatten()),
+                )
+            )
+            i1, j1 = self._hash_index2d(coords)
+            coords = np.column_stack(
+                (
+                    np.deg2rad(lon_bounds[:, 1].flatten()),
+                    np.deg2rad(lat_bounds[:, 1].flatten()),
+                )
+            )
+            i2, j2 = self._hash_index2d(coords)
+
+            try:
+                for eid in range(self._source_grid.n_face):
+                    for j in range(j1[eid], j2[eid] + 1):
+                        for i in range(i1[eid], i2[eid] + 1):
+                            index_to_face[i + self._nx * j].append(eid)
+            except IndexError:
+                raise IndexError(
+                    "list index out of range. This may indicate incorrect `edge_node_distances` values."
+                )
+
+            return index_to_face
+
+    def query(
+        self,
+        coords: Union[np.ndarray, list, tuple],
+        in_radians: Optional[bool] = False,
+        tol: Optional[float] = 1e-6,
+    ):
+        """Queries the hash table.
+
+        Parameters
+        ----------
+        coords : array_like
+            coordinate pairs in degrees (lon, lat) to query
+        in_radians : bool, optional
+            if True, queries assuming coords are inputted in radians, not degrees. Only applies to spherical coords
+
+
+        Returns
+        -------
+        faces : ndarray of shape (coords.shape[0]), dtype=INT_DTYPE
+            Face id's in the self._source_grid where each coords element is found. When a coords element is not found, the
+            corresponding array entry in faces is set to -1.
+        bcoords : ndarray of shape (coords.shape[0], self._source_grid.n_max_face_nodes), dtype=double
+            Barycentric coordinates of each coords element
+        """
+
+        coords = _prepare_xy_for_query(coords, in_radians, distance_metric=None)
+        num_coords = coords.shape[0]
+        max_nodes = self._source_grid.n_max_face_nodes
+
+        # Preallocate results
+        bcoords = np.zeros((num_coords, max_nodes), dtype=np.double)
+        faces = np.full(num_coords, -1, dtype=INT_DTYPE)
+
+        # Get grid variables
+        n_nodes_per_face = self._source_grid.n_nodes_per_face.to_numpy()
+        face_node_connectivity = self._source_grid.face_node_connectivity.to_numpy()
+
+        # Precompute radian values for node coordinates:
+        node_lon = np.deg2rad(self._source_grid.node_lon.to_numpy())
+        node_lat = np.deg2rad(self._source_grid.node_lat.to_numpy())
+
+        # Get the list of candidate faces for each coordinate
+        candidate_faces = [
+            self._face_hash_table[pid] for pid in self._hash_index(coords)
+        ]
+
+        for i, (coord, candidates) in enumerate(zip(coords, candidate_faces)):
+            for face_id in candidates:
+                n_nodes = n_nodes_per_face[face_id]
+                node_ids = face_node_connectivity[face_id, :n_nodes]
+                nodes = np.column_stack((node_lon[node_ids], node_lat[node_ids]))
+                bcoord = np.asarray(_barycentric_coordinates(nodes, coord))
+                err = abs(np.dot(bcoord, nodes[:, 0]) - coord[0]) + abs(
+                    np.dot(bcoord, nodes[:, 1]) - coord[1]
+                )
+                if (bcoord >= 0).all() and err < tol:
+                    faces[i] = face_id
+                    bcoords[i, :n_nodes] = bcoord[:n_nodes]
+                    break
+
+        return faces, bcoords
+
+
+@njit(cache=True)
+def _triangle_area(A, B, C):
+    """
+    Compute the area of a triangle given by three points.
+    """
+    return 0.5 * abs(A[0] * (B[1] - C[1]) + B[0] * (C[1] - A[1]) + C[0] * (A[1] - B[1]))
+
+
+@njit(cache=True)
+def _barycentric_coordinates(nodes, point):
+    """
+    Compute the barycentric coordinates of a point P inside a convex polygon using area-based weights.
+    So that this method generalizes to n-sided polygons, we use the Waschpress points as the generalized
+    barycentric coordinates, which is only valid for convex polygons.
+
+    Parameters
+    ----------
+        nodes : numpy.ndarray
+            Spherical coordinates (lon,lat) of each corner node of a face
+        point : numpy.ndarray
+            Spherical coordinates (lon,lat) of the point
+    Returns
+    -------
+    numpy.ndarray
+        Barycentric coordinates corresponding to each vertex.
+
+    """
+    n = len(nodes)
+    sum_wi = 0
+    w = []
+
+    for i in range(0, n):
+        vim1 = nodes[i - 1]
+        vi = nodes[i]
+        vi1 = nodes[(i + 1) % n]
+        a0 = _triangle_area(vim1, vi, vi1)
+        a1 = max(_triangle_area(point, vim1, vi), ERROR_TOLERANCE)
+        a2 = max(_triangle_area(point, vi, vi1), ERROR_TOLERANCE)
+        sum_wi += a0 / (a1 * a2)
+        w.append(a0 / (a1 * a2))
+    barycentric_coords = [w_i / sum_wi for w_i in w]
+
+    return barycentric_coords
 
 
 def _prepare_xy_for_query(xy, use_radians, distance_metric):

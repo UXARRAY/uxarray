@@ -161,6 +161,7 @@ Methods
    Grid.calculate_total_face_area
    Grid.normalize_cartesian_coordinates
    Grid.construct_face_centers
+   Grid.get_spatial_hash
    Grid.get_faces_containing_point
 
 Inheritance of Xarray Functionality
@@ -200,6 +201,7 @@ I/O & Conversion
    UxDataArray.to_polycollection
    UxDataArray.to_dataset
    UxDataArray.from_xarray
+   UxDataArray.from_healpix
 
 
 UxDataset
@@ -367,6 +369,7 @@ UxDataArray
    UxDataArray.remap
    UxDataArray.remap.nearest_neighbor
    UxDataArray.remap.inverse_distance_weighted
+   UxDataArray.remap.bilinear
 
 UxDataset
 ~~~~~~~~~
@@ -378,7 +381,7 @@ UxDataset
    UxDataset.remap
    UxDataset.remap.nearest_neighbor
    UxDataset.remap.inverse_distance_weighted
-
+   UxDataset.remap.bilinear
 
 Mathematical Operators
 ----------------------

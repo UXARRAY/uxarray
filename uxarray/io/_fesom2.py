@@ -1,9 +1,10 @@
-import pandas as pd
-import xarray as xr
 import os
 
-from uxarray.conventions import ugrid
+import pandas as pd
+import xarray as xr
+
 from uxarray.constants import INT_FILL_VALUE
+from uxarray.conventions import ugrid
 
 
 def _read_fesom2_asci(grid_path):
@@ -92,7 +93,7 @@ def _parse_nod2d(grid_path):
 
     nodes = pd.read_csv(
         file_path,
-        sep="\s+",
+        sep=r"\s+",
         skiprows=1,
         names=["node_number", "x", "y", "flag"],
     )
@@ -123,7 +124,7 @@ def _parse_elem2d(grid_path):
 
     file_content = pd.read_csv(
         file_path,
-        sep="\s+",
+        sep=r"\s+",
         skiprows=1,
         names=["first_elem", "second_elem", "third_elem"],
     )
@@ -153,7 +154,7 @@ def _parse_edge_tri(grid_path):
         return None
     file_content = pd.read_csv(
         file_path,
-        sep="\s+",
+        sep=r"\s+",
         skiprows=0,
         names=["first_elem", "second_elem"],
     )
@@ -184,7 +185,7 @@ def _parse_edges(grid_path):
         return None
     file_content = pd.read_csv(
         file_path,
-        sep="\s+",
+        sep=r"\s+",
         skiprows=0,
         names=["first_elem", "second_elem"],
     )

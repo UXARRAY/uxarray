@@ -1,11 +1,9 @@
 import numpy as np
 import xarray as xr
-
+from numba import njit
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
-
-from numba import njit
 
 
 def close_face_nodes(face_node_connectivity, n_face, n_max_face_nodes):

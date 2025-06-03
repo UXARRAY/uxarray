@@ -1,8 +1,8 @@
-import xarray as xr
 import numpy as np
+import xarray as xr
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.conventions import ugrid, descriptors
+from uxarray.conventions import descriptors, ugrid
 
 
 def _mpas_to_ugrid_dims(in_ds, primal=True):
@@ -403,7 +403,7 @@ def _parse_edge_faces(in_ds, out_ds, mesh_type):
 
 def _parse_edge_node_distances(in_ds, out_ds):
     """Parses ``edge_node_distances``"""
-    edge_node_distances = in_ds["dvEdge"]
+    edge_node_distances = in_ds["dvEdge"] / in_ds.attrs["sphere_radius"]
 
     out_ds["edge_node_distances"] = edge_node_distances.assign_attrs(
         descriptors.EDGE_NODE_DISTANCES_ATTRS
@@ -412,7 +412,7 @@ def _parse_edge_node_distances(in_ds, out_ds):
 
 def _parse_edge_face_distances(in_ds, out_ds):
     """Parses ``edge_face_distances``"""
-    edge_face_distances = in_ds["dcEdge"]
+    edge_face_distances = in_ds["dcEdge"] / in_ds.attrs["sphere_radius"]
 
     out_ds["edge_face_distances"] = edge_face_distances.assign_attrs(
         descriptors.EDGE_FACE_DISTANCES_ATTRS
