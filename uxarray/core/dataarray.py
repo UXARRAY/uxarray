@@ -7,6 +7,7 @@ from warnings import warn
 
 import numpy as np
 import xarray as xr
+from cartopy.mpl.geoaxes import GeoAxes
 from xarray.core import dtypes
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
@@ -31,6 +32,8 @@ from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
 
 if TYPE_CHECKING:
+    import numpy as np
+
     from uxarray.core.dataset import UxDataset
 
 
@@ -336,6 +339,61 @@ class UxDataArray(xr.DataArray):
                 return poly_collection
         else:
             raise ValueError("Data variable must be face centered.")
+
+    def rasterize_to_geoaxes(self, ax: GeoAxes):
+        """
+        Rasterizes a data variable stored on the faces of an unstructured grid onto the pixels of the provided GeoAxes.
+
+        Parameters
+        ----------
+        ax : GeoAxes
+            A Cartopy GeoAxes onto which the data will be rasterized. Each pixel in this axes will be sampled
+            against the unstructured grid’s face geometry.
+
+        Returns
+        -------
+        res : numpy.ndarray, shape (ny, nx)
+            Array of resampled data values corresponding to each pixel.
+
+
+        Notes
+        -----
+        - This method currently employs a nearest-neighbor resampling approach. For every pixel in the GeoAxes,
+          it finds the face of the unstructured grid that contains the pixel’s geographic coordinate and colors
+          that pixel with the face’s data value.
+        - If a pixel does not intersect any face (i.e., lies outside the grid domain), it will be left empty (transparent).
+
+
+        Example
+        -------
+        >>> import cartopy.crs as ccrs
+        >>> import matplotlib.pyplot as plt
+
+        Create a GeoAxes with a Robinson projection and global extent
+
+        >>> fig, ax = plt.subplots(subplot_kw={"projection": ccrs.Robinson()})
+        >>> ax.set_global()
+
+        Rasterize data onto the GeoAxes
+
+        >>> raster = uxds["psi"].rasterize_to_geoaxes(ax=ax)
+
+        Use Imshow to visualuze the raster
+
+        >>> ax.imshow(raster, origin="lower", extent=ax.get_xlim() + ax.get_ylim())
+
+
+        """
+        from uxarray.plot.matplotlib import (
+            _ensure_dimensions,
+            _nearest_neighbor_resample,
+        )
+
+        _ensure_dimensions(self)
+
+        if not isinstance(ax, GeoAxes):
+            raise ValueError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
+        return _nearest_neighbor_resample(self, ax)
 
     def to_dataset(
         self,

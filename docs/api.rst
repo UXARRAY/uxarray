@@ -237,11 +237,13 @@ Plotting
 --------
 
 
-UXarray's plotting API is written using `hvPlot <https://hvplot.holoviz.org/>`_.
+UXarray's plotting API is written using `hvPlot <https://hvplot.holoviz.org/>`_. We also support standalone functions
+for pure Matplotlib and Cartopy workflows.
 
 .. seealso::
 
     `Plotting User Guide Section <https://uxarray.readthedocs.io/en/latest/user-guide/plotting.html>`_
+    `Plotting with Matplotlib User Guide Section <https://uxarray.readthedocs.io/en/latest/user-guide/mpl.html>`_
 
 Grid
 ~~~~
@@ -284,6 +286,15 @@ UxDataset
    :template: autosummary/accessor_method.rst
 
    UxDataset.plot
+
+Standalone Functions
+~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+   :template: autosummary/accessor_method.rst
+
+   uxarray.plot.imshow
 
 
 
