@@ -2,58 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import cartopy.crs as ccrs
-import matplotlib.pylab as plt
 import numpy as np
-from cartopy.mpl import geoaxes
 
 if TYPE_CHECKING:
-    from cartopy.mpl.geoaxes import GeoAxes
-
     from uxarray import UxDataArray
-
-
-def imshow(
-    data: UxDataArray,
-    ax: GeoAxes = None,
-    *,
-    projection: ccrs.CRS = ccrs.PlateCarree(),
-    **kwargs,
-) -> plt.AxesImage:
-    """
-    Render a UxDataArray onto a GeoAxes by sampling the unstructured grid onto a screen-space grid.
-
-    If `ax` is None or not a GeoAxes, a new figure/GeoAxes will be created with the given projection.
-
-    Parameters
-    ----------
-    data
-        Unstructured-grid data array to render.
-    ax
-        A Cartopy GeoAxes (or None to create one).
-    projection
-        The map projection to use if creating a new axes.
-    **kwargs
-        Passed through to `ax.imshow` (e.g., cmap, vmin, vmax).
-
-    Returns
-    -------
-    The AxesImage returned by `ax.imshow`.
-    """
-    _ensure_dimensions(data)
-    ax = _ensure_geoaxes(ax, projection=projection)
-    fig = ax.get_figure()
-    fig.canvas.draw()
-
-    sampled = _nearest_neighbor_resample(data, ax)
-    im = ax.imshow(
-        sampled,
-        origin="lower",
-        extent=ax.get_xlim() + ax.get_ylim(),
-        **kwargs,
-    )
-
-    return im
 
 
 def _ensure_dimensions(data: UxDataArray) -> UxDataArray:
@@ -79,22 +31,6 @@ def _ensure_dimensions(data: UxDataArray) -> UxDataArray:
         raise ValueError(f"Expected dimension 'n_face', but got '{data.dims[0]}'")
 
     return data
-
-
-def _ensure_geoaxes(
-    ax,
-    *,
-    projection,
-) -> GeoAxes:
-    """
-    Return a GeoAxes. If `ax` is already a GeoAxes, return it; otherwise
-    create a new figure & GeoAxes with the given projection.
-    """
-    if isinstance(ax, geoaxes.GeoAxes):
-        return ax
-
-    fig, ax = plt.subplots(subplot_kw={"projection": projection})
-    return ax
 
 
 def _get_points_from_axis(ax):
