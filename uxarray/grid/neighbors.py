@@ -1097,7 +1097,7 @@ def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
 def _populate_edge_face_distances(grid):
     """Populates ``edge_face_distances``"""
     edge_face_distances = _construct_edge_face_distances(
-        grid.node_lon.values, grid.node_lat.values, grid.edge_face_connectivity.values
+        grid.face_lon.values, grid.face_lat.values, grid.edge_face_connectivity.values
     )
 
     grid._ds["edge_face_distances"] = xr.DataArray(
@@ -1110,7 +1110,7 @@ def _populate_edge_face_distances(grid):
 
 
 @njit(cache=True)
-def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
+def _construct_edge_face_distances(face_lon, face_lat, edge_faces):
     """Helper for computing the arc-distance between faces that saddle a given
     edge."""
 
@@ -1118,11 +1118,11 @@ def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
 
     edge_face_distances = np.zeros(edge_faces.shape[0])
 
-    edge_lon_a = np.deg2rad((node_lon[edge_faces[saddle_mask, 0]]))
-    edge_lon_b = np.deg2rad((node_lon[edge_faces[saddle_mask, 1]]))
+    edge_lon_a = np.deg2rad((face_lon[edge_faces[saddle_mask, 0]]))
+    edge_lon_b = np.deg2rad((face_lon[edge_faces[saddle_mask, 1]]))
 
-    edge_lat_a = np.deg2rad((node_lat[edge_faces[saddle_mask, 0]]))
-    edge_lat_b = np.deg2rad((node_lat[edge_faces[saddle_mask, 1]]))
+    edge_lat_a = np.deg2rad((face_lat[edge_faces[saddle_mask, 0]]))
+    edge_lat_b = np.deg2rad((face_lat[edge_faces[saddle_mask, 1]]))
 
     # arc length
     edge_face_distances[saddle_mask] = np.arccos(
