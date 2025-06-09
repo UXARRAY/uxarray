@@ -123,14 +123,15 @@ def test_healpix_to_netcdf():
 
     # Test saving to netCDF with temporary file
     with tempfile.NamedTemporaryFile(suffix='.nc', delete=False) as tmp_file:
+        tmp_filename = tmp_file.name
         try:
-            uxa.to_netcdf(tmp_file.name)
-            assert os.path.exists(tmp_file.name)
-            assert os.path.getsize(tmp_file.name) > 0
+            uxa.to_netcdf(tmp_filename)
+            assert os.path.exists(tmp_filename)
+            assert os.path.getsize(tmp_filename) > 0
 
             # Load the saved file and check face count matches
-            loaded_grid = ux.open_grid(tmp_file.name)
+            loaded_grid = ux.open_grid(tmp_filename)
             assert loaded_grid.n_face == h.n_face
         finally:
-            if os.path.exists(tmp_file.name):
+            if os.path.exists(tmp_filename):
                 os.unlink(tmp_file.name)
