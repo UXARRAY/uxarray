@@ -277,6 +277,7 @@ UxDataArray
    UxDataArray.plot.points
    UxDataArray.plot.line
    UxDataArray.plot.scatter
+   UxDataArray.rasterize_to_geoaxes
 
 UxDataset
 ~~~~~~~~~
