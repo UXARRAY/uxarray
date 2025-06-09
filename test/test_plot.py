@@ -5,7 +5,8 @@ import pytest
 from pathlib import Path
 import numpy as np
 
-from matplotlib.image import AxesImage
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
@@ -96,19 +97,16 @@ def test_scatter():
 
 
 
-# class TestImshow:
-#     def test_returns_axes_image(self):
-#         ds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
-#         im = imshow(ds["bottomDepth"])
-#         assert isinstance(im, AxesImage)
-#
-#     def test_invalid_dims_raises_value_error(self):
-#         # create a dummy UxDataArray with a non-n_face dim
-#         uxda = ux.UxDataArray(data=np.ones(10), dims=["foo"])
-#         with pytest.raises(ValueError):
-#             imshow(uxda)
-#
-#     def test_invalid_param(self):
-#         ds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
-#         with pytest.raises(AttributeError):
-#             im = imshow(ds["bottomDepth"], bad_param="foo")
+def test_rasterize_to_geoaxes():
+
+    fig, ax = plt.subplots(
+        subplot_kw={'projection': ccrs.Robinson()},
+        constrained_layout=True,
+        figsize=(10, 5),
+    )
+
+    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+
+    raster = uxds['bottomDepth'].rasterize_to_geoaxes(ax=ax)
+
+    assert isinstance(raster, np.ndarray)
