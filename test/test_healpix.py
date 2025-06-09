@@ -124,6 +124,7 @@ def test_healpix_to_netcdf():
     # Test saving to netCDF with temporary file
     with tempfile.NamedTemporaryFile(suffix='.nc', delete=False) as tmp_file:
         tmp_filename = tmp_file.name
+        tmp_file.close()
         try:
             uxa.to_netcdf(tmp_filename)
             assert os.path.exists(tmp_filename)
@@ -134,4 +135,4 @@ def test_healpix_to_netcdf():
             assert loaded_grid.n_face == h.n_face
         finally:
             if os.path.exists(tmp_filename):
-                os.unlink(tmp_file.name)
+                os.unlink(tmp_filename)
