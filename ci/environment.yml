@@ -18,7 +18,7 @@ dependencies:
   - matplotlib-inline
   - netcdf4
   - numba
-  - numpy
+  - numpy<2.3
   - pandas
   - pathlib
   - pre_commit
