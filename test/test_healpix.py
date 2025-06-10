@@ -1,7 +1,6 @@
 import uxarray as ux
 import healpix as hp
 import numpy as np
-import tempfile
 import pytest
 import os
 import xarray as xr
@@ -107,16 +106,24 @@ def test_healpix_to_netcdf(tmp_path):
     """
     # Create HEALPix grid
     h = ux.Grid.from_healpix(zoom=3)
-    uxa = h.encode_as("UGRID")
+    uxa_ugrid = h.encode_as("UGRID")
+    uxa_exodus = h.encode_as("Exodus")
 
-    tmp_filename = tmp_path / "healpix_test.nc"
+
+    tmp_filename_ugrid = tmp_path / "healpix_test_ugrid.nc"
+    tmp_filename_exodus = tmp_path / "healpix_test_exodus.exo"
 
     # Save to netCDF
-    uxa.to_netcdf(tmp_filename)
+    uxa_ugrid.to_netcdf(tmp_filename_ugrid)
+    uxa_exodus.to_netcdf(tmp_filename_exodus)
 
     # Assertions
-    assert tmp_filename.exists()
-    assert tmp_filename.stat().st_size > 0
+    assert tmp_filename_ugrid.exists()
+    assert tmp_filename_ugrid.stat().st_size > 0
+    assert tmp_filename_exodus.exists()
+    assert tmp_filename_exodus.stat().st_size > 0
 
-    loaded_grid = ux.open_grid(tmp_filename)
-    assert loaded_grid.n_face == h.n_face
+    loaded_grid_ugrid = ux.open_grid(tmp_filename_ugrid)
+    loaded_grid_exodus = ux.open_grid(tmp_filename_exodus)
+    assert loaded_grid_ugrid.n_face == h.n_face
+    assert loaded_grid_exodus.n_face == h.n_face
