@@ -101,38 +101,22 @@ def test_invalid_cells():
     with pytest.raises(ValueError):
         uxda = ux.UxDataset.from_healpix(xrda)
 
-def test_healpix_to_netcdf():
+def test_healpix_to_netcdf(tmp_path):
     """Test that HEALPix grid can be encoded as UGRID and saved to netCDF.
-    """
-
-import pytest
-import tempfile
-import os
-import uxarray as ux
-
-
-def test_healpix_to_netcdf():
-    """Test that HEALPix grid can be encoded as UGRID and saved to netCDF.
-
-    This test addresses the bug fixed in PR #1282 where to_netcdf would fail
-    after creating a HEALPix mesh.
+       Using pytest tmp_path fixture to create a temporary file.
     """
     # Create HEALPix grid
     h = ux.Grid.from_healpix(zoom=3)
     uxa = h.encode_as("UGRID")
 
-    # Test saving to netCDF with temporary file
-    with tempfile.NamedTemporaryFile(suffix='.nc', delete=False) as tmp_file:
-        tmp_filename = tmp_file.name
-        tmp_file.close()
-        try:
-            uxa.to_netcdf(tmp_filename)
-            assert os.path.exists(tmp_filename)
-            assert os.path.getsize(tmp_filename) > 0
+    tmp_filename = tmp_path / "healpix_test.nc"
 
-            # Load the saved file and check face count matches
-            loaded_grid = ux.open_grid(tmp_filename)
-            assert loaded_grid.n_face == h.n_face
-        finally:
-            if os.path.exists(tmp_filename):
-                os.unlink(tmp_filename)
+    # Save to netCDF
+    uxa.to_netcdf(tmp_filename)
+
+    # Assertions
+    assert tmp_filename.exists()
+    assert tmp_filename.stat().st_size > 0
+
+    loaded_grid = ux.open_grid(tmp_filename)
+    assert loaded_grid.n_face == h.n_face
