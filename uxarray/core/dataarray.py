@@ -284,7 +284,7 @@ class UxDataArray(xr.DataArray):
 
     def to_raster(self, ax: GeoAxes):
         """
-        Rasterizes a data variable stored on the faces of an unstructured grid onto the pixels of the provided GeoAxes.
+        Rasterizes a data variable stored on the faces of an unstructured grid onto the pixels of the provided Cartopy GeoAxes.
 
         Parameters
         ----------
@@ -294,7 +294,7 @@ class UxDataArray(xr.DataArray):
 
         Returns
         -------
-        res : numpy.ndarray, shape (ny, nx)
+        raster : numpy.ndarray, shape (ny, nx)
             Array of resampled data values corresponding to each pixel.
 
 
@@ -335,6 +335,7 @@ class UxDataArray(xr.DataArray):
 
         if not isinstance(ax, GeoAxes):
             raise ValueError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
+
         return _nearest_neighbor_resample(self, ax)
 
     def to_dataset(
