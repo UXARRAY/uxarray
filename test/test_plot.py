@@ -107,6 +107,6 @@ def test_rasterize_to_geoaxes():
 
     uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
 
-    raster = uxds['bottomDepth'].rasterize_to_geoaxes(ax=ax)
+    raster = uxds['bottomDepth'].to_raster(ax=ax)
 
     assert isinstance(raster, np.ndarray)

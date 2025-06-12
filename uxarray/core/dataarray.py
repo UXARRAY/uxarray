@@ -282,7 +282,7 @@ class UxDataArray(xr.DataArray):
 
         return poly_collection
 
-    def rasterize_to_geoaxes(self, ax: GeoAxes):
+    def to_raster(self, ax: GeoAxes):
         """
         Rasterizes a data variable stored on the faces of an unstructured grid onto the pixels of the provided GeoAxes.
 
@@ -318,7 +318,7 @@ class UxDataArray(xr.DataArray):
 
         Rasterize data onto the GeoAxes
 
-        >>> raster = uxds["psi"].rasterize_to_geoaxes(ax=ax)
+        >>> raster = uxds["psi"].to_raster(ax=ax)
 
         Use Imshow to visualuze the raster
 
