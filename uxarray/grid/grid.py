@@ -206,22 +206,9 @@ class Grid:
             "antimeridian_face_indices": None,
         }
 
-        # cached parameters for PolyCollection conversions
-        self._poly_collection_cached_parameters = {
-            "poly_collection": None,
-            "periodic_elements": None,
-            "projection": None,
-            "corrected_to_original_faces": None,
-            "non_nan_polygon_indices": None,
-            "antimeridian_face_indices": None,
-        }
-
-        # cached parameters for LineCollection conversions
-        self._line_collection_cached_parameters = {
-            "line_collection": None,
-            "periodic_elements": None,
-            "projection": None,
-        }
+        # Cached matplotlib data structures
+        self._cached_poly_collection = None
+        self._cached_line_collection = None
 
         self._raster_data_id = None
 
@@ -2194,6 +2181,9 @@ class Grid:
         """
         import cartopy.crs as ccrs
 
+        if self._cached_poly_collection:
+            return copy.deepcopy(self._cached_poly_collection)
+
         (
             poly_collection,
             corrected_to_original_faces,
@@ -2202,6 +2192,7 @@ class Grid:
         )
 
         poly_collection.set_transform(ccrs.Geodetic())
+        self._cached_poly_collection = poly_collection
 
         return copy.deepcopy(poly_collection)
 
@@ -2219,6 +2210,9 @@ class Grid:
         """
         import cartopy.crs as ccrs
 
+        if self._cached_line_collection:
+            return copy.deepcopy(self._cached_line_collection)
+
         line_collection = _grid_to_matplotlib_linecollection(
             grid=self,
             periodic_elements="ingore",
@@ -2228,7 +2222,9 @@ class Grid:
 
         line_collection.set_transform(ccrs.Geodetic())
 
-        return line_collection
+        self._cached_line_collection = line_collection
+
+        return copy.deepcopy(line_collection)
 
     def get_dual(self, check_duplicate_nodes: bool = False):
         """Compute the dual for a grid, which constructs a new grid centered
