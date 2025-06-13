@@ -1864,7 +1864,6 @@ class Grid:
         warn(
             "Grid.encode_as will be deprecated in a future release. Please use Grid.to_xarray instead."
         )
-        grid_type = grid_type.lower()
         # Node boundaries/coords are not populated by default. Accessing node_lon will trigger their population.
         # Do this before encoding to ensure that the node boundaries/coords are populated.
         _ = self.node_lon
