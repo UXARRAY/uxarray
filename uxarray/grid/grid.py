@@ -1867,8 +1867,7 @@ class Grid:
         grid_type = grid_type.lower()
         # Node boundaries/coords are not populated by default. Accessing node_lon will trigger their population.
         # Do this before encoding to ensure that the node boundaries/coords are populated.
-        if "node_lon" not in self._ds.variables:
-            _ = self.node_lon
+        _ = self.node_lon
 
         grid_type = grid_type.lower()
 
