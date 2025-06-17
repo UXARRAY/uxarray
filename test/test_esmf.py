@@ -1,4 +1,5 @@
 import uxarray as ux
+import xarray as xr
 import os
 from pathlib import Path
 import pytest
@@ -7,6 +8,8 @@ current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 esmf_ne30_grid_path = current_path / 'meshfiles' / "esmf" / "ne30" / "ne30pg3.grid.nc"
 esmf_ne30_data_path = current_path / 'meshfiles' / "esmf" / "ne30" / "ne30pg3.data.nc"
+gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+
 
 def test_read_esmf():
     """Tests the reading of an ESMF grid file and its encoding into the UGRID
@@ -35,3 +38,11 @@ def test_read_esmf_dataset():
 
     for dim in dims:
         assert dim in uxds.dims
+
+def test_write_esmf():
+    """Tests the writing of a UxDataset to an ESMF Grid file."""
+    uxds = ux.open_grid(gridfile_ne30)
+    out_ds = uxds.encode_as("ESMF")
+    assert isinstance(out_ds, xr.Dataset)
+    assert 'nodeCoords' in out_ds
+    assert 'elementConn' in out_ds

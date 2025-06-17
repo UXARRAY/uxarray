@@ -76,7 +76,7 @@ from uxarray.io._delaunay import (
     _regional_delaunay_from_points,
     _spherical_delaunay_from_points,
 )
-from uxarray.io._esmf import _read_esmf
+from uxarray.io._esmf import _encode_esmf, _read_esmf
 
 # reader and writer imports
 from uxarray.io._exodus import _encode_exodus, _read_exodus
@@ -1878,6 +1878,8 @@ class Grid:
                 self.node_lat,
                 self.face_areas,
             )
+        elif grid_type == "ESMF":
+            out_ds = _encode_esmf(self._ds)
         else:
             raise RuntimeError("The grid type not supported: ", grid_type)
 
