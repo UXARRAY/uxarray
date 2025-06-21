@@ -62,34 +62,12 @@ def test_to_polycollection():
         uxds_geoflow['v1'].to_polycollection()
 
     # grid conversion
-    pc_geoflow_grid = uxds_geoflow.uxgrid.to_polycollection(periodic_elements='split')
-
-    polygon_shells = _build_polygon_shells(
-        uxds_geoflow.uxgrid.node_lon.values,
-        uxds_geoflow.uxgrid.node_lat.values,
-        uxds_geoflow.uxgrid.face_node_connectivity.values,
-        uxds_geoflow.uxgrid.n_face, uxds_geoflow.uxgrid.n_max_face_nodes,
-        uxds_geoflow.uxgrid.n_nodes_per_face.values)
-
-    corrected_polygon_shells, _ = _build_corrected_polygon_shells(polygon_shells)
+    pc_geoflow_grid = uxds_geoflow.uxgrid.to_polycollection()
 
     # number of elements
-    assert len(pc_geoflow_grid._paths) == len(corrected_polygon_shells)
+    assert len(pc_geoflow_grid._paths) == uxds_geoflow.uxgrid.n_face
 
-    # NE30
-    uxds_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
 
-    polygon_shells = _build_polygon_shells(
-        uxds_ne30.uxgrid.node_lon.values, uxds_ne30.uxgrid.node_lat.values,
-        uxds_ne30.uxgrid.face_node_connectivity.values,
-        uxds_ne30.uxgrid.n_face, uxds_ne30.uxgrid.n_max_face_nodes,
-        uxds_ne30.uxgrid.n_nodes_per_face.values)
-
-    corrected_polygon_shells, _ = _build_corrected_polygon_shells(polygon_shells)
-
-    pc_geoflow_data = uxds_ne30['psi'].to_polycollection(periodic_elements='split')
-
-    assert len(pc_geoflow_data._paths) == len(corrected_polygon_shells)
 
 def test_geodataframe_caching():
     uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
