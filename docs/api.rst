@@ -197,6 +197,7 @@ I/O & Conversion
 .. autosummary::
    :toctree: generated/
 
+   UxDataArray.to_raster
    UxDataArray.to_geodataframe
    UxDataArray.to_polycollection
    UxDataArray.to_dataset
@@ -287,15 +288,6 @@ UxDataset
    :template: autosummary/accessor_method.rst
 
    UxDataset.plot
-
-Standalone Functions
-~~~~~~~~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: generated/
-   :template: autosummary/accessor_method.rst
-
-   uxarray.plot.imshow
 
 
 
