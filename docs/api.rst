@@ -211,7 +211,7 @@ Grid Accessor
 Conversion Methods
 ------------------
 
-UXarray provides functionality to convert to other data formats to enable workflows with existing tools, such as
+UXarray provides functionality to convert its unstructured grids representation to other data structures that can be ingested by existing, widely used tools, such as Matplotlib and Cartopy. This allows users to keep using their workflows with such tools.
 Matplotlib and Cartopy.
 
 
