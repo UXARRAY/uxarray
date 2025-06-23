@@ -36,8 +36,8 @@ class GridPlotAccessor:
             # If we have faces, use the existing edges plotting
             return self.edges(**kwargs)
         elif self._uxgrid.n_edge > 0:
-            # If we have edges but no faces, plot linestrings
-            return self.linestrings(**kwargs)
+            # If we have edges but no faces, plot edges
+            return self.edges(**kwargs)
         else:
             # If we only have nodes, plot points
             return self.points(**kwargs)
@@ -48,16 +48,16 @@ class GridPlotAccessor:
 
         This function retrieves longitude and latitude values for the specified element type
         from the grid (e.g., node, face, or edge locations), converts them into a pandas
-        DataFrame, and creates a point plot using `hvplot`. The backend for plotting can
-        also be specified, and additional plotting options are accepted through `kwargs`.
+        DataFrame, and creates a point plot using `hvplot`. The plotting backend can be
+        specified, and additional customization can be applied through keyword arguments.
 
         Parameters
         ----------
         element : str, optional, default="nodes"
-            The type of grid element for which to retrieve points. Options include:
-            - "nodes" or "corner nodes" or "node_latlon" for grid nodes,
-            - "faces" or "face centers" or "face_latlon" for grid face centers,
-            - "edges" or "edge centers" or "edge_latlon" for grid edges.
+            Specifies the type of grid element to plot. Options are:
+            - "nodes": Plot the grid corner nodes,
+            - "faces": Plot the grid face center coordinates,
+            - "edges": Plot the grid edge center coordinates.
         backend : str or None, optional
             Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         **kwargs : dict
@@ -67,40 +67,43 @@ class GridPlotAccessor:
         Returns
         -------
         gdf.hvplot.points : hvplot.points
-            A point plot of the selected coordinate
+            A point plot of the specified grid elements
 
         Raises
         ------
         ValueError
-            If the provided `element` is not one of the accepted options.
+            If the specified element type is not supported.
         """
         import cartopy.crs as ccrs
 
         plotting_backend.assign(backend)
 
-        if element in ["nodes", "corner nodes", "node_latlon"]:
-            lon, lat = self._uxgrid.node_lon.values, self._uxgrid.node_lat.values
-        elif element in ["faces", "face centers", "face_latlon"]:
-            lon, lat = self._uxgrid.face_lon.values, self._uxgrid.face_lat.values
-        elif element in ["edges", "edge centers", "edge_latlon"]:
-            lon, lat = self._uxgrid.edge_lon.values, self._uxgrid.edge_lat.values
+        if element == "nodes":
+            verts = {
+                "lon": self._uxgrid.node_lon.values,
+                "lat": self._uxgrid.node_lat.values,
+            }
+        elif element == "faces":
+            verts = {
+                "lon": self._uxgrid.face_lon.values,
+                "lat": self._uxgrid.face_lat.values,
+            }
+        elif element == "edges":
+            verts = {
+                "lon": self._uxgrid.edge_lon.values,
+                "lat": self._uxgrid.edge_lat.values,
+            }
         else:
             raise ValueError(f"Unsupported element {element}")
 
-        # Set default kwargs for better visualization
-        if "color" not in kwargs:
-            kwargs["color"] = "blue"
-        if "size" not in kwargs:
-            kwargs["size"] = 50
-        if "title" not in kwargs:
-            if self._uxgrid.n_face == 0 and self._uxgrid.n_edge == 0:
-                kwargs["title"] = "Points"
-            else:
-                kwargs["title"] = f"{element.capitalize()}"
+        # Set geo-specific defaults for geographic visualization
+        if "geo" not in kwargs:
+            kwargs["geo"] = True
 
-        # Set projection defaults
+        # Set projection defaults for geographic plotting
         if "projection" not in kwargs:
             kwargs["projection"] = ccrs.PlateCarree()
+
         if "crs" not in kwargs:
             if "projection" in kwargs:
                 central_longitude = kwargs["projection"].proj4_params.get("lon_0", 0.0)
@@ -108,20 +111,17 @@ class GridPlotAccessor:
                 central_longitude = 0.0
             kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
-        verts = {"lon": lon, "lat": lat}
-
         points_df = pd.DataFrame.from_dict(verts)
 
-        return points_df.hvplot.points("lon", "lat", geo=True, **kwargs)
+        return points_df.hvplot.points("lon", "lat", **kwargs)
 
     def nodes(self, backend=None, **kwargs):
         """Generate a point plot for the grid corner nodes.
 
-        This function is a convenience wrapper around the `points` method, specifically
-        for plotting the grid nodes. It retrieves the longitude and latitude values
-        corresponding to the grid nodes and generates a point plot using `hvplot`. The
-        backend for plotting can also be specified, and additional plotting options
-        are accepted through `kwargs`.
+        This function retrieves longitude and latitude values for the corner nodes of the grid,
+        converts them into a pandas DataFrame, and creates a point plot using `hvplot`. The
+        plotting backend can be specified, and additional customization can be applied through
+        keyword arguments.
 
         Parameters
         ----------
@@ -136,7 +136,6 @@ class GridPlotAccessor:
         gdf.hvplot.points : hvplot.points
             A point plot of the corner node coordinates
         """
-
         return self.points(element="nodes", backend=backend, **kwargs)
 
     def node_coords(self, backend=None, **kwargs):
@@ -150,7 +149,12 @@ class GridPlotAccessor:
     corner_nodes.__doc__ = nodes.__doc__
 
     def edge_coords(self, backend=None, **kwargs):
-        """Wrapper for ``Grid.plot.points(element='edge centers')``
+        """Generate a point plot for the grid edge center coordinates.
+
+        This function retrieves longitude and latitude values for the edge centers of the grid,
+        converts them into a pandas DataFrame, and creates a point plot using `hvplot`. The
+        plotting backend can be specified, and additional customization can be applied through
+        keyword arguments.
 
         Parameters
         ----------
@@ -173,7 +177,12 @@ class GridPlotAccessor:
     edge_centers.__doc__ = edge_coords.__doc__
 
     def face_coords(self, backend=None, **kwargs):
-        """Wrapper for ``Grid.plot.points(element='face centers')``
+        """Generate a point plot for the grid face center coordinates.
+
+        This function retrieves longitude and latitude values for the face centers of the grid,
+        converts them into a pandas DataFrame, and creates a point plot using `hvplot`. The
+        plotting backend can be specified, and additional customization can be applied through
+        keyword arguments.
 
         Parameters
         ----------
@@ -202,13 +211,12 @@ class GridPlotAccessor:
         engine="spatialpandas",
         **kwargs,
     ):
-        """Plots the edges of a Grid.
+        """Plots the edges of a Grid as LineString geometries.
 
         This function plots the edges of the grid as geographical paths using `hvplot`.
         The plot can ignore, exclude, or split periodic elements based on the provided option.
-        It automatically sets default values for rasterization, projection, and labeling,
-        which can be overridden by passing additional keyword arguments. The backend for
-        plotting can also be specified.
+        It automatically sets default values for geographic plotting which can be overridden
+        by passing additional keyword arguments. The backend for plotting can also be specified.
 
         Parameters
         ----------
@@ -219,7 +227,8 @@ class GridPlotAccessor:
             - "ignore": Include periodic elements without any corrections
             - "split": Split periodic elements.
         backend : str or None, optional
-            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
+            Plotting backend to use. One of ['matplotlib', 'bokeh'].
+            Equivalent to running holoviews.extension(backend)
         engine: str, optional
             Engine to use for GeoDataFrame construction. One of ['spatialpandas', 'geopandas']
         **kwargs : dict
@@ -233,12 +242,21 @@ class GridPlotAccessor:
         Returns
         -------
         gdf.hvplot.paths : hvplot.paths
-            A paths plot of the edges of the unstructured grid
+            A paths plot of the edges (LineString geometries) of the unstructured grid
+
+        Notes
+        -----
+        This function creates proper LineString geometries from the grid edges, suitable for
+        geographic visualization and analysis. If no edges are available, falls back to
+        plotting grid nodes as points.
         """
         import cartopy.crs as ccrs
 
         plotting_backend.assign(backend)
 
+        # Set geo-specific defaults only
+        if "geo" not in kwargs:
+            kwargs["geo"] = True
         if "rasterize" not in kwargs:
             kwargs["rasterize"] = False
         if "projection" not in kwargs:
@@ -252,14 +270,61 @@ class GridPlotAccessor:
                 central_longitude = 0.0
             kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
-        gdf = self._uxgrid.to_geodataframe(
-            periodic_elements=periodic_elements,
-            projection=kwargs.get("projection"),
-            engine=engine,
-            project=False,
-        )
+        # Check if edges are available
+        if self._uxgrid.n_edge > 0:
+            try:
+                # Use the robust to_geodataframe approach
+                gdf = self._uxgrid.to_geodataframe(
+                    periodic_elements=periodic_elements,
+                    projection=kwargs.get("projection"),
+                    engine=engine,
+                    project=False,
+                )
 
-        return gdf.hvplot.paths(geo=True, **kwargs)
+                # Check if the GeoDataFrame is empty or has no valid geometries
+                if len(gdf) == 0 or gdf.geometry.empty:
+                    raise ValueError("to_geodataframe returned empty result")
+
+                return gdf.hvplot.paths(**kwargs)
+
+            except (AttributeError, KeyError, ValueError) as e:
+                # Fallback to manual construction if to_geodataframe fails or returns empty result
+                if hasattr(self._uxgrid, "edge_node_connectivity"):
+                    edge_conn = self._uxgrid.edge_node_connectivity.values
+                    node_lon = self._uxgrid.node_lon.values
+                    node_lat = self._uxgrid.node_lat.values
+
+                    import geopandas as gpd
+                    from shapely.geometry import LineString
+
+                    geometries = []
+                    for i, edge in enumerate(edge_conn):
+                        start_node, end_node = edge
+                        if start_node >= 0 and end_node >= 0:  # Ensure valid indices
+                            line = LineString(
+                                [
+                                    (node_lon[start_node], node_lat[start_node]),
+                                    (node_lon[end_node], node_lat[end_node]),
+                                ]
+                            )
+                            geometries.append(line)
+
+                    # Create a GeoDataFrame with manual LineString geometries
+                    if geometries:
+                        gdf = gpd.GeoDataFrame(geometry=geometries, crs="EPSG:4326")
+                        return gdf.hvplot.paths(**kwargs)
+                    else:
+                        raise ValueError("No valid edge geometries could be created")
+                else:
+                    raise e
+
+        # Fallback to points if no edges are available
+        import warnings
+        warnings.warn(
+            "No edges available in grid. Falling back to plotting nodes as points.",
+            UserWarning
+        )
+        return self.points(**kwargs)
 
     def mesh(self, periodic_elements="exclude", backend=None, **kwargs):
         return self.edges(periodic_elements, backend, **kwargs)
@@ -339,95 +404,6 @@ class GridPlotAccessor:
         )
 
         return histogram
-
-    def linestrings(
-        self,
-        periodic_elements="exclude",
-        backend=None,
-        engine="spatialpandas",
-        **kwargs,
-    ):
-        """Plots the LineString geometries of a Grid.
-
-        This function plots the line segments of the grid as geographical paths using `hvplot`.
-        It automatically sets default values for projection and styling which can be overridden
-        by passing additional keyword arguments. The backend for plotting can also be specified.
-
-        Parameters
-        ----------
-        periodic_elements : str, optional, default="exclude"
-            Specifies whether to include or exclude periodic elements in the grid.
-            Options are:
-            - "exclude": Exclude periodic elements,
-            - "ignore": Include periodic elements without any corrections
-            - "split": Split periodic elements.
-        backend : str or None, optional
-            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
-        engine: str, optional
-            Engine to use for GeoDataFrame construction. One of ['spatialpandas', 'geopandas']
-        **kwargs : dict
-            Additional keyword arguments passed to `hvplot.paths`.
-
-        Returns
-        -------
-        gdf.hvplot.paths : hvplot.paths
-            A paths plot of the LineString geometries in the unstructured grid
-        """
-        import cartopy.crs as ccrs
-
-        uxarray.plot.utils.backend.assign(backend)
-
-        # Set default style parameters
-        if "color" not in kwargs:
-            kwargs["color"] = "blue"
-        if "line_width" not in kwargs and "linewidth" not in kwargs:
-            if backend == "matplotlib":
-                kwargs["linewidth"] = 2
-            else:
-                kwargs["line_width"] = 2
-        if "title" not in kwargs:
-            kwargs["title"] = "LineString Geometries"
-        if "rasterize" not in kwargs:
-            kwargs["rasterize"] = False
-        if "projection" not in kwargs:
-            kwargs["projection"] = ccrs.PlateCarree()
-        if "clabel" not in kwargs:
-            kwargs["clabel"] = "lines"
-        if "crs" not in kwargs:
-            if "projection" in kwargs:
-                central_longitude = kwargs["projection"].proj4_params.get("lon_0", 0.0)
-            else:
-                central_longitude = 0.0
-            kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
-
-        # Create LineString geometries from edge_node_connectivity
-        if self._uxgrid.n_edge > 0 and hasattr(self._uxgrid, "edge_node_connectivity"):
-            edge_conn = self._uxgrid.edge_node_connectivity.values
-            node_lon = self._uxgrid.node_lon.values
-            node_lat = self._uxgrid.node_lat.values
-
-            import geopandas as gpd
-            from shapely.geometry import LineString
-
-            geometries = []
-            for edge in edge_conn:
-                start_node, end_node = edge
-                if start_node >= 0 and end_node >= 0:  # Ensure valid indices
-                    line = LineString(
-                        [
-                            (node_lon[start_node], node_lat[start_node]),
-                            (node_lon[end_node], node_lat[end_node]),
-                        ]
-                    )
-                    geometries.append(line)
-
-            # Create a GeoDataFrame
-            gdf = gpd.GeoDataFrame(geometry=geometries, crs="EPSG:4326")
-
-            return gdf.hvplot.paths(geo=True, **kwargs)
-        else:
-            # Fallback to simple point plot if no edges are available
-            return self.points(**kwargs)
 
 
 class UxDataArrayPlotAccessor:
