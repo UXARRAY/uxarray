@@ -97,7 +97,7 @@ def test_scatter():
 
 
 
-def test_rasterize_to_geoaxes():
+def test_to_raster():
 
     fig, ax = plt.subplots(
         subplot_kw={'projection': ccrs.Robinson()},
