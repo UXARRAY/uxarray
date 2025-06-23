@@ -25,30 +25,21 @@ Top Level Functions
 Grid
 ----
 
-Constructor
-~~~~~~~~~~~
+Constructors
+~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
 
    Grid
-
-I/O & Conversion
-~~~~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: generated/
-
    Grid.from_dataset
    Grid.from_file
    Grid.from_topology
    Grid.from_structured
    Grid.from_points
    Grid.from_healpix
-   Grid.to_xarray
-   Grid.to_geodataframe
-   Grid.to_polycollection
-   Grid.to_linecollection
+
+
 
 Indexing
 ~~~~~~~~
@@ -175,13 +166,15 @@ and functionality, please refer to Xarray's `documentation <https://docs.xarray.
 UxDataArray
 -----------
 
-Constructor
-~~~~~~~~~~~
+Constructors
+~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
 
    UxDataArray
+   UxDataArray.from_xarray
+   UxDataArray.from_healpix
 
 Grid Accessor
 ~~~~~~~~~~~
@@ -191,30 +184,20 @@ Grid Accessor
 
    UxDataArray.uxgrid
 
-I/O & Conversion
-~~~~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: generated/
-
-   UxDataArray.to_raster
-   UxDataArray.to_geodataframe
-   UxDataArray.to_polycollection
-   UxDataArray.to_dataset
-   UxDataArray.from_xarray
-   UxDataArray.from_healpix
-
 
 UxDataset
 -----------
 
-Constructor
-~~~~~~~~~~~
+Constructors
+~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
 
    UxDataset
+   UxDataset.from_structured
+   UxDataset.from_xarray
+   UxDataset.from_healpix
 
 Grid Accessor
 ~~~~~~~~~~~
@@ -224,15 +207,47 @@ Grid Accessor
 
    UxDataset.uxgrid
 
-I/O & Conversion
-~~~~~~~~~~~~~~~~
+
+Conversion Methods
+------------------
+
+UXarray provides functionality to convert to other data formats to enable workflows with existing tools, such as
+Matplotlib and Cartopy.
+
+
+
+Grid
+~~~~
 
 .. autosummary::
    :toctree: generated/
 
-   UxDataset.from_structured
-   UxDataset.from_xarray
-   UxDataset.from_healpix
+   Grid.to_geodataframe
+   Grid.to_polycollection
+   Grid.to_linecollection
+   Grid.to_xarray
+
+UxDataArray
+~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.to_geodataframe
+   UxDataArray.to_polycollection
+   UxDataArray.to_raster
+   UxDataArray.to_dataset
+   UxDataArray.to_xarray
+
+UxDataset
+~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset.to_xarray
+   UxDataset.to_array
+
 
 Plotting
 --------
@@ -278,16 +293,9 @@ UxDataArray
    UxDataArray.plot.points
    UxDataArray.plot.line
    UxDataArray.plot.scatter
-   UxDataArray.rasterize_to_geoaxes
 
-UxDataset
-~~~~~~~~~
 
-.. autosummary::
-   :toctree: generated/
-   :template: autosummary/accessor_method.rst
 
-   UxDataset.plot
 
 
 
