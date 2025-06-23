@@ -320,9 +320,10 @@ class GridPlotAccessor:
 
         # Fallback to points if no edges are available
         import warnings
+
         warnings.warn(
             "No edges available in grid. Falling back to plotting nodes as points.",
-            UserWarning
+            UserWarning,
         )
         return self.points(**kwargs)
 
