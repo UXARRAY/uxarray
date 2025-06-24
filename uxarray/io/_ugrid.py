@@ -93,42 +93,38 @@ def _encode_ugrid(ds):
     """Encodes an unstructured grid represented under a ``Grid`` object as a
     ``xr.Dataset`` with an updated grid topology variable."""
 
-    # Create a copy of the input dataset to avoid modifying the original Grid._ds
-    out_ds = ds.copy()
+    if "grid_topology" in ds:
+        ds = ds.drop_vars(["grid_topology"])
 
-    if "grid_topology" in out_ds:
-        out_ds = out_ds.drop_vars(["grid_topology"])
+    grid_topology = ugrid.BASE_GRID_TOPOLOGY_ATTRS
 
-    grid_topology_attrs = ugrid.BASE_GRID_TOPOLOGY_ATTRS.copy()  # Use a copy
+    if "n_edge" in ds.dims:
+        grid_topology["edge_dimension"] = "n_edge"
 
-    if "n_edge" in out_ds.dims:
-        grid_topology_attrs["edge_dimension"] = "n_edge"
-
-    if "face_lon" in out_ds:
-        grid_topology_attrs["face_coordinates"] = "face_lon face_lat"
-    if "edge_lon" in out_ds:
-        grid_topology_attrs["edge_coordinates"] = "edge_lon edge_lat"
+    if "face_lon" in ds:
+        grid_topology["face_coordinates"] = "face_lon face_lat"
+    if "edge_lon" in ds:
+        grid_topology["edge_coordinates"] = "edge_lon edge_lat"
 
     # TODO: Encode spherical (i.e. node_x) coordinates eventually (need to extend ugrid conventions)
 
     for conn_name in ugrid.CONNECTIVITY_NAMES:
-        if conn_name in out_ds:
-            grid_topology_attrs[conn_name] = conn_name
+        if conn_name in ds:
+            grid_topology[conn_name] = conn_name
 
-    grid_topology_da = xr.DataArray(data=-1, attrs=grid_topology_attrs)
+    grid_topology_da = xr.DataArray(data=-1, attrs=grid_topology)
 
-    out_ds["grid_topology"] = grid_topology_da
-
+    ds = ds.assign(grid_topology=grid_topology_da)
     # Copy global attributes and convert booleans to integers
     new_attrs = {}
-    for key, value in out_ds.attrs.items():
+    for key, value in ds.attrs.items():
         if isinstance(value, bool):
             new_attrs[key] = int(value)  # Convert boolean to integer
         else:
             new_attrs[key] = value
-    out_ds.attrs = new_attrs
+    ds.attrs = new_attrs
 
-    return out_ds
+    return ds
 
 
 def _standardize_connectivity(ds, conn_name):
