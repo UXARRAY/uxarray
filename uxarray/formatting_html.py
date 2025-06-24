@@ -19,6 +19,9 @@ def _grid_header(grid, header_name=None):
 
 
 def _grid_sections(grid, max_items_collapse=15):
+    if grid._ds is None:
+        print(f"Warning: grid._ds is None for {type(grid)}")
+        return []
     cartesian_coordinates = list(
         [coord for coord in ugrid.CARTESIAN_COORDS if coord in grid._ds]
     )
@@ -118,6 +121,24 @@ def _obj_repr_with_grid(obj, header_components, sections):
     If CSS is not injected (untrusted notebook), fallback to the plain
     text repr.
     """
+    # Check if uxgrid exists and is not None
+    if not hasattr(obj, "uxgrid") or obj.uxgrid is None:
+        # Fallback to standard xarray representation without grid info
+        icons_svg, css_style = xrfm._load_static_files()
+        sections_html = "".join(
+            f"<li class='xr-section-item'>{s}</li>" for s in sections
+        )
+        return (
+            "<div>"
+            f"{icons_svg}<style>{css_style}</style>"
+            f"<pre class='xr-text-repr-fallback'>{escape(repr(obj))}</pre>"
+            "<div class='xr-wrap' style='display:none'>"
+            f"<div class='xr-header'>{''.join(h for h in header_components)}</div>"
+            f"<ul class='xr-sections'>{sections_html}</ul>"
+            "</div>"
+            "</div>"
+        )
+
     # Construct header and sections for the main object
     header = f"<div class='xr-header'>{''.join(h for h in header_components)}</div>"
     sections = "".join(f"<li class='xr-section-item'>{s}</li>" for s in sections)
