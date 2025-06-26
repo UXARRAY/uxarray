@@ -473,7 +473,7 @@ def _build_node_edge_connectivity_numba(edge_nodes, n_node):
     n_edge, nodes_per_edge = edge_nodes.shape
 
     # count how many edges touch each node
-    counts = np.zeros(n_node, np.int64)
+    counts = np.zeros(n_node, dtype=INT_DTYPE)
     for e in range(n_edge):
         for j in range(nodes_per_edge):
             node = edge_nodes[e, j]
@@ -487,9 +487,9 @@ def _build_node_edge_connectivity_numba(edge_nodes, n_node):
             max_edges = counts[i]
 
     # allocate output, pad with fill
-    node_edge = np.full((n_node, max_edges), INT_FILL_VALUE, dtype=np.int32)
+    node_edge = np.full((n_node, max_edges), INT_FILL_VALUE, dtype=INT_DTYPE)
 
-    ptr = np.zeros(n_node, np.int64)
+    ptr = np.zeros(n_node, dtype=INT_DTYPE)
 
     # fill in
     for e in range(n_edge):
