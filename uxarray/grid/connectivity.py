@@ -157,6 +157,114 @@ def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
     return n_nodes_per_face
 
 
+def _populate_n_faces_per_node(grid):
+    """Constructs the connectivity variable (``n_faces_per_node``) and stores
+    it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.n_faces_per_node``)."""
+
+    n_faces_per_node = _build_n_nodes_per_face(
+        grid.node_face_connectivity.values, grid.n_node, grid.n_max_node_faces
+    )
+
+    if n_faces_per_node.ndim == 0:
+        # convert scalar value into a [1, 1] array
+        n_faces_per_node = np.expand_dims(n_faces_per_node, 0)
+
+    # add to internal dataset
+    grid._ds["n_faces_per_node"] = xr.DataArray(
+        data=n_faces_per_node,
+        dims=ugrid.N_FACES_PER_NODE_DIMS,
+        attrs=ugrid.N_FACES_PER_NODE_ATTRS,
+    )
+
+
+@njit(cache=True)
+def _build_n_faces_per_node(node_faces, n_nodes, n_max_node_faces):
+    """Constructs ``n_faces_per_node``, which contains the number of non-fill-
+    value nodes for each face in ``node_face_connectivity``"""
+
+    # padding to shape [n_nodes, n_max_node_faces + 1]
+    closed = np.ones((n_nodes, n_max_node_faces + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
+
+    closed[:, :-1] = node_faces.copy()
+
+    n_faces_per_node = np.argmax(closed == INT_FILL_VALUE, axis=1)
+
+    return n_faces_per_node
+
+
+def _populate_n_faces_per_edge(grid):
+    """Constructs the connectivity variable (``n_faces_per_edge``) and stores
+    it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.n_faces_per_edge``)."""
+
+    n_faces_per_edge = _build_n_faces_per_edge(
+        grid.edge_face_connectivity.values, grid.n_edge, 2
+    )
+
+    if n_faces_per_edge.ndim == 0:
+        # convert scalar value into a [1, 1] array
+        n_faces_per_edge = np.expand_dims(n_faces_per_edge, 0)
+
+    # add to internal dataset
+    grid._ds["n_faces_per_edge"] = xr.DataArray(
+        data=n_faces_per_edge,
+        dims=ugrid.N_FACES_PER_EDGE_DIMS,
+        attrs=ugrid.N_FACES_PER_EDGE_ATTRS,
+    )
+
+
+@njit(cache=True)
+def _build_n_faces_per_edge(edge_faces, n_edges, n_max_edge_faces):
+    """Constructs ``n_faces_per_edge``, which contains the number of non-fill-
+    value nodes for each face in ``edge_face_connectivity``"""
+
+    # padding to shape [n_edges, n_max_edge_faces + 1]
+    closed = np.ones((n_edges, n_max_edge_faces + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
+
+    closed[:, :-1] = edge_faces.copy()
+
+    n_faces_per_edge = np.argmax(closed == INT_FILL_VALUE, axis=1)
+
+    return n_faces_per_edge
+
+
+def _populate_n_edges_per_node(grid):
+    """Constructs the connectivity variable (``n_edges_per_node``) and stores
+    it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.n_edges_per_node``)."""
+
+    n_edges_per_node = _build_n_edges_per_node(
+        grid.node_edge_connectivity.values, grid.n_edge, grid.n_max_node_edges
+    )
+
+    if n_edges_per_node.ndim == 0:
+        # convert scalar value into a [1, 1] array
+        n_edges_per_node = np.expand_dims(n_edges_per_node, 0)
+
+    # add to internal dataset
+    grid._ds["n_edges_per_node"] = xr.DataArray(
+        data=n_edges_per_node,
+        dims=ugrid.N_EDGES_PER_NODE_DIMS,
+        attrs=ugrid.N_EDGES_PER_NODE_ATTRS,
+    )
+
+
+@njit(cache=True)
+def _build_n_edges_per_node(edge_nodes, n_edges, n_max_node_edges):
+    """Constructs ``n_edges_per_node``, which contains the number of non-fill-
+    value nodes for each face in ``node_edge_connectivity``"""
+
+    # padding to shape [n_edges, n_max_edge_faces + 1]
+    closed = np.ones((n_edges, n_max_node_edges + 1), dtype=INT_DTYPE) * INT_FILL_VALUE
+
+    closed[:, :-1] = edge_nodes.copy()
+
+    n_edges_per_node = np.argmax(closed == INT_FILL_VALUE, axis=1)
+
+    return n_edges_per_node
+
+
 def _populate_edge_node_connectivity(grid):
     """Constructs the UGRID connectivity variable (``edge_node_connectivity``)
     and stores it within the internal (``Grid._ds``) and through the attribute
@@ -351,6 +459,58 @@ def _build_node_faces_connectivity(face_nodes, n_node):
 
     return node_face_connectivity, n_max_node_faces
 
+
+def _populate_node_edge_connectivity(grid):
+    """Constructs the UGRID connectivity variable (``node_face_connectivity``)
+    and stores it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.node_face_connectivity``)."""
+
+    node_edges = _build_node_edge_connectivity(grid.edge_node_connectivity.values)
+
+    grid._ds["node_edge_connectivity"] = xr.DataArray(
+        node_edges,
+        dims=ugrid.NODE_EDGE_CONNECTIVITY_DIMS,
+        attrs=ugrid.NODE_EDGE_CONNECTIVITY_ATTRS,
+    )
+
+
+def _build_node_edge_connectivity(edge_node_connectivity):
+    """Builds the `Grid.node_faces_connectivity`: integer DataArray of size
+    (n_node, n_max_faces_per_node) (optional) A DataArray of indices indicating
+    faces that are neighboring each node.
+
+    This function converts the face-node connectivity data into a sparse matrix, and then constructs the node-face
+    connectivity by iterating over each node in the mesh and retrieving the set of neighboring faces.
+
+    Raises
+    ------
+    RuntimeError
+        If the Mesh object does not contain a 'face_node_connectivity' variable.
+    """
+
+    node_edge = {}
+
+    for edge_id, node in enumerate(edge_node_connectivity):
+        # Initialize lists for nodes if they don't already exist in the dictionary
+        if node[0] not in node_edge:
+            node_edge[node[0]] = []
+        if node[1] not in node_edge:
+            node_edge[node[1]] = []
+
+        # Append the edge to both nodes
+        node_edge[node[0]].append(edge_id)
+        node_edge[node[1]].append(edge_id)
+
+    sorted_dict = {key: node_edge[key] for key in sorted(node_edge.keys())}
+
+    max_length = max(len(v) for v in sorted_dict.values())
+
+    node_edge_connectivity = np.full((len(sorted_dict), max_length), INT_FILL_VALUE, dtype=np.int64)
+
+    # Populate the array with values from the dictionary
+    for i, (key, values) in enumerate(sorted_dict.items()):
+        node_edge_connectivity[i, :len(values)] = values
+    return node_edge_connectivity
 
 def _face_nodes_to_sparse_matrix(dense_matrix: np.ndarray) -> tuple:
     """Converts a given dense matrix connectivity to a sparse matrix format
