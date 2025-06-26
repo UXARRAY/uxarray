@@ -453,3 +453,51 @@ def _build_face_face_connectivity(grid):
     ]
 
     return face_face_connectivity
+
+
+def _populate_node_edge_connectivity(grid):
+    node_edge_connectivity = _build_node_edge_connectivity_numba(
+        grid.edge_node_connectivity.values, grid.n_node
+    )
+
+    grid._ds["node_edge_connectivity"] = xr.DataArray(
+        data=node_edge_connectivity,
+        dims=ugrid.NODE_EDGE_CONNECTIVITY_DIMS,
+        attrs=ugrid.NODE_EDGE_CONNECTIVITY_ATTRS,
+    )
+
+
+@njit
+def _build_node_edge_connectivity_numba(edge_nodes, n_node):
+    """TODO:"""
+    n_edge, nodes_per_edge = edge_nodes.shape
+
+    # count how many edges touch each node
+    counts = np.zeros(n_node, np.int64)
+    for e in range(n_edge):
+        for j in range(nodes_per_edge):
+            node = edge_nodes[e, j]
+            if node != INT_FILL_VALUE:
+                counts[node] += 1
+
+    # find the maximum
+    max_edges = 0
+    for i in range(n_node):
+        if counts[i] > max_edges:
+            max_edges = counts[i]
+
+    # allocate output, pad with fill
+    node_edge = np.full((n_node, max_edges), INT_FILL_VALUE, dtype=np.int32)
+
+    ptr = np.zeros(n_node, np.int64)
+
+    # fill in
+    for e in range(n_edge):
+        for j in range(nodes_per_edge):
+            node = edge_nodes[e, j]
+            if node != INT_FILL_VALUE:
+                idx = ptr[node]
+                node_edge[node, idx] = e
+                ptr[node] += 1
+
+    return node_edge
