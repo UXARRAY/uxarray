@@ -40,8 +40,8 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Plotting <user-guide/plotting.ipynb>`_
  Visualize unstructured grid datasets using UXarray's plotting API
 
-`Plotting with Matplotlib <user-guide/mpl.ipynb>`_
- Use Matplotlib for plotting with PolyCollection and LineCollection
+`Plotting with Matplotlib and Cartopy  <user-guide/mpl.ipynb>`_
+ Create visualizations directly with Matplotlib and Cartopy
 
 `Advanced Plotting Techniques <user-guide/advanced-plotting.ipynb>`_
  Deeper dive into getting the most out of UXarray's plotting functionality
