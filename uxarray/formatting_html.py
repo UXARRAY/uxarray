@@ -1,3 +1,4 @@
+import warnings
 from collections import OrderedDict
 from functools import partial
 from html import escape
@@ -20,7 +21,11 @@ def _grid_header(grid, header_name=None):
 
 def _grid_sections(grid, max_items_collapse=15):
     if grid._ds is None:
-        print(f"Warning: grid._ds is None for {type(grid)}")
+        warnings.warn(
+            "Grid repr requested but the grid is None. "
+            "This often means it was dropped by an unsupported Xarray operation.",
+            UserWarning,
+        )
         return []
     cartesian_coordinates = list(
         [coord for coord in ugrid.CARTESIAN_COORDS if coord in grid._ds]
