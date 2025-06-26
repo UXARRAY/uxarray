@@ -75,3 +75,44 @@ def test_standardized_dtype_and_fill_dask():
     assert ux_grid.face_node_connectivity.dtype == INT_DTYPE
     assert ux_grid.face_node_connectivity._FillValue == INT_FILL_VALUE
     assert INT_FILL_VALUE in ux_grid.face_node_connectivity.values
+
+def test_encode_ugrid_copies_and_converts_bool_attr():
+    """Test that encode_as('UGRID') returns a copy and converts boolean attrs to int."""
+    import copy
+
+    # Create a minimal grid with a boolean attribute
+    ds = xr.Dataset(
+        {
+            "node_lon": (("n_node",), [0.0, 1.0]),
+            "node_lat": (("n_node",), [0.0, 1.0]),
+            "face_node_connectivity": (("n_face", "n_max_face_nodes"), [[0, 1, -1, -1]])
+        },
+        coords={"n_node": [0, 1], "n_face": [0], "n_max_face_nodes": [0, 1, 2, 3]},
+        attrs={"test_bool": True, "test_str": "abc"}
+    )
+    # Add minimal grid_topology for UGRID
+    ds["grid_topology"] = xr.DataArray(
+        data=-1,
+        attrs={
+            "cf_role": "mesh_topology",
+            "topology_dimension": 2,
+            "face_dimension": "n_face",
+            "node_dimension": "n_node",
+            "node_coordinates": "node_lon node_lat",
+            "face_node_connectivity": "face_node_connectivity"
+        }
+    )
+
+    ds_orig = ds.copy(deep=True)
+    grid = ux.Grid(ds)
+    encoded = grid.encode_as("UGRID")
+
+    # Check that the returned dataset is not the same object
+    assert encoded is not grid._ds
+    # Check that the boolean attribute is now an int
+    assert isinstance(encoded.attrs["test_bool"], int)
+    assert encoded.attrs["test_bool"] == 1
+    # Check that the string attribute is unchanged
+    assert encoded.attrs["test_str"] == "abc"
+    # Check that the original dataset is not modified
+    assert isinstance(ds.attrs["test_bool"], bool)

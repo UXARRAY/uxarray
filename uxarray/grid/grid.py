@@ -1851,14 +1851,19 @@ class Grid:
         warn(
             "Grid.encode_as will be deprecated in a future release. Please use Grid.to_xarray instead."
         )
+        # Node boundaries/coords are not populated by default. Accessing node_lon will trigger their population.
+        # Do this before encoding to ensure that the node boundaries/coords are populated.
+        _ = self.node_lon
 
-        if grid_type == "UGRID":
+        grid_type = grid_type.lower()
+
+        if grid_type == "ugrid":
             out_ds = _encode_ugrid(self._ds)
 
-        elif grid_type == "Exodus":
+        elif grid_type == "exodus":
             out_ds = _encode_exodus(self._ds)
 
-        elif grid_type == "SCRIP":
+        elif grid_type == "scrip":
             out_ds = _encode_scrip(
                 self.face_node_connectivity,
                 self.node_lon,
