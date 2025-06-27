@@ -20,6 +20,7 @@ def uxgrid():
 
 # ─── Node Connectivity ────────────────────────────────────────────────────────────────────────────────────────────────
 
+
 def test_node_edge_connectivity(uxgrid):
     node_edges = uxgrid.node_edge_connectivity.values
 
@@ -169,7 +170,6 @@ def test_edge_face_connectivity(uxgrid):
     assert "edge_face_connectivity" in uxgrid.connectivity
     # face_edge_connectivity is derived from edge_face_connectivity
     assert "face_edge_connectivity" in uxgrid.connectivity
-
 
     np.testing.assert_array_equal(expected_edge_faces, edge_faces)
 
