@@ -32,6 +32,7 @@ def test_uniform_data():
                                      dims=['n_face'])
 
         zero_grad = uxda_zeros.gradient()
+        # numpy.testing
         nt.assert_array_equal(zero_grad.values, np.zeros(uxgrid.n_edge))
 
         uxda_ones = ux.UxDataArray(data=np.ones(uxgrid.n_face),
