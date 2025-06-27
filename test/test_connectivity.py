@@ -170,7 +170,6 @@ def test_edge_face_connectivity(uxgrid):
     # face_edge_connectivity is derived from edge_face_connectivity
     assert "face_edge_connectivity" in uxgrid.connectivity
 
-    print(uxgrid.connectivity)
 
     np.testing.assert_array_equal(expected_edge_faces, edge_faces)
 
