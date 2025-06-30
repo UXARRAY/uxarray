@@ -327,6 +327,63 @@ class UxDataset(xr.Dataset):
 
         return cls.from_xarray(ds, uxgrid, {face_dim: "n_face"})
 
+    @classmethod
+    def _wrap_groupby_result(
+        cls, result, original_uxgrid, original_source_datasets=None
+    ):
+        """Factory method to wrap groupby results with uxgrid preservation."""
+        if isinstance(result, xr.Dataset):
+            return cls(
+                result, uxgrid=original_uxgrid, source_datasets=original_source_datasets
+            )
+        elif isinstance(result, xr.DataArray):
+            from uxarray.core.dataarray import UxDataArray
+
+            return UxDataArray(result, uxgrid=original_uxgrid)
+        return result
+
+    def groupby(self, group, squeeze: bool = False, restore_coord_dims: bool = None):
+        """Override to return a groupby object that preserves uxgrid on aggregation."""
+        # Get the standard xarray groupby object
+        groupby_obj = super().groupby(
+            group, squeeze=squeeze, restore_coord_dims=restore_coord_dims
+        )
+
+        # Store references to preserve uxgrid info
+        original_uxgrid = self.uxgrid
+        original_source_datasets = self.source_datasets
+
+        # Modify the aggregation methods to preserve uxgrid
+        original_methods = {}
+        for method_name in [
+            "mean",
+            "sum",
+            "min",
+            "max",
+            "std",
+            "var",
+            "median",
+            "count",
+        ]:
+            if hasattr(groupby_obj, method_name):
+                original_method = getattr(groupby_obj, method_name)
+                original_methods[method_name] = original_method
+
+                def create_wrapped_method(orig_method):
+                    def wrapped_method(*args, **kwargs):
+                        result = orig_method(*args, **kwargs)
+                        return self._wrap_groupby_result(
+                            result, original_uxgrid, original_source_datasets
+                        )
+
+                    return wrapped_method
+
+                setattr(
+                    groupby_obj, method_name, create_wrapped_method(original_method)
+                )
+
+        return groupby_obj
+
     def info(self, buf: IO = None, show_attrs=False) -> None:
         """Concise summary of Dataset variables and attributes including grid
         topology information stored in the ``uxgrid`` property.
