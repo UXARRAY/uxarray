@@ -162,8 +162,10 @@ def _calculate_weights(
 ):
     for idx in prange(len(valid_idxs)):
         fidx = int(face_indices[valid_idxs[idx], 0])
+        # bounds check
+        if fidx < 0 or fidx >= len(n_nodes_per_face):
+            continue
         nverts = int(n_nodes_per_face[fidx])
-
         polygon_xyz = np.zeros((nverts, 3), dtype=np.float64)
         polygon_face_indices = np.empty(nverts, dtype=np.int32)
         for j in range(nverts):
