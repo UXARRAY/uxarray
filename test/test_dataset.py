@@ -60,6 +60,32 @@ def test_get_dual():
     assert isinstance(dual, UxDataset)
     assert len(uxds.data_vars) == len(dual.data_vars)
 
+
+def test_groupby_preserves_uxgrid():
+    """Test that groupby operations preserve the uxgrid attribute."""
+    # Create a dataset from a file
+    uxds = ux.open_dataset(mpas_ds_path, mpas_ds_path)
+    original_grid = uxds.uxgrid
+
+    # Create bins from latitude values (extract data explicitly)
+    lat_bins = (uxds.latCell > 0).astype(int).values
+
+    # Add the bins as a coordinate
+    uxds = uxds.assign_coords({"lat_bins": ("n_face", lat_bins)})
+
+    # Test DataArray groupby preserves uxgrid
+    da_result = uxds.latCell.groupby(uxds.lat_bins).mean()
+    assert hasattr(da_result, "uxgrid")
+    assert da_result.uxgrid is not None
+
+    # Test Dataset groupby preserves uxgrid
+    ds_result = uxds.groupby(uxds.lat_bins).mean()
+    assert hasattr(ds_result, "uxgrid")
+    assert ds_result.uxgrid is not None
+    assert ds_result.uxgrid == original_grid
+
+
+
 # Uncomment the following test if you want to include it, ensuring you handle potential failures.
 # def test_read_from_https():
 #     """Tests reading a dataset from a HTTPS link."""

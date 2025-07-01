@@ -354,7 +354,6 @@ class UxDataset(xr.Dataset):
         original_source_datasets = self.source_datasets
 
         # Modify the aggregation methods to preserve uxgrid
-        original_methods = {}
         for method_name in [
             "mean",
             "sum",
@@ -367,7 +366,6 @@ class UxDataset(xr.Dataset):
         ]:
             if hasattr(groupby_obj, method_name):
                 original_method = getattr(groupby_obj, method_name)
-                original_methods[method_name] = original_method
 
                 def create_wrapped_method(orig_method):
                     def wrapped_method(*args, **kwargs):
