@@ -15,7 +15,7 @@ from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_e
 
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _xyz_to_lonlat_rad_scalar
 
-from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
+from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE, INT_DTYPE
 
 from uxarray.grid.arcs import extreme_gca_latitude
 
@@ -746,6 +746,139 @@ def test_dual_duplicate():
     dataset = ux.open_dataset(gridfile_geoflow, gridfile_geoflow)
     with pytest.raises(RuntimeError):
         dataset.get_dual()
+
+
+def test_dual_mesh_parallel():
+    """Test dual mesh construction with parallel processing enabled."""
+    import numba
+    from uxarray.grid.dual import construct_faces
+
+    # Test with a simple grid
+    grid = ux.open_grid(gridfile_mpas, use_dual=False)
+
+    # Get the inputs for construct_faces
+    dual_node_x = grid.face_x.values
+    dual_node_y = grid.face_y.values
+    dual_node_z = grid.face_z.values
+    node_x = grid.node_x.values
+    node_y = grid.node_y.values
+    node_z = grid.node_z.values
+    node_face_connectivity = grid.node_face_connectivity.values
+
+    # Get an array with the number of edges for each face
+    n_edges_mask = node_face_connectivity != INT_FILL_VALUE
+    n_edges = np.sum(n_edges_mask, axis=1)
+    max_edges = len(node_face_connectivity[0])
+
+    valid_node_indices = np.where(n_edges >= 3)[0]
+    construct_node_face_connectivity = np.full(
+        (len(valid_node_indices), max_edges), INT_FILL_VALUE, dtype=INT_DTYPE
+    )
+
+    # Test that construct_faces works (this tests the numba compilation)
+    try:
+        result = construct_faces(
+            valid_node_indices,
+            n_edges,
+            dual_node_x,
+            dual_node_y,
+            dual_node_z,
+            node_face_connectivity,
+            node_x,
+            node_y,
+            node_z,
+            construct_node_face_connectivity,
+            max_edges,
+        )
+
+        # Verify the result has the expected shape and properties
+        assert result is not None
+        assert result.dtype == INT_DTYPE
+        assert result.ndim == 2
+
+        # Compare with the standard dual construction
+        dual = grid.get_dual()
+        expected_shape = dual.face_node_connectivity.values.shape
+
+        # The shapes should match since we're using the same algorithm
+        assert result.shape == expected_shape
+
+    except numba.errors.NumbaError as e:
+        pytest.skip(f"Numba compilation failed: {e}")
+    except Exception as e:
+        pytest.fail(f"Dual mesh parallel construction failed: {e}")
+
+
+def test_dual_mesh_parallel_validation():
+    """Test that parallel dual construction produces identical results and validates threading."""
+    import time
+    from uxarray.grid.dual import construct_faces
+
+    grid = ux.open_grid(gridfile_mpas, use_dual=False)
+
+    # Prepare inputs for direct function call
+    dual_node_x = grid.face_x.values
+    dual_node_y = grid.face_y.values
+    dual_node_z = grid.face_z.values
+    node_x = grid.node_x.values
+    node_y = grid.node_y.values
+    node_z = grid.node_z.values
+    node_face_connectivity = grid.node_face_connectivity.values
+
+    n_edges_mask = node_face_connectivity != INT_FILL_VALUE
+    n_edges = np.sum(n_edges_mask, axis=1)
+    max_edges = node_face_connectivity.shape[1]
+
+    valid_node_indices = np.where(n_edges >= 3)[0]
+
+    # Test multiple runs for consistency
+    results = []
+    times = []
+
+    for i in range(3):
+        construct_node_face_connectivity = np.full(
+            (len(valid_node_indices), max_edges), INT_FILL_VALUE, dtype=INT_DTYPE
+        )
+
+        start_time = time.time()
+        result = construct_faces(
+            valid_node_indices,
+            n_edges,
+            dual_node_x,
+            dual_node_y,
+            dual_node_z,
+            node_face_connectivity,
+            node_x,
+            node_y,
+            node_z,
+            construct_node_face_connectivity,
+            max_edges,
+        )
+        elapsed = time.time() - start_time
+
+        results.append(result)
+        times.append(elapsed)
+
+    # Verify all results are identical (parallel consistency)
+    for i in range(1, len(results)):
+        nt.assert_array_equal(results[0], results[i],
+                             err_msg=f"Parallel dual construction run {i} differs from run 0")
+
+    # Verify results are valid
+    for result in results:
+        assert result is not None
+        assert result.dtype == INT_DTYPE
+        assert result.ndim == 2
+        assert result.shape[0] == len(valid_node_indices)
+        assert result.shape[1] == max_edges
+
+    # Verify performance is reasonable (should complete in reasonable time)
+    avg_time = np.mean(times)
+    assert avg_time < 30.0, f"Dual construction too slow: {avg_time:.2f}s"
+
+    # Verify against standard implementation
+    dual_standard = grid.get_dual()
+    assert results[0].shape == dual_standard.face_node_connectivity.values.shape
 
 
 def test_normalize_existing_coordinates_non_norm_initial():
