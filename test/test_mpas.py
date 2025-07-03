@@ -18,9 +18,20 @@ mpas_ocean_mesh = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc
 # Fill value
 fv = INT_FILL_VALUE
 
-def test_read_mpas():
-    """Tests execution of _read_mpas()"""
+
+
+def test_read_prima():
     mpas_primal_ugrid, _ = _read_mpas(mpas_xr_ds, use_dual=False)
+
+    assert "face_edge_connectivity" in mpas_primal_ugrid
+    assert "face_node_connectivity" in mpas_primal_ugrid
+    assert "node_edge_connectivity" in mpas_primal_ugrid
+    assert "edge_face_connectivity" in mpas_primal_ugrid
+    assert "node_face_connectivity" in mpas_primal_ugrid
+    assert "edge_node_connectivity" in mpas_primal_ugrid
+    assert "face_face_connectivity" in mpas_primal_ugrid
+
+def test_read_dual():
     mpas_dual_ugrid, _ = _read_mpas(mpas_xr_ds, use_dual=True)
 
 def test_mpas_to_grid():
