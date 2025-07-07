@@ -1045,6 +1045,8 @@ class UxDataArray(xr.DataArray):
         >>> uxds["var"].topological_mean(destination="face").gradient()
         """
 
+        #  TODO: Add deprecation warnings
+
         if not self._face_centered():
             raise ValueError(
                 "Gradient computations are currently only supported for face-centered data variables. For node-centered"
