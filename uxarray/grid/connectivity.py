@@ -456,7 +456,10 @@ def _build_face_face_connectivity(grid):
 
 
 def _populate_node_edge_connectivity(grid):
-    node_edge_connectivity = _build_node_edge_connectivity_numba(
+    """Constructs the UGRID connectivity variable (``edge_node_connectivity``)
+    and stores it within the internal (``Grid._ds``) and through the attribute
+    (``Grid.edge_node_connectivity``)."""
+    node_edge_connectivity = _build_node_edge_connectivity(
         grid.edge_node_connectivity.values, grid.n_node
     )
 
@@ -468,8 +471,8 @@ def _populate_node_edge_connectivity(grid):
 
 
 @njit
-def _build_node_edge_connectivity_numba(edge_nodes, n_node):
-    """TODO:"""
+def _build_node_edge_connectivity(edge_nodes, n_node):
+    """Constructs the Node Edge Connectivity, which stores the indices of the edges that are shared by each node."""
     n_edge, nodes_per_edge = edge_nodes.shape
 
     # count how many edges touch each node
