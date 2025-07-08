@@ -17,7 +17,6 @@ from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.gradient import (
     _calculate_edge_face_difference,
     _calculate_edge_node_difference,
-    _calculate_grad_on_edge_from_faces,
 )
 from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.core.zonal import _compute_non_conservative_zonal_mean
@@ -1016,68 +1015,49 @@ class UxDataArray(xr.DataArray):
         return _uxda_grid_aggregate(self, destination, "any", **kwargs)
 
     def gradient(
-        self, normalize: Optional[bool] = False, use_magnitude: Optional[bool] = True
-    ):
-        """Computes the horizontal gradient of a data variable.
-
-        Currently only supports gradients of face-centered data variables, with the resulting gradient being stored
-        on each edge. The gradient of a node-centered data variable can be approximated by computing the nodal average
-        and then computing the gradient.
-
-        The aboslute value of the gradient is used, since UXarray does not yet support representing the direction
-        of the gradient.
-
-        The expression for calculating the gradient on each edge comes from Eq. 22 in Ringler et al. (2010), J. Comput. Phys.
-
-        Code is adapted from https://github.com/theweathermanda/MPAS_utilities/blob/main/mpas_calc_operators.py
+        self,
+        **kwargs,
+    ) -> UxDataset:
+        """Computes the gradient ....
 
 
         Parameters
         ----------
-        use_magnitude : bool, default=True
-            Whether to use the magnitude (aboslute value) of the resulting gradient
-        normalize: bool, default=None
-            Whether to normalize (l2) the resulting gradient
+
+        Returns
+        -------
+
+        Notes
+        -----
+        Describe the implementation, links to any papers or references, etc.
 
         Example
         -------
         >>> uxds["var"].gradient()
-        >>> uxds["var"].topological_mean(destination="face").gradient()
         """
 
-        #  TODO: Add deprecation warnings
+        if "use_magnitude" in kwargs or "normalize" in kwargs:
+            # Deprecation warning for old gradient implementation
+            warn(
+                "The `use_magnitude` and `normalize` parameters are deprecated. ",
+                DeprecationWarning,
+            )
 
-        if not self._face_centered():
+        if self._face_centered():
+            # TODO: Call face-centered gradient implementation
+            grad_zonal, grad_meridional = ...
+
+        elif self._node_centered():
+            # TODO: Call face-centered gradient implementation
+            grad_zonal, grad_meridional = ...
+        else:
             raise ValueError(
-                "Gradient computations are currently only supported for face-centered data variables. For node-centered"
-                "data, consider performing a nodal average or remapping to faces."
+                "Computing the gradient is only supported for face-centered or node-centered data variables."
             )
 
-        if use_magnitude is False:
-            warnings.warn(
-                "Gradients can only be represented in terms of their aboslute value, since UXarray does not "
-                "currently store any information for representing the sign."
-            )
+        # TODO: Create a UxDataset that contains the zonal and meridional components of the gradient
 
-        _grad = _calculate_grad_on_edge_from_faces(
-            d_var=self.values,
-            edge_faces=self.uxgrid.edge_face_connectivity.values,
-            edge_face_distances=self.uxgrid.edge_face_distances.values,
-            n_edge=self.uxgrid.n_edge,
-            normalize=normalize,
-        )
-
-        dims = list(self.dims)
-        dims[-1] = "n_edge"
-
-        uxda = UxDataArray(
-            _grad,
-            uxgrid=self.uxgrid,
-            dims=dims,
-            name=self.name + "_grad" if self.name is not None else "grad",
-        )
-
-        return uxda
+        return
 
     def difference(self, destination: Optional[str] = "edge"):
         """Computes the absolute difference of a data variable.
