@@ -904,10 +904,6 @@ def test_normalize_existing_coordinates_norm_initial():
 
 
 
-
-
-
-
 def test_from_topology():
     node_lon = np.array([-20.0, 0.0, 20.0, -20, -40])
     node_lat = np.array([-10.0, 10.0, -10.0, 10, -10])
