@@ -31,8 +31,6 @@ from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
 
 if TYPE_CHECKING:
-    import numpy as np
-
     from uxarray.core.dataset import UxDataset
 
 
@@ -1056,6 +1054,11 @@ class UxDataArray(xr.DataArray):
             )
 
         # TODO: Create a UxDataset that contains the zonal and meridional components of the gradient
+        # The dimensions should be the same as the original data variable
+        # Preserve the original uxgrid
+        # attach an attribute (i.e. grad=True) that can be read in from our plotting routines
+        # if we plan to add a direct gradient plotting routine
+        # (i.e. uxds['t2m'].gradient().plot()
 
         return
 
