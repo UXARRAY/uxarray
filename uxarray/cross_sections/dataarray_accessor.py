@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Set, Tuple, Union
-import numpy as np
 
 if TYPE_CHECKING:
     pass
@@ -24,8 +23,12 @@ class UxDataArrayCrossSectionAccessor:
         methods_heading += "  * constant_longitude_interval(lons, inverse_indices)\n"
 
         methods_heading += "\nVertical Cross-Sections:\n"
-        methods_heading += "  * vertical_constant_latitude(lat, vertical_coord, inverse_indices)\n"
-        methods_heading += "  * vertical_constant_longitude(lon, vertical_coord, inverse_indices)\n"
+        methods_heading += (
+            "  * vertical_constant_latitude(lat, vertical_coord, inverse_indices)\n"
+        )
+        methods_heading += (
+            "  * vertical_constant_longitude(lon, vertical_coord, inverse_indices)\n"
+        )
 
         return prefix + methods_heading
 
@@ -48,9 +51,12 @@ class UxDataArrayCrossSectionAccessor:
             )
         return self._check_vertical_coord_exists(vertical_coord)
 
-
     def constant_latitude(
-        self, lat: float, inverse_indices: Union[List[str], Set[str], Tuple[List[str], bool], bool] = False
+        self,
+        lat: float,
+        inverse_indices: Union[
+            List[str], Set[str], Tuple[List[str], bool], bool
+        ] = False,
     ):
         """Extracts a horizontal cross-section of the data array by selecting all faces that
         intersect with a specified line of constant latitude.
@@ -98,7 +104,11 @@ class UxDataArrayCrossSectionAccessor:
         return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
 
     def constant_longitude(
-        self, lon: float, inverse_indices: Union[List[str], Set[str], Tuple[List[str], bool], bool] = False
+        self,
+        lon: float,
+        inverse_indices: Union[
+            List[str], Set[str], Tuple[List[str], bool], bool
+        ] = False,
     ):
         """Extracts a horizontal cross-section of the data array by selecting all faces that
         intersect with a specified line of constant longitude.
@@ -148,7 +158,9 @@ class UxDataArrayCrossSectionAccessor:
     def constant_latitude_interval(
         self,
         lats: Tuple[float, float],
-        inverse_indices: Union[List[str], Set[str], Tuple[List[str], bool], bool] = False,
+        inverse_indices: Union[
+            List[str], Set[str], Tuple[List[str], bool], bool
+        ] = False,
     ):
         """Extracts a horizontal cross-section of data by selecting all faces that
         are within a specified latitude interval.
@@ -194,7 +206,9 @@ class UxDataArrayCrossSectionAccessor:
     def constant_longitude_interval(
         self,
         lons: Tuple[float, float],
-        inverse_indices: Union[List[str], Set[str], Tuple[List[str], bool], bool] = False,
+        inverse_indices: Union[
+            List[str], Set[str], Tuple[List[str], bool], bool
+        ] = False,
     ):
         """Extracts a horizontal cross-section of data by selecting all faces are within a specifed longitude interval.
 
@@ -237,12 +251,13 @@ class UxDataArrayCrossSectionAccessor:
 
         return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
 
-
     def vertical_constant_latitude(
         self,
         lat: float,
         vertical_coord: str,
-        inverse_indices: Union[List[str], Set[str], Tuple[List[str], bool], bool] = False
+        inverse_indices: Union[
+            List[str], Set[str], Tuple[List[str], bool], bool
+        ] = False,
     ):
         """Extracts a vertical cross-section (zonal transect) of the data array by selecting
         all faces that intersect with a specified line of constant latitude across all vertical levels.
@@ -282,12 +297,12 @@ class UxDataArrayCrossSectionAccessor:
         --------
         >>> # Extract vertical slice along 30°N latitude (zonal transect)
         >>> vertical_section = uxda.cross_section.vertical_constant_latitude(
-        ...     lat=30.0, vertical_coord='depth'
+        ...     lat=30.0, vertical_coord="depth"
         ... )
 
         >>> # Another example with a different vertical coordinate
         >>> vertical_section = uxda.cross_section.vertical_constant_latitude(
-        ...     lat=30.0, vertical_coord='depth'
+        ...     lat=30.0, vertical_coord="depth"
         ... )
 
         Notes
@@ -302,7 +317,7 @@ class UxDataArrayCrossSectionAccessor:
             )
 
         # Validate vertical coordinate
-        vertical_dim = self._get_vertical_coord_name(vertical_coord)
+        self._get_vertical_coord_name(vertical_coord)
 
         # Get faces intersecting the latitude line
         faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat)
@@ -319,7 +334,9 @@ class UxDataArrayCrossSectionAccessor:
         self,
         lon: float,
         vertical_coord: str,
-        inverse_indices: Union[List[str], Set[str], Tuple[List[str], bool], bool] = False
+        inverse_indices: Union[
+            List[str], Set[str], Tuple[List[str], bool], bool
+        ] = False,
     ):
         """Extracts a vertical cross-section (meridional transect) of the data array by selecting
         all faces that intersect with a specified line of constant longitude across all vertical levels.
@@ -359,12 +376,12 @@ class UxDataArrayCrossSectionAccessor:
         --------
         >>> # Extract vertical slice along 0° longitude (meridional transect)
         >>> vertical_section = uxda.cross_section.vertical_constant_longitude(
-        ...     lon=0.0, vertical_coord='pressure'
+        ...     lon=0.0, vertical_coord="pressure"
         ... )
 
         >>> # Another example with a different vertical coordinate
         >>> vertical_section = uxda.cross_section.vertical_constant_longitude(
-        ...     lon=0.0, vertical_coord='pressure'
+        ...     lon=0.0, vertical_coord="pressure"
         ... )
 
         Notes
@@ -379,7 +396,7 @@ class UxDataArrayCrossSectionAccessor:
             )
 
         # Validate vertical coordinate
-        vertical_dim = self._get_vertical_coord_name(vertical_coord)
+        self._get_vertical_coord_name(vertical_coord)
 
         # Get faces intersecting the longitude line
         faces = self.uxda.uxgrid.get_faces_at_constant_longitude(lon)
