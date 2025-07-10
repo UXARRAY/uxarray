@@ -1830,11 +1830,14 @@ class Grid:
         """Encodes the grid as a new `xarray.Dataset` per grid format supplied
         in the `grid_type` argument.
 
+        .. deprecated:: 2024.04
+           Use :meth:`to_xarray` instead.
+
         Parameters
         ----------
         grid_type : str, required
             Grid type of output dataset.
-            Currently supported options are "ugrid", "exodus", and "scrip"
+            Currently supported options are "ugrid", "exodus", "scrip", and "esmf"
 
         Returns
         -------
@@ -1848,27 +1851,33 @@ class Grid:
         """
 
         warn(
-            "Grid.encode_as will be deprecated in a future release. Please use Grid.to_xarray instead."
+            "Grid.encode_as is deprecated and will be removed in a future release. Please use Grid.to_xarray instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        # Convert to lowercase for case-insensitive comparison
+        grid_type_lower = grid_type.lower()
         # Node boundaries/coords are not populated by default. Accessing node_lon will trigger their population.
         # Do this before encoding to ensure that the node boundaries/coords are populated.
-        _ = self.node_lon
-
-        grid_type = grid_type.lower()
-
-        if grid_type == "ugrid":
+        if "node_lon" not in self._ds.variables:
+            _ = self.node_lon
+        if grid_type_lower == "ugrid":
             out_ds = _encode_ugrid(self._ds)
 
-        elif grid_type == "exodus":
+        elif grid_type_lower == "exodus":
             out_ds = _encode_exodus(self._ds)
 
-        elif grid_type == "scrip":
+        elif grid_type_lower == "scrip":
             out_ds = _encode_scrip(
                 self.face_node_connectivity,
                 self.node_lon,
                 self.node_lat,
                 self.face_areas,
             )
+        elif grid_type_lower == "esmf":
+            from uxarray.io._esmf import _encode_esmf
+
+            out_ds = _encode_esmf(self._ds)
         else:
             raise RuntimeError("The grid type not supported: ", grid_type)
 
@@ -2013,21 +2022,23 @@ class Grid:
         ----------
         grid_format: str, optional
             The desired grid format for the output dataset.
-            One of "ugrid", "exodus", or "scrip"
+            One of "ugrid", "exodus", "scrip", or "esmf"
 
         Returns
         -------
         out_ds: xarray.Dataset
             Dataset representing the unstructured grid in a given grid format
         """
+        # Convert to lowercase for case-insensitive comparison
+        grid_format_lower = grid_format.lower()
 
-        if grid_format == "ugrid":
+        if grid_format_lower == "ugrid":
             out_ds = _encode_ugrid(self._ds)
 
-        elif grid_format == "exodus":
+        elif grid_format_lower == "exodus":
             out_ds = _encode_exodus(self._ds)
 
-        elif grid_format == "scrip":
+        elif grid_format_lower == "scrip":
             out_ds = _encode_scrip(
                 self.face_node_connectivity,
                 self.node_lon,
@@ -2035,9 +2046,14 @@ class Grid:
                 self.face_areas,
             )
 
+        elif grid_format_lower == "esmf":
+            from uxarray.io._esmf import _encode_esmf
+
+            out_ds = _encode_esmf(self._ds)
+
         else:
             raise ValueError(
-                f"Invalid grid_format encountered. Expected one of ['ugrid', 'exodus', 'scrip'] but received: {grid_format}"
+                f"Invalid grid_format encountered. Expected one of ['ugrid', 'exodus', 'scrip', 'esmf'] but received: {grid_format}"
             )
 
         return out_ds

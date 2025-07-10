@@ -106,9 +106,14 @@ def test_healpix_to_netcdf(tmp_path):
     """
     # Create HEALPix grid
     h = ux.Grid.from_healpix(zoom=3)
-    uxa_ugrid = h.encode_as("UGRID")
-    uxa_exodus = h.encode_as("Exodus")
 
+    # Access node coordinates to ensure they're generated before encoding
+    _ = h.node_lon
+    _ = h.node_lat
+
+    # Convert to different formats
+    uxa_ugrid = h.to_xarray("UGRID")
+    uxa_exodus = h.to_xarray("Exodus")
 
     tmp_filename_ugrid = tmp_path / "healpix_test_ugrid.nc"
     tmp_filename_exodus = tmp_path / "healpix_test_exodus.exo"
