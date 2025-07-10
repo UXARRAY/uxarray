@@ -384,8 +384,18 @@ class UxDataset(xr.Dataset):
     # Reuse the original xarray.Dataset.groupby docstring
     groupby.__doc__ = xr.Dataset.groupby.__doc__
 
-    def resample(self, indexer=None, skipna=None, closed=None, label=None,
-                 base=0, offset=None, origin="start_day", keep_attrs=None, **indexer_kwargs):
+    def resample(
+        self,
+        indexer=None,
+        skipna=None,
+        closed=None,
+        label=None,
+        base=0,
+        offset=None,
+        origin="start_day",
+        keep_attrs=None,
+        **indexer_kwargs,
+    ):
         """
         Resample this dataset to a new temporal resolution.
 
@@ -433,15 +443,12 @@ class UxDataset(xr.Dataset):
 
         # Check if we have cftime objects in the time coordinate
         # which need special handling
-        has_cftime_coords = False
-        dim_name = None
         for dim, freq in indexer.items():
             if dim in self.coords:
                 coord_values = self.coords[dim].values
-                if len(coord_values) > 0 and hasattr(coord_values[0], '__module__'):
-                    if 'cftime' in getattr(coord_values[0], '__module__', ''):
-                        has_cftime_coords = True
-                        dim_name = dim
+                if len(coord_values) > 0 and hasattr(coord_values[0], "__module__"):
+                    if "cftime" in getattr(coord_values[0], "__module__", ""):
+                        # We detected cftime coordinates, but handle them when needed
                         break
 
         # Create a custom resample wrapper class that preserves uxgrid
@@ -457,12 +464,15 @@ class UxDataset(xr.Dataset):
             def _wrap_result(self, result):
                 """Attach uxgrid to the result."""
                 if isinstance(result, xr.Dataset):
-                    return UxDataset(result, uxgrid=self.uxgrid,
-                                    source_datasets=self.source_datasets)
+                    return UxDataset(
+                        result, uxgrid=self.uxgrid, source_datasets=self.source_datasets
+                    )
                 elif isinstance(result, xr.DataArray):
                     from uxarray.core.dataarray import UxDataArray
-                    return UxDataArray(result, uxgrid=self.uxgrid,
-                                      source_datasets=self.source_datasets)
+
+                    return UxDataArray(
+                        result, uxgrid=self.uxgrid, source_datasets=self.source_datasets
+                    )
                 return result
 
             def _apply_resample(self, method_name, *args, **kwargs):
@@ -476,8 +486,8 @@ class UxDataset(xr.Dataset):
 
                 # Check for cftime objects that need special handling
                 has_cftime = False
-                if len(coord.values) > 0 and hasattr(coord.values[0], '__module__'):
-                    if 'cftime' in getattr(coord.values[0], '__module__', ''):
+                if len(coord.values) > 0 and hasattr(coord.values[0], "__module__"):
+                    if "cftime" in getattr(coord.values[0], "__module__", ""):
                         has_cftime = True
 
                 # Create an empty result dataset
@@ -492,16 +502,18 @@ class UxDataset(xr.Dataset):
 
                         try:
                             # Try standard resample
-                            temp_result = getattr(temp_ds.resample(**{dim: freq}, **self.kwargs),
-                                                method_name)(*args, **kwargs)
+                            temp_result = getattr(
+                                temp_ds.resample(**{dim: freq}, **self.kwargs),
+                                method_name,
+                            )(*args, **kwargs)
                             result_vars[var_name] = temp_result[var_name]
                         except ValueError:
                             # If that fails, try a different approach - manually resample with groupby
                             # This is a workaround for the "single dimensions" limitation
-                            if method_name in ['mean', 'sum', 'min', 'max', 'median']:
+                            if method_name in ["mean", "sum", "min", "max", "median"]:
                                 # Handle time resampling, with special case for cftime objects
-                                import pandas as pd
                                 import numpy as np
+                                import pandas as pd
 
                                 if has_cftime:
                                     # For cftime objects, we need to create our own bins based on the frequency
@@ -516,7 +528,7 @@ class UxDataset(xr.Dataset):
                                     months = np.array([t.month for t in orig_times])
 
                                     # For 'ME' or 'M' frequency (month end), group by year and month
-                                    if freq_str in ['ME', 'M', '1ME', '1M']:
+                                    if freq_str in ["ME", "M", "1ME", "1M"]:
                                         # Create year-month identifiers
                                         ym_identifiers = years * 100 + months
 
@@ -539,7 +551,9 @@ class UxDataset(xr.Dataset):
                                         times = pd.DatetimeIndex(coord.values)
 
                                         # Create a resampler and get the bins
-                                        resampler = times.to_series().resample(freq, **self.kwargs)
+                                        resampler = times.to_series().resample(
+                                            freq, **self.kwargs
+                                        )
                                         time_groups = resampler.groups
                                     except Exception:
                                         # If conversion fails, use a simple approach
@@ -547,6 +561,7 @@ class UxDataset(xr.Dataset):
 
                                 # Create an empty array for results
                                 import numpy as np
+
                                 result_data = []
                                 result_times = []
 
@@ -557,16 +572,18 @@ class UxDataset(xr.Dataset):
                                         group_data = da.isel({dim: indices}).values
 
                                         # Apply requested aggregation
-                                        if method_name == 'mean':
+                                        if method_name == "mean":
                                             agg_result = np.nanmean(group_data, axis=0)
-                                        elif method_name == 'sum':
+                                        elif method_name == "sum":
                                             agg_result = np.nansum(group_data, axis=0)
-                                        elif method_name == 'min':
+                                        elif method_name == "min":
                                             agg_result = np.nanmin(group_data, axis=0)
-                                        elif method_name == 'max':
+                                        elif method_name == "max":
                                             agg_result = np.nanmax(group_data, axis=0)
-                                        elif method_name == 'median':
-                                            agg_result = np.nanmedian(group_data, axis=0)
+                                        elif method_name == "median":
+                                            agg_result = np.nanmedian(
+                                                group_data, axis=0
+                                            )
 
                                         # Store result
                                         result_data.append(agg_result)
@@ -590,7 +607,7 @@ class UxDataset(xr.Dataset):
                                     result_data,
                                     dims=result_dims,
                                     coords=result_coords,
-                                    attrs=da.attrs if keep_attrs else {}
+                                    attrs=da.attrs if keep_attrs else {},
                                 )
 
                                 result_vars[var_name] = result_da
@@ -613,32 +630,39 @@ class UxDataset(xr.Dataset):
                 return self._wrap_result(result_ds)
 
             def mean(self, *args, **kwargs):
-                return self._apply_resample('mean', *args, **kwargs)
+                return self._apply_resample("mean", *args, **kwargs)
 
             def sum(self, *args, **kwargs):
-                return self._apply_resample('sum', *args, **kwargs)
+                return self._apply_resample("sum", *args, **kwargs)
 
             def min(self, *args, **kwargs):
-                return self._apply_resample('min', *args, **kwargs)
+                return self._apply_resample("min", *args, **kwargs)
 
             def max(self, *args, **kwargs):
-                return self._apply_resample('max', *args, **kwargs)
+                return self._apply_resample("max", *args, **kwargs)
 
             def median(self, *args, **kwargs):
-                return self._apply_resample('median', *args, **kwargs)
+                return self._apply_resample("median", *args, **kwargs)
 
             def std(self, *args, **kwargs):
-                return self._apply_resample('std', *args, **kwargs)
+                return self._apply_resample("std", *args, **kwargs)
 
             def var(self, *args, **kwargs):
-                return self._apply_resample('var', *args, **kwargs)
+                return self._apply_resample("var", *args, **kwargs)
 
             def count(self, *args, **kwargs):
-                return self._apply_resample('count', *args, **kwargs)
+                return self._apply_resample("count", *args, **kwargs)
 
         # Get remaining kwargs for resample
-        kwargs = dict(skipna=skipna, closed=closed, label=label,
-                     base=base, offset=offset, origin=origin, keep_attrs=keep_attrs)
+        kwargs = dict(
+            skipna=skipna,
+            closed=closed,
+            label=label,
+            base=base,
+            offset=offset,
+            origin=origin,
+            keep_attrs=keep_attrs,
+        )
 
         # Return the wrapper
         return UxResampleWrapper(self, indexer, indexer, kwargs)
