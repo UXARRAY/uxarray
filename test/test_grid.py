@@ -20,7 +20,10 @@ from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 from uxarray.grid.arcs import extreme_gca_latitude
 
 from uxarray.grid.validation import _find_duplicate_nodes
-from .test_gradient import quad_hex_grid_path
+
+current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
+quad_hex_grid_path = quad_hex_grid_path = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
 
 try:
     import constants
