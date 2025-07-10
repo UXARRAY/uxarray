@@ -103,3 +103,111 @@ def _read_esmf(in_ds):
     )
 
     return out_ds, source_dims_dict
+
+
+def _encode_esmf(ds: xr.Dataset) -> xr.Dataset:
+    """Encodes a UGRID-compliant xarray.Dataset into ESMF Unstructured Grid
+    Format.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        A UGRID-compliant xarray.Dataset.
+
+    Returns
+    -------
+    xr.Dataset
+        An xarray.Dataset formatted according to ESMF Unstructured Grid conventions.
+    """
+    from datetime import datetime
+
+    import numpy as np
+
+    out_ds = xr.Dataset()
+
+    # Node Coordinates (nodeCoords)
+    if "node_lon" in ds and "node_lat" in ds:
+        out_ds["nodeCoords"] = xr.concat(
+            [ds["node_lon"], ds["node_lat"]], dim=xr.DataArray([0, 1], dims="coordDim")
+        )
+        out_ds["nodeCoords"] = out_ds["nodeCoords"].rename({"n_node": "nodeCount"})
+        out_ds["nodeCoords"] = out_ds["nodeCoords"].transpose("nodeCount", "coordDim")
+        out_ds["nodeCoords"] = out_ds["nodeCoords"].assign_attrs(units="degrees")
+        # Clean up unwanted attributes
+        if "standard_name" in out_ds["nodeCoords"].attrs:
+            del out_ds["nodeCoords"].attrs["standard_name"]
+        if "long_name" in out_ds["nodeCoords"].attrs:
+            del out_ds["nodeCoords"].attrs["long_name"]
+    else:
+        raise ValueError("Input dataset must contain 'node_lon' and 'node_lat'.")
+
+    # Face Node Connectivity (elementConn)
+    # ESMF elementConn is 1-based, with -1 indicating an unused entry.
+    # UGRID face_node_connectivity is 0-based, with INT_FILL_VALUE for unused.
+    if "face_node_connectivity" in ds:
+        out_ds["elementConn"] = xr.DataArray(
+            ds["face_node_connectivity"] + 1,
+            dims=("elementCount", "maxNodePElement"),
+            attrs={
+                "long_name": "Node Indices that define the element connectivity",
+                "_FillValue": -1,
+            },
+        )
+        out_ds["elementConn"].encoding = {"dtype": np.int32}
+    else:
+        raise ValueError("Input dataset must contain 'face_node_connectivity'.")
+
+    # Number of Nodes per Face (numElementConn)
+    if "n_nodes_per_face" in ds:
+        out_ds["numElementConn"] = xr.DataArray(
+            ds["n_nodes_per_face"],
+            dims=("elementCount"),
+            attrs={"long_name": "Number of nodes per element"},
+        )
+        out_ds["numElementConn"].encoding = {"dtype": np.byte}
+    else:
+        # This can be derived if not present from elementConn
+        if "elementConn" in out_ds:
+            num_nodes = (out_ds["elementConn"] != -1).sum(dim="maxNodePElement")
+            out_ds["numElementConn"] = xr.DataArray(
+                num_nodes,
+                dims="elementCount",
+                attrs={"long_name": "Number of nodes per element"},
+            )
+            out_ds["numElementConn"].encoding = {"dtype": np.byte}
+        else:
+            raise ValueError(
+                "Input dataset must contain 'n_nodes_per_face' or equivalent information."
+            )
+
+    # Face Coordinates (centerCoords) - Optional in UGRID and ESMF
+    if "face_lon" in ds and "face_lat" in ds:
+        out_ds["centerCoords"] = xr.concat(
+            [ds["face_lon"], ds["face_lat"]], dim=xr.DataArray([0, 1], dims="coordDim")
+        )
+        out_ds["centerCoords"] = out_ds["centerCoords"].rename(
+            {"n_face": "elementCount"}
+        )
+        out_ds["centerCoords"] = out_ds["centerCoords"].transpose(
+            "elementCount", "coordDim"
+        )
+        out_ds["centerCoords"] = out_ds["centerCoords"].assign_attrs(units="degrees")
+        # Clean up unwanted attributes
+        if "standard_name" in out_ds["centerCoords"].attrs:
+            del out_ds["centerCoords"].attrs["standard_name"]
+        if "long_name" in out_ds["centerCoords"].attrs:
+            del out_ds["centerCoords"].attrs["long_name"]
+
+    # Force no '_FillValue' if not specified
+    for v in out_ds.variables:
+        if "_FillValue" not in out_ds[v].encoding:
+            out_ds[v].encoding["_FillValue"] = None
+
+    # Add global attributes
+    out_ds.attrs = {
+        "title": "ESMF Unstructured Grid from uxarray",
+        "source": "Converted from UGRID conventions by uxarray",
+        "date_created": datetime.now().isoformat(),
+    }
+
+    return out_ds

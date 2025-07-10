@@ -99,3 +99,36 @@ def test_invalid_cells():
     xrda = xr.DataArray(data=np.ones(11), dims=['cell']).to_dataset(name='cell')
     with pytest.raises(ValueError):
         uxda = ux.UxDataset.from_healpix(xrda)
+
+def test_healpix_to_netcdf(tmp_path):
+    """Test that HEALPix grid can be encoded as UGRID and saved to netCDF.
+       Using pytest tmp_path fixture to create a temporary file.
+    """
+    # Create HEALPix grid
+    h = ux.Grid.from_healpix(zoom=3)
+
+    # Access node coordinates to ensure they're generated before encoding
+    _ = h.node_lon
+    _ = h.node_lat
+
+    # Convert to different formats
+    uxa_ugrid = h.to_xarray("UGRID")
+    uxa_exodus = h.to_xarray("Exodus")
+
+    tmp_filename_ugrid = tmp_path / "healpix_test_ugrid.nc"
+    tmp_filename_exodus = tmp_path / "healpix_test_exodus.exo"
+
+    # Save to netCDF
+    uxa_ugrid.to_netcdf(tmp_filename_ugrid)
+    uxa_exodus.to_netcdf(tmp_filename_exodus)
+
+    # Assertions
+    assert tmp_filename_ugrid.exists()
+    assert tmp_filename_ugrid.stat().st_size > 0
+    assert tmp_filename_exodus.exists()
+    assert tmp_filename_exodus.stat().st_size > 0
+
+    loaded_grid_ugrid = ux.open_grid(tmp_filename_ugrid)
+    loaded_grid_exodus = ux.open_grid(tmp_filename_exodus)
+    assert loaded_grid_ugrid.n_face == h.n_face
+    assert loaded_grid_exodus.n_face == h.n_face

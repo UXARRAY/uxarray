@@ -445,24 +445,38 @@ class UxDataset(xr.Dataset):
 
     def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
         """
-        Converts a ``ux.UXDataset`` to a ``xr.Dataset``.
-
-        Parameters
-        ----------
-        grid_format : str, default="UGRID"
-            The format in which to convert the grid. Supported values are "UGRID" and "HEALPix". The dimensions will
-            match the selected grid format.
-
-        Returns
-        -------
-        xr.Dataset
-            The ``ux.UXDataset`` represented as a ``xr.Dataset``
+        Converts a ``ux.UXDataset`` to a ``xr.Dataset`` in the requested grid format.
+        Supported: "UGRID", "ESMF", "Exodus", "SCRIP", "HEALPix"
         """
-        if grid_format == "HEALPix":
+        if grid_format.upper() == "HEALPIX":
             ds = self.rename_dims({"n_face": "cell"})
             return xr.Dataset(ds)
+        elif grid_format.upper() == "UGRID":
+            from uxarray.io._ugrid import _encode_ugrid
 
-        return xr.Dataset(self)
+            return _encode_ugrid(self)
+        elif grid_format.upper() == "ESMF":
+            from uxarray.io._esmf import _encode_esmf
+
+            return _encode_esmf(self)
+        elif grid_format.upper() == "EXODUS":
+            from uxarray.io._exodus import _encode_exodus
+
+            return _encode_exodus(self)
+        elif grid_format.upper() == "SCRIP":
+            from uxarray.io._scrip import _encode_scrip
+
+            # You may need to pass the right arguments from self
+            return _encode_scrip(
+                self["face_node_connectivity"],
+                self["node_lon"],
+                self["node_lat"],
+                self.uxgrid.compute_face_areas()[
+                    0
+                ],  # or however face_areas are computed
+            )
+        else:
+            raise ValueError(f"Unsupported grid_format: {grid_format}")
 
     def get_dual(self):
         """Compute the dual mesh for a dataset, returns a new dataset object.
@@ -515,7 +529,7 @@ class UxDataset(xr.Dataset):
         return dataset
 
     def where(self, cond: Any, other: Any = dtypes.NA, drop: bool = False):
-        return UxDataset(self.to_xarray().where(cond, other, drop), uxgrid=self.uxgrid)
+        return UxDataset(super().where(cond, other, drop), uxgrid=self.uxgrid)
 
     where.__doc__ = xr.Dataset.where.__doc__
 
@@ -523,7 +537,7 @@ class UxDataset(xr.Dataset):
         self, indexers=None, method=None, tolerance=None, drop=False, **indexers_kwargs
     ):
         return UxDataset(
-            self.to_xarray().sel(indexers, tolerance, drop, **indexers_kwargs),
+            super().sel(indexers, method, tolerance, drop, **indexers_kwargs),
             uxgrid=self.uxgrid,
         )
 
