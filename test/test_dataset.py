@@ -86,6 +86,141 @@ def test_groupby_preserves_uxgrid():
 
 
 
+
+def test_resample_preserves_uxgrid_and_reduces_time():
+    """Test that resample operations preserve uxgrid and reduce time dimension."""
+    import numpy as np
+    import pandas as pd
+    import pytest
+    import xarray as xr
+
+    # Create a simple test with only time dimension
+    times = pd.date_range("2000-01-01", periods=12, freq="D")
+    temp_data = np.random.rand(12)
+
+    # Create a simple xarray Dataset
+    xr_ds = xr.Dataset(
+        {"temperature": ("time", temp_data)},
+        coords={"time": times}
+    )
+
+    # Open the minimal dataset with a real grid
+    try:
+        # Use existing test file we know works
+        uxgrid = ux.open_grid(gridfile_ne30)
+
+        # Create a UxDataset with this grid
+        uxds = ux.UxDataset(xr_ds, uxgrid=uxgrid)
+
+        print(f"Original dataset dims: {uxds.dims}")
+        print(f"Original dataset shape: {uxds.temperature.shape}")
+
+        # Test the resample method directly
+        print("Attempting resample...")
+        result = uxds.temperature.resample(time="1W").mean()
+
+        print(f"Resampled result dims: {result.dims}")
+        print(f"Resampled result shape: {result.shape}")
+
+        # Test assertions
+        assert hasattr(result, "uxgrid"), "uxgrid not preserved on resample"
+        assert result.uxgrid == uxds.uxgrid, "uxgrid not equal after resample"
+        assert len(result.time) < len(uxds.time), "time dimension not reduced"
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        pytest.fail(f"Error in resample test: {e}")
+
+def test_resample_preserves_uxgrid():
+    """Test that resample preserves the uxgrid attribute."""
+    import numpy as np
+    import pandas as pd
+    import pytest
+
+    # Create a simple dataset with a time dimension
+    times = pd.date_range("2000-01-01", periods=12, freq="D")
+    data = np.random.rand(12)
+
+    # Create a simple xarray Dataset
+    ds = xr.Dataset(
+        {"temperature": ("time", data)},
+        coords={"time": times}
+    )
+
+    # Create a UxDataset with a real grid
+    uxds = ux.open_dataset(gridfile_ne30, gridfile_ne30)
+    original_uxgrid = uxds.uxgrid
+
+    # Create a new UxDataset with our time data and the real grid
+    uxds_time = ux.UxDataset(ds, uxgrid=original_uxgrid)
+
+    # Test DataArray resample preserves uxgrid
+    da_result = uxds_time.temperature.resample(time="1W").mean()
+    assert hasattr(da_result, "uxgrid"), "uxgrid not preserved on DataArray resample"
+    assert da_result.uxgrid is original_uxgrid, "uxgrid not identical after DataArray resample"
+
+    # Test Dataset resample preserves uxgrid
+    ds_result = uxds_time.resample(time="1W").mean()
+    assert hasattr(ds_result, "uxgrid"), "uxgrid not preserved on Dataset resample"
+    assert ds_result.uxgrid is original_uxgrid, "uxgrid not identical after Dataset resample"
+
+
+def test_resample_reduces_time_dimension():
+    """Test that resample properly reduces the time dimension."""
+    import numpy as np
+    import pandas as pd
+    import pytest
+
+    # Create dataset with daily data for a year
+    times = pd.date_range("2000-01-01", periods=365, freq="D")
+    data = np.random.rand(365)
+
+    # Create a simple xarray Dataset
+    ds = xr.Dataset(
+        {"temperature": ("time", data)},
+        coords={"time": times}
+    )
+
+    # Create a UxDataset
+    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(gridfile_ne30))
+
+    # Test monthly resampling reduces from 365 days to 12 months
+    monthly = uxds.resample(time="1M").mean()
+    assert "time" in monthly.dims, "time dimension missing after resample"
+    assert monthly.dims["time"] < uxds.dims["time"], "time dimension not reduced"
+    assert monthly.dims["time"] <= 12, "monthly resampling should give 12 or fewer time points"
+
+
+def test_resample_with_cftime():
+    """Test that resample works with cftime objects."""
+    import numpy as np
+    import pytest
+
+    try:
+        import cftime
+    except ImportError:
+        pytest.skip("cftime package not available")
+
+    # Create a dataset with cftime DatetimeNoLeap objects
+    times = [cftime.DatetimeNoLeap(2000, month, 15) for month in range(1, 13)]
+    data = np.random.rand(12)
+
+    # Create a simple xarray Dataset with cftime
+    ds = xr.Dataset(
+        {"temperature": ("time", data)},
+        coords={"time": times}
+    )
+
+    # Create a UxDataset
+    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(gridfile_ne30))
+
+    # Test that quarterly resampling works with cftime
+    quarterly = uxds.resample(time="Q").mean()
+    assert hasattr(quarterly, "uxgrid"), "uxgrid not preserved with cftime resampling"
+    assert "time" in quarterly.dims, "time dimension missing after cftime resample"
+    assert quarterly.dims["time"] < uxds.dims["time"], "time dimension not reduced with cftime"
+
 # Uncomment the following test if you want to include it, ensuring you handle potential failures.
 # def test_read_from_https():
 #     """Tests reading a dataset from a HTTPS link."""
