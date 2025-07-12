@@ -5,9 +5,9 @@ from html import escape
 from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, Optional
 from warnings import warn
 
-import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
+from cartopy.mpl.geoaxes import GeoAxes
 from xarray.core import dtypes
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
@@ -26,11 +26,14 @@ from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
 from uxarray.grid.validation import _check_duplicate_nodes_indices
+from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
 
 if TYPE_CHECKING:
+    import numpy as np
+
     from uxarray.core.dataset import UxDataset
 
 
@@ -145,7 +148,7 @@ class UxDataArray(xr.DataArray):
     def to_geodataframe(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection=None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
@@ -255,11 +258,6 @@ class UxDataArray(xr.DataArray):
 
     def to_polycollection(
         self,
-        periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
-        return_indices: Optional[bool] = False,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
@@ -268,19 +266,8 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        periodic_elements : str, optional
-            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
-            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
-            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
-            - 'ignore': No processing will be applied to periodic elements.
-        projection: ccrs.Projection
-            Cartopy geographic projection to use
-        return_indices: bool
-            Flag to indicate whether to return the indices of corrected polygons, if any exist
-        cache: bool
-            Flag to indicate whether to cache the computed PolyCollection
-        override: bool
-            Flag to indicate whether to override a cached PolyCollection, if it exists
+        **kwargs: dict
+            Key word arguments to pass into the construction of a PolyCollection
         """
         # data is multidimensional, must be a 1D slice
         if self.values.ndim > 1:
@@ -289,53 +276,67 @@ class UxDataArray(xr.DataArray):
                 f"for face-centered data."
             )
 
-        if self._face_centered():
-            poly_collection, corrected_to_original_faces = (
-                self.uxgrid.to_polycollection(
-                    override=override,
-                    cache=cache,
-                    periodic_elements=periodic_elements,
-                    return_indices=True,
-                    projection=projection,
-                    **kwargs,
-                )
-            )
+        poly_collection = self.uxgrid.to_polycollection(**kwargs)
 
-            if periodic_elements == "exclude":
-                # index data to ignore data mapped to periodic elements
-                _data = np.delete(
-                    self.values,
-                    self.uxgrid._poly_collection_cached_parameters[
-                        "antimeridian_face_indices"
-                    ],
-                    axis=0,
-                )
-            elif periodic_elements == "split":
-                _data = self.values[corrected_to_original_faces]
-            else:
-                _data = self.values
+        poly_collection.set_array(self.data)
 
-            if (
-                self.uxgrid._poly_collection_cached_parameters[
-                    "non_nan_polygon_indices"
-                ]
-                is not None
-            ):
-                # index data to ignore NaN polygons
-                _data = _data[
-                    self.uxgrid._poly_collection_cached_parameters[
-                        "non_nan_polygon_indices"
-                    ]
-                ]
+        return poly_collection
 
-            poly_collection.set_array(_data)
+    def to_raster(self, ax: GeoAxes):
+        """
+        Rasterizes a data variable stored on the faces of an unstructured grid onto the pixels of the provided Cartopy GeoAxes.
 
-            if return_indices:
-                return poly_collection, corrected_to_original_faces
-            else:
-                return poly_collection
-        else:
-            raise ValueError("Data variable must be face centered.")
+        Parameters
+        ----------
+        ax : GeoAxes
+            A Cartopy GeoAxes onto which the data will be rasterized. Each pixel in this axes will be sampled
+            against the unstructured grid’s face geometry.
+
+        Returns
+        -------
+        raster : numpy.ndarray, shape (ny, nx)
+            Array of resampled data values corresponding to each pixel.
+
+
+        Notes
+        -----
+        - This method currently employs a nearest-neighbor resampling approach. For every pixel in the GeoAxes,
+          it finds the face of the unstructured grid that contains the pixel’s geographic coordinate and colors
+          that pixel with the face’s data value.
+        - If a pixel does not intersect any face (i.e., lies outside the grid domain), it will be left empty (transparent).
+
+
+        Example
+        -------
+        >>> import cartopy.crs as ccrs
+        >>> import matplotlib.pyplot as plt
+
+        Create a GeoAxes with a Robinson projection and global extent
+
+        >>> fig, ax = plt.subplots(subplot_kw={"projection": ccrs.Robinson()})
+        >>> ax.set_global()
+
+        Rasterize data onto the GeoAxes
+
+        >>> raster = uxds["psi"].to_raster(ax=ax)
+
+        Use Imshow to visualuze the raster
+
+        >>> ax.imshow(raster, origin="lower", extent=ax.get_xlim() + ax.get_ylim())
+
+
+        """
+        from uxarray.plot.matplotlib import (
+            _ensure_dimensions,
+            _nearest_neighbor_resample,
+        )
+
+        _ensure_dimensions(self)
+
+        if not isinstance(ax, GeoAxes):
+            raise ValueError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
+
+        return _nearest_neighbor_resample(self, ax)
 
     def to_dataset(
         self,
@@ -482,7 +483,9 @@ class UxDataArray(xr.DataArray):
             uxda=self, latitudes=latitudes, **kwargs
         )
 
-        dims = list(self.dims[:-1]) + ["latitudes"]
+        face_axis = self.dims.index("n_face")
+        dims = list(self.dims)
+        dims[face_axis] = "latitudes"
 
         uxda = UxDataArray(
             res,
@@ -1306,6 +1309,51 @@ class UxDataArray(xr.DataArray):
         ds = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
 
         return cls(ds, uxgrid=uxgrid)
+
+    @classmethod
+    def from_healpix(
+        cls,
+        da: xr.DataArray,
+        pixels_only: bool = True,
+        face_dim: str = "cell",
+        **kwargs,
+    ):
+        """
+        Loads a data array represented in the HEALPix format into a ``ux.UxDataArray``, paired
+        with a ``Grid`` containing information about the HEALPix definition.
+
+        Parameters
+        ----------
+        da: xr.DataArray
+            Reference to a HEALPix DataArray
+        pixels_only : bool, optional
+            Whether to only compute pixels (`face_lon`, `face_lat`) or to also construct boundaries (`face_node_connectivity`, `node_lon`, `node_lat`)
+        face_dim: str, optional
+            Data dimension corresponding to the HEALPix face mapping. Typically, is set to "cell", but may differ.
+
+        Returns
+        -------
+        cls
+            A ``ux.UxDataArray`` instance
+        """
+
+        if not isinstance(da, xr.DataArray):
+            raise ValueError("`da` must be a xr.DataArray")
+
+        if face_dim not in da.dims:
+            raise ValueError(
+                f"The provided face dimension '{face_dim}' is present in the provided healpix data array."
+                f"Please set 'face_dim' to the dimension corresponding to the healpix face dimension."
+            )
+
+        # Attach a HEALPix Grid
+        uxgrid = Grid.from_healpix(
+            zoom=get_zoom_from_cells(da.sizes[face_dim]),
+            pixels_only=pixels_only,
+            **kwargs,
+        )
+
+        return cls.from_xarray(da, uxgrid, {face_dim: "n_face"})
 
     def _slice_from_grid(self, sliced_grid):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached

@@ -12,10 +12,7 @@ def _map_dims_to_ugrid(
     remaps the original dimension name to match the UGRID conventions (i.e.
     "nCell": "n_face")"""
 
-    if grid.source_grid_spec == "HEALPix":
-        ds = ds.swap_dims({"cell": "n_face"})
-
-    elif grid.source_grid_spec == "Structured":
+    if grid.source_grid_spec == "Structured":
         # Case for structured grids, flatten bottom two sptial dimensions
 
         lon_name, lat_name = _source_dims_dict["n_face"]
@@ -47,21 +44,17 @@ def _map_dims_to_ugrid(
             # drop dimensions not present in the original dataset
             _source_dims_dict.pop(key)
 
-        # only check edge dimension if it is present (to avoid overhead of computing connectivity)
-        if "n_edge" in grid._ds.dims:
-            n_edge = grid._ds.sizes["n_edge"]
-        else:
-            n_edge = None
+        # build a reverse map
+        size_to_name = {
+            grid._ds.sizes[name]: name
+            for name in ("n_face", "n_node", "n_edge")
+            if name in grid._ds.dims
+        }
 
-        for dim in set(ds.dims) ^ _source_dims_dict.keys():
-            # obtain dimensions that were not parsed source_dims_dict and attempt to match to a grid element
-            if ds.sizes[dim] == grid.n_face:
-                _source_dims_dict[dim] = "n_face"
-            elif ds.sizes[dim] == grid.n_node:
-                _source_dims_dict[dim] = "n_node"
-            elif n_edge is not None:
-                if ds.sizes[dim] == n_edge:
-                    _source_dims_dict[dim] = "n_edge"
+        for dim in set(ds.dims) - _source_dims_dict.keys():
+            name = size_to_name.get(ds.sizes[dim])
+            if name:
+                _source_dims_dict[dim] = name
 
         # rename dimensions to follow the UGRID conventions
         ds = ds.swap_dims(_source_dims_dict)

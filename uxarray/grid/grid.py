@@ -4,49 +4,46 @@ from html import escape
 from typing import (
     List,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Union,
 )
 from warnings import warn
 
-import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
-from scipy.spatial import KDTree as SPKDTree
-from spatialpandas import GeoDataFrame
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
-from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.constants import INT_FILL_VALUE
 from uxarray.conventions import ugrid
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.formatting_html import grid_repr
 from uxarray.grid.area import get_all_face_area_from_coords
-from uxarray.grid.bounds import _construct_face_bounds_array, _populate_face_bounds
+from uxarray.grid.bounds import _populate_face_bounds
 from uxarray.grid.connectivity import (
     _populate_edge_face_connectivity,
     _populate_edge_node_connectivity,
     _populate_face_edge_connectivity,
     _populate_face_face_connectivity,
     _populate_n_nodes_per_face,
+    _populate_node_edge_connectivity,
     _populate_node_face_connectivity,
 )
 from uxarray.grid.coordinates import (
-    _lonlat_rad_to_xyz,
     _populate_edge_centroids,
     _populate_face_centerpoints,
     _populate_face_centroids,
     _populate_node_latlon,
     _populate_node_xyz,
     _set_desired_longitude_range,
-    _xyz_to_lonlat_deg,
+    points_atleast_2d_xyz,
     prepare_points,
 )
 from uxarray.grid.dual import construct_dual
 from uxarray.grid.geometry import (
     _construct_boundary_edge_indices,
-    _find_faces,
     _grid_to_matplotlib_linecollection,
     _grid_to_matplotlib_polycollection,
     _grid_to_polygon_geodataframe,
@@ -68,7 +65,8 @@ from uxarray.grid.neighbors import (
     _populate_edge_face_distances,
     _populate_edge_node_distances,
 )
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array, make_setter
+from uxarray.grid.point_in_face import _point_in_face_query
+from uxarray.grid.utils import make_setter
 from uxarray.grid.validation import (
     _check_area,
     _check_connectivity,
@@ -103,7 +101,6 @@ from uxarray.io._voronoi import _spherical_voronoi_from_points
 from uxarray.io.utils import _parse_grid_type
 from uxarray.plot.accessor import GridPlotAccessor
 from uxarray.subset import GridSubsetAccessor
-from uxarray.utils.numba import is_numba_function_cached
 
 
 class Grid:
@@ -135,7 +132,7 @@ class Grid:
         A dataset of indices that correspond to the original grid, if the grid being constructed is a subset
 
     Examples
-    ----------
+    --------
 
     >>> import uxarray as ux
     >>> grid_path = "/path/to/grid.nc"
@@ -210,27 +207,14 @@ class Grid:
             "antimeridian_face_indices": None,
         }
 
-        # cached parameters for PolyCollection conversions
-        self._poly_collection_cached_parameters = {
-            "poly_collection": None,
-            "periodic_elements": None,
-            "projection": None,
-            "corrected_to_original_faces": None,
-            "non_nan_polygon_indices": None,
-            "antimeridian_face_indices": None,
-        }
-
-        # cached parameters for LineCollection conversions
-        self._line_collection_cached_parameters = {
-            "line_collection": None,
-            "periodic_elements": None,
-            "projection": None,
-        }
+        # Cached matplotlib data structures
+        self._cached_poly_collection = None
+        self._cached_line_collection = None
 
         self._raster_data_id = None
 
         # Cache for KDTrees
-        self._kdtrees: dict[str, SPKDTree] = {}
+        self._kdtrees = {}
 
         # initialize cached data structures (nearest neighbor operations)
         self._ball_tree = None
@@ -428,7 +412,7 @@ class Grid:
             ds = _regional_delaunay_from_points(_points, boundary_points)
         else:
             raise ValueError(
-                f"Unsupported method '{method}'. Expected one of ['spherical_voronoi', 'spherical_delaunay']."
+                f"Unsupported method '{method}'. Expected one of ['spherical_voronoi', 'spherical_delaunay', 'regional_delaunay']."
             )
 
         return cls.from_dataset(dataset=ds, source_grid_spec=method)
@@ -831,6 +815,8 @@ class Grid:
         n_node : int
             The total number of nodes.
         """
+        if "face_node_connectivity" not in self._ds:
+            _ = self.face_node_connectivity
         return self._ds.sizes["n_node"]
 
     @property
@@ -1353,9 +1339,7 @@ class Grid:
             representing the connectivity.
         """
         if "node_edge_connectivity" not in self._ds:
-            raise NotImplementedError(
-                "Construction of `node_edge_connectivity` not yet supported."
-            )
+            _populate_node_edge_connectivity(self)
 
         return self._ds["node_edge_connectivity"]
 
@@ -1514,12 +1498,6 @@ class Grid:
             An array of shape (:py:attr:`~uxarray.Grid.n_face`, `two`, `two`)
         """
         if "bounds" not in self._ds:
-            if not is_numba_function_cached(_construct_face_bounds_array):
-                warn(
-                    "Necessary functions for computing the bounds of each face are not yet compiled with Numba. "
-                    "This initial execution will be significantly longer.",
-                    RuntimeWarning,
-                )
             _populate_face_bounds(self)
         return self._ds["bounds"]
 
@@ -1646,7 +1624,7 @@ class Grid:
 
     @property
     def max_face_radius(self):
-        """Maximum face radius of the grid in degrees"""
+        """Maximum Euclidean distance from each face center to its nodes."""
         if "max_face_radius" not in self._ds:
             self._ds["max_face_radius"] = _populate_max_face_radius(self)
         return self._ds["max_face_radius"]
@@ -1802,6 +1780,8 @@ class Grid:
         - Trees are cached per-coordinate-set in `self._kdtrees` to avoid repeated construction.
         - The tree uses the (x, y, z) Cartesian values stored on each grid element.
         """
+        from scipy.spatial import KDTree as SPKDTree
+
         if coordinates not in ("node", "edge", "face"):
             raise ValueError(
                 f"Invalid coordinates='{coordinates}'; "
@@ -1809,6 +1789,7 @@ class Grid:
             )
 
         if reconstruct or coordinates not in self._kdtrees:
+            self.normalize_cartesian_coordinates()
             x = getattr(self, f"{coordinates}_x").values
             y = getattr(self, f"{coordinates}_y").values
             z = getattr(self, f"{coordinates}_z").values
@@ -2132,7 +2113,7 @@ class Grid:
     def to_geodataframe(
         self,
         periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection=None,
         cache: Optional[bool] = True,
         override: Optional[bool] = False,
         engine: Optional[str] = "spatialpandas",
@@ -2181,6 +2162,8 @@ class Grid:
         gdf : spatialpandas.GeoDataFrame or geopandas.GeoDataFrame
             The output ``GeoDataFrame`` with a filled out "geometry" column of polygons.
         """
+
+        from spatialpandas import GeoDataFrame
 
         if engine not in ["spatialpandas", "geopandas"]:
             raise ValueError(
@@ -2258,12 +2241,6 @@ class Grid:
 
     def to_polycollection(
         self,
-        periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
-        return_indices: Optional[bool] = False,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        return_non_nan_polygon_indices: Optional[bool] = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
@@ -2271,82 +2248,28 @@ class Grid:
 
         Parameters
         ----------
-        periodic_elements : str, optional
-            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
-            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
-            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
-            - 'ignore': No processing will be applied to periodic elements.
-        projection: ccrs.Projection
-            Cartopy geographic projection to use
-        return_indices: bool
-            Flag to indicate whether to return the indices of corrected polygons, if any exist
-        cache: bool
-            Flag to indicate whether to cache the computed PolyCollection
-        override: bool
-            Flag to indicate whether to override a cached PolyCollection, if it exists
         **kwargs: dict
             Key word arguments to pass into the construction of a PolyCollection
         """
+        import cartopy.crs as ccrs
 
-        if periodic_elements not in ["ignore", "exclude", "split"]:
-            raise ValueError(
-                f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
-            )
-
-        if self._poly_collection_cached_parameters["poly_collection"] is not None:
-            if (
-                self._poly_collection_cached_parameters["periodic_elements"]
-                != periodic_elements
-                or self._poly_collection_cached_parameters["projection"] != projection
-            ):
-                # cached PolyCollection has a different projection or periodic element handling method
-                override = True
-
-        if (
-            self._poly_collection_cached_parameters["poly_collection"] is not None
-            and not override
-        ):
-            # use cached PolyCollection
-            if return_indices:
-                return copy.deepcopy(
-                    self._poly_collection_cached_parameters["poly_collection"]
-                ), self._poly_collection_cached_parameters[
-                    "corrected_to_original_faces"
-                ]
-            else:
-                return copy.deepcopy(
-                    self._poly_collection_cached_parameters["poly_collection"]
-                )
+        if self._cached_poly_collection:
+            return copy.deepcopy(self._cached_poly_collection)
 
         (
             poly_collection,
             corrected_to_original_faces,
         ) = _grid_to_matplotlib_polycollection(
-            self, periodic_elements, projection, **kwargs
+            self, periodic_elements="ignore", projection=None, **kwargs
         )
 
-        if cache:
-            # cache PolyCollection, indices, and state
-            self._poly_collection_cached_parameters["poly_collection"] = poly_collection
-            self._poly_collection_cached_parameters["corrected_to_original_faces"] = (
-                corrected_to_original_faces
-            )
-            self._poly_collection_cached_parameters["periodic_elements"] = (
-                periodic_elements
-            )
-            self._poly_collection_cached_parameters["projection"] = projection
+        poly_collection.set_transform(ccrs.Geodetic())
+        self._cached_poly_collection = poly_collection
 
-        if return_indices:
-            return copy.deepcopy(poly_collection), corrected_to_original_faces
-        else:
-            return copy.deepcopy(poly_collection)
+        return copy.deepcopy(poly_collection)
 
     def to_linecollection(
         self,
-        periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.LineCollection``` consisting
@@ -2354,55 +2277,28 @@ class Grid:
 
         Parameters
         ----------
-        periodic_elements : str, optional
-            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
-            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
-            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
-            - 'ignore': No processing will be applied to periodic elements.
-        projection: ccrs.Projection
-            Cartopy geographic projection to use
-        cache: bool
-            Flag to indicate whether to cache the computed PolyCollection
-        override: bool
-            Flag to indicate whether to override a cached PolyCollection, if it exists
         **kwargs: dict
             Key word arguments to pass into the construction of a PolyCollection
         """
-        if periodic_elements not in ["ignore", "exclude", "split"]:
-            raise ValueError(
-                f"Invalid value for 'periodic_elements'. Expected one of ['ignore', 'exclude', 'split'] but received: {periodic_elements}"
-            )
+        import cartopy.crs as ccrs
 
-        if self._line_collection_cached_parameters["line_collection"] is not None:
-            if (
-                self._line_collection_cached_parameters["periodic_elements"]
-                != periodic_elements
-                or self._line_collection_cached_parameters["projection"] != projection
-            ):
-                override = True
-
-            if not override:
-                return self._line_collection_cached_parameters["line_collection"]
+        if self._cached_line_collection:
+            return copy.deepcopy(self._cached_line_collection)
 
         line_collection = _grid_to_matplotlib_linecollection(
             grid=self,
-            periodic_elements=periodic_elements,
-            projection=projection,
+            periodic_elements="ingore",
+            projection=None,
             **kwargs,
         )
 
-        if cache:
-            self._line_collection_cached_parameters["line_collection"] = line_collection
-            self._line_collection_cached_parameters["periodic_elements"] = (
-                periodic_elements
-            )
-            self._line_collection_cached_parameters["periodic_elements"] = (
-                periodic_elements
-            )
+        line_collection.set_transform(ccrs.Geodetic())
 
-        return line_collection
+        self._cached_line_collection = line_collection
 
-    def get_dual(self):
+        return copy.deepcopy(line_collection)
+
+    def get_dual(self, check_duplicate_nodes: bool = False):
         """Compute the dual for a grid, which constructs a new grid centered
         around the nodes, where the nodes of the primal become the face centers
         of the dual, and the face centers of the primal become the nodes of the
@@ -2414,8 +2310,10 @@ class Grid:
             Dual Mesh Grid constructed
         """
 
-        if _check_duplicate_nodes_indices(self):
-            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+        if check_duplicate_nodes:
+            if _check_duplicate_nodes_indices(self):
+                # TODO: This is very slow
+                raise RuntimeError("Duplicate nodes found, cannot construct dual")
 
         # Get dual mesh node face connectivity
         dual_node_face_conn = construct_dual(grid=self)
@@ -2639,116 +2537,88 @@ class Grid:
         return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
 
     def get_faces_containing_point(
-        self, point_xyz=None, point_lonlat=None, tolerance=ERROR_TOLERANCE
-    ):
-        """Identifies the indices of faces that contain a given point.
+        self,
+        points: Sequence[float] | np.ndarray,
+        return_counts: bool = True,
+    ) -> Tuple[np.ndarray, np.ndarray] | List[List[int]]:
+        """
+        Identify which grid faces contain the given point(s).
 
         Parameters
         ----------
-        point_xyz : numpy.ndarray
-            A point in cartesian coordinates. Best performance if
-        point_lonlat : numpy.ndarray
-            A point in spherical coordinates.
-        tolerance : numpy.ndarray
-            An optional error tolerance for points that lie on the nodes of a face.
+        points : array_like, shape (N, 2) or (2,) or shape (N, 3) or (3,)
+            Query point(s) to locate on the grid.
+            - If last dimension is 2, interpreted as (longitude, latitude) in **degrees**.
+            - If last dimension is 3, interpreted as Cartesian coordinates on the unit sphere: (x, y, z).
+            You may pass a single point (shape `(2,)` or `(3,)`) or multiple points (shape `(N, 2)` or `(N, 3)`).
+        return_counts : bool, default=True
+            - If True, returns a tuple `(face_indices, counts)`.
+            - If False, returns a `list` of per-point lists of face indices (no padding).
 
         Returns
         -------
-        index : numpy.ndarray
-            Array of the face indices containing point. Empty if no face is found. This function will typically return
-            a single face, unless the point falls directly on a corner or edge, where there will be multiple values.
+        If `return_counts=True`:
+          face_indices : np.ndarray, shape (N, M) or (N, 1)
+              2D array of face indices.  Rows are padded with `INT_FILL_VALUE` when a point
+              lies on corners of multiple faces.  If every queried point falls in exactly
+              one face, the result has shape `(N, 1)`.
+          counts : np.ndarray, shape (N,)
+              Number of valid face indices in each row of `face_indices`.
+
+        If `return_counts=False`:
+          List[List[int]]
+              Python list of length `N`, where each element is the list of face
+              indices for that point (no padding, in natural order).
+
+        Notes
+        -----
+        - Most points will lie strictly inside exactly one face; in that case,
+          `counts == 1` and `face_indices` has one column.
+        - Points that lie exactly on a vertex or edge shared by multiple faces
+          return multiple indices in the first `counts[i]` columns of row `i`,
+          with any remaining columns filled by `INT_FILL_VALUE`.
+
 
         Examples
         --------
-        Open a grid from a file path:
 
-        >>> import uxarray as ux
-        >>> uxgrid = ux.open_grid("grid_filename.nc")
+        Query a single spherical point
 
-        Define a spherical point:
+        >>> face_indices, counts = uxgrid.get_faces_containing_point(points=(0.0, 0.0))
 
-        >>> import numpy as np
-        >>> point_lonlat = np.array([45.2, 32.6], dtype=np.float64)
+        Query a single Cartesian point
 
-        Define a cartesian point:
+         >>> face_indices, counts = uxgrid.get_faces_containing_point(
+         ...     points=[0.0, 0.0, 1.0]
+         ... )
 
-        >>> point_xyz = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+        Query multiple points at once
 
-        Find the indices of the faces that contain the given point:
+        >>> pts = [(0.0, 0.0), (10.0, 20.0)]
+        >>> face_indices, counts = uxgrid.get_faces_containing_point(points=pts)
 
-        >>> lonlat_point_face_indices = uxgrid.get_faces_containing_point(
-        ...     point_lonlat=point_lonlat
-        ... )
-        >>> xyz_point_face_indices = uxgrid.get_faces_containing_point(
-        ...     point_xyz=point_xyz
+        Return a list of lists
+
+        >>> face_indices_list = uxgrid.get_faces_containing_point(
+        ...     points=[0.0, 0.0, 1.0], return_counts=False
         ... )
 
         """
-        if point_xyz is None and point_lonlat is None:
-            raise ValueError("Either `point_xyz` or `point_lonlat` must be passed in.")
 
-        # Depending on the provided point coordinates, convert to get all needed coordinate systems
-        if point_xyz is None:
-            point_lonlat = np.asarray(point_lonlat, dtype=np.float64)
-            point_xyz = np.array(
-                _lonlat_rad_to_xyz(*np.deg2rad(point_lonlat)), dtype=np.float64
-            )
-        elif point_lonlat is None:
-            point_xyz = np.asarray(point_xyz, dtype=np.float64)
-            point_lonlat = np.array(_xyz_to_lonlat_deg(*point_xyz), dtype=np.float64)
-
-        # Get the maximum face radius of the grid, plus a small adjustment for if the point is this exact radius away
-        max_face_radius = self.max_face_radius.values + 0.0001
-
-        # Try to find a subset in which the point resides
-        try:
-            subset = self.subset.bounding_circle(
-                r=max_face_radius,
-                center_coord=point_lonlat,
-                element="face centers",
-                inverse_indices=True,
-            )
-        # If no subset is found, warn the user
-        except ValueError:
-            # If the grid is partial, let the user know the point likely lies outside the grid region
-            if self.partial_sphere_coverage:
-                warn(
-                    "No faces found. The grid has partial spherical coverage, and the point may be outside the defined region of the grid."
-                )
-            else:
-                warn("No faces found. Try adjusting the tolerance.")
-            return np.empty(0, dtype=np.int64)
-
-        # Get the faces in terms of their edges
-        face_edge_nodes_xyz = _get_cartesian_face_edge_nodes_array(
-            subset.face_node_connectivity.values,
-            subset.n_face,
-            subset.n_max_face_nodes,
-            subset.node_x.values,
-            subset.node_y.values,
-            subset.node_z.values,
+        # Determine faces containing points
+        face_indices, counts = _point_in_face_query(
+            source_grid=self, points=points_atleast_2d_xyz(points)
         )
 
-        # Get the original face indices from the subset
-        inverse_indices = subset.inverse_indices.face.values
+        # Return a list of lists if counts are not desired
+        if not return_counts:
+            output: List[List[int]] = []
+            for i, c in enumerate(counts):
+                output.append(face_indices[i, :c].tolist())
+            return output
 
-        # Check to see if the point is on the nodes of any face
-        lies_on_node = np.isclose(
-            face_edge_nodes_xyz,
-            point_xyz[None, None, :],  # Expands dimensions for broadcasting
-            rtol=tolerance,
-            atol=tolerance,
-        )
+        if (counts == 1).all():
+            face_indices = face_indices[:, 0]
+            face_indices = face_indices[:, None]
 
-        edge_matches = np.all(lies_on_node, axis=-1)
-        face_matches = np.any(edge_matches, axis=1)
-        face_indices = inverse_indices[np.any(face_matches, axis=1)]
-
-        # If a face is in face_indices, return that as the point was found to lie on a node
-        if len(face_indices) != 0:
-            return face_indices
-        else:
-            # Check if any of the faces in the subset contain the point
-            face_indices = _find_faces(face_edge_nodes_xyz, point_xyz, inverse_indices)
-
-            return face_indices
+        return face_indices, counts

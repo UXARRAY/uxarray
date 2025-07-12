@@ -25,30 +25,21 @@ Top Level Functions
 Grid
 ----
 
-Constructor
-~~~~~~~~~~~
+Constructors
+~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
 
    Grid
-
-I/O & Conversion
-~~~~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: generated/
-
    Grid.from_dataset
    Grid.from_file
    Grid.from_topology
    Grid.from_structured
    Grid.from_points
    Grid.from_healpix
-   Grid.to_xarray
-   Grid.to_geodataframe
-   Grid.to_polycollection
-   Grid.to_linecollection
+
+
 
 Indexing
 ~~~~~~~~
@@ -175,13 +166,15 @@ and functionality, please refer to Xarray's `documentation <https://docs.xarray.
 UxDataArray
 -----------
 
-Constructor
-~~~~~~~~~~~
+Constructors
+~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
 
    UxDataArray
+   UxDataArray.from_xarray
+   UxDataArray.from_healpix
 
 Grid Accessor
 ~~~~~~~~~~~
@@ -191,28 +184,20 @@ Grid Accessor
 
    UxDataArray.uxgrid
 
-I/O & Conversion
-~~~~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: generated/
-
-   UxDataArray.to_geodataframe
-   UxDataArray.to_polycollection
-   UxDataArray.to_dataset
-   UxDataArray.from_xarray
-
 
 UxDataset
 -----------
 
-Constructor
-~~~~~~~~~~~
+Constructors
+~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
 
    UxDataset
+   UxDataset.from_structured
+   UxDataset.from_xarray
+   UxDataset.from_healpix
 
 Grid Accessor
 ~~~~~~~~~~~
@@ -222,25 +207,58 @@ Grid Accessor
 
    UxDataset.uxgrid
 
-I/O & Conversion
-~~~~~~~~~~~~~~~~
+
+Conversion Methods
+------------------
+
+UXarray provides functionality to convert its unstructured grids representation to other data structures that can be ingested by existing, widely used tools, such as Matplotlib and Cartopy. This allows users to keep using their workflows with such tools.
+
+
+
+Grid
+~~~~
 
 .. autosummary::
    :toctree: generated/
 
-   UxDataset.from_structured
-   UxDataset.from_xarray
-   UxDataset.from_healpix
+   Grid.to_geodataframe
+   Grid.to_polycollection
+   Grid.to_linecollection
+   Grid.to_xarray
+
+UxDataArray
+~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.to_geodataframe
+   UxDataArray.to_polycollection
+   UxDataArray.to_raster
+   UxDataArray.to_dataset
+   UxDataArray.to_xarray
+
+UxDataset
+~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset.to_xarray
+   UxDataset.to_array
+
 
 Plotting
 --------
 
 
-UXarray's plotting API is written using `hvPlot <https://hvplot.holoviz.org/>`_.
+UXarray's plotting API is written using `hvPlot <https://hvplot.holoviz.org/>`_. We also support standalone functions
+for pure Matplotlib and Cartopy workflows.
 
 .. seealso::
 
     `Plotting User Guide Section <https://uxarray.readthedocs.io/en/latest/user-guide/plotting.html>`_
+    `Plotting with Matplotlib User Guide Section <https://uxarray.readthedocs.io/en/latest/user-guide/mpl.html>`_
 
 Grid
 ~~~~
@@ -275,14 +293,8 @@ UxDataArray
    UxDataArray.plot.line
    UxDataArray.plot.scatter
 
-UxDataset
-~~~~~~~~~
 
-.. autosummary::
-   :toctree: generated/
-   :template: autosummary/accessor_method.rst
 
-   UxDataset.plot
 
 
 
@@ -368,6 +380,7 @@ UxDataArray
    UxDataArray.remap
    UxDataArray.remap.nearest_neighbor
    UxDataArray.remap.inverse_distance_weighted
+   UxDataArray.remap.bilinear
 
 UxDataset
 ~~~~~~~~~
@@ -379,7 +392,7 @@ UxDataset
    UxDataset.remap
    UxDataset.remap.nearest_neighbor
    UxDataset.remap.inverse_distance_weighted
-
+   UxDataset.remap.bilinear
 
 Mathematical Operators
 ----------------------

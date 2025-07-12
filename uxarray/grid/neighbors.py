@@ -4,8 +4,6 @@ import numpy as np
 import xarray as xr
 from numba import njit
 from numpy import deg2rad
-from sklearn.neighbors import BallTree as SKBallTree
-from sklearn.neighbors import KDTree as SKKDTree
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 
@@ -77,6 +75,7 @@ class KDTree:
     def _build_from_nodes(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from corner
         nodes."""
+        from sklearn.neighbors import KDTree as SKKDTree
 
         if self._tree_from_nodes is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -111,6 +110,7 @@ class KDTree:
     def _build_from_face_centers(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from face
         centers."""
+        from sklearn.neighbors import KDTree as SKKDTree
 
         if self._tree_from_face_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -145,6 +145,8 @@ class KDTree:
     def _build_from_edge_centers(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from edge
         centers."""
+        from sklearn.neighbors import KDTree as SKKDTree
+
         if self._tree_from_edge_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "cartesian":
@@ -465,6 +467,7 @@ class BallTree:
     def _build_from_face_centers(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from face
         centers."""
+        from sklearn.neighbors import BallTree as SKBallTree
 
         if self._tree_from_face_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -500,6 +503,7 @@ class BallTree:
     def _build_from_nodes(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from corner
         nodes."""
+        from sklearn.neighbors import BallTree as SKBallTree
 
         if self._tree_from_nodes is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -527,6 +531,8 @@ class BallTree:
     def _build_from_edge_centers(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from edge
         centers."""
+        from sklearn.neighbors import BallTree as SKBallTree
+
         if self._tree_from_edge_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "spherical":
@@ -989,7 +995,6 @@ def _barycentric_coordinates(nodes, point):
         a2 = max(_triangle_area(point, vi, vi1), ERROR_TOLERANCE)
         sum_wi += a0 / (a1 * a2)
         w.append(a0 / (a1 * a2))
-
     barycentric_coords = [w_i / sum_wi for w_i in w]
 
     return barycentric_coords
@@ -1092,7 +1097,7 @@ def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
 def _populate_edge_face_distances(grid):
     """Populates ``edge_face_distances``"""
     edge_face_distances = _construct_edge_face_distances(
-        grid.node_lon.values, grid.node_lat.values, grid.edge_face_connectivity.values
+        grid.face_lon.values, grid.face_lat.values, grid.edge_face_connectivity.values
     )
 
     grid._ds["edge_face_distances"] = xr.DataArray(
@@ -1105,7 +1110,7 @@ def _populate_edge_face_distances(grid):
 
 
 @njit(cache=True)
-def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
+def _construct_edge_face_distances(face_lon, face_lat, edge_faces):
     """Helper for computing the arc-distance between faces that saddle a given
     edge."""
 
@@ -1113,11 +1118,11 @@ def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
 
     edge_face_distances = np.zeros(edge_faces.shape[0])
 
-    edge_lon_a = np.deg2rad((node_lon[edge_faces[saddle_mask, 0]]))
-    edge_lon_b = np.deg2rad((node_lon[edge_faces[saddle_mask, 1]]))
+    edge_lon_a = np.deg2rad((face_lon[edge_faces[saddle_mask, 0]]))
+    edge_lon_b = np.deg2rad((face_lon[edge_faces[saddle_mask, 1]]))
 
-    edge_lat_a = np.deg2rad((node_lat[edge_faces[saddle_mask, 0]]))
-    edge_lat_b = np.deg2rad((node_lat[edge_faces[saddle_mask, 1]]))
+    edge_lat_a = np.deg2rad((face_lat[edge_faces[saddle_mask, 0]]))
+    edge_lat_b = np.deg2rad((face_lat[edge_faces[saddle_mask, 1]]))
 
     # arc length
     edge_face_distances[saddle_mask] = np.arccos(

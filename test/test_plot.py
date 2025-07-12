@@ -3,7 +3,10 @@ import uxarray as ux
 import holoviews as hv
 import pytest
 from pathlib import Path
+import numpy as np
 
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
@@ -58,12 +61,6 @@ def test_node_centered_data():
         assert isinstance(uxds['v1'][0][0].plot.points(backend=backend), hv.Points)
         assert isinstance(uxds['v1'][0][0].topological_mean(destination='face').plot.polygons(backend=backend, dynamic=True), hv.DynamicMap)
 
-def test_clabel():
-    """Tests the execution of passing in a custom clabel."""
-    uxds = ux.open_dataset(gridfile_geoflow, datafile_geoflow)
-
-    raster_no_clabel = uxds['v1'][0][0].plot.rasterize(method='point')
-    raster_with_clabel = uxds['v1'][0][0].plot.rasterize(method='point', clabel='Foo')
 
 def test_engine():
     """Tests different plotting engines."""
@@ -97,3 +94,19 @@ def test_scatter():
     uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
     _plot_line = uxds['bottomDepth'].zonal_average().plot.scatter()
     assert isinstance(_plot_line, hv.Scatter)
+
+
+
+def test_to_raster():
+
+    fig, ax = plt.subplots(
+        subplot_kw={'projection': ccrs.Robinson()},
+        constrained_layout=True,
+        figsize=(10, 5),
+    )
+
+    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+
+    raster = uxds['bottomDepth'].to_raster(ax=ax)
+
+    assert isinstance(raster, np.ndarray)
