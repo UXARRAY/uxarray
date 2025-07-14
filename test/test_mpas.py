@@ -20,7 +20,7 @@ fv = INT_FILL_VALUE
 
 
 
-def test_read_prima():
+def test_read_primal():
     mpas_primal_ugrid, _ = _read_mpas(mpas_xr_ds, use_dual=False)
 
     assert "face_edge_connectivity" in mpas_primal_ugrid

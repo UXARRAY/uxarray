@@ -71,7 +71,7 @@ def _primal_to_ugrid(in_ds, out_ds):
         _parse_edge_face_distances(in_ds, out_ds)
 
     if "cellsOnCell" in in_ds:
-        _parse_face_faces(in_ds, out_ds)
+        _parse_face_faces(in_ds, out_ds, mesh_type="primal")
 
     if "areaCell" in in_ds:
         _parse_face_areas(in_ds, out_ds, mesh_type="primal")
@@ -362,7 +362,7 @@ def _parse_edge_faces(in_ds, out_ds, mesh_type):
     ).rename(dict(zip(edge_faces.dims, ugrid.EDGE_FACE_CONNECTIVITY_DIMS)))
 
 
-def _parse_face_faces(in_ds, out_ds):
+def _parse_face_faces(in_ds, out_ds, mesh_type):
     """Parses face face connectivity for the primal mesh."""
     cellsOnCell = in_ds["cellsOnCell"].astype(INT_DTYPE)
     nEdgesOnCell = in_ds["nEdgesOnCell"].astype(INT_DTYPE)
