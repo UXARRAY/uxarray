@@ -17,6 +17,7 @@ from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.gradient import (
     _calculate_edge_face_difference,
     _calculate_edge_node_difference,
+    _compute_gradient,
 )
 from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.core.zonal import _compute_non_conservative_zonal_mean
@@ -1033,6 +1034,7 @@ class UxDataArray(xr.DataArray):
         -------
         >>> uxds["var"].gradient()
         """
+        from uxarray import UxDataset
 
         if "use_magnitude" in kwargs or "normalize" in kwargs:
             # Deprecation warning for old gradient implementation
@@ -1041,26 +1043,21 @@ class UxDataArray(xr.DataArray):
                 DeprecationWarning,
             )
 
-        if self._face_centered():
-            # TODO: Call face-centered gradient implementation
-            grad_zonal, grad_meridional = ...
+        # Compute the zonal and meridional gradient components of the stored data variable
+        grad_zonal_da, grad_meridional_da = _compute_gradient(self)
 
-        elif self._node_centered():
-            # TODO: Call face-centered gradient implementation
-            grad_zonal, grad_meridional = ...
-        else:
-            raise ValueError(
-                "Computing the gradient is only supported for face-centered or node-centered data variables."
-            )
+        # Create a dataset containing both gradient components
 
-        # TODO: Create a UxDataset that contains the zonal and meridional components of the gradient
-        # The dimensions should be the same as the original data variable
-        # Preserve the original uxgrid
-        # attach an attribute (i.e. grad=True) that can be read in from our plotting routines
-        # if we plan to add a direct gradient plotting routine
-        # (i.e. uxds['t2m'].gradient().plot()
+        # TODO: add a method parameter (i.e. return_vector=True) will also populate the angle and magnitude arrays
 
-        return
+        return UxDataset(
+            {
+                "zonal_gradient": grad_zonal_da,
+                "meridional_gradient": grad_meridional_da,
+            },
+            uxgrid=self.uxgrid,
+            attrs={"gradient": True},
+        )
 
     def difference(self, destination: Optional[str] = "edge"):
         """Computes the absolute difference of a data variable.

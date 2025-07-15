@@ -132,33 +132,188 @@ def _check_node_on_boundary_and_gather_node_neighbors(
     return bool_bdy, node_neighbors[0:num_node_neighbors]
 
 
+# TODO return both gradient components
+# OR return a populated Dataset
+# def _compute_gradient(data: UxDataArray) -> Tuple[UxDataArray, UxDataArray]:
+def _compute_gradient(data):
+    """TODO: add docstring"""
+    from uxarray import UxDataArray
+
+    # Obtain the Grid object
+    uxgrid = data.uxgrid
+
+    if data._face_centered():
+        # Gradient of a Face-Centered Data Variable
+
+        face_coords = np.array(
+            [uxgrid.face_x.values, uxgrid.face_y.values, uxgrid.face_z.values]
+        ).T
+        face_lat = uxgrid.face_lat.values
+        face_lon = uxgrid.face_lon.values
+
+        node_coords = np.array(
+            [uxgrid.node_x.values, uxgrid.node_y.values, uxgrid.node_z.values]
+        )
+
+        face_lon_rad = np.deg2rad(face_lon)
+        face_lat_rad = np.deg2rad(face_lat)
+        normal_lat = np.array(
+            [
+                -np.cos(face_lon_rad) * np.sin(face_lat_rad),
+                -np.sin(face_lon_rad) * np.sin(face_lat_rad),
+                np.cos(face_lat_rad),
+            ]
+        ).T
+        normal_lon = np.array(
+            [
+                -np.sin(face_lon_rad),
+                np.cos(face_lon_rad),
+                np.zeros_like(face_lon_rad),
+            ]
+        ).T
+
+        grad_zonal, grad_meridional = _compute_gradients_on_faces(
+            data.values,
+            uxgrid.n_face,
+            face_coords,
+            uxgrid.face_edge_connectivity.values,
+            uxgrid.edge_face_connectivity.values,
+            uxgrid.face_node_connectivity.values,
+            uxgrid.node_edge_connectivity.values,
+            face_lat,
+            face_lon,
+            node_coords,
+            normal_lon,
+            normal_lat,
+        )
+
+    elif data._node_centered():
+        # Gradient of a Node-Centered Data Variable
+        node_coords = np.array(
+            [uxgrid.node_x.values, uxgrid.node_y.values, uxgrid.node_z.values]
+        )
+        node_lat = uxgrid.node_lat.values
+        node_lon = uxgrid.node_lon.values
+
+        node_lon_rad = np.deg2rad(node_lon)
+        node_lat_rad = np.deg2rad(node_lat)
+        normal_lat = np.array(
+            [
+                -np.cos(node_lon_rad) * np.sin(node_lat_rad),
+                -np.sin(node_lon_rad) * np.sin(node_lat_rad),
+                np.cos(node_lat_rad),
+            ]
+        ).T
+        normal_lon = np.array(
+            [
+                -np.sin(node_lon_rad),
+                np.cos(node_lon_rad),
+                np.zeros_like(node_lon_rad),
+            ]
+        ).T
+
+        grad_zonal, grad_meridional = _compute_gradients_on_nodes(
+            data.values,
+            uxgrid.n_node,
+            node_coords,
+            node_lat,
+            node_lon,
+            uxgrid.node_edge_connectivity.values,
+            uxgrid.edge_face_connectivity.values,
+            uxgrid.edge_node_connectivity.values,
+            uxgrid.node_face_connectivity.values,
+            normal_lat,
+            normal_lon,
+        )
+    else:
+        raise ValueError(
+            "Computing the gradient is only supported for face-centered or node-centered data variables."
+        )
+
+    # TODO: Update compute gradient functions below to handle n_dimension face or node centered data:
+    # example (multiple a single face): 2.0 * data[0]
+    # example: 2.0 * data[..., 0]
+
+    # Zonal
+    grad_zonal_da = UxDataArray(
+        data=grad_zonal, name="zonal_gradient", dims=data.dims, uxgrid=uxgrid
+    )
+
+    # Meridional
+    grad_meridional_da = UxDataArray(
+        data=grad_meridional, name="meridional_gradient", dims=data.dims, uxgrid=uxgrid
+    )
+
+    return grad_zonal_da, grad_meridional_da
+
+
+@njit(cache=True)
+def _normalize_and_project_gradient(
+    gradient, index, normal_lat, normal_lon, node_coords, node_neighbors
+):
+    area, _ = calculate_face_area(
+        node_coords[0, node_neighbors].astype(np.float64),
+        node_coords[1, node_neighbors].astype(np.float64),
+        node_coords[2, node_neighbors].astype(np.float64),
+    )
+
+    gradient = gradient / area
+
+    # projection to horizontal gradient
+    zonal_grad = np.sum(gradient * normal_lon[index])
+    meridional_grad = np.sum(gradient * normal_lat[index])
+
+    return zonal_grad, meridional_grad
+
+
 @njit(cache=True, parallel=True)
 def _compute_gradients_on_faces(
     data,
     n_face,
-    face_coords,
+    face_coords,  # x, y, z face coordinates np.vstack([face_x, face_y, face_z]).T
     face_edge_connectivity,
     edge_face_connectivity,
     face_node_connectivity,
     node_edge_connectivity,
     face_lat,
     face_lon,
-    node_coords,
+    node_coords,  # x, y, z node_coordinates   np.vstack([node_x, node_y, node_z]).T
     normal_lon,
     normal_lat,
 ):
     """
     Computes horizontal gradients on faces averaged over the cell constructed from connecting the centroids of the faces which share a common node with the face.
 
-    Combined ideas from:
-        Strategy (3) in Barth, Timothy, and Dennis Jespersen. "The design and application of upwind schemes on unstructured meshes." 27th Aerospace sciences meeting. 1989.
 
-        Equation (11) in Tomita, Hirofumi, et al. "Shallow water model on a modified icosahedral geodesic grid by using spring dynamics." Journal of Computational Physics 174.2 (2001): 579-613.
+    Parameters
+    ----------
+    data : np.ndarray
+        Array containing the data to compute gradients on, must be face-centered
+    n_face: int
+        TODO
+    face_coords: np.ndarray
+        TODO
+
+    Returns
+    -------
+    gradient_zonal: np.ndarray
+        Zonal component of gradient ...
+    gradient_meridional: np.ndarray
+        Meridional component of grdient ...
+
+    Notes
+    -----
+
+    Combined ideas from:
+    - Strategy (3) in Barth, Timothy, and Dennis Jespersen. "The design and application of upwind schemes on unstructured meshes." 27th Aerospace sciences meeting. 1989.
+    - Equation (11) in Tomita, Hirofumi, et al. "Shallow water model on a modified icosahedral geodesic grid by using spring dynamics." Journal of Computational Physics 174.2 (2001): 579-613.
 
     Returns:
+
         two np.ndarray: (n_face,) for zonal_grad & meridional_grad
 
     """
+
     gradients_faces = np.zeros((n_face, 2))
 
     for face_idx in prange(n_face):
@@ -212,26 +367,15 @@ def _compute_gradients_on_faces(
                                     + (trapz - data[face_idx]) * arc_length * normal
                                 )
 
-        # divide gradient by the area of the face
-
         node_neighbors = face_node_connectivity[face_idx]
         node_neighbors = node_neighbors[~np.isin(node_neighbors, INT_FILL_VALUE)]
 
-        [area, jacobian] = calculate_face_area(
-            node_coords[0, node_neighbors].astype(np.float64),
-            node_coords[1, node_neighbors].astype(np.float64),
-            node_coords[2, node_neighbors].astype(np.float64),
+        # Normalize and project zonal and meridional components and store the result for the current face
+        gradients_faces[face_idx, 0], gradients_faces[face_idx, 1] = (
+            _normalize_and_project_gradient(
+                gradient, face_idx, normal_lat, normal_lon, node_coords, node_neighbors
+            )
         )
-
-        gradient = gradient / area
-
-        # projection to horizontal gradient
-
-        zonal_grad = np.sum(gradient * normal_lon[face_idx])
-        meridional_grad = np.sum(gradient * normal_lat[face_idx])
-
-        gradients_faces[face_idx, 0] = zonal_grad
-        gradients_faces[face_idx, 1] = meridional_grad
 
     return gradients_faces[:, 0], gradients_faces[:, 1]
 
@@ -312,53 +456,22 @@ def _compute_gradients_on_nodes(
                             # compute trapezoidal rule
                             trapz = (data[node1_idx] + data[node2_idx]) / 2
 
-                            # add to the gradient
+                            # add to the gradient (subtract correction term)
                             gradient = (
                                 gradient
                                 + (trapz - data[node_idx]) * arc_length * normal
                             )
 
-            [area, jacobian] = calculate_face_area(
-                node_coords[0, node_neighbors].astype(np.float64),
-                node_coords[1, node_neighbors].astype(np.float64),
-                node_coords[2, node_neighbors].astype(np.float64),
+            # Normalize and project zonal and meridional components and store the result for the current node
+            gradients_nodes[node_idx, 0], gradients_nodes[node_idx, 1] = (
+                _normalize_and_project_gradient(
+                    gradient,
+                    node_idx,
+                    normal_lat,
+                    normal_lon,
+                    node_coords,
+                    node_neighbors,
+                )
             )
 
-            gradient = gradient / area
-
-            # projection to horizontal gradient
-            zonal_grad = np.sum(gradient * normal_lon[node_idx])
-
-            meridional_grad = np.sum(gradient * normal_lat[node_idx])
-
-            gradients_nodes[node_idx, 0] = zonal_grad
-            gradients_nodes[node_idx, 1] = meridional_grad
-
     return gradients_nodes[:, 0], gradients_nodes[:, 1]
-
-
-# TODO: Commented out for now
-# def _calculate_grad_on_edge_from_faces(
-#     d_var, edge_faces, n_edge, edge_face_distances, normalize: Optional[bool] = False
-# ):
-#     """Helper function for computing the horizontal gradient of a field on each
-#     cell using values at adjacent cells.
-#
-#     The expression for calculating the gradient on each edge comes from
-#     Eq. 22 in Ringler et al. (2010), J. Comput. Phys.
-#
-#     Code is adapted from
-#     https://github.com/theweathermanda/MPAS_utilities/blob/main/mpas_calc_operators.py
-#     """
-#
-#     # obtain all edges that saddle two faces
-#     saddle_mask = edge_faces[:, 1] != INT_FILL_VALUE
-#
-#     grad = _calculate_edge_face_difference(d_var, edge_faces, n_edge)
-#
-#     grad[..., saddle_mask] = grad[..., saddle_mask] / edge_face_distances[saddle_mask]
-#
-#     if normalize:
-#         grad = grad / np.linalg.norm(grad)
-#
-#     return grad
