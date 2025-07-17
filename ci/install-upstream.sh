@@ -42,7 +42,6 @@ python -m pip install \
     git+https://github.com/holoviz/datashader.git \
     git+https://github.com/dask/dask.git \
     git+https://github.com/dask/distributed.git \
-    git+https://github.com/aleaxit/gmpy.git \
     git+https://github.com/holoviz/holoviews.git \
     git+https://github.com/shapely/shapely.git \
     git+https://github.com/holoviz/spatialpandas.git
