@@ -77,9 +77,7 @@ def _read_esmf(in_ds):
         )
 
     if "numElementConn" not in in_ds:
-        raise KeyError(
-            "No variable named 'numElementConn'."
-        )
+        raise KeyError("No variable named 'numElementConn'.")
 
     n_nodes_per_face = in_ds["numElementConn"].astype(INT_DTYPE)
     out_ds["n_nodes_per_face"] = xr.DataArray(
