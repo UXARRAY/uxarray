@@ -78,7 +78,7 @@ def _read_esmf(in_ds):
 
     if "numElementConn" not in in_ds:
         raise KeyError(
-            "No variable named 'numElementConn'. Did you mean one of ('elementConn',)?"
+            "No variable named 'numElementConn'."
         )
 
     n_nodes_per_face = in_ds["numElementConn"].astype(INT_DTYPE)
