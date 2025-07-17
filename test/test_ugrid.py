@@ -105,7 +105,7 @@ def test_encode_ugrid_copies_and_converts_bool_attr():
 
     ds_orig = ds.copy(deep=True)
     grid = ux.Grid(ds)
-    encoded = grid.encode_as("UGRID")
+    encoded = grid.to_xarray("UGRID")
 
     # Check that the returned dataset is not the same object
     assert encoded is not grid._ds

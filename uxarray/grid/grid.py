@@ -79,22 +79,18 @@ from uxarray.io._delaunay import (
 )
 from uxarray.io._esmf import _read_esmf
 
-# reader and writer imports
-from uxarray.io._exodus import _encode_exodus, _read_exodus
+# reader imports
+from uxarray.io._exodus import _read_exodus
 from uxarray.io._fesom2 import _read_fesom2_asci, _read_fesom2_netcdf
 from uxarray.io._geopandas import _read_geodataframe
 from uxarray.io._geos import _read_geos_cs
 from uxarray.io._healpix import _pixels_to_ugrid, _populate_healpix_boundaries
 from uxarray.io._icon import _read_icon
 from uxarray.io._mpas import _read_mpas
-from uxarray.io._scrip import _encode_scrip, _read_scrip
+from uxarray.io._scrip import _read_scrip
 from uxarray.io._structured import _read_structured_grid
 from uxarray.io._topology import _read_topology
-from uxarray.io._ugrid import (
-    _encode_ugrid,
-    _read_ugrid,
-    _validate_minimum_ugrid,
-)
+from uxarray.io._ugrid import _read_ugrid, _validate_minimum_ugrid
 from uxarray.io._vertices import _read_face_vertices
 from uxarray.io._voronoi import _spherical_voronoi_from_points
 from uxarray.io.utils import _parse_grid_type
@@ -1001,6 +997,7 @@ class Grid:
 
         Dimensions: ``(n_edge, )``
         """
+
         if "edge_x" not in self._ds:
             _populate_edge_centroids(self)
 
@@ -1018,6 +1015,7 @@ class Grid:
 
         Dimensions: ``(n_edge, )``
         """
+
         if "edge_y" not in self._ds:
             _populate_edge_centroids(self)
         return self._ds["edge_y"]
@@ -1034,6 +1032,7 @@ class Grid:
 
         Dimensions: ``(n_edge, )``
         """
+
         if "edge_z" not in self._ds:
             _populate_edge_centroids(self)
         return self._ds["edge_z"]
@@ -1826,63 +1825,6 @@ class Grid:
             source_dims_dict=self._source_dims_dict,
         )
 
-    def encode_as(self, grid_type: str) -> xr.Dataset:
-        """Encodes the grid as a new `xarray.Dataset` per grid format supplied
-        in the `grid_type` argument.
-
-        .. deprecated:: 2024.04
-           Use :meth:`to_xarray` instead.
-
-        Parameters
-        ----------
-        grid_type : str, required
-            Grid type of output dataset.
-            Currently supported options are "ugrid", "exodus", "scrip", and "esmf"
-
-        Returns
-        -------
-        out_ds : xarray.Dataset
-            The output `xarray.Dataset` that is encoded from the this grid.
-
-        Raises
-        ------
-        RuntimeError
-            If provided grid type or file type is unsupported.
-        """
-
-        warn(
-            "Grid.encode_as is deprecated and will be removed in a future release. Please use Grid.to_xarray instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        # Convert to lowercase for case-insensitive comparison
-        grid_type_lower = grid_type.lower()
-        # Node boundaries/coords are not populated by default. Accessing node_lon will trigger their population.
-        # Do this before encoding to ensure that the node boundaries/coords are populated.
-        if "node_lon" not in self._ds.variables:
-            _ = self.node_lon
-        if grid_type_lower == "ugrid":
-            out_ds = _encode_ugrid(self._ds)
-
-        elif grid_type_lower == "exodus":
-            out_ds = _encode_exodus(self._ds)
-
-        elif grid_type_lower == "scrip":
-            out_ds = _encode_scrip(
-                self.face_node_connectivity,
-                self.node_lon,
-                self.node_lat,
-                self.face_areas,
-            )
-        elif grid_type_lower == "esmf":
-            from uxarray.io._esmf import _encode_esmf
-
-            out_ds = _encode_esmf(self._ds)
-        else:
-            raise RuntimeError("The grid type not supported: ", grid_type)
-
-        return out_ds
-
     def calculate_total_face_area(
         self,
         quadrature_rule: Optional[str] = "triangular",
@@ -2021,42 +1963,31 @@ class Grid:
         Parameters
         ----------
         grid_format: str, optional
-            The desired grid format for the output dataset.
-            One of "ugrid", "exodus", "scrip", or "esmf"
+            The format to encode the variables stored in the Grid class in the output Dataset. Valid options are
+            'ugrid', 'exodus', 'scrip' and 'esmf'.
 
         Returns
         -------
         out_ds: xarray.Dataset
             Dataset representing the unstructured grid in a given grid format
         """
-        # Convert to lowercase for case-insensitive comparison
-        grid_format_lower = grid_format.lower()
+        from uxarray import UxDataset
 
-        if grid_format_lower == "ugrid":
-            out_ds = _encode_ugrid(self._ds)
+        # Do this before encoding to ensure that the node boundaries/coords are populated.
+        # This is needed for all file formats
+        if "node_lon" not in self._ds.variables:
+            _ = self.node_lon
 
-        elif grid_format_lower == "exodus":
-            out_ds = _encode_exodus(self._ds)
+        # Convert boolean attributes to integers before passing to UxDataset
+        new_attrs = self._ds.attrs.copy()
+        for key, value in new_attrs.items():
+            if isinstance(value, bool):
+                new_attrs[key] = int(value)
+        self._ds.attrs = new_attrs
 
-        elif grid_format_lower == "scrip":
-            out_ds = _encode_scrip(
-                self.face_node_connectivity,
-                self.node_lon,
-                self.node_lat,
-                self.face_areas,
-            )
-
-        elif grid_format_lower == "esmf":
-            from uxarray.io._esmf import _encode_esmf
-
-            out_ds = _encode_esmf(self._ds)
-
-        else:
-            raise ValueError(
-                f"Invalid grid_format encountered. Expected one of ['ugrid', 'exodus', 'scrip', 'esmf'] but received: {grid_format}"
-            )
-
-        return out_ds
+        # Create a UxDataset with this grid and convert it
+        uxds = UxDataset(self._ds, uxgrid=self)
+        return uxds.to_xarray(grid_format)
 
     def to_geodataframe(
         self,
@@ -2285,6 +2216,7 @@ class Grid:
         exclusive and clipped indexing is in the works.
 
         Parameters
+        ----------
         inverse_indices : Union[List[str], Set[str], bool], default=False
             Indicates whether to store the original grids indices. Passing `True` stores the original face indices,
             other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)

@@ -445,38 +445,351 @@ class UxDataset(xr.Dataset):
 
     def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
         """
-        Converts a ``ux.UXDataset`` to a ``xr.Dataset`` in the requested grid format.
-        Supported: "UGRID", "ESMF", "Exodus", "SCRIP", "HEALPix"
+        Converts a ``ux.UXDataset`` to a ``xr.Dataset`` in the specified grid format.
+
+        Parameters
+        ----------
+        grid_format : str, default="UGRID"
+            The format in which to convert the grid. Supported values are:
+            - "UGRID": UGRID conventions format (default)
+            - "HEALPix": HEALPix grid format
+            - "ESMF": ESMF Unstructured Grid Format
+            - "SCRIP": SCRIP grid format
+            - "Exodus": Exodus file format
+
+        Returns
+        -------
+        xr.Dataset
+            The ``ux.UXDataset`` represented as a ``xr.Dataset`` in the requested format
         """
-        if grid_format.upper() == "HEALPIX":
+        from datetime import datetime
+
+        import numpy as np
+
+        from uxarray.conventions import ugrid
+        from uxarray.io._scrip import grid_center_lat_lon
+
+        grid_format = grid_format.upper()
+
+        if grid_format == "HEALPIX":
             ds = self.rename_dims({"n_face": "cell"})
             return xr.Dataset(ds)
-        elif grid_format.upper() == "UGRID":
-            from uxarray.io._ugrid import _encode_ugrid
 
-            return _encode_ugrid(self)
-        elif grid_format.upper() == "ESMF":
-            from uxarray.io._esmf import _encode_esmf
+        elif grid_format == "ESMF":
+            # Create output dataset
+            out_ds = xr.Dataset()
 
-            return _encode_esmf(self)
-        elif grid_format.upper() == "EXODUS":
-            from uxarray.io._exodus import _encode_exodus
+            # Node Coordinates (nodeCoords)
+            if "node_lon" in self and "node_lat" in self:
+                out_ds["nodeCoords"] = xr.concat(
+                    [self["node_lon"], self["node_lat"]],
+                    dim=xr.DataArray([0, 1], dims="coordDim"),
+                )
+                out_ds["nodeCoords"] = out_ds["nodeCoords"].rename(
+                    {"n_node": "nodeCount"}
+                )
+                out_ds["nodeCoords"] = out_ds["nodeCoords"].transpose(
+                    "nodeCount", "coordDim"
+                )
+                out_ds["nodeCoords"] = out_ds["nodeCoords"].assign_attrs(
+                    units="degrees"
+                )
+                # Clean up unwanted attributes
+                for attr in ["standard_name", "long_name"]:
+                    if attr in out_ds["nodeCoords"].attrs:
+                        del out_ds["nodeCoords"].attrs[attr]
+            else:
+                raise ValueError(
+                    "Input dataset must contain 'node_lon' and 'node_lat'."
+                )
 
-            return _encode_exodus(self)
-        elif grid_format.upper() == "SCRIP":
-            from uxarray.io._scrip import _encode_scrip
+            # Face Node Connectivity (elementConn)
+            if "face_node_connectivity" in self:
+                out_ds["elementConn"] = xr.DataArray(
+                    self["face_node_connectivity"] + 1,
+                    dims=("elementCount", "maxNodePElement"),
+                    attrs={
+                        "long_name": "Node Indices that define the element connectivity",
+                        "_FillValue": -1,
+                    },
+                )
+                out_ds["elementConn"].encoding = {"dtype": np.int32}
+            else:
+                raise ValueError("Input dataset must contain 'face_node_connectivity'.")
 
-            # You may need to pass the right arguments from self
-            return _encode_scrip(
-                self["face_node_connectivity"],
-                self["node_lon"],
-                self["node_lat"],
-                self.uxgrid.compute_face_areas()[
-                    0
-                ],  # or however face_areas are computed
+            # Optional face coordinates (centerCoords)
+            if "face_lon" in self and "face_lat" in self:
+                out_ds["centerCoords"] = xr.concat(
+                    [self["face_lon"], self["face_lat"]],
+                    dim=xr.DataArray([0, 1], dims="coordDim"),
+                )
+                out_ds["centerCoords"] = out_ds["centerCoords"].rename(
+                    {"n_face": "elementCount"}
+                )
+                out_ds["centerCoords"] = out_ds["centerCoords"].transpose(
+                    "elementCount", "coordDim"
+                )
+                out_ds["centerCoords"] = out_ds["centerCoords"].assign_attrs(
+                    units="degrees"
+                )
+                # Clean up unwanted attributes
+                for attr in ["standard_name", "long_name"]:
+                    if attr in out_ds["centerCoords"].attrs:
+                        del out_ds["centerCoords"].attrs[attr]
+
+            # Add global attributes
+            out_ds.attrs = {
+                "title": "ESMF Unstructured Grid from uxarray",
+                "source": "Converted from UGRID conventions by uxarray",
+                "date_created": datetime.now().isoformat(),
+            }
+
+            return out_ds
+
+        elif grid_format == "SCRIP":
+            # Create empty dataset for SCRIP format
+            out_ds = xr.Dataset()
+
+            face_node_conn = self["face_node_connectivity"].values.astype(int)
+            node_lon = self["node_lon"]
+            node_lat = self["node_lat"]
+
+            # Get face areas from the grid
+            face_areas = self.uxgrid.compute_face_areas()[0]
+
+            # Reshape arrays for SCRIP format
+            f_nodes = face_node_conn.ravel()
+            lat_nodes = node_lat[f_nodes].values
+            lon_nodes = node_lon[f_nodes].values
+
+            reshp_lat = np.reshape(
+                lat_nodes, [face_node_conn.shape[0], face_node_conn.shape[1]]
             )
+            reshp_lon = np.reshape(
+                lon_nodes, [face_node_conn.shape[0], face_node_conn.shape[1]]
+            )
+
+            # Add variables to SCRIP dataset
+            out_ds["grid_corner_lat"] = xr.DataArray(
+                data=reshp_lat, dims=["grid_size", "grid_corners"]
+            )
+            out_ds["grid_corner_lon"] = xr.DataArray(
+                data=reshp_lon, dims=["grid_size", "grid_corners"]
+            )
+            out_ds["grid_rank"] = xr.DataArray(data=[1], dims=["grid_rank"])
+            out_ds["grid_dims"] = xr.DataArray(
+                data=[len(lon_nodes)], dims=["grid_rank"]
+            )
+            out_ds["grid_imask"] = xr.DataArray(
+                data=np.ones(len(reshp_lon), dtype=int), dims=["grid_size"]
+            )
+            out_ds["grid_area"] = xr.DataArray(data=face_areas, dims=["grid_size"])
+
+            # Calculate grid centers
+            center_lat, center_lon = grid_center_lat_lon(out_ds)
+            out_ds["grid_center_lon"] = xr.DataArray(
+                data=center_lon, dims=["grid_size"]
+            )
+            out_ds["grid_center_lat"] = xr.DataArray(
+                data=center_lat, dims=["grid_size"]
+            )
+
+            return out_ds
+
+        elif grid_format == "UGRID":
+            # Create output dataset with all grid variables except grid_topology
+            if "grid_topology" in self.uxgrid._ds:
+                out_ds = self.uxgrid._ds.drop_vars(["grid_topology"])
+            else:
+                out_ds = self.uxgrid._ds
+
+            grid_topology = ugrid.BASE_GRID_TOPOLOGY_ATTRS
+
+            if "n_edge" in self.uxgrid._ds.dims:
+                grid_topology["edge_dimension"] = "n_edge"
+
+            if "face_lon" in self.uxgrid._ds:
+                grid_topology["face_coordinates"] = "face_lon face_lat"
+            if "edge_lon" in self.uxgrid._ds:
+                grid_topology["edge_coordinates"] = "edge_lon edge_lat"
+
+            # TODO: Encode spherical (i.e. node_x) coordinates eventually (need to extend ugrid conventions)
+
+            for conn_name in ugrid.CONNECTIVITY_NAMES:
+                if conn_name in self.uxgrid._ds:
+                    grid_topology[conn_name] = conn_name
+
+            grid_topology_da = xr.DataArray(data=-1, attrs=grid_topology)
+
+            out_ds["grid_topology"] = grid_topology_da
+
+            return out_ds
+
+        elif grid_format == "EXODUS":
+            from uxarray.constants import INT_DTYPE
+            from uxarray.grid.coordinates import _lonlat_rad_to_xyz
+            from uxarray.io._exodus import _get_element_type
+
+            # Note this is 1-based unlike native Mesh2 construct
+            exo_ds = xr.Dataset()
+
+            now = datetime.now()
+            date = now.strftime("%Y:%m:%d")
+            time = now.strftime("%H:%M:%S")
+            fp_word = INT_DTYPE(8)
+            exo_version = np.float32(5.0)
+            api_version = np.float32(5.0)
+
+            exo_ds.attrs = {
+                "api_version": api_version,
+                "version": exo_version,
+                "floating_point_word_size": fp_word,
+                "file_size": 0,
+            }
+
+            exo_ds["time_whole"] = xr.DataArray(data=[], dims=["time_step"])
+
+            # qa_records
+            ux_exodus_version = 1.0
+            qa_records = [["uxarray"], [ux_exodus_version], [date], [time]]
+            exo_ds["qa_records"] = xr.DataArray(
+                data=xr.DataArray(np.array(qa_records, dtype="str")),
+                dims=["four", "num_qa_rec"],
+            )
+
+            if "node_x" not in self.uxgrid._ds:
+                x, y, z = _lonlat_rad_to_xyz(
+                    self.uxgrid._ds["node_lon"].values,
+                    self.uxgrid._ds["node_lat"].values,
+                )
+                c_data = xr.DataArray([x, y, z])
+            else:
+                c_data = xr.DataArray(
+                    [
+                        self.uxgrid._ds["node_x"].data.tolist(),
+                        self.uxgrid._ds["node_y"].data.tolist(),
+                        self.uxgrid._ds["node_z"].data.tolist(),
+                    ]
+                )
+            exo_ds["coord"] = xr.DataArray(data=c_data, dims=["num_dim", "num_nodes"])
+
+            # process face nodes, this array holds num faces at corresponding location
+            # eg num_el_all_blks = [0, 0, 6, 12] signifies 6 TRI and 12 SHELL elements
+            num_el_all_blks = np.zeros(self.uxgrid._ds.sizes["n_max_face_nodes"], "i8")
+            # this list stores connectivity without filling
+            conn_nofill = []
+
+            # store the number of faces in an array
+            for row in self.uxgrid._ds["face_node_connectivity"].astype(INT_DTYPE).data:
+                # find out -1 in each row, this indicates lower than max face nodes
+                arr = np.where(row == -1)
+                # arr[0].size returns the location of first -1 in the conn list
+                # if > 0, arr[0][0] is the num_nodes forming the face
+                if arr[0].size > 0:
+                    # increment the number of faces at the corresponding location
+                    num_el_all_blks[arr[0][0] - 1] += 1
+                    # append without -1s eg. [1, 2, 3, -1] to [1, 2, 3]
+                    # convert to list (for sorting later)
+                    row = row[: (arr[0][0])].tolist()
+                    list_node = list(map(int, row))
+                    conn_nofill.append(list_node)
+                elif arr[0].size == 0:
+                    # increment the number of faces for this "n_max_face_nodes" face
+                    num_el_all_blks[self.uxgrid._ds.sizes["n_max_face_nodes"] - 1] += 1
+                    # get integer list nodes
+                    list_node = list(map(int, row.tolist()))
+                    conn_nofill.append(list_node)
+                else:
+                    raise RuntimeError(
+                        "num nodes in conn array is greater than n_max_face_nodes. Abort!"
+                    )
+            # get number of blks found
+            num_blks = np.count_nonzero(num_el_all_blks)
+
+            # sort connectivity by size, lower dim faces first
+            conn_nofill.sort(key=len)
+
+            # get index of blocks found
+            nonzero_el_index_blks = np.nonzero(num_el_all_blks)
+
+            # break face_node_connectivity into blks
+            start = 0
+            for blk in range(num_blks):
+                blkID = blk + 1
+                str_el_in_blk = "num_el_in_blk" + str(blkID)
+                str_nod_per_el = "num_nod_per_el" + str(blkID)
+                str_att_in_blk = "num_att_in_blk" + str(blkID)
+                str_global_id = "global_id" + str(blkID)
+                str_edge_type = "edge_type" + str(blkID)
+                str_attrib = "attrib" + str(blkID)
+                str_connect = "connect" + str(blkID)
+
+                # get element type
+                num_nodes = len(conn_nofill[start])
+                element_type = _get_element_type(num_nodes)
+
+                # get number of faces for this block
+                num_faces = num_el_all_blks[nonzero_el_index_blks[0][blk]]
+                # assign Data variables
+                # convert list to np.array, sorted list guarantees we have the correct info
+                conn_blk = conn_nofill[start : start + num_faces]
+                conn_np = np.array([np.array(xi, dtype=INT_DTYPE) for xi in conn_blk])
+                exo_ds[str_connect] = xr.DataArray(
+                    data=xr.DataArray((conn_np[:] + 1)),
+                    dims=[str_el_in_blk, str_nod_per_el],
+                    attrs={"elem_type": element_type},
+                )
+
+                # edge type
+                exo_ds[str_edge_type] = xr.DataArray(
+                    data=xr.DataArray(
+                        np.zeros((num_faces, num_nodes), dtype=INT_DTYPE)
+                    ),
+                    dims=[str_el_in_blk, str_nod_per_el],
+                )
+
+                # global id
+                gid = np.arange(start + 1, start + num_faces + 1, 1)
+                exo_ds[str_global_id] = xr.DataArray(data=(gid), dims=[str_el_in_blk])
+
+                # attrib
+                # TODO: fix num attr
+                num_attr = 1
+                exo_ds[str_attrib] = xr.DataArray(
+                    data=xr.DataArray(np.zeros((num_faces, num_attr), float)),
+                    dims=[str_el_in_blk, str_att_in_blk],
+                )
+
+                start = num_faces
+
+            # eb_prop1
+            prop1_vals = np.arange(1, num_blks + 1, 1)
+            exo_ds["eb_prop1"] = xr.DataArray(
+                data=prop1_vals, dims=["num_el_blk"], attrs={"name": "ID"}
+            )
+            # eb_status
+            exo_ds["eb_status"] = xr.DataArray(
+                data=xr.DataArray(np.ones([num_blks], dtype=INT_DTYPE)),
+                dims=["num_el_blk"],
+            )
+
+            # eb_names
+            eb_names = np.empty(num_blks, dtype="str")
+            exo_ds["eb_names"] = xr.DataArray(
+                data=xr.DataArray(eb_names), dims=["num_el_blk"]
+            )
+            cnames = ["x", "y", "z"]
+
+            exo_ds["coor_names"] = xr.DataArray(
+                data=xr.DataArray(np.array(cnames, dtype="str")), dims=["num_dim"]
+            )
+
+            return exo_ds
         else:
-            raise ValueError(f"Unsupported grid_format: {grid_format}")
+            raise ValueError(
+                f"Unsupported grid_format: {grid_format}. "
+                f"Supported formats are: UGRID, HEALPix, ESMF, SCRIP, EXODUS"
+            )
 
     def get_dual(self):
         """Compute the dual mesh for a dataset, returns a new dataset object.
