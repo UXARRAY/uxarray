@@ -43,10 +43,16 @@ def test_read_ugrid():
 #         assert isinstance(getattr(uxgrid_url, "node_lat"), xr.DataArray)
 #         assert isinstance(getattr(uxgrid_url, "face_node_connectivity"), xr.DataArray)
 
-def test_to_xarray_ugrid():
+def test_to_xarray_ugrid(tmp_path):
     """Read an Exodus dataset and convert it to UGRID format using to_xarray."""
     ux_grid = ux.open_grid(gridfile_exo_ne8)
-    ux_grid.to_xarray("UGRID")
+
+    outfile = tmp_path / "test.nc"
+    ugrid_ds = ux_grid.to_xarray("UGRID")
+    ugrid_ds.to_netcdf(outfile)
+
+    reopened_grid = ux.open_grid(outfile)
+    reopened_grid.validate()
 
 def test_standardized_dtype_and_fill():
     """Test to see if Mesh2_Face_Nodes uses the expected integer datatype and expected fill value."""

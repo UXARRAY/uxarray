@@ -1978,6 +1978,9 @@ class Grid:
         if "node_lon" not in self._ds.variables:
             _ = self.node_lon
 
+        if "face_lon" not in self._ds:
+            _ = self.face_lon
+
         # Convert boolean attributes to integers before passing to UxDataset
         new_attrs = self._ds.attrs.copy()
         for key, value in new_attrs.items():

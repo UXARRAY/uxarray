@@ -96,16 +96,21 @@ def test_grid_with_holes():
     assert grid_without_holes.global_sphere_coverage
 
 
-def test_grid_to_xarray():
+@pytest.mark.parametrize("grid_in", [grid_CSne30, grid_RLL1deg, grid_RLL10deg_CSne4])
+@pytest.mark.parametrize("grid_format, extension", [("UGRID", ".nc"), ("Exodus", ".g")])
+def test_grid_to_xarray(grid_in, grid_format, extension, tmp_path):
     """Reads a ugrid file and encodes it as `xarray.Dataset` in various types."""
-    grid_CSne30.to_xarray("UGRID")
-    grid_RLL1deg.to_xarray("UGRID")
-    grid_RLL10deg_CSne4.to_xarray("UGRID")
+    out_file = tmp_path / f"test{extension}"
 
-    grid_CSne30.to_xarray("Exodus")
-    grid_RLL1deg.to_xarray("Exodus")
-    grid_RLL10deg_CSne4.to_xarray("Exodus")
+    # convert to xarray dataset
+    out_ds = grid_in.to_xarray(grid_format)
 
+    # save to file
+    out_ds.to_netcdf(out_file)
+
+    # read back and validate
+    reopened_grid = ux.open_grid(out_file)
+    reopened_grid.validate()
 
 def test_grid_init_verts():
     """Create a uxarray grid from multiple face vertices with duplicate nodes and saves a ugrid file."""

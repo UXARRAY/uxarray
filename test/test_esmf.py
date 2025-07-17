@@ -38,10 +38,16 @@ def test_read_esmf_dataset():
     for dim in dims:
         assert dim in uxds.dims
 
-def test_write_esmf():
+def test_to_xarray_esmf(tmp_path):
     """Tests the writing of a UxDataset to an ESMF Grid file."""
-    uxds = ux.open_grid(gridfile_ne30)
-    out_ds = uxds.to_xarray("ESMF")
+    uxgrid = ux.open_grid(gridfile_ne30)
+    out_ds = uxgrid.to_xarray("ESMF")
     assert isinstance(out_ds, xr.Dataset)
     assert 'nodeCoords' in out_ds
     assert 'elementConn' in out_ds
+
+    outfile = tmp_path / "test_esmf.nc"
+    out_ds.to_netcdf(outfile)
+
+    reopened_grid = ux.open_grid(outfile)
+    reopened_grid.validate()

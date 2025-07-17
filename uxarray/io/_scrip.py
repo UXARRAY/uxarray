@@ -149,17 +149,18 @@ def grid_center_lat_lon(ds):
     scrip_corner_lon = ds["grid_corner_lon"]
     scrip_corner_lat = ds["grid_corner_lat"]
 
-    # convert to radians
-    rad_corner_lon = np.deg2rad(scrip_corner_lon)
-    rad_corner_lat = np.deg2rad(scrip_corner_lat)
+    # handle potential NaNs and convert to radians
+    corner_lon_rad = np.deg2rad(scrip_corner_lon.values)
+    corner_lat_rad = np.deg2rad(scrip_corner_lat.values)
 
-    # get nodes per face
-    nodes_per_face = rad_corner_lat.shape[1]
+    # count valid nodes per face, avoiding NaNs
+    nodes_per_face = np.sum(~np.isnan(corner_lat_rad), axis=1)
 
     # geographic center of each cell
-    x = np.sum(np.cos(rad_corner_lat) * np.cos(rad_corner_lon), axis=1) / nodes_per_face
-    y = np.sum(np.cos(rad_corner_lat) * np.sin(rad_corner_lon), axis=1) / nodes_per_face
-    z = np.sum(np.sin(rad_corner_lat), axis=1) / nodes_per_face
+    cos_lat = np.cos(corner_lat_rad)
+    x = np.nansum(cos_lat * np.cos(corner_lon_rad), axis=1) / nodes_per_face
+    y = np.nansum(cos_lat * np.sin(corner_lon_rad), axis=1) / nodes_per_face
+    z = np.nansum(np.sin(corner_lat_rad), axis=1) / nodes_per_face
 
     center_lon = np.rad2deg(np.arctan2(y, x))
     center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))

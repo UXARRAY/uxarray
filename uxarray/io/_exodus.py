@@ -1,3 +1,4 @@
+import numpy as np
 import xarray as xr
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
@@ -22,17 +23,37 @@ def _read_exodus(ext_ds):
     # connect1, connect2, connect3, etc..
     ds = xr.Dataset()
 
+    # Collect all connectivity arrays
+    connect_arrays = [
+        var for name, var in ext_ds.variables.items() if "connect" in name
+    ]
+
+    if not connect_arrays:
+        raise RuntimeError("No connectivity variables found in Exodus file.")
+
     # find max face nodes
-    max_face_nodes = 0
-    for dim in ext_ds.dims:
-        if "num_nod_per_el" in dim:
-            if ext_ds.sizes[dim] > max_face_nodes:
-                max_face_nodes = ext_ds.sizes[dim]
+    max_face_nodes = max(arr.shape[1] for arr in connect_arrays)
+
+    padded_arrays = []
+    for arr in connect_arrays:
+        if arr.shape[1] < max_face_nodes:
+            pad_width = max_face_nodes - arr.shape[1]
+            padding = np.zeros((arr.shape[0], pad_width), dtype=arr.dtype)
+            padded_arr = np.hstack([arr.values, padding])
+            padded_arrays.append(padded_arr)
+        else:
+            padded_arrays.append(arr.values)
+
+    # Concatenate all face node arrays
+    face_nodes_data = np.vstack(padded_arrays)
+
+    face_nodes = xr.DataArray(face_nodes_data)
 
     for key, value in ext_ds.variables.items():
         if key == "qa_records":
             # TODO: Use the data here for Mesh2 construct, if required.
             pass
+        # Node Coordinates
         elif key == "coord":
             ds["node_x"] = xr.DataArray(
                 data=ext_ds.coord[0], dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_X_ATTRS
@@ -52,30 +73,25 @@ def _read_exodus(ext_ds):
             )
         elif key == "coordy":
             ds["node_y"] = xr.DataArray(
-                data=ext_ds.coordx, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Y_ATTRS
+                data=ext_ds.coordy, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Y_ATTRS
             )
         elif key == "coordz":
             if ext_ds.sizes["num_dim"] > 2:
                 ds["node_z"] = xr.DataArray(
-                    data=ext_ds.coordx, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Z_ATTRS
+                    data=ext_ds.coordz, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Z_ATTRS
                 )
-        elif "connect" in key:
-            # check if num face nodes is less than max.
-            if value.data.shape[1] <= max_face_nodes:
-                face_nodes = value
-            else:
-                raise RuntimeError("found face_nodes_dim greater than n_max_face_nodes")
 
     # outside the k,v for loop
     # set the face nodes data compiled in "connect" section
 
     # standardize fill values and data type face nodes
     face_nodes = _replace_fill_values(
-        grid_var=face_nodes[:] - 1,
-        original_fill=-1,
+        grid_var=face_nodes,
+        original_fill=0,
         new_fill=INT_FILL_VALUE,
         new_dtype=INT_DTYPE,
     )
+    face_nodes = xr.where(face_nodes != INT_FILL_VALUE, face_nodes - 1, face_nodes)
 
     ds["face_node_connectivity"] = xr.DataArray(
         data=face_nodes,

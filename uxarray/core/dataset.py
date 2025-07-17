@@ -513,6 +513,13 @@ class UxDataset(xr.Dataset):
                         "_FillValue": -1,
                     },
                 )
+                # Number of nodes per face (numElementConn)
+                out_ds["numElementConn"] = xr.DataArray(
+                    self.uxgrid.n_nodes_per_face,
+                    dims="elementCount",
+                    attrs={"long_name": "Number of nodes in each element"},
+                )
+
                 out_ds["elementConn"].encoding = {"dtype": np.int32}
             else:
                 raise ValueError("Input dataset must contain 'face_node_connectivity'.")
@@ -558,30 +565,43 @@ class UxDataset(xr.Dataset):
             face_areas = self.uxgrid.compute_face_areas()[0]
 
             # Reshape arrays for SCRIP format
-            f_nodes = face_node_conn.ravel()
-            lat_nodes = node_lat[f_nodes].values
-            lon_nodes = node_lon[f_nodes].values
+            from uxarray.constants import INT_FILL_VALUE
 
-            reshp_lat = np.reshape(
-                lat_nodes, [face_node_conn.shape[0], face_node_conn.shape[1]]
-            )
-            reshp_lon = np.reshape(
-                lon_nodes, [face_node_conn.shape[0], face_node_conn.shape[1]]
-            )
+            f_nodes_flat = face_node_conn.ravel()
+            valid_nodes_mask = f_nodes_flat != INT_FILL_VALUE
+
+            # Create arrays for lat/lon, filled with a temporary value (like nan)
+            lat_nodes_flat = np.full(f_nodes_flat.shape, np.nan, dtype=np.float64)
+            lon_nodes_flat = np.full(f_nodes_flat.shape, np.nan, dtype=np.float64)
+
+            # Fill in valid values
+            valid_indices = np.where(valid_nodes_mask)[0]
+            valid_f_nodes = f_nodes_flat[valid_indices]
+            lon_nodes_flat[valid_indices] = node_lon.values[valid_f_nodes]
+            lat_nodes_flat[valid_indices] = node_lat.values[valid_f_nodes]
+
+            # Reshape to 2D
+            n_face, n_max_nodes = face_node_conn.shape
+            reshp_lat = lat_nodes_flat.reshape((n_face, n_max_nodes))
+            reshp_lon = lon_nodes_flat.reshape((n_face, n_max_nodes))
 
             # Add variables to SCRIP dataset
             out_ds["grid_corner_lat"] = xr.DataArray(
-                data=reshp_lat, dims=["grid_size", "grid_corners"]
+                data=reshp_lat,
+                dims=["grid_size", "grid_corners"],
+                attrs={"units": "degrees"},
             )
             out_ds["grid_corner_lon"] = xr.DataArray(
-                data=reshp_lon, dims=["grid_size", "grid_corners"]
+                data=reshp_lon,
+                dims=["grid_size", "grid_corners"],
+                attrs={"units": "degrees"},
             )
             out_ds["grid_rank"] = xr.DataArray(data=[1], dims=["grid_rank"])
             out_ds["grid_dims"] = xr.DataArray(
-                data=[len(lon_nodes)], dims=["grid_rank"]
+                data=[self.uxgrid.n_face], dims=["grid_rank"]
             )
             out_ds["grid_imask"] = xr.DataArray(
-                data=np.ones(len(reshp_lon), dtype=int), dims=["grid_size"]
+                data=np.ones(self.uxgrid.n_face, dtype=int), dims=["grid_size"]
             )
             out_ds["grid_area"] = xr.DataArray(data=face_areas, dims=["grid_size"])
 
