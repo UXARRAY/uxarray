@@ -7,7 +7,10 @@ import pytest
 
 import uxarray as ux
 from uxarray.constants import INT_FILL_VALUE
-from .test_gradient import quad_hex_grid_path
+
+current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
+quad_hex_grid_path = quad_hex_grid_path = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
