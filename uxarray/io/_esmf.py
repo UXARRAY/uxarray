@@ -76,6 +76,9 @@ def _read_esmf(in_ds):
             "Reading in ESMF grids with Cartesian coordinates not yet supported"
         )
 
+    if "numElementConn" not in in_ds:
+        raise KeyError("No variable named 'numElementConn'.")
+
     n_nodes_per_face = in_ds["numElementConn"].astype(INT_DTYPE)
     out_ds["n_nodes_per_face"] = xr.DataArray(
         data=n_nodes_per_face,

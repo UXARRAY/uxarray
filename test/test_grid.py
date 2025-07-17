@@ -96,16 +96,21 @@ def test_grid_with_holes():
     assert grid_without_holes.global_sphere_coverage
 
 
-def test_grid_encode_as():
+@pytest.mark.parametrize("grid_in", [grid_CSne30, grid_RLL1deg, grid_RLL10deg_CSne4])
+@pytest.mark.parametrize("grid_format, extension", [("UGRID", ".nc"), ("Exodus", ".g")])
+def test_grid_to_xarray(grid_in, grid_format, extension, tmp_path):
     """Reads a ugrid file and encodes it as `xarray.Dataset` in various types."""
-    grid_CSne30.encode_as("UGRID")
-    grid_RLL1deg.encode_as("UGRID")
-    grid_RLL10deg_CSne4.encode_as("UGRID")
+    out_file = tmp_path / f"test{extension}"
 
-    grid_CSne30.encode_as("Exodus")
-    grid_RLL1deg.encode_as("Exodus")
-    grid_RLL10deg_CSne4.encode_as("Exodus")
+    # convert to xarray dataset
+    out_ds = grid_in.to_xarray(grid_format)
 
+    # save to file
+    out_ds.to_netcdf(out_file)
+
+    # read back and validate
+    reopened_grid = ux.open_grid(out_file)
+    reopened_grid.validate()
 
 def test_grid_init_verts():
     """Create a uxarray grid from multiple face vertices with duplicate nodes and saves a ugrid file."""
@@ -147,7 +152,7 @@ def test_grid_init_verts():
 
     assert vgrid.n_face == 6
     assert vgrid.n_node == 8
-    vgrid.encode_as("UGRID")
+    vgrid.to_xarray("UGRID")
 
     faces_verts_one = np.array([
         np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20], [135, 10]])
@@ -155,13 +160,13 @@ def test_grid_init_verts():
     vgrid = ux.open_grid(faces_verts_one, latlon=True)
     assert vgrid.n_face == 1
     assert vgrid.n_node == 6
-    vgrid.encode_as("UGRID")
+    vgrid.to_xarray("UGRID")
 
     faces_verts_single_face = np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20], [135, 10]])
     vgrid = ux.open_grid(faces_verts_single_face, latlon=True)
     assert vgrid.n_face == 1
     assert vgrid.n_node == 6
-    vgrid.encode_as("UGRID")
+    vgrid.to_xarray("UGRID")
 
 
 def test_grid_init_verts_different_input_datatype():
@@ -174,7 +179,7 @@ def test_grid_init_verts_different_input_datatype():
     vgrid = ux.open_grid(faces_verts_ndarray, latlon=True)
     assert vgrid.n_face == 3
     assert vgrid.n_node == 14
-    vgrid.encode_as("UGRID")
+    vgrid.to_xarray("UGRID")
 
     faces_verts_list = [[[150, 10], [160, 20], [150, 30], [135, 30], [125, 20], [135, 10]],
                         [[125, 20], [135, 30], [125, 60], [110, 60], [100, 30], [105, 20]],
@@ -183,7 +188,7 @@ def test_grid_init_verts_different_input_datatype():
     assert vgrid.n_face == 3
     assert vgrid.n_node == 14
     assert vgrid.validate()
-    vgrid.encode_as("UGRID")
+    vgrid.to_xarray("UGRID")
 
     faces_verts_tuples = [
         ((150, 10), (160, 20), (150, 30), (135, 30), (125, 20), (135, 10)),
@@ -194,7 +199,7 @@ def test_grid_init_verts_different_input_datatype():
     assert vgrid.n_face == 3
     assert vgrid.n_node == 14
     assert vgrid.validate()
-    vgrid.encode_as("UGRID")
+    vgrid.to_xarray("UGRID")
 
 
 def test_grid_init_verts_fill_values():

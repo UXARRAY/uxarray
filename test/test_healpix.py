@@ -99,3 +99,33 @@ def test_invalid_cells():
     xrda = xr.DataArray(data=np.ones(11), dims=['cell']).to_dataset(name='cell')
     with pytest.raises(ValueError):
         uxda = ux.UxDataset.from_healpix(xrda)
+
+@pytest.mark.parametrize("grid_format, extension", [
+    ("ugrid", ".nc"),
+    ("exodus", ".g"),
+    ("esmf", ".nc"),
+    ("scrip", ".nc"),
+])
+def test_healpix_to_xarray(tmp_path, grid_format, extension):
+    """Test that HEALPix grid can be encoded in a specified format and saved to a file.
+
+       Using pytest tmp_path fixture to create a temporary file.
+    """
+    # Create HEALPix grid
+    h = ux.Grid.from_healpix(zoom=3, pixels_only=False)
+
+    # Convert to a specific format
+    uxa_out = h.to_xarray(grid_format.upper())
+
+    tmp_filename = tmp_path / f"healpix_test_{grid_format}{extension}"
+
+    # Save to netCDF
+    uxa_out.to_netcdf(tmp_filename)
+
+    # Assertions
+    assert tmp_filename.exists()
+    assert tmp_filename.stat().st_size > 0
+
+    loaded_grid = ux.open_grid(tmp_filename)
+    assert loaded_grid.n_face == h.n_face
+    loaded_grid.validate()

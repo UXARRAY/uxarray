@@ -1,5 +1,4 @@
 import numpy as np
-import xarray as xr
 
 import uxarray.conventions.ugrid as ugrid
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
@@ -87,36 +86,6 @@ def _read_ugrid(ds):
     ds = ds.swap_dims(dim_dict)
 
     return ds, dim_dict
-
-
-def _encode_ugrid(ds):
-    """Encodes an unstructured grid represented under a ``Grid`` object as a
-    ``xr.Dataset`` with an updated grid topology variable."""
-
-    if "grid_topology" in ds:
-        ds = ds.drop_vars(["grid_topology"])
-
-    grid_topology = ugrid.BASE_GRID_TOPOLOGY_ATTRS
-
-    if "n_edge" in ds.dims:
-        grid_topology["edge_dimension"] = "n_edge"
-
-    if "face_lon" in ds:
-        grid_topology["face_coordinates"] = "face_lon face_lat"
-    if "edge_lon" in ds:
-        grid_topology["edge_coordinates"] = "edge_lon edge_lat"
-
-    # TODO: Encode spherical (i.e. node_x) coordinates eventually (need to extend ugrid conventions)
-
-    for conn_name in ugrid.CONNECTIVITY_NAMES:
-        if conn_name in ds:
-            grid_topology[conn_name] = conn_name
-
-    grid_topology_da = xr.DataArray(data=-1, attrs=grid_topology)
-
-    ds["grid_topology"] = grid_topology_da
-
-    return ds
 
 
 def _standardize_connectivity(ds, conn_name):
