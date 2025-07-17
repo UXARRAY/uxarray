@@ -78,8 +78,8 @@ def _compute_arc_length(lat_a, lat_b, lon_a, lon_b):
 @njit(cache=True)
 def _check_face_on_boundary(
     face_idx: np.integer,
-    face_edge_connectivity: np.ndarray,
-    edge_face_connectivity: np.ndarray,
+    face_node_connectivity: np.ndarray,
+    node_face_connectivity: np.ndarray,
 ):
     """
     Checks if a face in on the boundary by checking the neighboring faces of its edges
@@ -89,9 +89,9 @@ def _check_face_on_boundary(
 
     """
     bool_bdy = False
-    for edge_idx in face_edge_connectivity[face_idx]:
-        if edge_idx != INT_FILL_VALUE:
-            if INT_FILL_VALUE in edge_face_connectivity[edge_idx]:
+    for node_idx in face_node_connectivity[face_idx]:
+        if node_idx != INT_FILL_VALUE:
+            if INT_FILL_VALUE in node_face_connectivity[node_idx]:
                 bool_bdy = True
 
     return bool_bdy
@@ -176,7 +176,7 @@ def _compute_gradient(data):
             data.values,
             uxgrid.n_face,
             face_coords,
-            uxgrid.face_edge_connectivity.values,
+            uxgrid.node_face_connectivity.values,
             uxgrid.edge_face_connectivity.values,
             uxgrid.face_node_connectivity.values,
             uxgrid.node_edge_connectivity.values,
@@ -271,7 +271,7 @@ def _compute_gradients_on_faces(
     data,
     n_face,
     face_coords,  # x, y, z face coordinates np.vstack([face_x, face_y, face_z]).T
-    face_edge_connectivity,
+    node_face_connectivity,
     edge_face_connectivity,
     face_node_connectivity,
     node_edge_connectivity,
@@ -299,7 +299,7 @@ def _compute_gradients_on_faces(
     gradient_zonal: np.ndarray
         Zonal component of gradient ...
     gradient_meridional: np.ndarray
-        Meridional component of grdient ...
+        Meridional component of gradient ...
 
     Notes
     -----
@@ -320,7 +320,7 @@ def _compute_gradients_on_faces(
         gradient = np.zeros(3)
 
         if not _check_face_on_boundary(
-            face_idx, face_edge_connectivity, edge_face_connectivity
+            face_idx, face_node_connectivity, node_face_connectivity
         ):  # check face is not on boundary
             for node_idx in face_node_connectivity[
                 face_idx
