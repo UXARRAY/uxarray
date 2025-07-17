@@ -117,7 +117,7 @@ def test_list_of_coords_mpas_dual():
     for k in range(num_particles):
         coords[k,0] = np.deg2rad(np.random.uniform(x_min, x_max))
         coords[k,1] = np.deg2rad(np.random.uniform(y_min, y_max))
-    face_ids, bcoords = uxgrid.get_spatial_hash().query(coords)
+    face_ids, bcoords = uxgrid.get_spatial_hash().query(coords,in_radians=True)
     assert len(face_ids) == num_particles
     assert bcoords.shape[0] == num_particles
     assert bcoords.shape[1] == 3 # max sides of an element
@@ -137,7 +137,7 @@ def test_list_of_coords_mpas_primal():
     for k in range(num_particles):
         coords[k,0] = np.deg2rad(np.random.uniform(x_min, x_max))
         coords[k,1] = np.deg2rad(np.random.uniform(y_min, y_max))
-    face_ids, bcoords = uxgrid.get_spatial_hash().query(coords)
+    face_ids, bcoords = uxgrid.get_spatial_hash().query(coords, in_radians=True)
     assert len(face_ids) == num_particles
     assert bcoords.shape[0] == num_particles
     assert bcoords.shape[1] == 6 # max sides of an element
