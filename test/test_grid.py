@@ -15,7 +15,7 @@ from uxarray.grid.connectivity import _populate_face_edge_connectivity, _build_e
 
 from uxarray.grid.coordinates import _populate_node_latlon, _lonlat_rad_to_xyz, _xyz_to_lonlat_rad_scalar
 
-from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE, INT_DTYPE
+from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
 
 from uxarray.grid.arcs import extreme_gca_latitude
 
@@ -746,3 +746,39 @@ def test_dual_duplicate():
     dataset = ux.open_dataset(gridfile_geoflow, gridfile_geoflow)
     with pytest.raises(RuntimeError):
         dataset.get_dual()
+
+
+def test_normalize_existing_coordinates_non_norm_initial():
+    gridfile_mpas = current_path / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
+    from uxarray.grid.validation import _check_normalization
+    uxgrid = ux.open_grid(gridfile_mpas)
+
+    uxgrid.node_x.data = 5 * uxgrid.node_x.data
+    uxgrid.node_y.data = 5 * uxgrid.node_y.data
+    uxgrid.node_z.data = 5 * uxgrid.node_z.data
+    assert not _check_normalization(uxgrid)
+
+    uxgrid.normalize_cartesian_coordinates()
+    assert _check_normalization(uxgrid)
+
+
+def test_normalize_existing_coordinates_norm_initial():
+    gridfile_CSne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+    from uxarray.grid.validation import _check_normalization
+    uxgrid = ux.open_grid(gridfile_CSne30)
+
+    assert _check_normalization(uxgrid)
+
+
+
+def test_from_topology():
+    node_lon = np.array([-20.0, 0.0, 20.0, -20, -40])
+    node_lat = np.array([-10.0, 10.0, -10.0, 10, -10])
+    face_node_connectivity = np.array([[0, 1, 2, -1], [0, 1, 3, 4]])
+
+    uxgrid = ux.Grid.from_topology(
+        node_lon=node_lon,
+        node_lat=node_lat,
+        face_node_connectivity=face_node_connectivity,
+        fill_value=-1,
+    )
