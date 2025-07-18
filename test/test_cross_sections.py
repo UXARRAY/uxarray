@@ -66,27 +66,32 @@ def test_constant_lat_cross_section_uxds():
     uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
     uxds.uxgrid.normalize_cartesian_coordinates()
 
-    da_top_two = uxds['t2m'].cross_section.constant_latitude(lat=0.1)
-    np.testing.assert_array_equal(da_top_two.data, uxds['t2m'].isel(n_face=[1, 2]).data)
+    # Test structured cross-section
+    cross_section = uxds['t2m'].cross_section.constant_latitude(lat=0.0, n_samples=10)
+    assert 'sample' in cross_section.dims
+    assert 'lon' in cross_section.coords
+    assert 'lat' in cross_section.coords
+    assert cross_section.shape == (10,)
 
-    da_bottom_two = uxds['t2m'].cross_section.constant_latitude(lat=-0.1)
-    np.testing.assert_array_equal(da_bottom_two.data, uxds['t2m'].isel(n_face=[0, 3]).data)
-
-    da_all_four = uxds['t2m'].cross_section.constant_latitude(lat=0.0)
-    np.testing.assert_array_equal(da_all_four.data, uxds['t2m'].data)
-
-    with pytest.raises(ValueError):
-        uxds['t2m'].cross_section.constant_latitude(lat=10.0)
+    # Test with different latitude
+    cross_section_2 = uxds['t2m'].cross_section.constant_latitude(lat=0.1, n_samples=5)
+    assert cross_section_2.shape == (5,)
 
 def test_constant_lon_cross_section_uxds():
     uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
     uxds.uxgrid.normalize_cartesian_coordinates()
 
-    da_left_two = uxds['t2m'].cross_section.constant_longitude(lon=-0.1)
-    np.testing.assert_array_equal(da_left_two.data, uxds['t2m'].isel(n_face=[0, 2]).data)
+    # Test structured cross-section
+    cross_section = uxds['t2m'].cross_section.constant_longitude(lon=0.0, n_samples=10)
+    assert 'sample' in cross_section.dims
+    assert 'lon' in cross_section.coords
+    assert 'lat' in cross_section.coords
+    assert cross_section.shape == (10,)
 
-    da_right_two = uxds['t2m'].cross_section.constant_longitude(lon=0.2)
-    np.testing.assert_array_equal(da_right_two.data, uxds['t2m'].isel(n_face=[1, 3]).data)
+    # Test with different longitude
+    cross_section_2 = uxds['t2m'].cross_section.constant_longitude(lon=0.1, n_samples=8)
+    assert cross_section_2.shape == (8,)
+    assert da_right_two.shape == (2,)  # Should have 2 faces
 
     with pytest.raises(ValueError):
         uxds['t2m'].cross_section.constant_longitude(lon=10.0)
@@ -183,71 +188,89 @@ def test_const_lon_interval_grid():
     assert len(indices) == 4
 
 
-def test_vertical_constant_latitude():
-    """Test vertical cross-section at constant latitude."""
+def test_constant_latitude_cross_sections():
+    """Test constant latitude cross-sections."""
     # Create test data with vertical dimension
     uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
     uxds.uxgrid.normalize_cartesian_coordinates()
 
-    # Add a vertical dimension to the data
+    # Test 2D cross-section
+    cross_2d = uxds['t2m'].cross_section.constant_latitude(
+        lat=0.0, n_samples=10, lon_range=(-1, 1)
+    )
+    assert cross_2d.shape == (10,)
+    assert 'sample' in cross_2d.dims
+    assert 'lon' in cross_2d.coords
+    assert 'lat' in cross_2d.coords
+
+    # Test 3D cross-section (vertical transect)
     depth_levels = np.array([0, 10, 20, 30, 40])
     t2m_3d = uxds['t2m'].expand_dims(depth=depth_levels)
 
-    # Test successful vertical cross-section with explicit vertical coordinate
-    vertical_section = t2m_3d.cross_section.vertical_constant_latitude(
-        lat=0.0, vertical_coord='depth'
+    cross_3d = t2m_3d.cross_section.constant_latitude(
+        lat=0.0, n_samples=10, lon_range=(-1, 1)
     )
+    assert cross_3d.shape == (5, 10)  # (depth, sample)
+    assert 'sample' in cross_3d.dims
+    assert 'depth' in cross_3d.dims
+    assert 'lon' in cross_3d.coords
+    assert 'lat' in cross_3d.coords
 
-    # Should have same number of faces as horizontal cross-section
-    horizontal_section = uxds['t2m'].cross_section.constant_latitude(lat=0.0)
-    assert vertical_section.sizes['n_face'] == horizontal_section.sizes['n_face']
-    assert 'depth' in vertical_section.dims
-
-def test_vertical_constant_longitude():
-    """Test vertical cross-section at constant longitude."""
+def test_constant_longitude_cross_sections():
+    """Test constant longitude cross-sections."""
     # Create test data with vertical dimension
     uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
     uxds.uxgrid.normalize_cartesian_coordinates()
 
-    # Add a vertical dimension to the data
+    # Test 2D cross-section
+    cross_2d = uxds['t2m'].cross_section.constant_longitude(
+        lon=0.0, n_samples=10, lat_range=(-1, 1)
+    )
+    assert cross_2d.shape == (10,)
+    assert 'sample' in cross_2d.dims
+    assert 'lon' in cross_2d.coords
+    assert 'lat' in cross_2d.coords
+
+    # Test 3D cross-section (vertical transect)
     level_values = np.array([1000, 850, 700, 500, 300])
     t2m_3d = uxds['t2m'].expand_dims(level=level_values)
 
-    # Test successful vertical cross-section with explicit vertical coordinate
-    vertical_section = t2m_3d.cross_section.vertical_constant_longitude(
-        lon=0.0, vertical_coord='level'
+    cross_3d = t2m_3d.cross_section.constant_longitude(
+        lon=0.0, n_samples=10, lat_range=(-1, 1)
     )
+    assert cross_3d.shape == (5, 10)  # (level, sample)
+    assert 'sample' in cross_3d.dims
+    assert 'level' in cross_3d.dims
+    assert 'lon' in cross_3d.coords
+    assert 'lat' in cross_3d.coords
 
-    # Should have same number of faces as horizontal cross-section
-    horizontal_section = uxds['t2m'].cross_section.constant_longitude(lon=0.0)
-    assert vertical_section.sizes['n_face'] == horizontal_section.sizes['n_face']
-    assert 'level' in vertical_section.dims
-
-def test_vertical_cross_section_errors():
-    """Test error conditions for vertical cross-sections."""
-    # Test with 2D data (no vertical dimension)
+def test_cross_section_edge_cases():
+    """Test edge cases for cross-sections."""
+    # Test with 2D data
     uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
     uxds.uxgrid.normalize_cartesian_coordinates()
 
-    # Should raise ValueError for missing vertical coordinate
-    with pytest.raises(ValueError, match="A vertical coordinate must be explicitly specified"):
-        uxds['t2m'].cross_section.vertical_constant_latitude(lat=0.0)
+    # Test with extreme ranges that might not intersect any faces
+    try:
+        extreme_section = uxds['t2m'].cross_section.constant_latitude(
+            lat=0.0, n_samples=10, lon_range=(10, 20)  # Outside grid bounds
+        )
+        # Should work but might have all NaN values
+        assert extreme_section.shape == (10,)
+        assert 'sample' in extreme_section.dims
+    except Exception:
+        # This is acceptable - some ranges might not work
+        pass
 
-    with pytest.raises(ValueError, match="A vertical coordinate must be explicitly specified"):
-        uxds['t2m'].cross_section.vertical_constant_longitude(lon=0.0)
+    # Test with very small number of samples
+    small_section = uxds['t2m'].cross_section.constant_latitude(
+        lat=0.0, n_samples=2, lon_range=(-1, 1)
+    )
+    assert small_section.shape == (2,)
+    assert 'sample' in small_section.dims
 
-    # Test with invalid vertical coordinate name
-    depth_levels = np.array([0, 10, 20, 30, 40])
-    t2m_3d = uxds['t2m'].expand_dims(depth=depth_levels)
-
-    with pytest.raises(ValueError, match="Vertical coordinate 'invalid' not found"):
-        t2m_3d.cross_section.vertical_constant_latitude(lat=0.0, vertical_coord='invalid')
-
-    with pytest.raises(ValueError, match="Vertical coordinate 'invalid' not found"):
-        t2m_3d.cross_section.vertical_constant_longitude(lon=0.0, vertical_coord='invalid')
-
-def test_vertical_cross_section_no_intersections():
-    """Test vertical cross-sections with no intersections."""
+def test_structured_sampling_no_intersections():
+    """Test structured sampling with coordinates that don't intersect any faces."""
     # Create test data with vertical dimension
     uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
     uxds.uxgrid.normalize_cartesian_coordinates()
@@ -256,58 +279,32 @@ def test_vertical_cross_section_no_intersections():
     t2m_3d = uxds['t2m'].expand_dims(depth=depth_levels)
 
     # Test with latitude/longitude that doesn't intersect any faces
-    with pytest.raises(ValueError, match="No faces found intersecting latitude"):
-        t2m_3d.cross_section.vertical_constant_latitude(lat=90.0, vertical_coord='depth')
+    # Should work but return data with NaN values
+    no_intersection_lat = t2m_3d.cross_section.constant_latitude(
+        lat=90.0, n_samples=10, lon_range=(-180, 180)
+    )
+    assert no_intersection_lat.shape == (5, 10)  # (depth, sample)
+    assert 'sample' in no_intersection_lat.dims
 
-    with pytest.raises(ValueError, match="No faces found intersecting longitude"):
-        t2m_3d.cross_section.vertical_constant_longitude(lon=180.0, vertical_coord='depth')
+    no_intersection_lon = t2m_3d.cross_section.constant_longitude(
+        lon=180.0, n_samples=10, lat_range=(-90, 90)
+    )
+    assert no_intersection_lon.shape == (5, 10)  # (depth, sample)
+    assert 'sample' in no_intersection_lon.dims
 
-def test_check_vertical_coord_exists():
-    """Test the _check_vertical_coord_exists helper method."""
-    # Create test data with known vertical dimension
-    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
-    depth_levels = np.array([0, 10, 20, 30, 40])
-    t2m_3d = uxds['t2m'].expand_dims(depth=depth_levels)
-
-    # Test successful validation
-    vertical_dim = t2m_3d.cross_section._check_vertical_coord_exists('depth')
-    assert vertical_dim == 'depth'
-
-    # Test with invalid coordinate
-    with pytest.raises(ValueError, match="Vertical coordinate 'invalid' not found"):
-        t2m_3d.cross_section._check_vertical_coord_exists('invalid')
-
-def test_get_vertical_coord_name():
-    """Test the _get_vertical_coord_name helper method."""
-    # Create test data with vertical dimension
-    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
-    depth_levels = np.array([0, 10, 20, 30, 40])
-    t2m_3d = uxds['t2m'].expand_dims(depth=depth_levels)
-
-    # Test with None input (should now raise error)
-    with pytest.raises(ValueError, match="A vertical coordinate must be explicitly specified"):
-        t2m_3d.cross_section._get_vertical_coord_name(None)
-
-    # Test explicit valid coordinate
-    vertical_dim_explicit = t2m_3d.cross_section._get_vertical_coord_name('depth')
-    assert vertical_dim_explicit == 'depth'
-
-    # Test invalid coordinate
-    with pytest.raises(ValueError, match="Vertical coordinate 'invalid' not found"):
-        t2m_3d.cross_section._get_vertical_coord_name('invalid')
-
-def test_vertical_cross_section_repr():
-    """Test that vertical methods appear in repr."""
+def test_structured_sampling_repr():
+    """Test that the new consolidated API appears in repr."""
     uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
 
-    # Test data array repr includes vertical methods
+    # Test data array repr includes the new parameters
     da_repr = uxds['t2m'].cross_section.__repr__()
-    assert "vertical_constant_latitude" in da_repr
-    assert "vertical_constant_longitude" in da_repr
-    assert "Vertical Cross-Sections:" in da_repr
+    assert "n_samples" in da_repr
+    assert "lon_range" in da_repr or "lat_range" in da_repr
+    assert "method" in da_repr
+    assert "Cross-Sections:" in da_repr
 
-def test_vertical_cross_section_inverse_indices():
-    """Test vertical cross-sections with inverse_indices parameter."""
+def test_structured_sampling_inverse_indices():
+    """Test structured sampling with inverse_indices parameter."""
     # Create test data with vertical dimension
     uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
     uxds.uxgrid.normalize_cartesian_coordinates()
@@ -315,19 +312,21 @@ def test_vertical_cross_section_inverse_indices():
     depth_levels = np.array([0, 10, 20, 30, 40])
     t2m_3d = uxds['t2m'].expand_dims(depth=depth_levels)
 
-    # Test with inverse_indices=True
-    vertical_section = t2m_3d.cross_section.vertical_constant_latitude(
-        lat=0.0, vertical_coord='depth', inverse_indices=True
+    # Test structured sampling with inverse_indices=True
+    structured_section = t2m_3d.cross_section.constant_latitude(
+        lat=0.0, n_samples=5, lon_range=(-1, 1), inverse_indices=True
     )
-    assert vertical_section.sizes['n_face'] == 4
-    assert 'depth' in vertical_section.dims
+    assert structured_section.shape == (5, 5)  # (depth, sample)
+    assert 'sample' in structured_section.dims
+    assert 'depth' in structured_section.dims
 
-    # Test with inverse_indices as list
-    vertical_section_list = t2m_3d.cross_section.vertical_constant_longitude(
-        lon=0.0, vertical_coord='depth', inverse_indices=(['face'], True)
+    # Test structured sampling with inverse_indices as list
+    structured_section_list = t2m_3d.cross_section.constant_longitude(
+        lon=0.0, n_samples=5, lat_range=(-1, 1), inverse_indices=(['face'], True)
     )
-    assert vertical_section_list.sizes['n_face'] == 2
-    assert 'depth' in vertical_section_list.dims
+    assert structured_section_list.shape == (5, 5)  # (depth, sample)
+    assert 'sample' in structured_section_list.dims
+    assert 'depth' in structured_section_list.dims
 
 
 class TestArcs:

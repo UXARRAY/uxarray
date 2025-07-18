@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Set, Tuple, Union
 
+import numpy as np
+import xarray as xr
+
 if TYPE_CHECKING:
     pass
 
@@ -16,19 +19,16 @@ class UxDataArrayCrossSectionAccessor:
         prefix = "<uxarray.UxDataArray.cross_section>\n"
         methods_heading = "Supported Methods:\n"
 
-        methods_heading += "Horizontal Cross-Sections:\n"
-        methods_heading += "  * constant_latitude(lat, inverse_indices)\n"
-        methods_heading += "  * constant_longitude(lon, inverse_indices)\n"
+        methods_heading += "Cross-Sections:\n"
+        methods_heading += "  * constant_latitude(lat, n_samples, lon_range, method)\n"
+        methods_heading += "  * constant_longitude(lon, n_samples, lat_range, method)\n"
         methods_heading += "  * constant_latitude_interval(lats, inverse_indices)\n"
         methods_heading += "  * constant_longitude_interval(lons, inverse_indices)\n"
 
-        methods_heading += "\nVertical Cross-Sections:\n"
-        methods_heading += (
-            "  * vertical_constant_latitude(lat, vertical_coord, inverse_indices)\n"
-        )
-        methods_heading += (
-            "  * vertical_constant_longitude(lon, vertical_coord, inverse_indices)\n"
-        )
+        methods_heading += "\nNotes:\n"
+        methods_heading += "  - Creates regular sampling along cross-section lines\n"
+        methods_heading += "  - Returns coordinate-based data suitable for plotting\n"
+        methods_heading += "  - Works with any dimensionality (2D, 3D, 4D, etc.)\n"
 
         return prefix + methods_heading
 
@@ -54,106 +54,122 @@ class UxDataArrayCrossSectionAccessor:
     def constant_latitude(
         self,
         lat: float,
-        inverse_indices: Union[
-            List[str], Set[str], Tuple[List[str], bool], bool
-        ] = False,
+        n_samples: int,
+        lon_range: Tuple[float, float] = (-180, 180),
+        method: str = "nearest",
     ):
-        """Extracts a horizontal cross-section of the data array by selecting all faces that
-        intersect with a specified line of constant latitude.
+        """Extracts a cross-section of the data array along a line of constant latitude.
 
         Parameters
         ----------
         lat : float
             The latitude at which to extract the cross-section, in degrees.
             Must be between -90.0 and 90.0
-        inverse_indices : Union[List[str], Set[str], Tuple[List[str], bool], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - Tuple[List[str], bool]: Advanced usage for grid slicing
-            - False: No index storage (default)
+        n_samples : int
+            Number of sample points to create along the longitude direction.
+            Creates a regular sampling suitable for visualization and analysis.
+        lon_range : Tuple[float, float], optional
+            Longitude range (min_lon, max_lon) for sampling. Default is (-180, 180).
+        method : str, optional
+            Interpolation method. Currently only 'nearest' is supported.
+            Default is 'nearest'.
 
         Returns
         -------
-        uxarray.UxDataArray
-            A subset of the original data array containing only the faces that intersect
-            with the specified latitude.
+        xarray.DataArray
+            A DataArray with dimensions including 'sample' and coordinates including
+            'lon', 'lat', and any other dimensions from the original data.
 
         Raises
         ------
         ValueError
-            If no intersections are found at the specified longitude or the data variable is not face-centered.
+            If the data variable is not face-centered.
 
         Examples
         --------
-        >>> # Extract horizontal slice at 15.5°S latitude
-        >>> cross_section = uxda.cross_section.constant_latitude(lat=-15.5)
+        >>> # Extract cross-section at 45°N latitude with 100 sample points
+        >>> cross_section = uxda.cross_section.constant_latitude(
+        ...     lat=45.0, n_samples=100
+        ... )
+
+        >>> # Extract cross-section with custom longitude range
+        >>> cross_section = uxda.cross_section.constant_latitude(
+        ...     lat=0.0, n_samples=50, lon_range=(-90, 90)
+        ... )
 
         Notes
         -----
-        The initial execution time may be significantly longer than subsequent runs
-        due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
+        - Creates regular sampling along the latitude line
+        - Uses nearest-neighbor interpolation from unstructured grid
+        - Works with any dimensionality (2D, 3D, 4D, etc.)
+        - The initial execution time may be longer due to Numba compilation
         """
         if not self.uxda._face_centered():
             raise ValueError(
                 "Cross sections are only supported for face-centered data variables."
             )
 
-        faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat)
-
-        return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+        return self._structured_constant_latitude(lat, n_samples, lon_range, method)
 
     def constant_longitude(
         self,
         lon: float,
-        inverse_indices: Union[
-            List[str], Set[str], Tuple[List[str], bool], bool
-        ] = False,
+        n_samples: int,
+        lat_range: Tuple[float, float] = (-90, 90),
+        method: str = "nearest",
     ):
-        """Extracts a horizontal cross-section of the data array by selecting all faces that
-        intersect with a specified line of constant longitude.
+        """Extracts a cross-section of the data array along a line of constant longitude.
 
         Parameters
         ----------
         lon : float
             The longitude at which to extract the cross-section, in degrees.
             Must be between -180.0 and 180.0
-        inverse_indices : Union[List[str], Set[str], Tuple[List[str], bool], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - Tuple[List[str], bool]: Advanced usage for grid slicing
-            - False: No index storage (default)
+        n_samples : int
+            Number of sample points to create along the latitude direction.
+            Creates a regular sampling suitable for visualization and analysis.
+        lat_range : Tuple[float, float], optional
+            Latitude range (min_lat, max_lat) for sampling. Default is (-90, 90).
+        method : str, optional
+            Interpolation method. Currently only 'nearest' is supported.
+            Default is 'nearest'.
 
         Returns
         -------
-        uxarray.UxDataArray
-            A subset of the original data array containing only the faces that intersect
-            with the specified longitude.
+        xarray.DataArray
+            A DataArray with dimensions including 'sample' and coordinates including
+            'lon', 'lat', and any other dimensions from the original data.
 
         Raises
         ------
         ValueError
-            If no intersections are found at the specified longitude or the data variable is not face-centered.
+            If the data variable is not face-centered.
 
         Examples
         --------
-        >>> # Extract horizontal slice at 0° longitude
-        >>> cross_section = uxda.cross_section.constant_longitude(lon=0.0)
+        >>> # Extract cross-section at 0° longitude with 100 sample points
+        >>> cross_section = uxda.cross_section.constant_longitude(
+        ...     lon=0.0, n_samples=100
+        ... )
+
+        >>> # Extract cross-section with custom latitude range
+        >>> cross_section = uxda.cross_section.constant_longitude(
+        ...     lon=90.0, n_samples=50, lat_range=(-45, 45)
+        ... )
 
         Notes
         -----
-        The initial execution time may be significantly longer than subsequent runs
-        due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
+        - Creates regular sampling along the longitude line
+        - Uses nearest-neighbor interpolation from unstructured grid
+        - Works with any dimensionality (2D, 3D, 4D, etc.)
+        - The initial execution time may be longer due to Numba compilation
         """
         if not self.uxda._face_centered():
             raise ValueError(
                 "Cross sections are only supported for face-centered data variables."
             )
 
-        faces = self.uxda.uxgrid.get_faces_at_constant_longitude(lon)
-
-        return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+        return self._structured_constant_longitude(lon, n_samples, lat_range, method)
 
     def constant_latitude_interval(
         self,
@@ -251,160 +267,173 @@ class UxDataArrayCrossSectionAccessor:
 
         return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
 
-    def vertical_constant_latitude(
+    def _structured_constant_latitude(
         self,
         lat: float,
-        vertical_coord: str = None,
-        inverse_indices: Union[
-            List[str], Set[str], Tuple[List[str], bool], bool
-        ] = False,
+        n_samples: int,
+        lon_range: Tuple[float, float],
+        method: str,
     ):
-        """Extracts a vertical cross-section (zonal transect) of the data array by selecting
-        all faces that intersect with a specified line of constant latitude across all vertical levels.
+        """Create a structured cross-section at constant latitude.
 
-        This creates a vertical slice showing how the data varies with longitude and depth/height
-        at a fixed latitude.
-
-        Parameters
-        ----------
-        lat : float
-            The latitude at which to extract the vertical cross-section, in degrees.
-            Must be between -90.0 and 90.0
-        vertical_coord : str
-            Name of the vertical coordinate dimension (e.g., 'depth', 'level', 'pressure').
-            Must be explicitly specified.
-        inverse_indices : Union[List[str], Set[str], Tuple[List[str], bool], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - Tuple[List[str], bool]: Advanced usage for grid slicing
-            - False: No index storage (default)
-
-        Returns
-        -------
-        uxarray.UxDataArray
-            A vertical cross-section containing data along the specified latitude
-            with dimensions (n_face_subset, vertical_coord) where n_face_subset
-            are the faces intersecting the latitude line.
-
-        Raises
-        ------
-        ValueError
-            If no intersections are found at the specified latitude, the data variable
-            is not face-centered, or no vertical dimension is found.
-
-        Examples
-        --------
-        >>> # Extract vertical slice along 30°N latitude (zonal transect)
-        >>> vertical_section = uxda.cross_section.vertical_constant_latitude(
-        ...     lat=30.0, vertical_coord="depth"
-        ... )
-
-        >>> # Another example with a different vertical coordinate
-        >>> vertical_section = uxda.cross_section.vertical_constant_latitude(
-        ...     lat=30.0, vertical_coord="depth"
-        ... )
-
-        Notes
-        -----
-        - This method preserves all vertical levels, creating a 2D vertical transect
-        - The resulting data can be plotted as longitude vs depth/height
-        - The initial execution time may be longer due to Numba compilation
+        This method implements the approach from the user's working code example,
+        creating a regular sampling grid along the longitude direction.
         """
-        if not self.uxda._face_centered():
-            raise ValueError(
-                "Cross sections are only supported for face-centered data variables."
-            )
+        # Create sample points along longitude
+        lons = np.linspace(lon_range[0], lon_range[1], n_samples)
+        lats = np.ones_like(lons) * lat
 
-        # Validate vertical coordinate
-        self._get_vertical_coord_name(vertical_coord)
+        # Find which face(s) each point hits
+        faces_along_lat = self.uxda.uxgrid.get_faces_containing_point(
+            np.column_stack((lons, lats)), return_counts=False
+        )
 
-        # Get faces intersecting the latitude line
-        faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat)
+        # Collapse to a 1D index: use -1 where no face hits
+        face_idx = np.array(
+            [row[0] if row else -1 for row in faces_along_lat], dtype=int
+        )
 
-        if len(faces) == 0:
-            raise ValueError(f"No faces found intersecting latitude {lat}°")
+        # Get the shape and dimensions of the original data
+        original_shape = self.uxda.shape
+        original_dims = list(self.uxda.dims)
+        n_face_dim = original_dims.index("n_face")
 
-        # Select data along the latitude line, preserving all vertical levels
-        vertical_section = self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+        # Create new shape and dimensions with samples replacing n_face
+        new_shape = list(original_shape)
+        new_shape[n_face_dim] = n_samples
+        new_dims = original_dims.copy()
+        new_dims[n_face_dim] = "sample"
 
-        return vertical_section
+        # Pre-allocate with NaN
+        data = np.full(new_shape, fill_value=np.nan, dtype=self.uxda.dtype)
+        valid = face_idx >= 0
 
-    def vertical_constant_longitude(
+        # Only process if we have valid indices
+        if np.any(valid):
+            valid_face_idx = face_idx[valid]
+
+            # Use numpy's advanced indexing to handle arbitrary dimensions
+            # Create a list of indices for each dimension
+            indices = []
+            for i, dim_size in enumerate(original_shape):
+                if i == n_face_dim:
+                    indices.append(valid_face_idx)
+                else:
+                    indices.append(slice(None))
+
+            # Create output indices
+            out_indices = []
+            for i, dim_size in enumerate(new_shape):
+                if i == n_face_dim:
+                    out_indices.append(valid)
+                else:
+                    out_indices.append(slice(None))
+
+            # Extract and assign data
+            data[tuple(out_indices)] = self.uxda.values[tuple(indices)]
+
+        # Create coordinates
+        coords = {}
+        coords["sample"] = np.arange(n_samples)
+        coords["lon"] = ("sample", lons)
+        coords["lat"] = ("sample", lats)
+
+        # Copy over other coordinates that don't depend on n_face
+        for coord_name, coord in self.uxda.coords.items():
+            if "n_face" not in coord.dims:
+                coords[coord_name] = coord
+
+        # Wrap in DataArray with proper coordinates
+        da = xr.DataArray(
+            data,
+            dims=new_dims,
+            coords=coords,
+            attrs=self.uxda.attrs.copy(),
+        )
+
+        return da
+
+    def _structured_constant_longitude(
         self,
         lon: float,
-        vertical_coord: str = None,
-        inverse_indices: Union[
-            List[str], Set[str], Tuple[List[str], bool], bool
-        ] = False,
+        n_samples: int,
+        lat_range: Tuple[float, float],
+        method: str,
     ):
-        """Extracts a vertical cross-section (meridional transect) of the data array by selecting
-        all faces that intersect with a specified line of constant longitude across all vertical levels.
+        """Create a structured cross-section at constant longitude.
 
-        This creates a vertical slice showing how the data varies with latitude and depth/height
-        at a fixed longitude.
-
-        Parameters
-        ----------
-        lon : float
-            The longitude at which to extract the vertical cross-section, in degrees.
-            Must be between -180.0 and 180.0
-        vertical_coord : str
-            Name of the vertical coordinate dimension (e.g., 'depth', 'level', 'pressure').
-            Must be explicitly specified.
-        inverse_indices : Union[List[str], Set[str], Tuple[List[str], bool], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - Tuple[List[str], bool]: Advanced usage for grid slicing
-            - False: No index storage (default)
-
-        Returns
-        -------
-        uxarray.UxDataArray
-            A vertical cross-section containing data along the specified longitude
-            with dimensions (n_face_subset, vertical_coord) where n_face_subset
-            are the faces intersecting the longitude line.
-
-        Raises
-        ------
-        ValueError
-            If no intersections are found at the specified longitude, the data variable
-            is not face-centered, or no vertical dimension is found.
-
-        Examples
-        --------
-        >>> # Extract vertical slice along 0° longitude (meridional transect)
-        >>> vertical_section = uxda.cross_section.vertical_constant_longitude(
-        ...     lon=0.0, vertical_coord="pressure"
-        ... )
-
-        >>> # Another example with a different vertical coordinate
-        >>> vertical_section = uxda.cross_section.vertical_constant_longitude(
-        ...     lon=0.0, vertical_coord="pressure"
-        ... )
-
-        Notes
-        -----
-        - This method preserves all vertical levels, creating a 2D vertical transect
-        - The resulting data can be plotted as latitude vs depth/height
-        - The initial execution time may be longer due to Numba compilation
+        Similar to the latitude version but sampling along latitude direction.
         """
-        if not self.uxda._face_centered():
-            raise ValueError(
-                "Cross sections are only supported for face-centered data variables."
-            )
+        # Create sample points along latitude
+        lats = np.linspace(lat_range[0], lat_range[1], n_samples)
+        lons = np.ones_like(lats) * lon
 
-        # Validate vertical coordinate
-        self._get_vertical_coord_name(vertical_coord)
+        # Find which face(s) each point hits
+        faces_along_lon = self.uxda.uxgrid.get_faces_containing_point(
+            np.column_stack((lons, lats)), return_counts=False
+        )
 
-        # Get faces intersecting the longitude line
-        faces = self.uxda.uxgrid.get_faces_at_constant_longitude(lon)
+        # Collapse to a 1D index: use -1 where no face hits
+        face_idx = np.array(
+            [row[0] if row else -1 for row in faces_along_lon], dtype=int
+        )
 
-        if len(faces) == 0:
-            raise ValueError(f"No faces found intersecting longitude {lon}°")
+        # Get the shape and dimensions of the original data
+        original_shape = self.uxda.shape
+        original_dims = list(self.uxda.dims)
+        n_face_dim = original_dims.index("n_face")
 
-        # Select data along the longitude line, preserving all vertical levels
-        vertical_section = self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+        # Create new shape and dimensions with samples replacing n_face
+        new_shape = list(original_shape)
+        new_shape[n_face_dim] = n_samples
+        new_dims = original_dims.copy()
+        new_dims[n_face_dim] = "sample"
 
-        return vertical_section
+        # Pre-allocate with NaN
+        data = np.full(new_shape, fill_value=np.nan, dtype=self.uxda.dtype)
+        valid = face_idx >= 0
+
+        # Only process if we have valid indices
+        if np.any(valid):
+            valid_face_idx = face_idx[valid]
+
+            # Use numpy's advanced indexing to handle arbitrary dimensions
+            # Create a list of indices for each dimension
+            indices = []
+            for i, dim_size in enumerate(original_shape):
+                if i == n_face_dim:
+                    indices.append(valid_face_idx)
+                else:
+                    indices.append(slice(None))
+
+            # Create output indices
+            out_indices = []
+            for i, dim_size in enumerate(new_shape):
+                if i == n_face_dim:
+                    out_indices.append(valid)
+                else:
+                    out_indices.append(slice(None))
+
+            # Extract and assign data
+            data[tuple(out_indices)] = self.uxda.values[tuple(indices)]
+
+        # Create coordinates
+        coords = {}
+        coords["sample"] = np.arange(n_samples)
+        coords["lon"] = ("sample", lons)
+        coords["lat"] = ("sample", lats)
+
+        # Copy over other coordinates that don't depend on n_face
+        for coord_name, coord in self.uxda.coords.items():
+            if "n_face" not in coord.dims:
+                coords[coord_name] = coord
+
+        # Wrap in DataArray with proper coordinates
+        da = xr.DataArray(
+            data,
+            dims=new_dims,
+            coords=coords,
+            attrs=self.uxda.attrs.copy(),
+        )
+
+        return da
