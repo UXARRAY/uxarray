@@ -140,6 +140,7 @@ def _barycentric_weights(point_xyz, dual, data_size, source_grid):
         dual.node_z.values,
         dual.face_node_connectivity.values,
         dual.n_nodes_per_face.values,
+        dual.n_face,
         all_weights,
         all_indices,
     )
@@ -157,13 +158,14 @@ def _calculate_weights(
     z,
     face_node_conn,
     n_nodes_per_face,
+    n_faces,
     all_weights,
     all_indices,
 ):
     for idx in prange(len(valid_idxs)):
         fidx = int(face_indices[valid_idxs[idx], 0])
-        # bounds check
-        if fidx < 0 or fidx >= len(n_nodes_per_face):
+        # bounds check: ensure face index is within valid range (0 to n_faces-1)
+        if fidx < 0 or fidx >= n_faces:
             continue
         nverts = int(n_nodes_per_face[fidx])
         polygon_xyz = np.zeros((nverts, 3), dtype=np.float64)
