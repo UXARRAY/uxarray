@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Set, Tuple, Union
+from typing import TYPE_CHECKING, List, Set, Union
 
 import numpy as np
 import xarray as xr
@@ -10,7 +10,10 @@ if TYPE_CHECKING:
 
 
 class UxDataArrayCrossSectionAccessor:
-    """Accessor for cross-section operations on a ``UxDataArray``"""
+    """Accessor for cross-section operations on a ``UxDataArray``.
+
+    Provides methods to extract cross-sections of data along constant latitude or longitude lines, as well as within latitude or longitude intervals. Supports both regular sampling and face-based extraction for face-centered data variables.
+    """
 
     def __init__(self, uxda) -> None:
         self.uxda = uxda
@@ -20,8 +23,8 @@ class UxDataArrayCrossSectionAccessor:
         methods_heading = "Supported Methods:\n"
 
         methods_heading += "Cross-Sections:\n"
-        methods_heading += "  * constant_latitude(lat, n_samples, lon_range, method)\n"
-        methods_heading += "  * constant_longitude(lon, n_samples, lat_range, method)\n"
+        methods_heading += "  * constant_latitude(lat, n_samples=None, lon_range=(-180, 180), method='structured'|'faces', ...)\n"
+        methods_heading += "  * constant_longitude(lon, n_samples=None, lat_range=(-90, 90), method='structured'|'faces', ...)\n"
         methods_heading += "  * constant_latitude_interval(lats, inverse_indices)\n"
         methods_heading += "  * constant_longitude_interval(lons, inverse_indices)\n"
 
@@ -54,31 +57,31 @@ class UxDataArrayCrossSectionAccessor:
     def constant_latitude(
         self,
         lat: float,
-        n_samples: int,
-        lon_range: Tuple[float, float] = (-180, 180),
-        method: str = "nearest",
+        sample: bool = False,
+        n_samples: int = None,
+        lon_range: tuple = (-180, 180),
+        inverse_indices: "Union[List[str], Set[str], bool]" = False,
     ):
-        """Extracts a cross-section of the data array along a line of constant latitude.
+        """
+        Extract a cross-section of the data array along a line of constant latitude.
 
         Parameters
         ----------
         lat : float
-            The latitude at which to extract the cross-section, in degrees.
-            Must be between -90.0 and 90.0
-        n_samples : int
-            Number of sample points to create along the longitude direction.
-            Creates a regular sampling suitable for visualization and analysis.
-        lon_range : Tuple[float, float], optional
+            The latitude at which to extract the cross-section, in degrees. Must be between -90.0 and 90.0.
+        sample : bool, optional
+            If True, creates a regularly sampled cross-section along the latitude using `n_samples` points. If False, extracts faces intersecting the latitude. Default is False.
+        n_samples : int, optional
+            Number of sample points to create along the longitude direction. Used only if `sample` is True. If not provided, defaults to the number of faces intersecting the latitude.
+        lon_range : tuple, optional
             Longitude range (min_lon, max_lon) for sampling. Default is (-180, 180).
-        method : str, optional
-            Interpolation method. Currently only 'nearest' is supported.
-            Default is 'nearest'.
+        inverse_indices : list, set, or bool, optional
+            Controls storage of original grid indices. See documentation for options. Default is False.
 
         Returns
         -------
         xarray.DataArray
-            A DataArray with dimensions including 'sample' and coordinates including
-            'lon', 'lat', and any other dimensions from the original data.
+            A DataArray with dimensions including 'sample' (if sampled) or 'n_face' (if not), and coordinates including 'lon', 'lat', and any other dimensions from the original data.
 
         Raises
         ------
@@ -89,17 +92,17 @@ class UxDataArrayCrossSectionAccessor:
         --------
         >>> # Extract cross-section at 45°N latitude with 100 sample points
         >>> cross_section = uxda.cross_section.constant_latitude(
-        ...     lat=45.0, n_samples=100
+        ...     lat=45.0, sample=True, n_samples=100
         ... )
 
         >>> # Extract cross-section with custom longitude range
         >>> cross_section = uxda.cross_section.constant_latitude(
-        ...     lat=0.0, n_samples=50, lon_range=(-90, 90)
+        ...     lat=0.0, sample=True, n_samples=50, lon_range=(-90, 90)
         ... )
 
         Notes
         -----
-        - Creates regular sampling along the latitude line
+        - Creates regular sampling along the latitude line if `sample` is True
         - Uses nearest-neighbor interpolation from unstructured grid
         - Works with any dimensionality (2D, 3D, 4D, etc.)
         - The initial execution time may be longer due to Numba compilation
@@ -108,37 +111,45 @@ class UxDataArrayCrossSectionAccessor:
             raise ValueError(
                 "Cross sections are only supported for face-centered data variables."
             )
-
-        return self._structured_constant_latitude(lat, n_samples, lon_range, method)
+        faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat)
+        # If n_samples is provided, treat as structured sampling
+        if n_samples is not None:
+            sample = True
+        if sample:
+            return self._structured_constant_latitude(
+                lat, lon_range, n_samples=n_samples or len(faces)
+            )
+        else:
+            return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
 
     def constant_longitude(
         self,
         lon: float,
-        n_samples: int,
-        lat_range: Tuple[float, float] = (-90, 90),
-        method: str = "nearest",
+        sample: bool = False,
+        n_samples: int = None,
+        lat_range: tuple = (-90, 90),
+        inverse_indices: "Union[List[str], Set[str], bool]" = False,
     ):
-        """Extracts a cross-section of the data array along a line of constant longitude.
+        """
+        Extract a cross-section of the data array along a line of constant longitude.
 
         Parameters
         ----------
         lon : float
-            The longitude at which to extract the cross-section, in degrees.
-            Must be between -180.0 and 180.0
-        n_samples : int
-            Number of sample points to create along the latitude direction.
-            Creates a regular sampling suitable for visualization and analysis.
-        lat_range : Tuple[float, float], optional
+            The longitude at which to extract the cross-section, in degrees. Must be between -180.0 and 180.0.
+        sample : bool, optional
+            If True, creates a regularly sampled cross-section along the longitude using `n_samples` points. If False, extracts faces intersecting the longitude. Default is False.
+        n_samples : int, optional
+            Number of sample points to create along the latitude direction. Used only if `sample` is True. If not provided, defaults to the number of faces intersecting the longitude.
+        lat_range : tuple, optional
             Latitude range (min_lat, max_lat) for sampling. Default is (-90, 90).
-        method : str, optional
-            Interpolation method. Currently only 'nearest' is supported.
-            Default is 'nearest'.
+        inverse_indices : list, set, or bool, optional
+            Controls storage of original grid indices. See documentation for options. Default is False.
 
         Returns
         -------
         xarray.DataArray
-            A DataArray with dimensions including 'sample' and coordinates including
-            'lon', 'lat', and any other dimensions from the original data.
+            A DataArray with dimensions including 'sample' (if sampled) or 'n_face' (if not), and coordinates including 'lon', 'lat', and any other dimensions from the original data.
 
         Raises
         ------
@@ -149,17 +160,17 @@ class UxDataArrayCrossSectionAccessor:
         --------
         >>> # Extract cross-section at 0° longitude with 100 sample points
         >>> cross_section = uxda.cross_section.constant_longitude(
-        ...     lon=0.0, n_samples=100
+        ...     lon=0.0, sample=True, n_samples=100
         ... )
 
         >>> # Extract cross-section with custom latitude range
         >>> cross_section = uxda.cross_section.constant_longitude(
-        ...     lon=90.0, n_samples=50, lat_range=(-45, 45)
+        ...     lon=90.0, sample=True, n_samples=50, lat_range=(-45, 45)
         ... )
 
         Notes
         -----
-        - Creates regular sampling along the longitude line
+        - Creates regular sampling along the longitude line if `sample` is True
         - Uses nearest-neighbor interpolation from unstructured grid
         - Works with any dimensionality (2D, 3D, 4D, etc.)
         - The initial execution time may be longer due to Numba compilation
@@ -168,34 +179,35 @@ class UxDataArrayCrossSectionAccessor:
             raise ValueError(
                 "Cross sections are only supported for face-centered data variables."
             )
-
-        return self._structured_constant_longitude(lon, n_samples, lat_range, method)
+        faces = self.uxda.uxgrid.get_faces_at_constant_longitude(lon)
+        # If n_samples is provided, treat as structured sampling
+        if n_samples is not None:
+            sample = True
+        if sample:
+            return self._structured_constant_longitude(
+                lon, lat_range, n_samples=n_samples or len(faces)
+            )
+        else:
+            return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
 
     def constant_latitude_interval(
         self,
-        lats: Tuple[float, float],
-        inverse_indices: Union[
-            List[str], Set[str], Tuple[List[str], bool], bool
-        ] = False,
+        lats: tuple,
+        inverse_indices: "Union[List[str], Set[str], tuple, bool]" = False,
     ):
-        """Extracts a horizontal cross-section of data by selecting all faces that
-        are within a specified latitude interval.
+        """
+        Extract a horizontal cross-section of data by selecting all faces that are within a specified latitude interval.
 
         Parameters
         ----------
-        lats : Tuple[float, float]
-            The latitude interval (min_lat, max_lat) at which to extract the cross-section,
-            in degrees. Values must be between -90.0 and 90.0
-        inverse_indices : Union[List[str], Set[str], Tuple[List[str], bool], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - Tuple[List[str], bool]: Advanced usage for grid slicing
-            - False: No index storage (default)
+        lats : tuple
+            The latitude interval (min_lat, max_lat) at which to extract the cross-section, in degrees. Values must be between -90.0 and 90.0.
+        inverse_indices : list, set, tuple, or bool, optional
+            Controls storage of original grid indices. See documentation for options. Default is False.
 
         Returns
         -------
-        uxarray.UxDataArray
+        xarray.DataArray
             A subset of the original data array containing only the faces that are within a specified latitude interval.
 
         Raises
@@ -212,39 +224,30 @@ class UxDataArrayCrossSectionAccessor:
 
         Notes
         -----
-        The initial execution time may be significantly longer than subsequent runs
-        due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
+        The initial execution time may be significantly longer than subsequent runs due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
         faces = self.uxda.uxgrid.get_faces_between_latitudes(lats)
-
         return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
 
     def constant_longitude_interval(
         self,
-        lons: Tuple[float, float],
-        inverse_indices: Union[
-            List[str], Set[str], Tuple[List[str], bool], bool
-        ] = False,
+        lons: tuple,
+        inverse_indices: "Union[List[str], Set[str], tuple, bool]" = False,
     ):
-        """Extracts a horizontal cross-section of data by selecting all faces are within a specifed longitude interval.
+        """
+        Extract a horizontal cross-section of data by selecting all faces that are within a specified longitude interval.
 
         Parameters
         ----------
-        lons : Tuple[float, float]
-            The longitude interval (min_lon, max_lon) at which to extract the cross-section,
-            in degrees. Values must be between -180.0 and 180.0
-        inverse_indices : Union[List[str], Set[str], Tuple[List[str], bool], bool], optional
-            Controls storage of original grid indices. Options:
-            - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
-            - Tuple[List[str], bool]: Advanced usage for grid slicing
-            - False: No index storage (default)
+        lons : tuple
+            The longitude interval (min_lon, max_lon) at which to extract the cross-section, in degrees. Values must be between -180.0 and 180.0.
+        inverse_indices : list, set, tuple, or bool, optional
+            Controls storage of original grid indices. See documentation for options. Default is False.
 
         Returns
         -------
-        uxarray.UxDataArray
-            A subset of the original data array containing only the faces that intersect
-            with the specified longitude interval.
+        xarray.DataArray
+            A subset of the original data array containing only the faces that intersect with the specified longitude interval.
 
         Raises
         ------
@@ -260,24 +263,35 @@ class UxDataArrayCrossSectionAccessor:
 
         Notes
         -----
-        The initial execution time may be significantly longer than subsequent runs
-        due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
+        The initial execution time may be significantly longer than subsequent runs due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
         faces = self.uxda.uxgrid.get_faces_between_longitudes(lons)
-
         return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
 
     def _structured_constant_latitude(
         self,
         lat: float,
-        n_samples: int,
-        lon_range: Tuple[float, float],
-        method: str,
+        lon_range: tuple,
+        n_samples=None,
     ):
-        """Create a structured cross-section at constant latitude.
+        """
+        Create a structured cross-section at constant latitude.
 
-        This method implements the approach from the user's working code example,
-        creating a regular sampling grid along the longitude direction.
+        Generates a regularly sampled cross-section along a specified latitude, using `n_samples` points between the given longitude range. Returns a DataArray with a 'sample' dimension and corresponding coordinates.
+
+        Parameters
+        ----------
+        lat : float
+            The latitude at which to extract the cross-section.
+        lon_range : tuple
+            Longitude range (min_lon, max_lon) for sampling.
+        n_samples : int
+            Number of sample points to create along the longitude direction.
+
+        Returns
+        -------
+        xarray.DataArray
+            DataArray with a 'sample' dimension and coordinates 'lon' and 'lat'.
         """
         # Create sample points along longitude
         lons = np.linspace(lon_range[0], lon_range[1], n_samples)
@@ -331,6 +345,7 @@ class UxDataArrayCrossSectionAccessor:
 
             # Extract and assign data
             data[tuple(out_indices)] = self.uxda.values[tuple(indices)]
+        # If all face_idx are -1, data remains all-NaN (valid)
 
         # Create coordinates
         coords = {}
@@ -356,13 +371,27 @@ class UxDataArrayCrossSectionAccessor:
     def _structured_constant_longitude(
         self,
         lon: float,
-        n_samples: int,
-        lat_range: Tuple[float, float],
-        method: str,
+        lat_range: tuple,
+        n_samples=None,
     ):
-        """Create a structured cross-section at constant longitude.
+        """
+        Create a structured cross-section at constant longitude.
 
-        Similar to the latitude version but sampling along latitude direction.
+        Generates a regularly sampled cross-section along a specified longitude, using `n_samples` points between the given latitude range. Returns a DataArray with a 'sample' dimension and corresponding coordinates.
+
+        Parameters
+        ----------
+        lon : float
+            The longitude at which to extract the cross-section.
+        lat_range : tuple
+            Latitude range (min_lat, max_lat) for sampling.
+        n_samples : int
+            Number of sample points to create along the latitude direction.
+
+        Returns
+        -------
+        xarray.DataArray
+            DataArray with a 'sample' dimension and coordinates 'lon' and 'lat'.
         """
         # Create sample points along latitude
         lats = np.linspace(lat_range[0], lat_range[1], n_samples)
@@ -416,6 +445,7 @@ class UxDataArrayCrossSectionAccessor:
 
             # Extract and assign data
             data[tuple(out_indices)] = self.uxda.values[tuple(indices)]
+        # If all face_idx are -1, data remains all-NaN (valid)
 
         # Create coordinates
         coords = {}

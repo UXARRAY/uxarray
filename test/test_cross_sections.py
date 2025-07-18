@@ -91,7 +91,6 @@ def test_constant_lon_cross_section_uxds():
     # Test with different longitude
     cross_section_2 = uxds['t2m'].cross_section.constant_longitude(lon=0.1, n_samples=8)
     assert cross_section_2.shape == (8,)
-    assert da_right_two.shape == (2,)  # Should have 2 faces
 
     with pytest.raises(ValueError):
         uxds['t2m'].cross_section.constant_longitude(lon=10.0)
