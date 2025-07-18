@@ -254,7 +254,7 @@ class UxDataArrayCrossSectionAccessor:
     def vertical_constant_latitude(
         self,
         lat: float,
-        vertical_coord: str,
+        vertical_coord: str = None,
         inverse_indices: Union[
             List[str], Set[str], Tuple[List[str], bool], bool
         ] = False,
@@ -333,7 +333,7 @@ class UxDataArrayCrossSectionAccessor:
     def vertical_constant_longitude(
         self,
         lon: float,
-        vertical_coord: str,
+        vertical_coord: str = None,
         inverse_indices: Union[
             List[str], Set[str], Tuple[List[str], bool], bool
         ] = False,
