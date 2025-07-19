@@ -478,6 +478,94 @@ class UxDataset(xr.Dataset):
     # Reuse the original xarray.Dataset.resample docstring
     resample.__doc__ = xr.Dataset.resample.__doc__
 
+    def groupby_bins(
+        self,
+        group,
+        bins,
+        right: bool = True,
+        labels=None,
+        include_lowest: bool = False,
+        squeeze: bool = False,
+        restore_coord_dims: bool = None,
+    ):
+        """
+        Group this Dataset by explicitly specified bins.
+
+        This method preserves the uxgrid attribute after groupby_bins operations.
+
+        Parameters
+        ----------
+        group : Hashable
+            Name of the variable to group by.
+        bins : array-like
+            Bin edges to use for grouping.
+        right : bool, default: True
+            Whether the bins include the rightmost edge.
+        labels : array-like, optional
+            Bin labels to use for grouping. If not provided, the bin edges will be used.
+        include_lowest : bool, default: False
+            Whether to include the lowest bin edge.
+        squeeze : bool, default: False
+            Whether to squeeze the output.
+        restore_coord_dims : bool, default: None
+            Whether to restore the coordinate dimensions.
+
+        Returns
+        -------
+        Groupby object with uxgrid preservation.
+        """
+        # Prepare kwargs for xarray's groupby_bins
+        kwargs = dict(
+            right=right,
+            labels=labels,
+            include_lowest=include_lowest,
+            squeeze=squeeze,
+            restore_coord_dims=restore_coord_dims,
+        )
+        # Remove None values to avoid passing them to xarray
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+
+        # Get the standard xarray groupby_bins object
+        groupby_bins_obj = super().groupby_bins(group, bins, **kwargs)
+
+        # Store references to preserve uxgrid info
+        original_uxgrid = self.uxgrid
+        original_source_datasets = self.source_datasets
+
+        # Modify the aggregation methods to preserve uxgrid
+        for method_name in [
+            "mean",
+            "sum",
+            "min",
+            "max",
+            "std",
+            "var",
+            "median",
+            "count",
+        ]:
+            if hasattr(groupby_bins_obj, method_name):
+                original_method = getattr(groupby_bins_obj, method_name)
+
+                def create_wrapped_method(orig_method):
+                    def wrapped_method(*args, **kwargs):
+                        result = orig_method(*args, **kwargs)
+                        return self._wrap_groupby_result(
+                            result, original_uxgrid, original_source_datasets
+                        )
+
+                    return wrapped_method
+
+                setattr(
+                    groupby_bins_obj,
+                    method_name,
+                    create_wrapped_method(original_method),
+                )
+
+        return groupby_bins_obj
+
+    # Reuse the original xarray.Dataset.groupby_bins docstring
+    groupby_bins.__doc__ = xr.Dataset.groupby_bins.__doc__
+
     def info(self, buf: IO = None, show_attrs=False) -> None:
         """Concise summary of Dataset variables and attributes including grid
         topology information stored in the ``uxgrid`` property.

@@ -84,6 +84,25 @@ def test_groupby_preserves_uxgrid():
     assert ds_result.uxgrid is not None
     assert ds_result.uxgrid == original_grid
 
+def test_groupby_bins_preserves_uxgrid():
+    """Test that groupby_bins operations preserve the uxgrid attribute."""
+    # Create a dataset from a file
+    uxds = ux.open_dataset(mpas_ds_path, mpas_ds_path)
+    original_grid = uxds.uxgrid
+
+    # Create bins from latitude values (extract data explicitly)
+    lat_bins = [-90, -45, 0, 45, 90]
+
+    # Test DataArray groupby_bins preserves uxgrid
+    da_result = uxds.latCell.groupby_bins(uxds.latCell, bins=lat_bins).mean()
+    assert hasattr(da_result, "uxgrid")
+    assert da_result.uxgrid is not None
+
+    # Test Dataset groupby_bins preserves uxgrid
+    ds_result = uxds.groupby_bins(uxds.latCell, bins=lat_bins).mean()
+    assert hasattr(ds_result, "uxgrid")
+    assert ds_result.uxgrid is not None
+    assert ds_result.uxgrid == original_grid
 
 
 
