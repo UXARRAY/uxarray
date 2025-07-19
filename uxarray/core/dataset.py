@@ -343,7 +343,7 @@ class UxDataset(xr.Dataset):
         return result
 
     def groupby(self, group, squeeze: bool = False, restore_coord_dims: bool = None):
-        # Get the standard xarray groupby object
+        """Get the standard xarray groupby object"""
         groupby_obj = super().groupby(
             group, squeeze=squeeze, restore_coord_dims=restore_coord_dims
         )
@@ -396,38 +396,7 @@ class UxDataset(xr.Dataset):
         keep_attrs=None,
         **indexer_kwargs,
     ):
-        """
-        Resample this dataset to a new temporal resolution.
-
-        This method preserves the uxgrid attribute after resampling operations.
-
-        Parameters
-        ----------
-        indexer : {dim: freq}, optional
-            Time dimension and frequency string.
-        skipna : bool, optional
-            Whether to skip missing values when aggregating.
-        closed : {'left', 'right'}, optional
-            Which side of the interval is closed.
-        label : {'left', 'right'}, optional
-            Which side of the interval is used for labeling.
-        base : int, optional
-            For frequencies that evenly subdivide 1 day, the day of the week the
-            frequency starts. Default is 0 (Monday).
-        offset : timedelta or str, optional
-            For frequencies that evenly subdivide 1 day, the time of day the
-            frequency starts.
-        origin : {'start_day', 'start', 'end', 'epoch'} or pd.Timestamp or str, optional
-            How to determine the first point in the resampled frequency.
-        keep_attrs : bool, optional
-            If True, the dataset's attributes are copied to the result.
-        **indexer_kwargs
-            Additional keyword arguments passed to xarray's resample method.
-
-        Returns
-        -------
-        Resampler object with uxgrid preservation.
-        """
+        """Resample this dataset to a new temporal resolution."""
         # Prepare kwargs for xarray's resample
         kwargs = dict(
             skipna=skipna,
@@ -488,32 +457,7 @@ class UxDataset(xr.Dataset):
         squeeze: bool = False,
         restore_coord_dims: bool = None,
     ):
-        """
-        Group this Dataset by explicitly specified bins.
-
-        This method preserves the uxgrid attribute after groupby_bins operations.
-
-        Parameters
-        ----------
-        group : Hashable
-            Name of the variable to group by.
-        bins : array-like
-            Bin edges to use for grouping.
-        right : bool, default: True
-            Whether the bins include the rightmost edge.
-        labels : array-like, optional
-            Bin labels to use for grouping. If not provided, the bin edges will be used.
-        include_lowest : bool, default: False
-            Whether to include the lowest bin edge.
-        squeeze : bool, default: False
-            Whether to squeeze the output.
-        restore_coord_dims : bool, default: None
-            Whether to restore the coordinate dimensions.
-
-        Returns
-        -------
-        Groupby object with uxgrid preservation.
-        """
+        """Group this Dataset by explicitly specified bins."""
         # Prepare kwargs for xarray's groupby_bins
         kwargs = dict(
             right=right,
