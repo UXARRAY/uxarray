@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Set, Tuple, Union
 
+from .interpolate import (
+    interpolate_along_constant_latitude,
+    interpolate_along_constant_longitude,
+)
+
 if TYPE_CHECKING:
+    from xarray import DataArray
+
+    from uxarray import UxDataArray
+
     pass
 
 
@@ -24,10 +33,21 @@ class UxDataArrayCrossSectionAccessor:
         return prefix + methods_heading
 
     def constant_latitude(
-        self, lat: float, inverse_indices: Union[List[str], Set[str], bool] = False
-    ):
-        """Extracts a cross-section of the data array by selecting all faces that
-        intersect with a specified line of constant latitude.
+        self,
+        lat: float,
+        inverse_indices: Union[List[str], Set[str], bool] = False,
+        *,
+        lon_range: Tuple[float, float] = (-180, 180),
+        interpolate: bool = False,
+        n_samples: int = None,
+    ) -> UxDataArray | DataArray:
+        """Extracts a cross-section of the data array across a line of constant-latitude.
+
+        This method supports two modes:
+          - **grid‐based** (`interpolate=False`, the default): returns exactly those faces
+            which intersect the line of constant latitude, with a new Grid containing those faces.
+          - **interpolated** (`interpolate=True`): generates `n_samples` equally‐spaced points
+            between `lon_range[0]` and `lon_range[1]` and picks whichever face contains each sample point.
 
         Parameters
         ----------
@@ -39,12 +59,22 @@ class UxDataArrayCrossSectionAccessor:
             - True: Stores original face indices
             - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
+        lon_range: Tuple[float, float], optional
+            `(min_lon, max_lon)` longitude values to perform the cross-section. Values must lie in [-180, 180]. Default is `(-180, 180)`.
+        interpolate: bool, optional
+            If `False` (default), run in **grid‐based** mode. If `True`, run in **interpolated**
+        n_samples: int, optional
+            Number of points to sample along the line of constant latitude. If not provided, uses the number of faces
+            that intersect the line of constant latitude
 
         Returns
         -------
         uxarray.UxDataArray
-            A subset of the original data array containing only the faces that intersect
-            with the specified latitude.
+            In **grid-based** mode, a subset of the original data array containing only the faces that intersect
+            with the specified line of constant latitude.
+        xarray.DataArray
+            In **interpolated** mode (`interpolate=True`), a new Xarray DataArray with data sampled along the line of constant latitude,
+            including longitude and latitude coordinates for each sample.
 
         Raises
         ------
@@ -56,42 +86,65 @@ class UxDataArrayCrossSectionAccessor:
         >>> # Extract data at 15.5°S latitude
         >>> cross_section = uxda.cross_section.constant_latitude(lat=-15.5)
 
-        Notes
-        -----
-        The initial execution time may be significantly longer than subsequent runs
-        due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
         if not self.uxda._face_centered():
             raise ValueError(
                 "Cross sections are only supported for face-centered data variables."
             )
 
+        # TODO: Extend to support constrained ranges
         faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat)
 
-        return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+        if interpolate:
+            return interpolate_along_constant_latitude(
+                self.uxda, lat, lon_range, n_samples or len(faces)
+            )
+        else:
+            return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
 
     def constant_longitude(
-        self, lon: float, inverse_indices: Union[List[str], Set[str], bool] = False
-    ):
-        """Extracts a cross-section of the data array by selecting all faces that
-        intersect with a specified line of constant longitude.
+        self,
+        lon: float,
+        inverse_indices: Union[List[str], Set[str], bool] = False,
+        *,
+        lat_range: Tuple[float, float] = (-90, 90),
+        interpolate: bool = False,
+        n_samples: int = None,
+    ) -> UxDataArray | DataArray:
+        """Extracts a cross-section of the data array across a line of constant-longitude.
+
+        This method supports two modes:
+          - **grid‐based** (`interpolate=False`, the default): returns exactly those faces
+            which intersect the line of constant longitude, with a new Grid containing those faces.
+          - **interpolated** (`interpolate=True`): generates `n_samples` equally‐spaced points
+            between `lon_range[0]` and `lon_range[1]` and picks whichever face contains each sample point.
 
         Parameters
         ----------
         lon : float
-            The latitude at which to extract the cross-section, in degrees.
+            The longitude at which to extract the cross-section, in degrees.
             Must be between -180.0 and 180.0
         inverse_indices : Union[List[str], Set[str], bool], optional
             Controls storage of original grid indices. Options:
             - True: Stores original face indices
             - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
+        lat_range: Tuple[float, float], optional
+            `(min_lat, max_lat)` latitude values to perform the cross-section. Values must lie in [-90, 90]. Default is `(-90, 90)`.
+        interpolate: bool, optional
+            If `False` (default), run in **grid‐based** mode. If `True`, run in **interpolated**
+        n_samples: int, optional
+            Number of points to sample along the line of constant longitude. If not provided, uses the number of faces
+            that intersect the line of constant longitude
 
         Returns
         -------
         uxarray.UxDataArray
-            A subset of the original data array containing only the faces that intersect
-            with the specified longitude.
+            In **grid-based** mode, a subset of the original data array containing only the faces that intersect
+            with the specified line of constant longitude.
+        xarray.DataArray
+            In **interpolated** mode (`interpolate=True`), a new Xarray DataArray with data sampled along the line of constant longitude,
+            including longitude and latitude coordinates for each sample.
 
         Raises
         ------
@@ -102,22 +155,23 @@ class UxDataArrayCrossSectionAccessor:
         --------
         >>> # Extract data at 0° longitude
         >>> cross_section = uxda.cross_section.constant_latitude(lon=0.0)
-
-        Notes
-        -----
-        The initial execution time may be significantly longer than subsequent runs
-        due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
         if not self.uxda._face_centered():
             raise ValueError(
                 "Cross sections are only supported for face-centered data variables."
             )
 
+        # TODO: Extend to support constrained ranges
         faces = self.uxda.uxgrid.get_faces_at_constant_longitude(
             lon,
         )
 
-        return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+        if interpolate:
+            return interpolate_along_constant_longitude(
+                self.uxda, lon, lat_range, n_samples or len(faces)
+            )
+        else:
+            return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
 
     def constant_latitude_interval(
         self,
@@ -154,12 +208,6 @@ class UxDataArrayCrossSectionAccessor:
         >>> cross_section = uxda.cross_section.constant_latitude_interval(
         ...     lats=(-30.0, 30.0)
         ... )
-
-
-        Notes
-        -----
-        The initial execution time may be significantly longer than subsequent runs
-        due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
         faces = self.uxda.uxgrid.get_faces_between_latitudes(lats)
 
@@ -200,11 +248,6 @@ class UxDataArrayCrossSectionAccessor:
         >>> cross_section = uxda.cross_section.constant_longitude_interval(
         ...     lons=(0.0, 45.0)
         ... )
-
-        Notes
-        -----
-        The initial execution time may be significantly longer than subsequent runs
-        due to Numba's just-in-time compilation. Subsequent calls will be faster due to caching.
         """
         faces = self.uxda.uxgrid.get_faces_between_longitudes(lons)
 
