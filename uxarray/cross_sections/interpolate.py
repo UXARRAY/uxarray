@@ -2,6 +2,8 @@ import numpy as np
 import xarray as xr
 from numba import njit, prange
 
+from uxarray.constants import INT_DTYPE
+
 
 @njit(parallel=True)
 def _fill_numba(flat_orig, face_idx, n_face, n_samples):
@@ -17,7 +19,7 @@ def _fill_numba(flat_orig, face_idx, n_face, n_samples):
 def _compute_face_idx(uxda, lons, lats):
     pts = np.column_stack((lons, lats))
     faces = uxda.uxgrid.get_faces_containing_point(pts, return_counts=False)
-    return np.array([row[0] if row else -1 for row in faces], dtype=np.int32)
+    return np.array([row[0] if row else -1 for row in faces], dtype=INT_DTYPE)
 
 
 def _interpolate(uxda, lons, lats, new_dim):
@@ -57,12 +59,14 @@ def _interpolate(uxda, lons, lats, new_dim):
 
 
 def interpolate_along_constant_latitude(uxda, lat, lon_range, n_samples):
+    """Interpolates data that intersects a line of constant latitude onto samples residing on that line of constant latitude."""
     lons = np.linspace(lon_range[0], lon_range[1], n_samples)
     lats = np.full(n_samples, lat)
     return _interpolate(uxda, lons, lats, new_dim="lon")
 
 
 def interpolate_along_constant_longitude(uxda, lon, lat_range, n_samples):
+    """Interpolates data that intersects a line of constant longitude onto samples residing on that line of constant longitude."""
     lons = np.full(n_samples, lon)
     lats = np.linspace(lat_range[0], lat_range[1], n_samples)
     return _interpolate(uxda, lons, lats, new_dim="lat")
