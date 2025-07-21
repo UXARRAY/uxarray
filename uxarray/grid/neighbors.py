@@ -6,6 +6,7 @@ from numba import njit
 from numpy import deg2rad
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
 
 class KDTree:
@@ -793,6 +794,10 @@ class SpatialHash:
     ----------
     grid : ux.Grid
         Source grid used to construct the hash grid and hash table
+    coordinate_system : str, default="spherical"
+        Sets the coordinate type used for barycentric coordinate.
+    global_grid : bool, default=False
+        If true, the hash grid is constructed using the domain [-pi,pi] x [-pi,pi]
     reconstruct : bool, default=False
         If true, reconstructs the spatial hash
 
@@ -804,9 +809,31 @@ class SpatialHash:
     def __init__(
         self,
         grid,
+        coordinate_system: Optional[str] = "spherical",
+        global_grid: Optional[bool] = False,
         reconstruct: bool = False,
     ):
         self._source_grid = grid
+
+        if coordinate_system not in ["cartesian", "spherical"]:
+            raise TypeError(
+                f"Unknown coordinate_system, {coordinate_system}, use either 'cartesian' or "
+                f"'spherical'"
+            )
+
+        if coordinate_system == "cartesian":
+            if self._source_grid.n_max_face_nodes != np.mean(
+                self._source_grid.n_nodes_per_face
+            ):
+                raise ValueError(
+                    "SpatialHash with cartesian geometry only supports grids with a uniform face geometry type"
+                )
+            self._ll_tolerance = self._local_linearization_tolerance()
+
+        else:
+            self._ll_tolerance = 0.0
+
+        self.coordinate_system = coordinate_system
         self._nelements = self._source_grid.n_face
 
         self.reconstruct = reconstruct
@@ -814,16 +841,23 @@ class SpatialHash:
         # Hash grid size
         self._dh = self._hash_cell_size()
 
-        # Lower left corner of the hash grid
-        lon_min = np.deg2rad(self._source_grid.node_lon.min().to_numpy())
-        lat_min = np.deg2rad(self._source_grid.node_lat.min().to_numpy())
-        lon_max = np.deg2rad(self._source_grid.node_lon.max().to_numpy())
-        lat_max = np.deg2rad(self._source_grid.node_lat.max().to_numpy())
+        if global_grid:
+            # Set the hash grid to be a global grid
+            self._xmin = -np.pi
+            self._ymin = -np.pi
+            self._xmax = np.pi
+            self._ymax = np.pi
+        else:
+            # Lower left corner of the hash grid
+            lon_min = np.deg2rad(self._source_grid.node_lon.min().to_numpy())
+            lat_min = np.deg2rad(self._source_grid.node_lat.min().to_numpy())
+            lon_max = np.deg2rad(self._source_grid.node_lon.max().to_numpy())
+            lat_max = np.deg2rad(self._source_grid.node_lat.max().to_numpy())
 
-        self._xmin = lon_min - self._dh
-        self._ymin = lat_min - self._dh
-        self._xmax = lon_max + self._dh
-        self._ymax = lat_max + self._dh
+            self._xmin = lon_min - self._dh
+            self._ymin = lat_min - self._dh
+            self._xmax = lon_max + self._dh
+            self._ymax = lat_max + self._dh
 
         # Number of x points in the hash grid; used for
         # array flattening
@@ -845,7 +879,9 @@ class SpatialHash:
         """Computes the 2-d hash index (i,j) for the location (x,y), where x and y are given in spherical
         coordinates (in degrees)"""
 
-        i = ((coords[:, 0] - self._xmin) / self._dh).astype(INT_DTYPE)
+        # Wrap longitude to [-pi, pi]
+        lon = (coords[:, 0] + np.pi) % (2 * np.pi) - np.pi
+        i = ((lon - self._xmin) / self._dh).astype(INT_DTYPE)
         j = ((coords[:, 1] - self._ymin) / self._dh).astype(INT_DTYPE)
         return i, j
 
@@ -862,35 +898,91 @@ class SpatialHash:
 
         if self._face_hash_table is None or self.reconstruct:
             index_to_face = [[] for i in range(self._nx * self._ny)]
-            lon_bounds = np.sort(self._source_grid.face_bounds_lon.to_numpy(), 1)
-            lat_bounds = self._source_grid.face_bounds_lat.to_numpy()
+            lon_bounds = np.deg2rad(self._source_grid.face_bounds_lon.to_numpy())
+            lat_bounds = np.deg2rad(self._source_grid.face_bounds_lat.to_numpy())
 
             coords = np.column_stack(
                 (
-                    np.deg2rad(lon_bounds[:, 0].flatten()),
-                    np.deg2rad(lat_bounds[:, 0].flatten()),
+                    lon_bounds[:, 0].flatten(),
+                    lat_bounds[:, 0].flatten(),
                 )
             )
             i1, j1 = self._hash_index2d(coords)
             coords = np.column_stack(
                 (
-                    np.deg2rad(lon_bounds[:, 1].flatten()),
-                    np.deg2rad(lat_bounds[:, 1].flatten()),
+                    lon_bounds[:, 1].flatten(),
+                    lat_bounds[:, 1].flatten(),
                 )
             )
             i2, j2 = self._hash_index2d(coords)
-
             try:
                 for eid in range(self._source_grid.n_face):
                     for j in range(j1[eid], j2[eid] + 1):
-                        for i in range(i1[eid], i2[eid] + 1):
-                            index_to_face[i + self._nx * j].append(eid)
+                        if i1[eid] <= i2[eid]:
+                            # Normal case, no wrap
+                            for i in range(i1[eid], i2[eid] + 1):
+                                index_to_face[(i % self._nx) + self._nx * j].append(eid)
+                        else:
+                            # Wrap-around case
+                            for i in range(i1[eid], self._nx):
+                                index_to_face[(i % self._nx) + self._nx * j].append(eid)
+                            for i in range(0, i2[eid] + 1):
+                                index_to_face[(i % self._nx) + self._nx * j].append(eid)
+
             except IndexError:
                 raise IndexError(
                     "list index out of range. This may indicate incorrect `edge_node_distances` values."
                 )
 
             return index_to_face
+
+    def _local_linearization_tolerance(self):
+        """
+        Computes the upper bound of the local projection error that arises from
+        assuming planar faces.
+
+        Effectively, a planar face on a spherical manifold is a local linearization
+        of the spherical coordinate transformation. Since query points and nodes are converted to
+        cartesian coordinates using the full spherical coordinate transformation,
+        the local projection error will likely be non-zero but related to the discretiztaion.
+
+        When computing the local linearization, we assume a planar face, whose normal is formed
+        by the cross product of two vectors extending from the first node in the face.
+        The upper bound on the local linearization error can be estimated using the projection
+        error of the face center onto this plane.
+        """
+        # Get grid variables
+        face_node_connectivity = (
+            self._source_grid.face_node_connectivity.to_numpy()
+        )  # shape (n_face, max_nodes_per_face)
+
+        # Assumes all elements are the same geoemetric type
+        nodes = np.stack(
+            (
+                self._source_grid.node_x.to_numpy()[face_node_connectivity],
+                self._source_grid.node_y.to_numpy()[face_node_connectivity],
+                self._source_grid.node_z.to_numpy()[face_node_connectivity],
+            ),
+            axis=-1,
+        )  # shape (n_face, N, 3)
+
+        face_centers = np.stack(
+            (
+                self._source_grid.face_x.to_numpy(),
+                self._source_grid.face_y.to_numpy(),
+                self._source_grid.face_z.to_numpy(),
+            ),
+            axis=-1,
+        )  # shape (n_face, 3)
+
+        ll_tolerance = np.array(
+            [
+                _local_projection_error(nodes[i], face_centers[i])
+                for i in range(self._source_grid.n_face)
+            ]
+        )
+
+        return ll_tolerance
 
     def query(
         self,
@@ -903,7 +995,10 @@ class SpatialHash:
         Parameters
         ----------
         coords : array_like
-            coordinate pairs in degrees (lon, lat) to query
+            coordinate pairs in degrees (lon, lat) or cartesian (x,y,z) to query. If the SpatialHash.coordinate_system is
+            "spherical", then coords should be in degrees (lon, lat). If the SpatialHash.coordinate_system is "cartesian",
+            then coords can either be in degrees (lon, lat) or cartesian (x,y,z).
+
         in_radians : bool, optional
             if True, queries assuming coords are inputted in radians, not degrees. Only applies to spherical coords
 
@@ -917,7 +1012,27 @@ class SpatialHash:
             Barycentric coordinates of each coords element
         """
 
-        coords = _prepare_xy_for_query(coords, in_radians, distance_metric=None)
+        if self.coordinate_system == "spherical":
+            coords = _prepare_xy_for_query(coords, in_radians, distance_metric=None)
+        else:
+            # allow user to specify either spherical or cartesian query coordinates.
+            # If the self.coordinate_system is cartesian, then the coords should be cartesian
+            # expand if only a single node pair is provided
+            if coords.ndim == 1:
+                coords = np.expand_dims(coords, axis=0)
+
+            if coords.shape[1] == 2:
+                coords = _prepare_xy_for_query(coords, in_radians, distance_metric=None)
+
+                # Calculate corresponding cartesian coordinates
+                x, y, z = _lonlat_rad_to_xyz(coords[:, 0], coords[:, 1])
+                cart_coords = np.array([x, y, z]).T
+
+            else:
+                cart_coords = coords
+
+            cart_coords = _prepare_xyz_for_query(cart_coords)
+
         num_coords = coords.shape[0]
         max_nodes = self._source_grid.n_max_face_nodes
 
@@ -929,28 +1044,60 @@ class SpatialHash:
         n_nodes_per_face = self._source_grid.n_nodes_per_face.to_numpy()
         face_node_connectivity = self._source_grid.face_node_connectivity.to_numpy()
 
-        # Precompute radian values for node coordinates:
-        node_lon = np.deg2rad(self._source_grid.node_lon.to_numpy())
-        node_lat = np.deg2rad(self._source_grid.node_lat.to_numpy())
-
         # Get the list of candidate faces for each coordinate
         candidate_faces = [
             self._face_hash_table[pid] for pid in self._hash_index(coords)
         ]
 
-        for i, (coord, candidates) in enumerate(zip(coords, candidate_faces)):
-            for face_id in candidates:
-                n_nodes = n_nodes_per_face[face_id]
-                node_ids = face_node_connectivity[face_id, :n_nodes]
-                nodes = np.column_stack((node_lon[node_ids], node_lat[node_ids]))
-                bcoord = np.asarray(_barycentric_coordinates(nodes, coord))
-                err = abs(np.dot(bcoord, nodes[:, 0]) - coord[0]) + abs(
-                    np.dot(bcoord, nodes[:, 1]) - coord[1]
-                )
-                if (bcoord >= 0).all() and err < tol:
-                    faces[i] = face_id
-                    bcoords[i, :n_nodes] = bcoord[:n_nodes]
-                    break
+        if self.coordinate_system == "spherical":
+            # Precompute radian values for node coordinates:
+            node_lon = np.deg2rad(self._source_grid.node_lon.to_numpy())
+            node_lat = np.deg2rad(self._source_grid.node_lat.to_numpy())
+
+            if self.coordinate_system == "spherical":
+                for i, (coord, candidates) in enumerate(zip(coords, candidate_faces)):
+                    for face_id in candidates:
+                        n_nodes = n_nodes_per_face[face_id]
+                        node_ids = face_node_connectivity[face_id, :n_nodes]
+                        nodes = np.column_stack(
+                            (node_lon[node_ids], node_lat[node_ids])
+                        )
+                        bcoord = np.asarray(_barycentric_coordinates(nodes, coord))
+                        err = abs(np.dot(bcoord, nodes[:, 0]) - coord[0]) + abs(
+                            np.dot(bcoord, nodes[:, 1]) - coord[1]
+                        )
+                        if (bcoord >= 0).all() and err < tol:
+                            faces[i] = face_id
+                            bcoords[i, :n_nodes] = bcoord[:n_nodes]
+                            break
+
+        else:
+            # Precompute cartesian values for node coordinates:
+            nodes = np.stack(
+                (
+                    self._source_grid.node_x.to_numpy()[face_node_connectivity],
+                    self._source_grid.node_y.to_numpy()[face_node_connectivity],
+                    self._source_grid.node_z.to_numpy()[face_node_connectivity],
+                ),
+                axis=-1,
+            )  # shape (n_face, N, 3)
+
+            for i, (coord, candidates) in enumerate(zip(cart_coords, candidate_faces)):
+                for face_id in candidates:
+                    n_nodes = n_nodes_per_face[face_id]
+                    bcoord = np.asarray(
+                        _barycentric_coordinates_cartesian(nodes[face_id], coord)
+                    )
+                    proj_uv = np.dot(bcoord, nodes[face_id, :, :])
+                    err = np.linalg.norm(proj_uv - coord)
+                    print(
+                        f"bcoord: {bcoord}, err: {err}, face_id: {face_id}, coord: {coord}"
+                    )
+
+                    if (bcoord >= 0).all() and err < self._ll_tolerance[face_id] + tol:
+                        faces[i] = face_id
+                        bcoords[i] = bcoord
+                        break
 
         return faces, bcoords
 
@@ -961,6 +1108,35 @@ def _triangle_area(A, B, C):
     Compute the area of a triangle given by three points.
     """
     return 0.5 * abs(A[0] * (B[1] - C[1]) + B[0] * (C[1] - A[1]) + C[0] * (A[1] - B[1]))
+
+
+@njit(cache=True)
+def _local_projection_error(nodes, point):
+    """
+    Computes the size of the local projection error that arises from
+    assuming planar faces. Effectively, a planar face on a spherical
+    manifold is local linearization of the spherical coordinate
+    transformation. Since query points and nodes are converted to
+    cartesian coordinates using the full spherical coordinate transformation,
+    the local projection error will likely be non-zero but related to the discretiztaion.
+    """
+    a = nodes[1] - nodes[0]
+    b = nodes[2] - nodes[0]
+    normal = np.cross(a, b)
+    normal /= np.linalg.norm(normal)
+    d = point - nodes[0]
+    return abs(np.dot(d, normal))
+
+
+@njit(cache=True)
+def _triangle_area_cartesian(A, B, C):
+    """
+    Compute the area of a triangle given by three points.
+    """
+    d1 = B - A
+    d2 = C - A
+    d3 = np.cross(d1, d2)
+    return 0.5 * np.linalg.norm(d3)
 
 
 @njit(cache=True)
@@ -995,6 +1171,44 @@ def _barycentric_coordinates(nodes, point):
         a2 = max(_triangle_area(point, vi, vi1), ERROR_TOLERANCE)
         sum_wi += a0 / (a1 * a2)
         w.append(a0 / (a1 * a2))
+    barycentric_coords = [w_i / sum_wi for w_i in w]
+
+    return barycentric_coords
+
+
+@njit(cache=True)
+def _barycentric_coordinates_cartesian(nodes, point):
+    """
+    Compute the barycentric coordinates of a point P inside a convex polygon using area-based weights.
+    So that this method generalizes to n-sided polygons, we use the Waschpress points as the generalized
+    barycentric coordinates, which is only valid for convex polygons.
+
+    Parameters
+    ----------
+        nodes : numpy.ndarray
+            Cartesian coordinates (x,y,z) of each corner node of a face
+        point : numpy.ndarray
+            Cartesian coordinates (x,y,z) of the point
+    Returns
+    -------
+    numpy.ndarray
+        Barycentric coordinates corresponding to each vertex.
+
+    """
+    n = len(nodes)
+    sum_wi = 0
+    w = []
+
+    for i in range(0, n):
+        vim1 = nodes[i - 1]
+        vi = nodes[i]
+        vi1 = nodes[(i + 1) % n]
+        a0 = _triangle_area_cartesian(vim1, vi, vi1)
+        a1 = max(_triangle_area_cartesian(point, vim1, vi), ERROR_TOLERANCE)
+        a2 = max(_triangle_area_cartesian(point, vi, vi1), ERROR_TOLERANCE)
+        sum_wi += a0 / (a1 * a2)
+        w.append(a0 / (a1 * a2))
+
     barycentric_coords = [w_i / sum_wi for w_i in w]
 
     return barycentric_coords
