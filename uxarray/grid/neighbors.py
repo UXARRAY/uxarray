@@ -1024,9 +1024,12 @@ class SpatialHash:
             if coords.shape[1] == 2:
                 coords = _prepare_xy_for_query(coords, in_radians, distance_metric=None)
 
-            # Calculate corresponding cartesian coordinates
-            x, y, z = _lonlat_rad_to_xyz(coords[:, 0], coords[:, 1])
-            cart_coords = np.array([x, y, z]).T
+                # Calculate corresponding cartesian coordinates
+                x, y, z = _lonlat_rad_to_xyz(coords[:, 0], coords[:, 1])
+                cart_coords = np.array([x, y, z]).T
+
+            else:
+                cart_coords = coords
 
             cart_coords = _prepare_xyz_for_query(cart_coords)
 
@@ -1087,6 +1090,9 @@ class SpatialHash:
                     )
                     proj_uv = np.dot(bcoord, nodes[face_id, :, :])
                     err = np.linalg.norm(proj_uv - coord)
+                    print(
+                        f"bcoord: {bcoord}, err: {err}, face_id: {face_id}, coord: {coord}"
+                    )
 
                     if (bcoord >= 0).all() and err < self._ll_tolerance[face_id] + tol:
                         faces[i] = face_id
