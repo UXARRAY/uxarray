@@ -2,17 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Set, Tuple, Union
 
-from .interpolate import (
-    interpolate_along_constant_latitude,
-    interpolate_along_constant_longitude,
-)
-
 if TYPE_CHECKING:
     from xarray import DataArray
 
     from uxarray import UxDataArray
-
-    pass
 
 
 class UxDataArrayCrossSectionAccessor:
@@ -36,18 +29,9 @@ class UxDataArrayCrossSectionAccessor:
         self,
         lat: float,
         inverse_indices: Union[List[str], Set[str], bool] = False,
-        *,
         lon_range: Tuple[float, float] = (-180, 180),
-        interpolate: bool = False,
-        n_samples: int = None,
     ) -> UxDataArray | DataArray:
         """Extracts a cross-section of the data array across a line of constant-latitude.
-
-        This method supports two modes:
-          - **grid‐based** (`interpolate=False`, the default): returns exactly those faces
-            which intersect the line of constant latitude, with a new Grid containing those faces.
-          - **interpolated** (`interpolate=True`): generates `n_samples` equally‐spaced points
-            between `lon_range[0]` and `lon_range[1]` and picks whichever face contains each sample point.
 
         Parameters
         ----------
@@ -61,11 +45,6 @@ class UxDataArrayCrossSectionAccessor:
             - False: No index storage (default)
         lon_range: Tuple[float, float], optional
             `(min_lon, max_lon)` longitude values to perform the cross-section. Values must lie in [-180, 180]. Default is `(-180, 180)`.
-        interpolate: bool, optional
-            If `False` (default), run in **grid‐based** mode. If `True`, run in **interpolated**
-        n_samples: int, optional
-            Number of points to sample along the line of constant latitude. If not provided, uses the number of faces
-            that intersect the line of constant latitude
 
         Returns
         -------
@@ -100,21 +79,17 @@ class UxDataArrayCrossSectionAccessor:
                 f"No faces found that intersect a line of constant latitude at {lat} degrees between {lon_range[0]} and {lon_range[1]} degrees longitude."
             )
 
-        if interpolate:
-            return interpolate_along_constant_latitude(
-                self.uxda, lat, lon_range, n_samples or len(faces)
-            )
-        else:
-            return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+        da = self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+
+        da = da.assign_attrs({"cross_section": True, "constant_latitude": lat})
+
+        return da
 
     def constant_longitude(
         self,
         lon: float,
         inverse_indices: Union[List[str], Set[str], bool] = False,
-        *,
         lat_range: Tuple[float, float] = (-90, 90),
-        interpolate: bool = False,
-        n_samples: int = None,
     ) -> UxDataArray | DataArray:
         """Extracts a cross-section of the data array across a line of constant-longitude.
 
@@ -136,11 +111,6 @@ class UxDataArrayCrossSectionAccessor:
             - False: No index storage (default)
         lat_range: Tuple[float, float], optional
             `(min_lat, max_lat)` latitude values to perform the cross-section. Values must lie in [-90, 90]. Default is `(-90, 90)`.
-        interpolate: bool, optional
-            If `False` (default), run in **grid‐based** mode. If `True`, run in **interpolated**
-        n_samples: int, optional
-            Number of points to sample along the line of constant longitude. If not provided, uses the number of faces
-            that intersect the line of constant longitude
 
         Returns
         -------
@@ -176,12 +146,11 @@ class UxDataArrayCrossSectionAccessor:
                 f"No faces found that intersect a line of constant longitude at {lon} degrees between {lat_range[0]} and {lat_range[1]} degrees latitude."
             )
 
-        if interpolate:
-            return interpolate_along_constant_longitude(
-                self.uxda, lon, lat_range, n_samples or len(faces)
-            )
-        else:
-            return self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+        da = self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
+
+        da = da.assign_attrs({"cross_section": True, "constant_longitude": lon})
+
+        return da
 
     def constant_latitude_interval(
         self,

@@ -58,15 +58,13 @@ def _interpolate(uxda, lons, lats, new_dim):
     )
 
 
-def interpolate_along_constant_latitude(uxda, lat, lon_range, n_samples):
+def interpolate_along_constant_latitude(uxda, lat, lons):
     """Interpolates data that intersects a line of constant latitude onto samples residing on that line of constant latitude."""
-    lons = np.linspace(lon_range[0], lon_range[1], n_samples)
-    lats = np.full(n_samples, lat)
+    lats = np.full_like(lons, lat)
     return _interpolate(uxda, lons, lats, new_dim="lon")
 
 
-def interpolate_along_constant_longitude(uxda, lon, lat_range, n_samples):
+def interpolate_along_constant_longitude(uxda, lon, lats):
     """Interpolates data that intersects a line of constant longitude onto samples residing on that line of constant longitude."""
-    lons = np.full(n_samples, lon)
-    lats = np.linspace(lat_range[0], lat_range[1], n_samples)
+    lons = np.full_like(lats, lon)
     return _interpolate(uxda, lons, lats, new_dim="lat")
