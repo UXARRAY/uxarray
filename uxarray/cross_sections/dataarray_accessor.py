@@ -95,6 +95,11 @@ class UxDataArrayCrossSectionAccessor:
         # TODO: Extend to support constrained ranges
         faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat)
 
+        if len(faces) == 0:
+            raise ValueError(
+                f"No faces found that intersect a line of constant latitude at {lat} degrees between {lon_range[0]} and {lon_range[1]} degrees longitude."
+            )
+
         if interpolate:
             return interpolate_along_constant_latitude(
                 self.uxda, lat, lon_range, n_samples or len(faces)
@@ -165,6 +170,11 @@ class UxDataArrayCrossSectionAccessor:
         faces = self.uxda.uxgrid.get_faces_at_constant_longitude(
             lon,
         )
+
+        if len(faces) == 0:
+            raise ValueError(
+                f"No faces found that intersect a line of constant longitude at {lon} degrees between {lat_range[0]} and {lat_range[1]} degrees latitude."
+            )
 
         if interpolate:
             return interpolate_along_constant_longitude(
