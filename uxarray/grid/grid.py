@@ -1826,63 +1826,6 @@ class Grid:
             source_dims_dict=self._source_dims_dict,
         )
 
-    def encode_as(self, grid_type: str) -> xr.Dataset:
-        """Encodes the grid as a new `xarray.Dataset` per grid format supplied
-        in the `grid_type` argument.
-
-        .. deprecated:: 2024.04
-           Use :meth:`to_xarray` instead.
-
-        Parameters
-        ----------
-        grid_type : str, required
-            Grid type of output dataset.
-            Currently supported options are "ugrid", "exodus", "scrip", and "esmf"
-
-        Returns
-        -------
-        out_ds : xarray.Dataset
-            The output `xarray.Dataset` that is encoded from the this grid.
-
-        Raises
-        ------
-        RuntimeError
-            If provided grid type or file type is unsupported.
-        """
-
-        warn(
-            "Grid.encode_as is deprecated and will be removed in a future release. Please use Grid.to_xarray instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        # Convert to lowercase for case-insensitive comparison
-        grid_type_lower = grid_type.lower()
-        # Node boundaries/coords are not populated by default. Accessing node_lon will trigger their population.
-        # Do this before encoding to ensure that the node boundaries/coords are populated.
-        if "node_lon" not in self._ds.variables:
-            _ = self.node_lon
-        if grid_type_lower == "ugrid":
-            out_ds = _encode_ugrid(self._ds)
-
-        elif grid_type_lower == "exodus":
-            out_ds = _encode_exodus(self._ds)
-
-        elif grid_type_lower == "scrip":
-            out_ds = _encode_scrip(
-                self.face_node_connectivity,
-                self.node_lon,
-                self.node_lat,
-                self.face_areas,
-            )
-        elif grid_type_lower == "esmf":
-            from uxarray.io._esmf import _encode_esmf
-
-            out_ds = _encode_esmf(self._ds)
-        else:
-            raise RuntimeError("The grid type not supported: ", grid_type)
-
-        return out_ds
-
     def calculate_total_face_area(
         self,
         quadrature_rule: Optional[str] = "triangular",

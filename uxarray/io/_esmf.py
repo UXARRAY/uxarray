@@ -128,23 +128,22 @@ def _encode_esmf(ds: xr.Dataset) -> xr.Dataset:
     # Node Coordinates (nodeCoords)
     if "node_lon" in ds and "node_lat" in ds:
         out_ds["nodeCoords"] = xr.concat(
-            [ds["node_lon"], ds["node_lat"]], dim=xr.DataArray([0, 1], dims="coordDim")
+            [ds["node_lon"], ds["node_lat"]],
+            dim=xr.DataArray([0, 1], dims="coordDim"),
         )
         out_ds["nodeCoords"] = out_ds["nodeCoords"].rename({"n_node": "nodeCount"})
         out_ds["nodeCoords"] = out_ds["nodeCoords"].transpose("nodeCount", "coordDim")
         out_ds["nodeCoords"] = out_ds["nodeCoords"].assign_attrs(units="degrees")
         # Clean up unwanted attributes
-        if "standard_name" in out_ds["nodeCoords"].attrs:
-            del out_ds["nodeCoords"].attrs["standard_name"]
-        if "long_name" in out_ds["nodeCoords"].attrs:
-            del out_ds["nodeCoords"].attrs["long_name"]
+        for attr in ["standard_name", "long_name"]:
+            if attr in out_ds["nodeCoords"].attrs:
+                del out_ds["nodeCoords"].attrs[attr]
     else:
         raise ValueError("Input dataset must contain 'node_lon' and 'node_lat'.")
 
     # Face Node Connectivity (elementConn)
-    # ESMF elementConn is 1-based, with -1 indicating an unused entry.
-    # UGRID face_node_connectivity is 0-based, with INT_FILL_VALUE for unused.
     if "face_node_connectivity" in ds:
+        # ESMF elementConn is 1-based, with -1 for unused; UGRID is 0-based
         out_ds["elementConn"] = xr.DataArray(
             ds["face_node_connectivity"] + 1,
             dims=("elementCount", "maxNodePElement"),
@@ -157,33 +156,29 @@ def _encode_esmf(ds: xr.Dataset) -> xr.Dataset:
     else:
         raise ValueError("Input dataset must contain 'face_node_connectivity'.")
 
-    # Number of Nodes per Face (numElementConn)
+    # Number of nodes per face (numElementConn)
     if "n_nodes_per_face" in ds:
         out_ds["numElementConn"] = xr.DataArray(
             ds["n_nodes_per_face"],
-            dims=("elementCount"),
-            attrs={"long_name": "Number of nodes per element"},
+            dims="elementCount",
+            attrs={"long_name": "Number of nodes in each element"},
         )
         out_ds["numElementConn"].encoding = {"dtype": np.byte}
     else:
-        # This can be derived if not present from elementConn
-        if "elementConn" in out_ds:
-            num_nodes = (out_ds["elementConn"] != -1).sum(dim="maxNodePElement")
-            out_ds["numElementConn"] = xr.DataArray(
-                num_nodes,
-                dims="elementCount",
-                attrs={"long_name": "Number of nodes per element"},
-            )
-            out_ds["numElementConn"].encoding = {"dtype": np.byte}
-        else:
-            raise ValueError(
-                "Input dataset must contain 'n_nodes_per_face' or equivalent information."
-            )
+        # Fallback: derive from elementConn if not explicitly provided
+        num_nodes = (out_ds["elementConn"] != -1).sum(dim="maxNodePElement")
+        out_ds["numElementConn"] = xr.DataArray(
+            num_nodes,
+            dims="elementCount",
+            attrs={"long_name": "Number of nodes in each element"},
+        )
+        out_ds["numElementConn"].encoding = {"dtype": np.byte}
 
-    # Face Coordinates (centerCoords) - Optional in UGRID and ESMF
+    # Optional face coordinates (centerCoords)
     if "face_lon" in ds and "face_lat" in ds:
         out_ds["centerCoords"] = xr.concat(
-            [ds["face_lon"], ds["face_lat"]], dim=xr.DataArray([0, 1], dims="coordDim")
+            [ds["face_lon"], ds["face_lat"]],
+            dim=xr.DataArray([0, 1], dims="coordDim"),
         )
         out_ds["centerCoords"] = out_ds["centerCoords"].rename(
             {"n_face": "elementCount"}
@@ -193,12 +188,11 @@ def _encode_esmf(ds: xr.Dataset) -> xr.Dataset:
         )
         out_ds["centerCoords"] = out_ds["centerCoords"].assign_attrs(units="degrees")
         # Clean up unwanted attributes
-        if "standard_name" in out_ds["centerCoords"].attrs:
-            del out_ds["centerCoords"].attrs["standard_name"]
-        if "long_name" in out_ds["centerCoords"].attrs:
-            del out_ds["centerCoords"].attrs["long_name"]
+        for attr in ["standard_name", "long_name"]:
+            if attr in out_ds["centerCoords"].attrs:
+                del out_ds["centerCoords"].attrs[attr]
 
-    # Force no '_FillValue' if not specified
+    # Force no '_FillValue' in encoding if not explicitly set
     for v in out_ds.variables:
         if "_FillValue" not in out_ds[v].encoding:
             out_ds[v].encoding["_FillValue"] = None
