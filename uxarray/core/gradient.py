@@ -33,27 +33,6 @@ def _calculate_edge_node_difference(d_var, edge_nodes):
     return np.abs(edge_node_diff)
 
 
-# @njit(cache=True)
-# def _compute_arc_length(lat_a, lat_b, lon_a, lon_b):
-#     '''
-#     input: latitude and longitude in degrees
-#     computes using law of cosines
-#     Returns: arc length on unit sphere in radians
-#     '''
-#     radlon_a = np.deg2rad(lon_a)
-#     radlon_b = np.deg2rad(lon_b)
-#
-#     radlat_a = np.deg2rad(lat_a)
-#     radlat_b = np.deg2rad(lat_b)
-#
-#     # arc length
-#     distance = np.arccos(
-#         np.sin(radlat_a) * np.sin(radlat_b)
-#         + np.cos(radlat_a) * np.cos(radlat_b) * np.cos(radlon_a - radlon_b)
-#     )
-#     return distance
-
-
 @njit(cache=True)
 def _compute_arc_length(lat_a, lat_b, lon_a, lon_b):
     """
@@ -77,23 +56,19 @@ def _compute_arc_length(lat_a, lat_b, lon_a, lon_b):
 
 @njit(cache=True)
 def _check_face_on_boundary(
-    face_idx: np.integer,
-    face_node_connectivity: np.ndarray,
-    node_face_connectivity: np.ndarray,
+    face_idx, face_node_connectivity, node_edge_connectivity, edge_face_connectivity
 ):
     """
-    Checks if a face in on the boundary by checking the neighboring faces of its edges
-
-    Returns: boolean
-    True - boundary & False - not boundary
-
+    For each
     """
+
     bool_bdy = False
     for node_idx in face_node_connectivity[face_idx]:
         if node_idx != INT_FILL_VALUE:
-            if INT_FILL_VALUE in node_face_connectivity[node_idx]:
-                bool_bdy = True
-
+            for edge_idx in node_edge_connectivity[node_idx]:
+                if edge_idx != INT_FILL_VALUE:
+                    if INT_FILL_VALUE in edge_face_connectivity[edge_idx]:
+                        bool_bdy = True
     return bool_bdy
 
 
@@ -176,7 +151,6 @@ def _compute_gradient(data):
             data.values,
             uxgrid.n_face,
             face_coords,
-            uxgrid.node_face_connectivity.values,
             uxgrid.edge_face_connectivity.values,
             uxgrid.face_node_connectivity.values,
             uxgrid.node_edge_connectivity.values,
@@ -271,7 +245,6 @@ def _compute_gradients_on_faces(
     data,
     n_face,
     face_coords,  # x, y, z face coordinates np.vstack([face_x, face_y, face_z]).T
-    node_face_connectivity,
     edge_face_connectivity,
     face_node_connectivity,
     node_edge_connectivity,
@@ -314,13 +287,19 @@ def _compute_gradients_on_faces(
 
     """
 
-    gradients_faces = np.zeros((n_face, 2))
+    # gradients_faces = np.zeros((n_face, 2))
+
+    # TODO: Set to nan instead of zeros
+    gradients_faces = np.full((n_face, 2), np.nan)
 
     for face_idx in prange(n_face):
         gradient = np.zeros(3)
 
         if not _check_face_on_boundary(
-            face_idx, face_node_connectivity, node_face_connectivity
+            face_idx,
+            face_node_connectivity,
+            node_edge_connectivity,
+            edge_face_connectivity,
         ):  # check face is not on boundary
             for node_idx in face_node_connectivity[
                 face_idx
@@ -366,6 +345,9 @@ def _compute_gradients_on_faces(
                                     gradient
                                     + (trapz - data[face_idx]) * arc_length * normal
                                 )
+
+        else:
+            gradient = np.full(3, np.nan)
 
         node_neighbors = face_node_connectivity[face_idx]
         node_neighbors = node_neighbors[~np.isin(node_neighbors, INT_FILL_VALUE)]
