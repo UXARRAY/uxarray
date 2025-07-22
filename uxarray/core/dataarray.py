@@ -5,13 +5,11 @@ from html import escape
 from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, Optional
 from warnings import warn
 
-import numpy as np
 import xarray as xr
 from cartopy.mpl.geoaxes import GeoAxes
 from xarray.core import dtypes
 from xarray.core.options import OPTIONS
-from xarray.core.types import InterpOptions
-from xarray.core.utils import UncachedAccessor, either_dict_or_kwargs
+from xarray.core.utils import UncachedAccessor
 
 import uxarray
 from uxarray.core.aggregation import _uxda_grid_aggregate
@@ -23,10 +21,6 @@ from uxarray.core.gradient import (
 from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.core.zonal import _compute_non_conservative_zonal_mean
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
-from uxarray.cross_sections.interpolate import (
-    interpolate_along_constant_latitude,
-    interpolate_along_constant_longitude,
-)
 from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
@@ -1287,36 +1281,6 @@ class UxDataArray(xr.DataArray):
             drop=drop,
             missing_dims=missing_dims,
         )
-
-    def interp(
-        self,
-        coords: Mapping[Any, Any] | None = None,
-        method: InterpOptions = "linear",
-        assume_sorted: bool = False,
-        kwargs: Mapping[str, Any] | None = None,
-        **coords_kwargs: Any,
-    ):
-        """Docstring TODO"""
-
-        # TODO: Handle case where multiple dimensions are trying to be interpolated
-
-        # Special interpolate case for the output of cross-sections
-        if self.attrs.get("cross_section", False):
-            _coords = either_dict_or_kwargs(coords, coords_kwargs, "interp")
-
-            if self.attrs.get("constant_latitude", False):
-                if "lon" in _coords:
-                    return interpolate_along_constant_latitude(
-                        self, self.attrs["constant_latitude"], _coords["lon"]
-                    )
-
-            elif self.attrs.get("constant_longitude", False):
-                if "lat" in _coords:
-                    return interpolate_along_constant_longitude(
-                        self, self.attrs["constant_longitude"], _coords["lat"]
-                    )
-
-        return super().interp(coords, method, assume_sorted, kwargs, **coords_kwargs)
 
     @classmethod
     def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):

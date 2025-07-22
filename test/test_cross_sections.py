@@ -16,22 +16,6 @@ cube_sphere_grid = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne
 from uxarray.grid.intersections import constant_lat_intersections_face_bounds
 
 
-def test_repr():
-    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
-
-    # grid repr
-    grid_repr = uxds.uxgrid.cross_section.__repr__()
-    assert "constant_latitude" in grid_repr
-    assert "constant_longitude" in grid_repr
-    assert "constant_latitude_interval" in grid_repr
-    assert "constant_longitude_interval" in grid_repr
-
-    # data array repr
-    da_repr = uxds['t2m'].cross_section.__repr__()
-    assert "constant_latitude" in da_repr
-    assert "constant_longitude" in da_repr
-    assert "constant_latitude_interval" in da_repr
-    assert "constant_longitude_interval" in da_repr
 
 
 
