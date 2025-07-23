@@ -76,9 +76,7 @@ class UxDataArrayCrossSectionAccessor:
         dim_axis = new_dims.index(new_dim)
 
         # TODO:
-        arr = np.moveaxis(
-            self.uxda.compute().data, face_axis, -1
-        )  # now shape (..., n_face)
+        arr = np.moveaxis(self.uxda.compute().data, face_axis, -1)
         M, Nf = arr.reshape(-1, arr.shape[-1]).shape
         flat_orig = arr.reshape(M, Nf)
 
