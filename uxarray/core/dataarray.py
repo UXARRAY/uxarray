@@ -5,6 +5,7 @@ from html import escape
 from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, Optional
 from warnings import warn
 
+import numpy as np
 import xarray as xr
 from cartopy.mpl.geoaxes import GeoAxes
 from xarray.core import dtypes
