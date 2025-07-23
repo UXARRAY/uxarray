@@ -132,12 +132,12 @@ class DataArraySubsetAccessor:
         inverse_indices: Union[List[str], Set[str], bool] = False,
         lon_range: Tuple[float, float] = (-180, 180),
     ):
-        """Extracts a cross-section of the data array across a line of constant-latitude.
+        """Extracts a subset of the data array across a line of constant-latitude.
 
         Parameters
         ----------
         lat : float
-            The latitude at which to extract the cross-section, in degrees.
+            The latitude at which to extract the subset, in degrees.
             Must be between -90.0 and 90.0
         inverse_indices : Union[List[str], Set[str], bool], optional
             Controls storage of original grid indices. Options:
@@ -145,7 +145,7 @@ class DataArraySubsetAccessor:
             - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
         lon_range: Tuple[float, float], optional
-            `(min_lon, max_lon)` longitude values to perform the cross-section. Values must lie in [-180, 180]. Default is `(-180, 180)`.
+            `(min_lon, max_lon)` longitude values to perform the subset. Values must lie in [-180, 180]. Default is `(-180, 180)`.
 
         Returns
         -------
@@ -192,7 +192,7 @@ class DataArraySubsetAccessor:
         inverse_indices: Union[List[str], Set[str], bool] = False,
         lat_range: Tuple[float, float] = (-90, 90),
     ):
-        """Extracts a cross-section of the data array across a line of constant-longitude.
+        """Extracts a subset of the data array across a line of constant-longitude.
 
         This method supports two modes:
           - **grid‐based** (`interpolate=False`, the default): returns exactly those faces
@@ -203,7 +203,7 @@ class DataArraySubsetAccessor:
         Parameters
         ----------
         lon : float
-            The longitude at which to extract the cross-section, in degrees.
+            The longitude at which to extract the subset, in degrees.
             Must be between -180.0 and 180.0
         inverse_indices : Union[List[str], Set[str], bool], optional
             Controls storage of original grid indices. Options:
@@ -211,7 +211,7 @@ class DataArraySubsetAccessor:
             - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
         lat_range: Tuple[float, float], optional
-            `(min_lat, max_lat)` latitude values to perform the cross-section. Values must lie in [-90, 90]. Default is `(-90, 90)`.
+            `(min_lat, max_lat)` latitude values to perform the subset. Values must lie in [-90, 90]. Default is `(-90, 90)`.
 
         Returns
         -------
@@ -258,13 +258,13 @@ class DataArraySubsetAccessor:
         lats: Tuple[float, float],
         inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
-        """Extracts a cross-section of data by selecting all faces that
+        """Extracts a subset of data by selecting all faces that
         are within a specified latitude interval.
 
         Parameters
         ----------
         lats : Tuple[float, float]
-            The latitude interval (min_lat, max_lat) at which to extract the cross-section,
+            The latitude interval (min_lat, max_lat) at which to extract the subset,
             in degrees. Values must be between -90.0 and 90.0
         inverse_indices : Union[List[str], Set[str], bool], optional
             Controls storage of original grid indices. Options:
@@ -298,12 +298,12 @@ class DataArraySubsetAccessor:
         lons: Tuple[float, float],
         inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
-        """Extracts a cross-section of data by selecting all faces are within a specifed longitude interval.
+        """Extracts a subset of data by selecting all faces are within a specifed longitude interval.
 
         Parameters
         ----------
         lons : Tuple[float, float]
-            The longitude interval (min_lon, max_lon) at which to extract the cross-section,
+            The longitude interval (min_lon, max_lon) at which to extract the subset,
             in degrees. Values must be between -180.0 and 180.0
         inverse_indices : Union[List[str], Set[str], bool], optional
             Controls storage of original grid indices. Options:

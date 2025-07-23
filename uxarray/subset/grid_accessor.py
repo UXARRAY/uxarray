@@ -144,13 +144,13 @@ class GridSubsetAccessor:
         return_face_indices: bool = False,
         inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
-        """Extracts a cross-section of the grid by selecting all faces that
+        """Extracts a subset of the grid by selecting all faces that
         intersect with a specified line of constant latitude.
 
         Parameters
         ----------
         lon : float
-            The longitude at which to extract the cross-section, in degrees.
+            The longitude at which to extract the subset, in degrees.
             Must be between -90.0 and 90.0
         return_face_indices : bool, optional
             If True, also returns the indices of the faces that intersect with the
@@ -211,13 +211,13 @@ class GridSubsetAccessor:
         return_face_indices: bool = False,
         inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
-        """Extracts a cross-section of the grid by selecting all faces that
+        """Extracts a subset of the grid by selecting all faces that
         intersect with a specified line of constant longitude.
 
         Parameters
         ----------
         lon : float
-            The longitude at which to extract the cross-section, in degrees.
+            The longitude at which to extract the subset, in degrees.
             Must be between -180.0 and 180.0
         return_face_indices : bool, optional
             If True, also returns the indices of the faces that intersect with the
@@ -277,13 +277,13 @@ class GridSubsetAccessor:
         return_face_indices: bool = False,
         inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
-        """Extracts a cross-section of the grid by selecting all faces that
+        """Extracts a subset of the grid by selecting all faces that
         are within a specified latitude interval.
 
         Parameters
         ----------
         lats : Tuple[float, float]
-            The latitude interval (min_lat, max_lat) at which to extract the cross-section,
+            The latitude interval (min_lat, max_lat) at which to extract the subset,
             in degrees. Values must be between -90.0 and 90.0
         return_face_indices : bool, optional
             If True, also returns the indices of the faces that intersect with the
@@ -339,12 +339,12 @@ class GridSubsetAccessor:
         return_face_indices: bool = False,
         inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
-        """Extracts a cross-section of the grid by selecting all faces are within a specifed longitude interval.
+        """Extracts a subset of the grid by selecting all faces are within a specifed longitude interval.
 
         Parameters
         ----------
         lons : Tuple[float, float]
-            The longitude interval (min_lon, max_lon) at which to extract the cross-section,
+            The longitude interval (min_lon, max_lon) at which to extract the subset,
             in degrees. Values must be between -180.0 and 180.0
         return_face_indices : bool, optional
             If True, also returns the indices of the faces that intersect are within a specifed longitude interval.
