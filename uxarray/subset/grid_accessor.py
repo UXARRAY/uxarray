@@ -46,11 +46,6 @@ class GridSubsetAccessor:
             the antimeridian, otherwise lon_left > lon_right, both between [-180, 180]
         lat_bounds: tuple, list, np.ndarray
             (lat_bottom, lat_top) where lat_top > lat_bottom and between [-90, 90]
-        method: str
-            Bounding Box Method, currently supports 'coords', which ensures the coordinates of the corner nodes,
-            face centers, or edge centers lie within the bounds.
-        element: str
-            Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
         inverse_indices : Union[List[str], Set[str], bool], optional
             Controls storage of original grid indices. Options:
             - True: Stores original face indices
@@ -149,8 +144,8 @@ class GridSubsetAccessor:
 
         Parameters
         ----------
-        lon : float
-            The longitude at which to extract the subset, in degrees.
+        lat : float
+            The latitude at which to extract the subset, in degrees.
             Must be between -90.0 and 90.0
         return_face_indices : bool, optional
             If True, also returns the indices of the faces that intersect with the
