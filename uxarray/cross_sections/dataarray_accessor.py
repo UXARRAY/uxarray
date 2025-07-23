@@ -55,7 +55,6 @@ class UxDataArrayCrossSectionAccessor:
                 "Must specify exactly one mode (keyword-only): start & end, OR lon, OR lat."
             )
 
-        # Sample points based on mode
         if great_circle:
             points_xyz, points_latlon = sample_geodesic(start, end, steps)
         elif const_lat:
@@ -76,16 +75,16 @@ class UxDataArrayCrossSectionAccessor:
         new_dims = [new_dim if d == "n_face" else d for d in orig_dims]
         dim_axis = new_dims.index(new_dim)
 
-        # Pull data into a NumPy array, moving face → last axis
+        # TODO:
         arr = np.moveaxis(
             self.uxda.compute().data, face_axis, -1
         )  # now shape (..., n_face)
-        M, Nf = arr.reshape(-1, arr.shape[-1]).shape  # M = product of all other dims
+        M, Nf = arr.reshape(-1, arr.shape[-1]).shape
         flat_orig = arr.reshape(M, Nf)
 
         # Fill along the arc with nearest‐neighbor
-        flat_filled = _fill_numba(flat_orig, face_idx, Nf, steps)  # shape (M, steps)
-        filled = flat_filled.reshape(*arr.shape[:-1], steps)  # shape (..., steps)
+        flat_filled = _fill_numba(flat_orig, face_idx, Nf, steps)
+        filled = flat_filled.reshape(*arr.shape[:-1], steps)
 
         # Move steps axis back to its proper position
         data = np.moveaxis(filled, -1, dim_axis)
@@ -95,11 +94,10 @@ class UxDataArrayCrossSectionAccessor:
         # index along the arc
         coords[new_dim] = np.arange(steps)
 
-        # attach lat/lon vectors (length = steps)
+        # attach lat/lon vectors
         coords["lat"] = (new_dim, points_latlon[:, 0])
         coords["lon"] = (new_dim, points_latlon[:, 1])
 
-        # now build & return
         return xr.DataArray(
             data,
             dims=new_dims,
