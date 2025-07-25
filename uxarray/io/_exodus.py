@@ -128,10 +128,11 @@ def _encode_exodus(ds, outfile=None):
 
     exo_ds = xr.Dataset()
 
+    # --- Globals and Attributes ---
     now = datetime.now()
     date = now.strftime("%Y:%m:%d")
     time = now.strftime("%H:%M:%S")
-    fp_word = INT_DTYPE(8)
+    fp_word = np.int32(8)  # Assuming INT_DTYPE is int32 based on usage
     exo_version = np.float32(5.0)
     api_version = np.float32(5.0)
 
@@ -139,156 +140,100 @@ def _encode_exodus(ds, outfile=None):
         "api_version": api_version,
         "version": exo_version,
         "floating_point_word_size": fp_word,
-        "file_size": 0,
+        "file_size": 0,  # Will be 0 for an in-memory representation
     }
 
     if outfile:
         path = PurePath(outfile)
         out_filename = path.name
-        title = "uxarray(" + str(out_filename) + ")" + date + ": " + time
-
-        exo_ds.attrs = {
-            "api_version": api_version,
-            "version": exo_version,
-            "floating_point_word_size": fp_word,
-            "file_size": 0,
-            "title": title,
-        }
+        title = f"uxarray({out_filename}){date}: {time}"
+        exo_ds.attrs["title"] = title
 
     exo_ds["time_whole"] = xr.DataArray(data=[], dims=["time_step"])
 
-    # qa_records
-    # version identifier of the application code: https://gsjaardema.github.io/seacas-docs/exodusII-new.pdf page: 12
-    ux_exodus_version = 1.0
+    # --- QA Records ---
+    ux_exodus_version = "1.0"
     qa_records = [["uxarray"], [ux_exodus_version], [date], [time]]
     exo_ds["qa_records"] = xr.DataArray(
-        data=xr.DataArray(np.array(qa_records, dtype="str")),
-        dims=["four", "num_qa_rec"],
-    )
+        data=np.array(qa_records, dtype="S"),
+        dims=["num_qa_rec", "four"],
+    ).transpose()
 
-    # Set the dim to 3 as we will always have x/y/z for cartesian grid
-    # Note: Don't get orig dimension from Mesh2 attribute topology dimension
+    # --- Node Coordinates ---
     if "node_x" not in ds:
         x, y, z = _lonlat_rad_to_xyz(ds["node_lon"].values, ds["node_lat"].values)
-        c_data = xr.DataArray([x, y, z])
+        c_data = np.array([x, y, z])
     else:
-        c_data = xr.DataArray(
-            [
-                ds["node_x"].data.tolist(),
-                ds["node_y"].data.tolist(),
-                ds["node_z"].data.tolist(),
-            ]
+        c_data = np.array(
+            [ds["node_x"].values, ds["node_y"].values, ds["node_z"].values]
         )
 
     exo_ds["coord"] = xr.DataArray(data=c_data, dims=["num_dim", "num_nodes"])
 
-    # process face nodes, this array holds num faces at corresponding location
-    # eg num_el_all_blks = [0, 0, 6, 12] signifies 6 TRI and 12 SHELL elements
-    num_el_all_blks = np.zeros(ds["n_max_face_nodes"].size, "i8")
-    # this list stores connectivity without filling
+    # --- Element Blocks and Connectivity ---
+    # Use .sizes to robustly get the dimension size
+    n_max_nodes_per_face = ds.sizes["n_max_face_nodes"]
+    num_el_all_blks = np.zeros(n_max_nodes_per_face, dtype=np.int64)
     conn_nofill = []
 
-    # store the number of faces in an array
-    for row in ds["face_node_connectivity"].astype(INT_DTYPE).data:
-        # find out -1 in each row, this indicates lower than max face nodes
-        arr = np.where(row == -1)
-        # arr[0].size returns the location of first -1 in the conn list
-        # if > 0, arr[0][0] is the num_nodes forming the face
-        if arr[0].size > 0:
-            # increment the number of faces at the corresponding location
-            num_el_all_blks[arr[0][0] - 1] += 1
-            # append without -1s eg. [1, 2, 3, -1] to [1, 2, 3]
-            # convert to list (for sorting later)
-            row = row[: (arr[0][0])].tolist()
-            list_node = list(map(int, row))
-            conn_nofill.append(list_node)
-        elif arr[0].size == 0:
-            # increment the number of faces for this "n_max_face_nodes" face
-            num_el_all_blks[ds["n_max_face_nodes"].size - 1] += 1
-            # get integer list nodes
-            list_node = list(map(int, row.tolist()))
-            conn_nofill.append(list_node)
-        else:
-            raise RuntimeError(
-                "num nodes in conn array is greater than n_max_face_nodes. Abort!"
-            )
-    # get number of blks found
+    for row in ds["face_node_connectivity"].values:
+        # Find the index of the first fill value (-1)
+        fill_val_idx = np.where(row == -1)[0]
+
+        if fill_val_idx.size > 0:
+            num_nodes = fill_val_idx[0]
+            num_el_all_blks[num_nodes - 1] += 1
+            conn_nofill.append(row[:num_nodes].astype(int).tolist())
+        else:  # No fill value found, face uses all nodes
+            num_nodes = n_max_nodes_per_face
+            num_el_all_blks[num_nodes - 1] += 1
+            conn_nofill.append(row.astype(int).tolist())
+
     num_blks = np.count_nonzero(num_el_all_blks)
-
-    # sort connectivity by size, lower dim faces first
     conn_nofill.sort(key=len)
+    nonzero_el_index_blks = np.nonzero(num_el_all_blks)[0]
 
-    # get index of blocks found
-    nonzero_el_index_blks = np.nonzero(num_el_all_blks)
-
-    # break face_node_connectivity into blks
     start = 0
-    for blk in range(num_blks):
-        blkID = blk + 1
-        str_el_in_blk = "num_el_in_blk" + str(blkID)
-        str_nod_per_el = "num_nod_per_el" + str(blkID)
-        str_att_in_blk = "num_att_in_blk" + str(blkID)
-        str_global_id = "global_id" + str(blkID)
-        str_edge_type = "edge_type" + str(blkID)
-        str_attrib = "attrib" + str(blkID)
-        str_connect = "connect" + str(blkID)
+    for blk_idx, face_node_idx in enumerate(nonzero_el_index_blks):
+        blkID = blk_idx + 1
+        num_nodes_per_elem = face_node_idx + 1
+        num_elem_in_blk = num_el_all_blks[face_node_idx]
+        element_type = _get_element_type(num_nodes_per_elem)
 
-        # get element type
-        num_nodes = len(conn_nofill[start])
-        element_type = _get_element_type(num_nodes)
+        # Define variable names for this block
+        conn_name = f"connect{blkID}"
+        el_in_blk_dim = f"num_el_in_blk{blkID}"
+        nod_per_el_dim = f"num_nod_per_el{blkID}"
 
-        # get number of faces for this block
-        num_faces = num_el_all_blks[nonzero_el_index_blks[0][blk]]
-        # assign Data variables
-        # convert list to np.array, sorted list guarantees we have the correct info
-        conn_blk = conn_nofill[start : start + num_faces]
-        conn_np = np.array([np.array(xi, dtype=INT_DTYPE) for xi in conn_blk])
-        exo_ds[str_connect] = xr.DataArray(
-            data=xr.DataArray((conn_np[:] + 1)),
-            dims=[str_el_in_blk, str_nod_per_el],
+        # Slice the connectivity list for the current block
+        conn_blk = conn_nofill[start : start + num_elem_in_blk]
+        conn_np = np.array(conn_blk, dtype=np.int64)
+
+        # Add connectivity data for the block (1-based)
+        exo_ds[conn_name] = xr.DataArray(
+            data=conn_np + 1,
+            dims=[el_in_blk_dim, nod_per_el_dim],
             attrs={"elem_type": element_type},
         )
 
-        # edge type
-        exo_ds[str_edge_type] = xr.DataArray(
-            data=xr.DataArray(np.zeros((num_faces, num_nodes), dtype=INT_DTYPE)),
-            dims=[str_el_in_blk, str_nod_per_el],
-        )
+        # Correctly increment the start index for the next block
+        start += num_elem_in_blk
 
-        # global id
-        gid = np.arange(start + 1, start + num_faces + 1, 1)
-        exo_ds[str_global_id] = xr.DataArray(data=(gid), dims=[str_el_in_blk])
-
-        # attrib
-        # TODO: fix num attr
-        num_attr = 1
-        exo_ds[str_attrib] = xr.DataArray(
-            data=xr.DataArray(np.zeros((num_faces, num_attr), float)),
-            dims=[str_el_in_blk, str_att_in_blk],
-        )
-
-        start = num_faces
-
-    # blk for loop ends
-
-    # eb_prop1
-    prop1_vals = np.arange(1, num_blks + 1, 1)
+    # --- Element Block Properties ---
+    prop1_vals = np.arange(1, num_blks + 1, 1, dtype=np.int32)
     exo_ds["eb_prop1"] = xr.DataArray(
         data=prop1_vals, dims=["num_el_blk"], attrs={"name": "ID"}
     )
-    # eb_status
     exo_ds["eb_status"] = xr.DataArray(
-        data=xr.DataArray(np.ones([num_blks], dtype=INT_DTYPE)), dims=["num_el_blk"]
+        data=np.ones(num_blks, dtype=np.int32), dims=["num_el_blk"]
+    )
+    exo_ds["eb_names"] = xr.DataArray(
+        data=np.empty(num_blks, dtype="S"), dims=["num_el_blk"]
     )
 
-    # eb_names
-    eb_names = np.empty(num_blks, dtype="str")
-    exo_ds["eb_names"] = xr.DataArray(data=xr.DataArray(eb_names), dims=["num_el_blk"])
-    cnames = ["x", "y", "z"]
-
-    exo_ds["coor_names"] = xr.DataArray(
-        data=xr.DataArray(np.array(cnames, dtype="str")), dims=["num_dim"]
-    )
+    # --- Coordinate and Name Placeholders ---
+    cnames = np.array(["x", "y", "z"], dtype="S")
+    exo_ds["coor_names"] = xr.DataArray(data=cnames, dims=["num_dim"])
 
     return exo_ds
 

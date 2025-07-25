@@ -33,8 +33,8 @@ def test_mixed_exodus():
     """Read/write an exodus file with two types of faces (triangle and quadrilaterals) and writes a ugrid file."""
     uxgrid = ux.open_grid(exo2_filename)
 
-    uxgrid.encode_as("UGRID")
-    uxgrid.encode_as("Exodus")
+    uxgrid.to_xarray("UGRID")
+    uxgrid.to_xarray("Exodus")
     # Add assertions or checks as needed
 
 def test_standardized_dtype_and_fill():

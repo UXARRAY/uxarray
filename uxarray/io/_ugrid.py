@@ -114,7 +114,15 @@ def _encode_ugrid(ds):
 
     grid_topology_da = xr.DataArray(data=-1, attrs=grid_topology)
 
-    ds["grid_topology"] = grid_topology_da
+    ds = ds.assign(grid_topology=grid_topology_da)
+    # Copy global attributes and convert booleans to integers
+    new_attrs = {}
+    for key, value in ds.attrs.items():
+        if isinstance(value, bool):
+            new_attrs[key] = int(value)  # Convert boolean to integer
+        else:
+            new_attrs[key] = value
+    ds.attrs = new_attrs
 
     return ds
 

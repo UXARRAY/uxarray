@@ -167,41 +167,54 @@ def _encode_scrip(face_node_connectivity, node_lon, node_lat, face_areas):
     """
     # Create empty dataset to put new scrip format data into
     ds = xr.Dataset()
+    n_face = face_node_connectivity.shape[0]
+    n_max_nodes = face_node_connectivity.shape[1]
 
-    # Make grid corner lat/lon
-    f_nodes = face_node_connectivity.values.astype(INT_DTYPE).ravel()
+    # --- Core logic enhanced with Implementation 2's robust method ---
+    # Flatten the connectivity array to easily work with all node indices
+    f_nodes_flat = face_node_connectivity.values.astype(int).ravel()
 
-    # Create arrays to hold lat/lon data
-    lat_nodes = node_lat[f_nodes].values
-    lon_nodes = node_lon[f_nodes].values
+    # Create a mask to identify valid nodes vs. fill values
+    valid_nodes_mask = f_nodes_flat != INT_FILL_VALUE
 
-    # Reshape arrays to be 2D instead of 1D
-    reshp_lat = np.reshape(
-        lat_nodes, [face_node_connectivity.shape[0], face_node_connectivity.shape[1]]
-    )
-    reshp_lon = np.reshape(
-        lon_nodes, [face_node_connectivity.shape[0], face_node_connectivity.shape[1]]
-    )
+    # Create arrays to hold final lat/lon data, filled with NaN
+    lat_nodes_flat = np.full(f_nodes_flat.shape, np.nan, dtype=np.float64)
+    lon_nodes_flat = np.full(f_nodes_flat.shape, np.nan, dtype=np.float64)
+
+    # Get the flattened indices of the valid nodes (where the mask is True)
+    valid_indices = np.where(valid_nodes_mask)[0]
+    # Get the actual node indices from the connectivity array for those valid positions
+    valid_node_ids = f_nodes_flat[valid_indices]
+
+    # Use the valid indices to populate the coordinate arrays correctly
+    lon_nodes_flat[valid_indices] = node_lon.values[valid_node_ids]
+    lat_nodes_flat[valid_indices] = node_lat.values[valid_node_ids]
+
+    # Reshape the 1D arrays back to 2D
+    reshp_lat = lat_nodes_flat.reshape((n_face, n_max_nodes))
+    reshp_lon = lon_nodes_flat.reshape((n_face, n_max_nodes))
+    # --- End of enhanced logic ---
 
     # Add data to new scrip output file
     ds["grid_corner_lat"] = xr.DataArray(
-        data=reshp_lat, dims=["grid_size", "grid_corners"]
+        data=reshp_lat,
+        dims=["grid_size", "grid_corners"],
+        attrs={"units": "degrees"},
     )
-
     ds["grid_corner_lon"] = xr.DataArray(
-        data=reshp_lon, dims=["grid_size", "grid_corners"]
+        data=reshp_lon,
+        dims=["grid_size", "grid_corners"],
+        attrs={"units": "degrees"},
     )
 
     # Create Grid rank, always 1 for unstructured grids
     ds["grid_rank"] = xr.DataArray(data=[1], dims=["grid_rank"])
 
-    # Create grid_dims value of len grid_size
-    ds["grid_dims"] = xr.DataArray(data=[len(lon_nodes)], dims=["grid_rank"])
+    # FIX: Correctly set grid_dims to the number of faces
+    ds["grid_dims"] = xr.DataArray(data=[n_face], dims=["grid_rank"])
 
-    # Create grid_imask representing fill values
-    ds["grid_imask"] = xr.DataArray(
-        data=np.ones(len(reshp_lon), dtype=int), dims=["grid_size"]
-    )
+    # Create grid_imask representing active cells
+    ds["grid_imask"] = xr.DataArray(data=np.ones(n_face, dtype=int), dims=["grid_size"])
 
     ds["grid_area"] = xr.DataArray(data=face_areas, dims=["grid_size"])
 
@@ -209,7 +222,6 @@ def _encode_scrip(face_node_connectivity, node_lon, node_lat, face_areas):
     center_lat, center_lon = grid_center_lat_lon(ds)
 
     ds["grid_center_lon"] = xr.DataArray(data=center_lon, dims=["grid_size"])
-
     ds["grid_center_lat"] = xr.DataArray(data=center_lat, dims=["grid_size"])
 
     return ds
