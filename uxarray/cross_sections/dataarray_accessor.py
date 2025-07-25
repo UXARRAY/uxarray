@@ -16,8 +16,6 @@ from .sample import (
 
 
 class UxDataArrayCrossSectionAccessor:
-    """TODO"""
-
     def __init__(self, uxda) -> None:
         self.uxda = uxda
 
@@ -29,16 +27,58 @@ class UxDataArrayCrossSectionAccessor:
         lat: float | None = None,
         lon: float | None = None,
         steps: int = 100,
-        interp_type="nearest",
     ) -> xr.DataArray:
         """
-        TODO:
-        """
+        Extracts a cross-section sampled along an arbitrary great-circle arc (GCA) or line of constant latitude/longitude.
 
-        if interp_type != "nearest":
-            raise ValueError(
-                f"Only 'nearest' interpolation is supported, not '{interp_type}'"
-            )
+        Exactly one mode must be specified:
+
+        - **Great‐circle**: supply both `start` and `end` (lon, lat) tuples,
+          samples a geodesic arc.
+        - **Constant latitude**: supply `lat` alone (float),
+          returns points along that latitude.
+        - **Constant longitude**: supply `lon` alone (float),
+          returns points along that longitude.
+
+        Parameters
+        ----------
+        start : tuple[float, float], optional
+            (lon, lat) of the geodesic start point.
+        end : tuple[float, float], optional
+            (lon, lat) of the geodesic end point.
+        lat : float, optional
+            Latitude for a constant‐latitude slice.
+        lon : float, optional
+            Longitude for a constant‐longitude slice.
+        steps : int, default 100
+            Number of sample points (including endpoints).
+
+        Returns
+        -------
+        xr.DataArray
+            A DataArray with a new `"steps"` dimension, plus `"lat"` and `"lon"`
+            coordinate variables giving the sampling positions.
+
+
+        Examples
+        --------
+
+        Cross-section between two points (lon ,lat)
+
+        >>> uxda.cross_section(start=(-45, -45), end=(45, 45))
+
+        Constant latitude cross-section
+
+        >>> uxda.cross_section(lat=45)
+
+        Constant longitude cross-section
+
+        >>> uxda.cross_section(lon=0)
+
+        Constant longitude cross-section with custom number of steps
+
+        >>> uxda.cross_section(lon=0, steps=200)
+        """
 
         great_circle = start is not None or end is not None
         const_lon = lon is not None
@@ -68,15 +108,13 @@ class UxDataArrayCrossSectionAccessor:
         )
         face_idx = np.array([row[0] if row else -1 for row in faces], dtype=INT_DTYPE)
 
-        # Prepare new dimension names & axes
         orig_dims = list(self.uxda.dims)
         face_axis = orig_dims.index("n_face")
         new_dim = "steps"
         new_dims = [new_dim if d == "n_face" else d for d in orig_dims]
         dim_axis = new_dims.index(new_dim)
 
-        # TODO:
-        arr = np.moveaxis(self.uxda.compute().data, face_axis, -1)
+        arr = np.moveaxis(self.uxda.compute().values, face_axis, -1)
         M, Nf = arr.reshape(-1, arr.shape[-1]).shape
         flat_orig = arr.reshape(M, Nf)
 

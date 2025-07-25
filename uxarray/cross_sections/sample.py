@@ -4,10 +4,10 @@ from pyproj import Geod
 
 
 @njit(parallel=True)
-def _fill_numba(flat_orig, face_idx, n_face, n_samples):
+def _fill_numba(flat_orig, face_idx, n_face, n_steps):
     M = flat_orig.shape[0]
-    out = np.full((M, n_samples), np.nan, flat_orig.dtype)
-    for i in prange(n_samples):
+    out = np.full((M, n_steps), np.nan, flat_orig.dtype)
+    for i in prange(n_steps):
         f = face_idx[i]
         if 0 <= f < n_face:
             out[:, i] = flat_orig[:, f]
@@ -77,7 +77,7 @@ def sample_constant_latitude(lat: float, steps: int) -> tuple[np.ndarray, np.nda
     rad_lon = np.deg2rad(lons)
     rad_lat = np.deg2rad(lats)
 
-    # spherical → Cartesian
+    # spherical to Cartesian
     x = np.cos(rad_lat) * np.cos(rad_lon)
     y = np.cos(rad_lat) * np.sin(rad_lon)
     z = np.sin(rad_lat)
@@ -104,7 +104,7 @@ def sample_constant_longitude(lon: float, steps: int) -> tuple[np.ndarray, np.nd
     rad_lon = np.deg2rad(lons)
     rad_lat = np.deg2rad(lats)
 
-    # spherical → Cartesian
+    # spherical to Cartesian
     x = np.cos(rad_lat) * np.cos(rad_lon)
     y = np.cos(rad_lat) * np.sin(rad_lon)
     z = np.sin(rad_lat)
