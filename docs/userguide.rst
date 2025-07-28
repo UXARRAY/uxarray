@@ -67,8 +67,8 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Weighted Mean <user-guide/weighted_mean.ipynb>`_
  Compute the weighted average
 
-`Calculus Operators <user-guide/calculus.ipynb>`_
- Apply calculus operators (gradient, integral) on unstructured grid data
+`Gradients <user-guide/gradients.ipynb>`_
+ TODO:
 
 `Tree Structures <user-guide/tree_structures.ipynb>`_
  Data structures for nearest neighbor queries
@@ -117,7 +117,7 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/remapping.ipynb
    user-guide/topological-aggregations.ipynb
    user-guide/weighted_mean.ipynb
-   user-guide/calculus.ipynb
+   user-guide/gradients.ipynb
    user-guide/tree_structures.ipynb
    user-guide/area_calc.ipynb
    user-guide/dual-mesh.ipynb
