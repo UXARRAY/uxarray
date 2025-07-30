@@ -144,6 +144,8 @@ def test_grid_ugrid_exodus_roundtrip():
         # Define output file paths
         ugrid_filepath = f"test_ugrid_{grid_name}.nc"
         exodus_filepath = f"test_exodus_{grid_name}.exo"
+        test_files.append(ugrid_filepath)
+        test_files.append(exodus_filepath)
 
         # Serialize datasets to disk
         ugrid_dataset.to_netcdf(ugrid_filepath)

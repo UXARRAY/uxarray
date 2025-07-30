@@ -46,7 +46,19 @@ def test_read_ugrid():
 def test_to_xarray_ugrid():
     """Read an Exodus dataset and convert it to UGRID format using to_xarray."""
     ux_grid = ux.open_grid(gridfile_exo_ne8)
-    ux_grid.to_xarray("UGRID")
+    xr_obj = ux_grid.to_xarray("UGRID")
+    xr_obj.to_netcdf("ugrid_exo_csne8.nc")
+    reloaded_grid = ux.open_grid("ugrid_exo_csne8.nc")
+    # Check that the grid topology is perfectly preserved
+    nt.assert_array_equal(ux_grid.face_node_connectivity.values,
+                          reloaded_grid.face_node_connectivity.values)
+
+    # Check that node coordinates are numerically close
+    nt.assert_allclose(ux_grid.node_lon.values, reloaded_grid.node_lon.values)
+    nt.assert_allclose(ux_grid.node_lat.values, reloaded_grid.node_lat.values)
+
+    # Cleanup
+    os.remove("ugrid_exo_csne8.nc")
 
 def test_standardized_dtype_and_fill():
     """Test to see if Mesh2_Face_Nodes uses the expected integer datatype and expected fill value."""

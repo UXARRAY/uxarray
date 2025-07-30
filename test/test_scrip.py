@@ -20,6 +20,7 @@ gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.
 gridfile_RLL1deg = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
 gridfile_RLL10deg_ne4 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
 gridfile_exo_ne8 = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
+gridfile_scrip = current_path / "meshfiles" / "scrip" / "outCSne8" /"outCSne8.nc"
 
 def test_read_ugrid():
     """Reads a ugrid file."""
@@ -47,8 +48,20 @@ def test_read_ugrid():
 
 def test_to_xarray_ugrid():
     """Read an Exodus dataset and convert it to UGRID format using to_xarray."""
-    ux_grid = ux.open_grid(gridfile_exo_ne8)
-    ux_grid.to_xarray("UGRID")
+    ux_grid = ux.open_grid(gridfile_scrip)
+    xr_obj = ux_grid.to_xarray("UGRID")
+    xr_obj.to_netcdf("scrip_ugrid_csne8.nc")
+    reloaded_grid = ux.open_grid("scrip_ugrid_csne8.nc")
+    # Check that the grid topology is perfectly preserved
+    nt.assert_array_equal(ux_grid.face_node_connectivity.values,
+                          reloaded_grid.face_node_connectivity.values)
+
+    # Check that node coordinates are numerically close
+    nt.assert_allclose(ux_grid.node_lon.values, reloaded_grid.node_lon.values)
+    nt.assert_allclose(ux_grid.node_lat.values, reloaded_grid.node_lat.values)
+
+    # Cleanup
+    os.remove("scrip_ugrid_csne8.nc")
 
 def test_standardized_dtype_and_fill():
     """Test to see if Mesh2_Face_Nodes uses the expected integer datatype

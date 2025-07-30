@@ -64,18 +64,36 @@ def _read_exodus(ext_ds):
                     data=ext_ds.coordz, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Z_ATTRS
                 )
         elif "connect" in key:
-            # check if num face nodes is less than max.
-            if value.data.shape[1] <= max_face_nodes:
-                face_nodes = value
-            else:
-                raise RuntimeError("found face_nodes_dim greater than n_max_face_nodes")
+            # This variable will be populated in the next step
+            pass
 
     # outside the k,v for loop
     # set the face nodes data compiled in "connect" section
+    connect_list = []
+    for key, value in ext_ds.variables.items():
+        if "connect" in key:
+            connect_list.append(value.data)
+
+    padded_blocks = []
+    for block in connect_list:
+        num_nodes = block.shape[1]
+        pad_width = max_face_nodes - num_nodes
+
+        # Pad with 0, as Exodus uses 0 for non-existent nodes
+        padded_block = np.pad(
+            block, ((0, 0), (0, pad_width)), "constant", constant_values=0
+        )
+        padded_blocks.append(padded_block)
+
+    # Prevent error on empty grids
+    if not padded_blocks:
+        face_nodes = np.empty((0, max_face_nodes), dtype=INT_DTYPE)
+    else:
+        face_nodes = np.vstack(padded_blocks)
 
     # standardize fill values and data type face nodes
     face_nodes = _replace_fill_values(
-        grid_var=face_nodes[:] - 1,
+        grid_var=xr.DataArray(face_nodes - 1),  # Wrap numpy array in a DataArray
         original_fill=-1,
         new_fill=INT_FILL_VALUE,
         new_dtype=INT_DTYPE,
@@ -151,6 +169,9 @@ def _encode_exodus(ds, outfile=None):
 
     exo_ds["time_whole"] = xr.DataArray(data=[], dims=["time_step"])
 
+    # --- Add num_elem dimension ---
+    exo_ds.attrs["num_elem"] = ds.sizes["n_face"]
+
     # --- QA Records ---
     ux_exodus_version = "1.0"
     qa_records = [["uxarray"], [ux_exodus_version], [date], [time]]
@@ -161,7 +182,6 @@ def _encode_exodus(ds, outfile=None):
 
     # --- Node Coordinates ---
     if "node_x" not in ds:
-        print("HERE", ds["node_lon"].values)
         node_lon_rad = np.deg2rad(ds["node_lon"].values)
         node_lat_rad = np.deg2rad(ds["node_lat"].values)
         x, y, z = _lonlat_rad_to_xyz(node_lon_rad, node_lat_rad)

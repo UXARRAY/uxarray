@@ -50,6 +50,7 @@ def test_mixed_exodus():
     assert np.array_equal(ugrid_load_saved.node_lon.values, uxgrid.node_lon.values)
     assert np.array_equal(uxgrid.node_lon.values, exodus_load_saved.node_lon.values)
     assert np.array_equal(ugrid_load_saved.node_lat.values, uxgrid.node_lat.values)
+
     # Cleanup
     os.remove("test_ugrid.nc")
     os.remove("test_exo.exo")
