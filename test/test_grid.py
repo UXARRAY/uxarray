@@ -96,15 +96,107 @@ def test_grid_with_holes():
     assert grid_without_holes.global_sphere_coverage
 
 
-def test_grid_to_xarray():
-    """Reads a ugrid file and encodes it as `xarray.Dataset` in various types."""
-    grid_CSne30.to_xarray("UGRID")
-    grid_RLL1deg.to_xarray("UGRID")
-    grid_RLL10deg_CSne4.to_xarray("UGRID")
+def test_grid_ugrid_exodus_roundtrip():
+    """Test round-trip serialization of grid objects through UGRID and Exodus xarray formats.
 
-    grid_CSne30.to_xarray("Exodus")
-    grid_RLL1deg.to_xarray("Exodus")
-    grid_RLL10deg_CSne4.to_xarray("Exodus")
+    Validates that grid objects can be successfully converted to xarray.Dataset
+    objects in both UGRID and Exodus formats, serialized to disk, and reloaded
+    while maintaining numerical accuracy and topological integrity.
+
+    The test verifies:
+    - Successful conversion to UGRID and Exodus xarray formats
+    - File I/O round-trip consistency
+    - Preservation of face-node connectivity (exact)
+    - Preservation of node coordinates (within numerical tolerance)
+
+    Raises:
+        AssertionError: If any round-trip validation fails
+    """
+
+    # Convert grids to xarray.Dataset objects in different formats
+    ugrid_datasets = {
+        'CSne30': grid_CSne30.to_xarray("UGRID"),
+        'RLL1deg': grid_RLL1deg.to_xarray("UGRID"),
+        'RLL10deg_CSne4': grid_RLL10deg_CSne4.to_xarray("UGRID")
+    }
+
+    exodus_datasets = {
+        'CSne30': grid_CSne30.to_xarray("Exodus"),
+        'RLL1deg': grid_RLL1deg.to_xarray("Exodus"),
+        'RLL10deg_CSne4': grid_RLL10deg_CSne4.to_xarray("Exodus")
+    }
+
+    # Define test cases with corresponding grid objects
+    test_grids = {
+        'CSne30': grid_CSne30,
+        'RLL1deg': grid_RLL1deg,
+        'RLL10deg_CSne4': grid_RLL10deg_CSne4
+    }
+
+    # Perform round-trip validation for each grid type
+    test_files = []
+
+    for grid_name in test_grids.keys():
+        ugrid_dataset = ugrid_datasets[grid_name]
+        exodus_dataset = exodus_datasets[grid_name]
+        original_grid = test_grids[grid_name]
+
+        # Define output file paths
+        ugrid_filepath = f"test_ugrid_{grid_name}.nc"
+        exodus_filepath = f"test_exodus_{grid_name}.exo"
+
+        # Serialize datasets to disk
+        ugrid_dataset.to_netcdf(ugrid_filepath)
+        exodus_dataset.to_netcdf(exodus_filepath)
+
+        # Reload grids from serialized files
+        reloaded_ugrid = ux.open_grid(ugrid_filepath)
+        reloaded_exodus = ux.open_grid(exodus_filepath)
+
+        # Validate topological consistency (face-node connectivity)
+        # Integer connectivity arrays must be exactly preserved
+        np.testing.assert_array_equal(
+            original_grid.face_node_connectivity.values,
+            reloaded_ugrid.face_node_connectivity.values,
+            err_msg=f"UGRID face connectivity mismatch for {grid_name}"
+        )
+        np.testing.assert_array_equal(
+            original_grid.face_node_connectivity.values,
+            reloaded_exodus.face_node_connectivity.values,
+            err_msg=f"Exodus face connectivity mismatch for {grid_name}"
+        )
+
+        # Validate coordinate consistency with numerical tolerance
+        # Coordinate transformations and I/O precision may introduce minor differences
+        np.testing.assert_allclose(
+            original_grid.node_lon.values,
+            reloaded_ugrid.node_lon.values,
+            err_msg=f"UGRID longitude mismatch for {grid_name}",
+            rtol=ERROR_TOLERANCE
+        )
+        np.testing.assert_allclose(
+            original_grid.node_lon.values,
+            reloaded_exodus.node_lon.values,
+            err_msg=f"Exodus longitude mismatch for {grid_name}",
+            rtol=ERROR_TOLERANCE
+        )
+        np.testing.assert_allclose(
+            original_grid.node_lat.values,
+            reloaded_ugrid.node_lat.values,
+            err_msg=f"UGRID latitude mismatch for {grid_name}",
+            rtol=ERROR_TOLERANCE
+        )
+        np.testing.assert_allclose(
+            original_grid.node_lat.values,
+            reloaded_exodus.node_lat.values,
+            err_msg=f"Exodus latitude mismatch for {grid_name}",
+            rtol=ERROR_TOLERANCE
+        )
+
+    # Clean up temporary test files
+    for filepath in test_files:
+        if os.path.exists(filepath):
+            os.remove(filepath)
 
 
 def test_grid_init_verts():

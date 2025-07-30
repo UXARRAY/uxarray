@@ -56,12 +56,12 @@ def _read_exodus(ext_ds):
             )
         elif key == "coordy":
             ds["node_y"] = xr.DataArray(
-                data=ext_ds.coordx, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Y_ATTRS
+                data=ext_ds.coordy, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Y_ATTRS
             )
         elif key == "coordz":
             if ext_ds.sizes["num_dim"] > 2:
                 ds["node_z"] = xr.DataArray(
-                    data=ext_ds.coordx, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Z_ATTRS
+                    data=ext_ds.coordz, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_Z_ATTRS
                 )
         elif "connect" in key:
             # check if num face nodes is less than max.
@@ -161,7 +161,10 @@ def _encode_exodus(ds, outfile=None):
 
     # --- Node Coordinates ---
     if "node_x" not in ds:
-        x, y, z = _lonlat_rad_to_xyz(ds["node_lon"].values, ds["node_lat"].values)
+        print("HERE", ds["node_lon"].values)
+        node_lon_rad = np.deg2rad(ds["node_lon"].values)
+        node_lat_rad = np.deg2rad(ds["node_lat"].values)
+        x, y, z = _lonlat_rad_to_xyz(node_lon_rad, node_lat_rad)
         c_data = np.array([x, y, z])
     else:
         c_data = np.array(
