@@ -61,6 +61,7 @@ def test_to_xarray_ugrid():
     nt.assert_allclose(ux_grid.node_lat.values, reloaded_grid.node_lat.values)
 
     # Cleanup
+    reloaded_grid._ds.close()
     os.remove("scrip_ugrid_csne8.nc")
 
 def test_standardized_dtype_and_fill():
