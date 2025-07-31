@@ -54,6 +54,7 @@ def test_mixed_exodus():
     # Cleanup
     ugrid_load_saved._ds.close()
     exodus_load_saved._ds.close()
+    del ugrid_load_saved, exodus_load_saved
     os.remove("test_ugrid.nc")
     os.remove("test_exo.exo")
 

@@ -59,6 +59,7 @@ def test_to_xarray_ugrid():
 
     # Cleanup
     reloaded_grid._ds.close()
+    del reloaded_grid
     os.remove("ugrid_exo_csne8.nc")
 
 def test_standardized_dtype_and_fill():

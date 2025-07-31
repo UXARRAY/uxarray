@@ -198,6 +198,8 @@ def test_grid_ugrid_exodus_roundtrip():
     # This might be need for windows "ermissionError: [WinError 32] -- file accessed by another process"
     reloaded_exodus._ds.close()
     reloaded_ugrid._ds.close()
+    del reloaded_exodus
+    del reloaded_ugrid
 
     # Clean up temporary test files
     for filepath in test_files:
