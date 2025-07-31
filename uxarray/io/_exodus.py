@@ -150,7 +150,7 @@ def _encode_exodus(ds, outfile=None):
     now = datetime.now()
     date = now.strftime("%Y:%m:%d")
     time = now.strftime("%H:%M:%S")
-    fp_word = np.int32(8)  # Assuming INT_DTYPE is int32 based on usage
+    fp_word = INT_DTYPE(8)
     exo_version = np.float32(5.0)
     api_version = np.float32(5.0)
 
@@ -158,7 +158,7 @@ def _encode_exodus(ds, outfile=None):
         "api_version": api_version,
         "version": exo_version,
         "floating_point_word_size": fp_word,
-        "file_size": 0,  # Will be 0 for an in-memory representation
+        "file_size": 0,  
     }
 
     if outfile:
