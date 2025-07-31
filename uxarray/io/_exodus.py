@@ -158,7 +158,7 @@ def _encode_exodus(ds, outfile=None):
         "api_version": api_version,
         "version": exo_version,
         "floating_point_word_size": fp_word,
-        "file_size": 0,  
+        "file_size": 0,
     }
 
     if outfile:
