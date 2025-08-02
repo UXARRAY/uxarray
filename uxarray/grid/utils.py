@@ -1,4 +1,5 @@
 import numpy as np
+import xarray as xr
 from numba import njit
 
 from uxarray.constants import INT_FILL_VALUE
@@ -431,3 +432,14 @@ def any_close_lat(lat_pt, atol):
     return np.isclose(lat_pt, 0.5 * np.pi, atol) or np.isclose(
         lat_pt, -0.5 * np.pi, atol
     )
+
+
+def make_setter(key: str):
+    """Return a setter that assigns the value to self._ds[key] after type-checking."""
+
+    def setter(self, value):
+        if not isinstance(value, xr.DataArray):
+            raise ValueError(f"{key} must be an xr.DataArray")
+        self._ds[key] = value
+
+    return setter
