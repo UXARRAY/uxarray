@@ -33,9 +33,30 @@ def test_mixed_exodus():
     """Read/write an exodus file with two types of faces (triangle and quadrilaterals) and writes a ugrid file."""
     uxgrid = ux.open_grid(exo2_filename)
 
-    uxgrid.encode_as("UGRID")
-    uxgrid.encode_as("Exodus")
-    # Add assertions or checks as needed
+    ugrid_obj = uxgrid.to_xarray("UGRID")
+    exo_obj = uxgrid.to_xarray("Exodus")
+
+    ugrid_obj.to_netcdf("test_ugrid.nc")
+    exo_obj.to_netcdf("test_exo.exo")
+
+    ugrid_load_saved = ux.open_grid("test_ugrid.nc")
+    exodus_load_saved = ux.open_grid("test_exo.exo")
+
+    # Face node connectivity comparison
+    assert np.array_equal(ugrid_load_saved.face_node_connectivity.values, uxgrid.face_node_connectivity.values)
+    assert np.array_equal(uxgrid.face_node_connectivity.values, exodus_load_saved.face_node_connectivity.values)
+
+    # Node coordinates comparison
+    assert np.array_equal(ugrid_load_saved.node_lon.values, uxgrid.node_lon.values)
+    assert np.array_equal(uxgrid.node_lon.values, exodus_load_saved.node_lon.values)
+    assert np.array_equal(ugrid_load_saved.node_lat.values, uxgrid.node_lat.values)
+
+    # Cleanup
+    ugrid_load_saved._ds.close()
+    exodus_load_saved._ds.close()
+    del ugrid_load_saved, exodus_load_saved
+    os.remove("test_ugrid.nc")
+    os.remove("test_exo.exo")
 
 def test_standardized_dtype_and_fill():
     """Test to see if Mesh2_Face_Nodes uses the expected integer datatype and expected fill value as set in constants.py."""
