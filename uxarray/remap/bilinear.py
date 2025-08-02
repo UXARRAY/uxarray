@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import xarray as xr
-from numba import njit
+from numba import njit, prange
 
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
@@ -140,6 +140,7 @@ def _barycentric_weights(point_xyz, dual, data_size, source_grid):
         dual.node_z.values,
         dual.face_node_connectivity.values,
         dual.n_nodes_per_face.values,
+        dual.n_face,
         all_weights,
         all_indices,
     )
@@ -147,7 +148,7 @@ def _barycentric_weights(point_xyz, dual, data_size, source_grid):
     return all_weights, all_indices
 
 
-@njit(cache=True)
+@njit(cache=True, parallel=True)
 def _calculate_weights(
     valid_idxs,
     point_xyz,
@@ -157,13 +158,16 @@ def _calculate_weights(
     z,
     face_node_conn,
     n_nodes_per_face,
+    n_faces,
     all_weights,
     all_indices,
 ):
-    for idx in valid_idxs:
-        fidx = int(face_indices[idx, 0])
+    for idx in prange(len(valid_idxs)):
+        fidx = int(face_indices[valid_idxs[idx], 0])
+        # bounds check: ensure face index is within valid range (0 to n_faces-1)
+        if fidx < 0 or fidx >= n_faces:
+            continue
         nverts = int(n_nodes_per_face[fidx])
-
         polygon_xyz = np.zeros((nverts, 3), dtype=np.float64)
         polygon_face_indices = np.empty(nverts, dtype=np.int32)
         for j in range(nverts):
@@ -174,18 +178,18 @@ def _calculate_weights(
             polygon_face_indices[j] = node
 
         # snap check
-        match = _find_matching_node_index(polygon_xyz, point_xyz[idx])
+        match = _find_matching_node_index(polygon_xyz, point_xyz[valid_idxs[idx]])
         if match[0] != -1:
-            all_weights[idx, 0] = 1.0
-            all_indices[idx, 0] = polygon_face_indices[match[0]]
+            all_weights[valid_idxs[idx], 0] = 1.0
+            all_indices[valid_idxs[idx], 0] = polygon_face_indices[match[0]]
             continue
 
         weights, node_idxs = barycentric_coordinates_cartesian(
-            polygon_xyz, point_xyz[idx]
+            polygon_xyz, point_xyz[valid_idxs[idx]]
         )
         for k in range(len(weights)):
-            all_weights[idx, k] = weights[k]
-            all_indices[idx, k] = polygon_face_indices[node_idxs[k]]
+            all_weights[valid_idxs[idx], k] = weights[k]
+            all_indices[valid_idxs[idx], k] = polygon_face_indices[node_idxs[k]]
 
 
 @njit(cache=True)
