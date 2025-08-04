@@ -3,7 +3,10 @@ import uxarray as ux
 import holoviews as hv
 import pytest
 from pathlib import Path
+import numpy as np
 
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
@@ -91,3 +94,19 @@ def test_scatter():
     uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
     _plot_line = uxds['bottomDepth'].zonal_average().plot.scatter()
     assert isinstance(_plot_line, hv.Scatter)
+
+
+
+def test_to_raster():
+
+    fig, ax = plt.subplots(
+        subplot_kw={'projection': ccrs.Robinson()},
+        constrained_layout=True,
+        figsize=(10, 5),
+    )
+
+    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+
+    raster = uxds['bottomDepth'].to_raster(ax=ax)
+
+    assert isinstance(raster, np.ndarray)

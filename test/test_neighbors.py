@@ -4,6 +4,7 @@ import pytest
 import xarray as xr
 from pathlib import Path
 import uxarray as ux
+from uxarray.grid.neighbors import _construct_edge_face_distances
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -157,3 +158,30 @@ def test_kdtree_multi_point_query():
         for i, cur_c in enumerate(c):
             single_ind = uxgrid.get_kd_tree(coordinates="nodes").query_radius(cur_c, 45)
             assert np.array_equal(single_ind, multi_ind[i])
+
+def test_construct_edge_face_distances():
+    """
+    Test _construct_edge_face_distances by verifying known great-circle distances
+    between face centers on a unit sphere.
+    """
+    face_lon = np.array([0, 0, 90, 90, -45])
+    face_lat = np.array([0, 90, 0, 90, 0])
+    edge_faces = np.array([
+            [0, 1],  # from (0,0) to (0,90)
+            [0, 2],  # from (0,0) to (90,0)
+            [1, 3],  # from (0,90) to (90,90) — both poles, same point
+            [2, 4],  # from (90,0) to (-45,0)
+        ])
+
+
+    # Expected great-circle distances in radians
+    expected = np.array([
+        np.pi / 2,  # 0 → 1
+        np.pi / 2,  # 0 → 2
+        0.0,  # 1 → 3
+        3 * np.pi / 4  # 2 → 4
+    ])
+
+    # Run the function under test
+    calculated = _construct_edge_face_distances(face_lon, face_lat, edge_faces)
+    np.testing.assert_array_almost_equal(calculated, expected, decimal=5)
