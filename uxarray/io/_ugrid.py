@@ -80,10 +80,6 @@ def _read_ugrid(ds):
 
     dim_dict[ds["face_node_connectivity"].dims[1]] = ugrid.N_MAX_FACE_NODES_DIM
 
-    for dim in ds.dims:
-        if ds.sizes[dim] == 2:
-            dim_dict[dim] = "two"
-
     ds = ds.swap_dims(dim_dict)
 
     return ds, dim_dict
