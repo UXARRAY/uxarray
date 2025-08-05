@@ -237,7 +237,7 @@ def _order_nodes(
             d_side = np.dot(node_cross, node_diff)
             d_dot_norm = np.dot(node_zero, node_diff) / (node_zero_mag * node_diff_mag)
 
-            # Clamp to valid range for arccos to avoid numerical errors            
+            # Clamp to valid range for arccos to avoid numerical errors
             d_dot_norm = np.clip(d_dot_norm, -1.0, 1.0)
 
             d_angles[j] = np.arccos(d_dot_norm)
