@@ -2,7 +2,7 @@
 
 ## Our Pledge
 
-We, as contributors, creators, stewards, and maintainers (collectively referred to as "contributors" below), of GeoCAT projects pledge to make participation in our software, system or hardware project and community a safe, productive, and welcoming experience for everyone. All contributors are required to abide by this Code of Conduct. This includes respectful treatment of everyone regardless of age, body size, disability, ethnicity, gender identity or expression, level of experience, nationality, political affiliation, veteran status, pregnancy, genetic information, physical appearance, race, religion, or sexual orientation, as well as any other characteristic protected under applicable US federal or state law.
+We, as contributors, creators, stewards, and maintainers (collectively referred to as "contributors" below), of the UXarray project pledge to make participation in our software, system or hardware project and community a safe, productive, and welcoming experience for everyone. All contributors are required to abide by this Code of Conduct. This includes respectful treatment of everyone regardless of age, body size, disability, ethnicity, gender identity or expression, level of experience, nationality, political affiliation, veteran status, pregnancy, genetic information, physical appearance, race, religion, or sexual orientation, as well as any other characteristic protected under applicable US federal or state law.
 
 ## Our Standards
 
