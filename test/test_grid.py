@@ -99,15 +99,115 @@ def test_grid_with_holes():
     assert grid_without_holes.global_sphere_coverage
 
 
-def test_grid_encode_as():
-    """Reads a ugrid file and encodes it as `xarray.Dataset` in various types."""
-    grid_CSne30.encode_as("UGRID")
-    grid_RLL1deg.encode_as("UGRID")
-    grid_RLL10deg_CSne4.encode_as("UGRID")
+def test_grid_ugrid_exodus_roundtrip():
+    """Test round-trip serialization of grid objects through UGRID and Exodus xarray formats.
 
-    grid_CSne30.encode_as("Exodus")
-    grid_RLL1deg.encode_as("Exodus")
-    grid_RLL10deg_CSne4.encode_as("Exodus")
+    Validates that grid objects can be successfully converted to xarray.Dataset
+    objects in both UGRID and Exodus formats, serialized to disk, and reloaded
+    while maintaining numerical accuracy and topological integrity.
+
+    The test verifies:
+    - Successful conversion to UGRID and Exodus xarray formats
+    - File I/O round-trip consistency
+    - Preservation of face-node connectivity (exact)
+    - Preservation of node coordinates (within numerical tolerance)
+
+    Raises:
+        AssertionError: If any round-trip validation fails
+    """
+
+    # Convert grids to xarray.Dataset objects in different formats
+    ugrid_datasets = {
+        'CSne30': grid_CSne30.to_xarray("UGRID"),
+        'RLL1deg': grid_RLL1deg.to_xarray("UGRID"),
+        'RLL10deg_CSne4': grid_RLL10deg_CSne4.to_xarray("UGRID")
+    }
+
+    exodus_datasets = {
+        'CSne30': grid_CSne30.to_xarray("Exodus"),
+        'RLL1deg': grid_RLL1deg.to_xarray("Exodus"),
+        'RLL10deg_CSne4': grid_RLL10deg_CSne4.to_xarray("Exodus")
+    }
+
+    # Define test cases with corresponding grid objects
+    test_grids = {
+        'CSne30': grid_CSne30,
+        'RLL1deg': grid_RLL1deg,
+        'RLL10deg_CSne4': grid_RLL10deg_CSne4
+    }
+
+    # Perform round-trip validation for each grid type
+    test_files = []
+
+    for grid_name in test_grids.keys():
+        ugrid_dataset = ugrid_datasets[grid_name]
+        exodus_dataset = exodus_datasets[grid_name]
+        original_grid = test_grids[grid_name]
+
+        # Define output file paths
+        ugrid_filepath = f"test_ugrid_{grid_name}.nc"
+        exodus_filepath = f"test_exodus_{grid_name}.exo"
+        test_files.append(ugrid_filepath)
+        test_files.append(exodus_filepath)
+
+        # Serialize datasets to disk
+        ugrid_dataset.to_netcdf(ugrid_filepath)
+        exodus_dataset.to_netcdf(exodus_filepath)
+
+        # Reload grids from serialized files
+        reloaded_ugrid = ux.open_grid(ugrid_filepath)
+        reloaded_exodus = ux.open_grid(exodus_filepath)
+
+        # Validate topological consistency (face-node connectivity)
+        # Integer connectivity arrays must be exactly preserved
+        np.testing.assert_array_equal(
+            original_grid.face_node_connectivity.values,
+            reloaded_ugrid.face_node_connectivity.values,
+            err_msg=f"UGRID face connectivity mismatch for {grid_name}"
+        )
+        np.testing.assert_array_equal(
+            original_grid.face_node_connectivity.values,
+            reloaded_exodus.face_node_connectivity.values,
+            err_msg=f"Exodus face connectivity mismatch for {grid_name}"
+        )
+
+        # Validate coordinate consistency with numerical tolerance
+        # Coordinate transformations and I/O precision may introduce minor differences
+        np.testing.assert_allclose(
+            original_grid.node_lon.values,
+            reloaded_ugrid.node_lon.values,
+            err_msg=f"UGRID longitude mismatch for {grid_name}",
+            rtol=ERROR_TOLERANCE
+        )
+        np.testing.assert_allclose(
+            original_grid.node_lon.values,
+            reloaded_exodus.node_lon.values,
+            err_msg=f"Exodus longitude mismatch for {grid_name}",
+            rtol=ERROR_TOLERANCE
+        )
+        np.testing.assert_allclose(
+            original_grid.node_lat.values,
+            reloaded_ugrid.node_lat.values,
+            err_msg=f"UGRID latitude mismatch for {grid_name}",
+            rtol=ERROR_TOLERANCE
+        )
+        np.testing.assert_allclose(
+            original_grid.node_lat.values,
+            reloaded_exodus.node_lat.values,
+            err_msg=f"Exodus latitude mismatch for {grid_name}",
+            rtol=ERROR_TOLERANCE
+        )
+
+    # This might be need for windows "ermissionError: [WinError 32] -- file accessed by another process"
+    reloaded_exodus._ds.close()
+    reloaded_ugrid._ds.close()
+    del reloaded_exodus
+    del reloaded_ugrid
+
+    # Clean up temporary test files
+    for filepath in test_files:
+        if os.path.exists(filepath):
+            os.remove(filepath)
 
 
 def test_grid_init_verts():
@@ -150,7 +250,7 @@ def test_grid_init_verts():
 
     assert vgrid.n_face == 6
     assert vgrid.n_node == 8
-    vgrid.encode_as("UGRID")
+    vgrid.to_xarray("UGRID")
 
     faces_verts_one = np.array([
         np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20], [135, 10]])
@@ -158,13 +258,13 @@ def test_grid_init_verts():
     vgrid = ux.open_grid(faces_verts_one, latlon=True)
     assert vgrid.n_face == 1
     assert vgrid.n_node == 6
-    vgrid.encode_as("UGRID")
+    vgrid.to_xarray("UGRID")
 
     faces_verts_single_face = np.array([[150, 10], [160, 20], [150, 30], [135, 30], [125, 20], [135, 10]])
     vgrid = ux.open_grid(faces_verts_single_face, latlon=True)
     assert vgrid.n_face == 1
     assert vgrid.n_node == 6
-    vgrid.encode_as("UGRID")
+    vgrid.to_xarray("UGRID")
 
 
 def test_grid_init_verts_different_input_datatype():
@@ -177,7 +277,7 @@ def test_grid_init_verts_different_input_datatype():
     vgrid = ux.open_grid(faces_verts_ndarray, latlon=True)
     assert vgrid.n_face == 3
     assert vgrid.n_node == 14
-    vgrid.encode_as("UGRID")
+    vgrid.to_xarray("UGRID")
 
     faces_verts_list = [[[150, 10], [160, 20], [150, 30], [135, 30], [125, 20], [135, 10]],
                         [[125, 20], [135, 30], [125, 60], [110, 60], [100, 30], [105, 20]],
@@ -186,7 +286,7 @@ def test_grid_init_verts_different_input_datatype():
     assert vgrid.n_face == 3
     assert vgrid.n_node == 14
     assert vgrid.validate()
-    vgrid.encode_as("UGRID")
+    vgrid.to_xarray("UGRID")
 
     faces_verts_tuples = [
         ((150, 10), (160, 20), (150, 30), (135, 30), (125, 20), (135, 10)),
@@ -197,7 +297,7 @@ def test_grid_init_verts_different_input_datatype():
     assert vgrid.n_face == 3
     assert vgrid.n_node == 14
     assert vgrid.validate()
-    vgrid.encode_as("UGRID")
+    vgrid.to_xarray("UGRID")
 
 
 def test_grid_init_verts_fill_values():
