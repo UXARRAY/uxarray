@@ -296,7 +296,7 @@ class DataArraySubsetAccessor:
         lons: Tuple[float, float],
         inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
-        """Extracts a subset of data by selecting all faces are within a specifed longitude interval.
+        """Extracts a subset of data by selecting all faces are within a specified longitude interval.
 
         Parameters
         ----------
