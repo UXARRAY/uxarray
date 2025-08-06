@@ -16,13 +16,9 @@ class DataArraySubsetAccessor:
         prefix = "<uxarray.UxDataArray.subset>\n"
         methods_heading = "Supported Methods:\n"
 
-        methods_heading += (
-            "  * nearest_neighbor(center_coord, k, element, inverse_indices)\n"
-        )
-        methods_heading += (
-            "  * bounding_circle(center_coord, r, element, inverse_indices)\n"
-        )
-        methods_heading += "  * bounding_box(lon_bounds, lat_bounds, inverse_indices)\n"
+        methods_heading += "  * nearest_neighbor(center_coord, k, element)\n"
+        methods_heading += "  * bounding_circle(center_coord, r, element)\n"
+        methods_heading += "  * bounding_box(lon_bounds, lat_bounds)\n"
         methods_heading += "  * constant_latitude(lat, lon_range)\n"
         methods_heading += "  * constant_longitude(lon, lat_range)\n"
         methods_heading += "  * constant_latitude_interval(lats)\n"
