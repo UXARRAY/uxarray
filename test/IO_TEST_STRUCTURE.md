@@ -86,36 +86,38 @@ Each format has its own test module that inherits from base classes and adds for
 """Format-specific test module template."""
 
 # Format-specific configurations
-FORMAT_READ_CONFIGS = [
-    ("format_name", "data_key1"),
-    ("format_name", "data_key2")
-]
+FORMAT_READ_CONFIGS = [("format_name", "data_key1"), ("format_name", "data_key2")]
 
 FORMAT_WRITE_FORMATS = ["FormatName"]  # If writing is supported
 
-FORMAT_ROUND_TRIP_CONFIGS = [
-    ("format_name", "data_key", "output_format")
-]
+FORMAT_ROUND_TRIP_CONFIGS = [("format_name", "data_key", "output_format")]
+
 
 class TestFormatReader(BaseIOReaderTests):
     """Test format reading functionality."""
+
     format_configs = FORMAT_READ_CONFIGS
 
     def test_format_specific_feature(self, test_data_paths):
         """Format-specific test example."""
         # Custom test implementation
 
+
 class TestFormatWriter(BaseIOWriterTests):
     """Test format writing functionality."""
+
     writable_formats = FORMAT_WRITE_FORMATS
+
 
 class TestFormatRoundTrip(BaseIORoundTripTests):
     """Test format round-trip consistency."""
+
     round_trip_configs = FORMAT_ROUND_TRIP_CONFIGS
+
 
 class TestFormatSpecialCases:
     """Format-specific special cases."""
-    
+
     def test_special_format_behavior(self, test_data_paths):
         """Test unique format characteristics."""
         pass
@@ -153,11 +155,7 @@ The `test_data_paths` fixture in `conftest.py` provides centralized access to al
 @pytest.fixture(scope="session")
 def test_data_paths():
     """Centralized test data paths for all formats."""
-    return {
-        "format_name": {
-            "data_key": Path("path/to/test/file")
-        }
-    }
+    return {"format_name": {"data_key": Path("path/to/test/file")}}
 ```
 
 ## Utility Functions
