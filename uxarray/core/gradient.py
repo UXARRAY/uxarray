@@ -350,7 +350,7 @@ def _compute_gradients_on_faces(
             gradient = np.full(3, np.nan)
 
         node_neighbors = face_node_connectivity[face_idx]
-        node_neighbors = node_neighbors[~np.isin(node_neighbors, INT_FILL_VALUE)]
+        node_neighbors = node_neighbors[node_neighbors != INT_FILL_VALUE]
 
         # Normalize and project zonal and meridional components and store the result for the current face
         gradients_faces[face_idx, 0], gradients_faces[face_idx, 1] = (
