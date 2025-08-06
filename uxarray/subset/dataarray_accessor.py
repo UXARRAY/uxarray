@@ -228,7 +228,7 @@ class DataArraySubsetAccessor:
         Examples
         --------
         >>> # Extract data at 0° longitude
-        >>> cross_section = uxda.cross_section.constant_latitude(lon=0.0)
+        >>> cross_section = uxda.cross_section.constant_longitude(lon=0.0)
         """
         if not self.uxda._face_centered():
             raise ValueError(
