@@ -344,7 +344,7 @@ class GridSubsetAccessor:
             The longitude interval (min_lon, max_lon) at which to extract the subset,
             in degrees. Values must be between -180.0 and 180.0
         return_face_indices : bool, optional
-            If True, also returns the indices of the faces that intersect are within a specifed longitude interval.
+            If True, also returns the indices of the faces that are within a specified longitude interval.
         inverse_indices : Union[List[str], Set[str], bool], optional
             Controls storage of original grid indices. Options:
             - True: Stores original face indices
