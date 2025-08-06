@@ -20,18 +20,18 @@ def _read_ugrid(ds):
         node_lon_name: ugrid.NODE_COORDINATES[0],
         node_lat_name: ugrid.NODE_COORDINATES[1],
     }
-
-    if "edge_coordinates" in ds["grid_topology"].attrs:
-        # get the names of edge_lon and edge_lat, if they exist
-        edge_lon_name, edge_lat_name = ds["grid_topology"].edge_coordinates.split()
-        coord_dict[edge_lon_name] = ugrid.EDGE_COORDINATES[0]
-        coord_dict[edge_lat_name] = ugrid.EDGE_COORDINATES[1]
-
-    if "face_coordinates" in ds["grid_topology"].attrs:
-        # get the names of face_lon and face_lat, if they exist
-        face_lon_name, face_lat_name = ds["grid_topology"].face_coordinates.split()
-        coord_dict[face_lon_name] = ugrid.FACE_COORDINATES[0]
-        coord_dict[face_lat_name] = ugrid.FACE_COORDINATES[1]
+    if "edge_lon" in ds and "edge_lat" in ds:
+        if "edge_coordinates" in ds["grid_topology"].attrs:
+            # get the names of edge_lon and edge_lat, if they exist
+            edge_lon_name, edge_lat_name = ds["grid_topology"].edge_coordinates.split()
+            coord_dict[edge_lon_name] = ugrid.EDGE_COORDINATES[0]
+            coord_dict[edge_lat_name] = ugrid.EDGE_COORDINATES[1]
+    if "face_lon" in ds and "face_lat" in ds:
+        if "face_coordinates" in ds["grid_topology"].attrs:
+            # get the names of face_lon and face_lat, if they exist
+            face_lon_name, face_lat_name = ds["grid_topology"].face_coordinates.split()
+            coord_dict[face_lon_name] = ugrid.FACE_COORDINATES[0]
+            coord_dict[face_lat_name] = ugrid.FACE_COORDINATES[1]
 
     ds = ds.rename(coord_dict)
 
@@ -110,7 +110,15 @@ def _encode_ugrid(ds):
 
     grid_topology_da = xr.DataArray(data=-1, attrs=grid_topology)
 
-    ds["grid_topology"] = grid_topology_da
+    ds = ds.assign(grid_topology=grid_topology_da)
+    # Copy global attributes and convert booleans to integers
+    new_attrs = {}
+    for key, value in ds.attrs.items():
+        if isinstance(value, bool):
+            new_attrs[key] = int(value)  # Convert boolean to integer
+        else:
+            new_attrs[key] = value
+    ds.attrs = new_attrs
 
     return ds
 
