@@ -97,7 +97,7 @@ def _populate_face_bounds(
 
     bounds_da = xr.DataArray(
         bounds_array,
-        dims=["n_face", "lon_lat", "min_max"],
+        dims=["n_face", "lat_lon", "min_max"],
         attrs={
             "cf_role": "face_latlon_bounds",
             "_FillValue": INT_FILL_VALUE,
