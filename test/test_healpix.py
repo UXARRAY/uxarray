@@ -6,6 +6,7 @@ import os
 import xarray as xr
 import pandas as pd
 from pathlib import Path
+from uxarray.constants import ERROR_TOLERANCE
 
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -99,3 +100,89 @@ def test_invalid_cells():
     xrda = xr.DataArray(data=np.ones(11), dims=['cell']).to_dataset(name='cell')
     with pytest.raises(ValueError):
         uxda = ux.UxDataset.from_healpix(xrda)
+
+def test_healpix_round_trip_consistency(tmp_path):
+    """Test round-trip serialization of HEALPix grid through UGRID and Exodus formats.
+
+    Validates that HEALPix grid objects can be successfully converted to xarray.Dataset
+    objects in both UGRID and Exodus formats, serialized to disk, and reloaded
+    while maintaining numerical accuracy and topological integrity.
+
+    Args:
+        tmp_path: pytest fixture providing temporary directory
+
+    Raises:
+        AssertionError: If any round-trip validation fails
+    """
+    # Create HEALPix grid
+    original_grid = ux.Grid.from_healpix(zoom=3)
+
+    # Access node coordinates to ensure they're generated before encoding
+    _ = original_grid.node_lon
+    _ = original_grid.node_lat
+
+    # Convert to xarray.Dataset objects in different formats
+    ugrid_dataset = original_grid.to_xarray("UGRID")
+    exodus_dataset = original_grid.to_xarray("Exodus")
+
+    # Define output file paths using tmp_path fixture
+    ugrid_filepath = tmp_path / "healpix_test_ugrid.nc"
+    exodus_filepath = tmp_path / "healpix_test_exodus.exo"
+
+    # Serialize datasets to disk
+    ugrid_dataset.to_netcdf(ugrid_filepath)
+    exodus_dataset.to_netcdf(exodus_filepath)
+
+    # Verify files were created successfully
+    assert ugrid_filepath.exists()
+    assert ugrid_filepath.stat().st_size > 0
+    assert exodus_filepath.exists()
+    assert exodus_filepath.stat().st_size > 0
+
+    # Reload grids from serialized files
+    reloaded_ugrid = ux.open_grid(ugrid_filepath)
+    reloaded_exodus = ux.open_grid(exodus_filepath)
+
+    # Validate topological consistency (face-node connectivity)
+    # Integer connectivity arrays must be exactly preserved
+    np.testing.assert_array_equal(
+        original_grid.face_node_connectivity.values,
+        reloaded_ugrid.face_node_connectivity.values,
+        err_msg="UGRID face connectivity mismatch for HEALPix"
+    )
+    np.testing.assert_array_equal(
+        original_grid.face_node_connectivity.values,
+        reloaded_exodus.face_node_connectivity.values,
+        err_msg="Exodus face connectivity mismatch for HEALPix"
+    )
+
+    # Validate coordinate consistency with numerical tolerance
+    # Coordinate transformations and I/O precision may introduce minor differences
+    np.testing.assert_allclose(
+        original_grid.node_lon.values,
+        reloaded_ugrid.node_lon.values,
+        err_msg="UGRID longitude mismatch for HEALPix",
+        rtol=ERROR_TOLERANCE
+    )
+    np.testing.assert_allclose(
+        original_grid.node_lon.values,
+        reloaded_exodus.node_lon.values,
+        err_msg="Exodus longitude mismatch for HEALPix",
+        rtol=ERROR_TOLERANCE
+    )
+    np.testing.assert_allclose(
+        original_grid.node_lat.values,
+        reloaded_ugrid.node_lat.values,
+        err_msg="UGRID latitude mismatch for HEALPix",
+        rtol=ERROR_TOLERANCE
+    )
+    np.testing.assert_allclose(
+        original_grid.node_lat.values,
+        reloaded_exodus.node_lat.values,
+        err_msg="Exodus latitude mismatch for HEALPix",
+        rtol=ERROR_TOLERANCE
+    )
+
+    # Validate grid dimensions are preserved
+    assert reloaded_ugrid.n_face == original_grid.n_face
+    assert reloaded_exodus.n_face == original_grid.n_face
