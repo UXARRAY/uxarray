@@ -25,6 +25,8 @@ class DataArraySubsetAccessor:
         methods_heading += "  * bounding_box(lon_bounds, lat_bounds, inverse_indices)\n"
         methods_heading += "  * constant_latitude(lat, lon_range)\n"
         methods_heading += "  * constant_longitude(lon, lat_range)\n"
+        methods_heading += "  * constant_latitude_interval(lats)\n"
+        methods_heading += "  * constant_longitude_interval(lons)\n"
 
         return prefix + methods_heading
 

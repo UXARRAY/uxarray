@@ -63,7 +63,7 @@ class UxDataArrayCrossSectionAccessor:
         Examples
         --------
 
-        Cross-section between two points (lon ,lat)
+        Cross-section between two points (lon, lat)
 
         >>> uxda.cross_section(start=(-45, -45), end=(45, 45))
 
@@ -142,12 +142,11 @@ class UxDataArrayCrossSectionAccessor:
             attrs=self.uxda.attrs,
         )
 
-    # TODO:
     __doc__ = __call__.__doc__
 
     def constant_latitude(self, *args, **kwargs):
         warn(
-            "The ‘constant_latitude’ method is deprecated and will be removed in a future release; "
+            "The ‘.cross_section.constant_latitude’ method is deprecated and will be removed in a future release; "
             "please use the `.subset.constant_latitude` accessor instead.",
             DeprecationWarning,
             stacklevel=2,
@@ -157,7 +156,7 @@ class UxDataArrayCrossSectionAccessor:
 
     def constant_longitude(self, *args, **kwargs):
         warn(
-            "The ‘constant_longitude’ method is deprecated and will be removed in a future release; "
+            "The ‘.cross_section.constant_longitude’ method is deprecated and will be removed in a future release; "
             "please use the `.subset.constant_longitude` accessor instead.",
             DeprecationWarning,
             stacklevel=2,
@@ -166,7 +165,7 @@ class UxDataArrayCrossSectionAccessor:
 
     def constant_latitude_interval(self, *args, **kwargs):
         warn(
-            "The ‘constant_latitude_interval’ method is deprecated and will be removed in a future release; "
+            "The ‘.cross_section.constant_latitude_interval’ method is deprecated and will be removed in a future release; "
             "please use the `.subset.constant_latitude_interval` accessor instead.",
             DeprecationWarning,
             stacklevel=2,
@@ -175,7 +174,7 @@ class UxDataArrayCrossSectionAccessor:
 
     def constant_longitude_interval(self, *args, **kwargs):
         warn(
-            "The ‘constant_longitude_interval’ method is deprecated and will be removed in a future release; "
+            "The ‘.cross_section.constant_longitude_interval’ method is deprecated and will be removed in a future release; "
             "please use the `.subset.constant_longitude_interval` accessor instead.",
             DeprecationWarning,
             stacklevel=2,

@@ -15,7 +15,7 @@ class GridCrossSectionAccessor:
 
     def constant_latitude(self, *args, **kwargs):
         warnings.warn(
-            "The ‘constant_latitude’ method is deprecated and will be removed in a future release; "
+            "The ‘.cross_section.constant_latitude’ method is deprecated and will be removed in a future release; "
             "please use the `.subset.constant_latitude` accessor instead.",
             DeprecationWarning,
             stacklevel=2,
@@ -25,7 +25,7 @@ class GridCrossSectionAccessor:
 
     def constant_longitude(self, *args, **kwargs):
         warnings.warn(
-            "The ‘constant_longitude’ method is deprecated and will be removed in a future release; "
+            "The ‘.cross_section.constant_longitude’ method is deprecated and will be removed in a future release; "
             "please use the `.subset.constant_longitude` accessor instead.",
             DeprecationWarning,
             stacklevel=2,
@@ -34,7 +34,7 @@ class GridCrossSectionAccessor:
 
     def constant_latitude_interval(self, *args, **kwargs):
         warnings.warn(
-            "The ‘constant_latitude_interval’ method is deprecated and will be removed in a future release; "
+            "The ‘.cross_section.constant_latitude_interval’ method is deprecated and will be removed in a future release; "
             "please use the `.subset.constant_latitude_interval` accessor instead.",
             DeprecationWarning,
             stacklevel=2,
@@ -43,7 +43,7 @@ class GridCrossSectionAccessor:
 
     def constant_longitude_interval(self, *args, **kwargs):
         warnings.warn(
-            "The ‘constant_longitude_interval’ method is deprecated and will be removed in a future release; "
+            "The ‘.cross_section.constant_longitude_interval’ method is deprecated and will be removed in a future release; "
             "please use the `.subset.constant_longitude_interval` accessor instead.",
             DeprecationWarning,
             stacklevel=2,
