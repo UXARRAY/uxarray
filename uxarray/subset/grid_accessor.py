@@ -336,7 +336,7 @@ class GridSubsetAccessor:
         return_face_indices: bool = False,
         inverse_indices: Union[List[str], Set[str], bool] = False,
     ):
-        """Extracts a subset of the grid by selecting all faces are within a specified longitude interval.
+        """Extracts a subset of the grid by selecting all faces that are within a specified longitude interval.
 
         Parameters
         ----------
