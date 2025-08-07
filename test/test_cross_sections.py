@@ -237,5 +237,5 @@ def test_cross_section():
     with pytest.raises(ValueError):
         _ = uxds['RELHUM'].cross_section(end=(45, 45))
         _ = uxds['RELHUM'].cross_section(start=(45, 45))
-        _ = uxds['RELHUM'].cross_section(lon = 45, end=(45, 45))
+        _ = uxds['RELHUM'].cross_section(lon=45, end=(45, 45))
         _ = uxds['RELHUM'].cross_section()
