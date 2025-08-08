@@ -131,8 +131,8 @@ class UxDataArrayCrossSectionAccessor:
         coords[new_dim] = np.arange(steps)
 
         # attach lat/lon vectors
-        coords["lat"] = (new_dim, points_latlon[:, 0])
-        coords["lon"] = (new_dim, points_latlon[:, 1])
+        coords["lat"] = (new_dim, points_latlon[:, 1])
+        coords["lon"] = (new_dim, points_latlon[:, 0])
 
         return xr.DataArray(
             data,
