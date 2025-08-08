@@ -225,11 +225,11 @@ def test_cross_section():
     ss_clat = uxds['RELHUM'].cross_section(lat=45)
     assert isinstance(ss_clat, xr.DataArray)
 
-    # Constat Longitude
+    # Constant Longitude
     ss_clon = uxds['RELHUM'].cross_section(lon=45)
     assert isinstance(ss_clon, xr.DataArray)
 
-    # Constat Longitude with increased samples
+    # Constant Longitude with increased samples
     ss_clon = uxds['RELHUM'].cross_section(lon=45, steps=3)
     assert isinstance(ss_clon, xr.DataArray)
 
