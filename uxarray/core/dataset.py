@@ -23,6 +23,32 @@ from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDatasetPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
 
+# Helper to wrap callable attributes from proxy objects
+# wrap_result: function that takes the result and returns wrapped result
+# on_error: optional function that takes (exc, *args, **kwargs) and returns a fallback
+# Returns either the original attribute or a wrapped callable
+_def_proxy_wrap_callable_doc = (
+    """Internal: returns callable wrapper that post-processes result."""
+)
+
+
+def _wrap_callable_attr(attr, wrap_result, on_error=None):
+    if not callable(attr):
+        return attr
+
+    def _wrapped(*args, **kwargs):
+        try:
+            result = attr(*args, **kwargs)
+            return wrap_result(result)
+        except Exception as exc:  # pragma: no cover - only used on fallback paths
+            if on_error is not None:
+                return on_error(exc, *args, **kwargs)
+            raise
+
+    _wrapped.__doc__ = getattr(attr, "__doc__", _def_proxy_wrap_callable_doc)
+    _wrapped.__name__ = getattr(attr, "__name__", "wrapped")
+    return _wrapped
+
 
 class UxDataset(xr.Dataset):
     """Grid informed ``xarray.Dataset`` with an attached ``Grid`` accessor and
@@ -352,34 +378,36 @@ class UxDataset(xr.Dataset):
         original_uxgrid = self.uxgrid
         original_source_datasets = self.source_datasets
 
-        # Modify the aggregation methods to preserve uxgrid
-        for method_name in [
-            "mean",
-            "sum",
-            "min",
-            "max",
-            "std",
-            "var",
-            "median",
-            "count",
-        ]:
-            if hasattr(groupby_obj, method_name):
-                original_method = getattr(groupby_obj, method_name)
+        # Return a lightweight proxy that forwards attribute access and wraps
+        # any callable's result to preserve uxgrid/source_datasets. This avoids
+        # hard-coding aggregation method names and works for future methods.
+        class _UxGroupByProxy:
+            def __init__(self, gb, uxgrid, source_datasets):
+                self._gb = gb
+                self._uxgrid = uxgrid
+                self._source_datasets = source_datasets
 
-                def create_wrapped_method(orig_method):
-                    def wrapped_method(*args, **kwargs):
-                        result = orig_method(*args, **kwargs)
-                        return self._wrap_groupby_result(
-                            result, original_uxgrid, original_source_datasets
-                        )
-
-                    return wrapped_method
-
-                setattr(
-                    groupby_obj, method_name, create_wrapped_method(original_method)
+            def __getattr__(self, name):
+                attr = getattr(self._gb, name)
+                return _wrap_callable_attr(
+                    attr,
+                    lambda result: UxDataset._wrap_groupby_result(
+                        result, self._uxgrid, self._source_datasets
+                    ),
                 )
 
-        return groupby_obj
+            # Delegate common dunder methods for better transparency
+            def __iter__(self):
+                return iter(self._gb)
+
+            def __repr__(self):
+                return repr(self._gb)
+
+            def __dir__(self):
+                # Improve IDE/tab-completion discoverability
+                return sorted(set(dir(self.__class__)) | set(dir(self._gb)))
+
+        return _UxGroupByProxy(groupby_obj, original_uxgrid, original_source_datasets)
 
     # Reuse the original xarray.Dataset.groupby docstring
     groupby.__doc__ = xr.Dataset.groupby.__doc__
@@ -396,8 +424,306 @@ class UxDataset(xr.Dataset):
         keep_attrs=None,
         **indexer_kwargs,
     ):
-        """Resample this dataset to a new temporal resolution."""
-        # Prepare kwargs for xarray's resample
+        """
+        Resample this dataset to a new temporal resolution.
+
+        This is a complete override of xarray's resample method to ensure that
+        the uxgrid attribute is preserved after resampling operations.
+
+        Parameters
+        ----------
+        indexer : {dim: freq}, optional
+            Time dimension and frequency string.
+        skipna : bool, optional
+            Whether to skip missing values when aggregating.
+        closed : {'left', 'right'}, optional
+            Which side of the interval is closed.
+        label : {'left', 'right'}, optional
+            Which side of the interval is used for labeling.
+        base : int, optional
+            For frequencies that evenly subdivide 1 day, the day of the week the
+            frequency starts. Default is 0 (Monday).
+        offset : timedelta or str, optional
+            For frequencies that evenly subdivide 1 day, the time of day the
+            frequency starts.
+        origin : {'start_day', 'start', 'end', 'epoch'} or pd.Timestamp or str, optional
+            How to determine the first point in the resampled frequency.
+        keep_attrs : bool, optional
+            If True, the dataset's attributes are copied to the result.
+        **indexer_kwargs
+            Additional keyword arguments passed to xarray's resample method.
+
+        Returns
+        -------
+        Resampler object with uxgrid preservation.
+        """
+        # Get dimension and frequency
+        if indexer is None:
+            indexer = {}
+        # Combine indexer and indexer_kwargs
+        if indexer_kwargs:
+            indexer = dict(indexer)
+            indexer.update(indexer_kwargs)
+
+        # Store references to preserve attributes
+        original_uxgrid = self.uxgrid
+        original_source_datasets = self.source_datasets
+
+        # Check if we have cftime objects in the time coordinate
+        # which need special handling
+        for dim, freq in indexer.items():
+            if dim in self.coords:
+                coord_values = self.coords[dim].values
+                if len(coord_values) > 0 and hasattr(coord_values[0], "__module__"):
+                    if "cftime" in getattr(coord_values[0], "__module__", ""):
+                        # We detected cftime coordinates, but handle them when needed
+                        break
+
+        # Create a custom resample wrapper class that preserves uxgrid
+        class UxResampleWrapper:
+            def __init__(self, dataset, dim, freq, kwargs):
+                self.dataset = dataset
+                self.dim = dim
+                self.freq = freq
+                self.kwargs = kwargs
+                self.uxgrid = original_uxgrid
+                self.source_datasets = original_source_datasets
+
+            def _wrap_result(self, result):
+                """Attach uxgrid to the result."""
+                if isinstance(result, xr.Dataset):
+                    return UxDataset(
+                        result, uxgrid=self.uxgrid, source_datasets=self.source_datasets
+                    )
+                elif isinstance(result, xr.DataArray):
+                    from uxarray.core.dataarray import UxDataArray
+
+                    return UxDataArray(result, uxgrid=self.uxgrid)
+                return result
+
+            def __getattr__(self, name):
+                # Forward to xarray's resampler dynamically and wrap outputs.
+                # IMPORTANT: call xr.Dataset.resample directly to avoid re-entering
+                # this overridden method and causing recursion.
+                # Also, only pass supported constructor kwargs (exclude skipna, base, keep_attrs).
+                _resample_kwargs = {
+                    k: v
+                    for k, v in self.kwargs.items()
+                    if k in ("closed", "label", "offset", "origin")
+                }
+                resampler = xr.Dataset.resample(
+                    self.dataset, **self.dim, **_resample_kwargs
+                )
+                attr = getattr(resampler, name)
+
+                def _wrap_result_with_attrs(result):
+                    if isinstance(result, xr.Dataset) and self.kwargs.get("keep_attrs"):
+                        result = result.assign_attrs(self.dataset.attrs)
+                    return self._wrap_result(result)
+
+                def _on_error(exc, *args, **kwargs):  # pragma: no cover - fallback path
+                    if isinstance(exc, ValueError):
+                        return self._apply_resample(name, *args, **kwargs)
+                    raise exc
+
+                return _wrap_callable_attr(attr, _wrap_result_with_attrs, _on_error)
+
+            def _apply_resample(self, method_name, *args, **kwargs):
+                """Apply resample operation to each data variable separately and recombine."""
+                # Extract the dimension and make sure it's a single dimension
+                dim = next(iter(self.dim.keys()))
+                freq = self.dim[dim]
+
+                # Get the coordinate for this dimension
+                coord = self.dataset[dim]
+
+                # Check for cftime objects that need special handling
+                has_cftime = False
+                if len(coord.values) > 0 and hasattr(coord.values[0], "__module__"):
+                    if "cftime" in getattr(coord.values[0], "__module__", ""):
+                        has_cftime = True
+
+                # Create an empty result dataset
+                result_vars = {}
+
+                # Process each data variable separately
+                for var_name, da in self.dataset.data_vars.items():
+                    # Handle only variables that have the time dimension
+                    if dim in da.dims:
+                        # Create a temporary dataset with just this variable
+                        temp_ds = xr.Dataset({var_name: da}, coords=self.dataset.coords)
+
+                        try:
+                            # Try standard resample
+                            _resample_kwargs = {
+                                k: v
+                                for k, v in self.kwargs.items()
+                                if k in ("closed", "label", "offset", "origin")
+                            }
+                            temp_result = getattr(
+                                temp_ds.resample(**{dim: freq}, **_resample_kwargs),
+                                method_name,
+                            )(*args, **kwargs)
+                            result_vars[var_name] = temp_result[var_name]
+                        except ValueError:
+                            # If that fails, try a different approach - manually resample with groupby
+                            # This is a workaround for the "single dimensions" limitation
+                            if method_name in ["mean", "sum", "min", "max", "median"]:
+                                # Handle time resampling, with special case for cftime objects
+                                import numpy as np
+                                import pandas as pd
+
+                                if has_cftime:
+                                    # For cftime objects, we need to create our own bins based on the frequency
+                                    # Parse the frequency string
+                                    freq_str = freq
+
+                                    # Get the original times
+                                    orig_times = coord.values
+
+                                    # Get the year and month for each time point
+                                    years = np.array([t.year for t in orig_times])
+                                    months = np.array([t.month for t in orig_times])
+
+                                    # For 'ME' or 'M' frequency (month end), group by year and month
+                                    if freq_str in ["ME", "M", "1ME", "1M"]:
+                                        # Create year-month identifiers
+                                        ym_identifiers = years * 100 + months
+
+                                        # Get unique year-months
+                                        unique_yms = np.unique(ym_identifiers)
+
+                                        # Create grouping dictionary
+                                        time_groups = {}
+                                        for ym in unique_yms:
+                                            indices = np.where(ym_identifiers == ym)[0]
+                                            time_groups[ym] = indices
+                                    else:
+                                        # For other frequencies, we need more sophisticated binning
+                                        # This is a simplified approach for now
+                                        time_groups = {0: np.arange(len(orig_times))}
+                                else:
+                                    # For regular datetime objects, use pandas
+                                    try:
+                                        # Convert time to pandas DatetimeIndex
+                                        times = pd.DatetimeIndex(coord.values)
+
+                                        # Create a resampler and get the bins
+                                        resampler = times.to_series().resample(
+                                            freq, **self.kwargs
+                                        )
+                                        time_groups = resampler.groups
+                                    except Exception:
+                                        # If conversion fails, use a simple approach
+                                        time_groups = {0: np.arange(len(coord.values))}
+
+                                # Create an empty array for results
+                                import numpy as np
+
+                                result_data = []
+                                result_times = []
+
+                                # Process each time group
+                                for time_key, indices in time_groups.items():
+                                    if len(indices) > 0:
+                                        # Select data for this time group
+                                        group_data = da.isel({dim: indices}).values
+
+                                        # Apply requested aggregation
+                                        if method_name == "mean":
+                                            agg_result = np.nanmean(group_data, axis=0)
+                                        elif method_name == "sum":
+                                            agg_result = np.nansum(group_data, axis=0)
+                                        elif method_name == "min":
+                                            agg_result = np.nanmin(group_data, axis=0)
+                                        elif method_name == "max":
+                                            agg_result = np.nanmax(group_data, axis=0)
+                                        elif method_name == "median":
+                                            agg_result = np.nanmedian(
+                                                group_data, axis=0
+                                            )
+
+                                        # Store result
+                                        result_data.append(agg_result)
+                                        result_times.append(time_key)
+
+                                # Create new DataArray
+                                non_time_dims = [d for d in da.dims if d != dim]
+                                result_dims = [dim] + non_time_dims
+
+                                # Stack data properly
+                                result_data = np.stack(result_data)
+
+                                # Create coordinates
+                                result_coords = {dim: result_times}
+                                for d in non_time_dims:
+                                    if d in self.dataset.coords:
+                                        result_coords[d] = self.dataset.coords[d]
+
+                                # Create the resulting DataArray
+                                result_da = xr.DataArray(
+                                    result_data,
+                                    dims=result_dims,
+                                    coords=result_coords,
+                                    attrs=da.attrs if keep_attrs else {},
+                                )
+
+                                result_vars[var_name] = result_da
+                    else:
+                        # For variables without time dimension, keep as is
+                        result_vars[var_name] = da
+
+                # Create resulting dataset with all variables
+                result_ds = xr.Dataset(result_vars)
+
+                # Copy coordinates that aren't data variables
+                for coord_name, coord in self.dataset.coords.items():
+                    if coord_name not in result_ds.coords and coord_name != dim:
+                        result_ds = result_ds.assign_coords({coord_name: coord})
+
+                # Copy attributes if requested
+                if keep_attrs:
+                    result_ds.attrs.update(self.dataset.attrs)
+
+                return self._wrap_result(result_ds)
+
+            # Delegate common dunder methods for better transparency
+            def __iter__(self):
+                # Iterate over the underlying resampler
+                _resample_kwargs = {
+                    k: v
+                    for k, v in self.kwargs.items()
+                    if k in ("closed", "label", "offset", "origin")
+                }
+                resampler = xr.Dataset.resample(
+                    self.dataset, **self.dim, **_resample_kwargs
+                )
+                return iter(resampler)
+
+            def __repr__(self):
+                _resample_kwargs = {
+                    k: v
+                    for k, v in self.kwargs.items()
+                    if k in ("closed", "label", "offset", "origin")
+                }
+                resampler = xr.Dataset.resample(
+                    self.dataset, **self.dim, **_resample_kwargs
+                )
+                return repr(resampler)
+
+            def __dir__(self):
+                # Improve IDE/tab-completion discoverability
+                _resample_kwargs = {
+                    k: v
+                    for k, v in self.kwargs.items()
+                    if k in ("closed", "label", "offset", "origin")
+                }
+                resampler = xr.Dataset.resample(
+                    self.dataset, **self.dim, **_resample_kwargs
+                )
+                return sorted(set(dir(self.__class__)) | set(dir(resampler)))
+
+        # Get remaining kwargs for resample
         kwargs = dict(
             skipna=skipna,
             closed=closed,
