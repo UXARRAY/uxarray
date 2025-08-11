@@ -1,4 +1,4 @@
-name: CI
+name: CI-Time
 on:
   pull_request:
   workflow_dispatch:
