@@ -19,9 +19,12 @@ jobs:
         os: ["ubuntu-latest", "macos-latest", "macos-14", "windows-latest"]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
 
+    env:
+      NUMBA_CACHE_DIR: ${{ runner.temp }}/numba_cache
+
     steps:
       - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.12.1
+        uses: styfle/cancel-workflow-action@v0.12.1
         with:
           access_token: ${{ github.token }}
 
@@ -30,66 +33,48 @@ jobs:
         with:
           token: ${{ github.token }}
 
-      # -- Miniforge/conda setup --
-      - name: conda_setup (x64)
-        if: matrix.os != 'macos-14'
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          miniforge-variant: Miniforge3
-          miniforge-version: latest
-          channels: conda-forge
-          channel-priority: strict
-          use-mamba: true
-          cache-downloads: true
-
-      - name: conda_setup (ARM64)
-        if: matrix.os == 'macos-14'
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          channels: conda-forge
-          channel-priority: strict
-          use-mamba: true
-          cache-downloads: true
-          installer-url: https://github.com/conda-forge/miniforge/releases/download/23.11.0-0/Miniforge3-23.11.0-0-MacOSX-arm64.sh
-
-      # -- Compute paths & (non-Windows) env cache --
-      - name: Compute conda paths
-        id: conda_paths
+      - name: Set micromamba arch
         run: |
-          echo "CONDA_BASE=$(conda info --base)" >> $GITHUB_ENV
-          echo "CONDA_ENV_DIR=$(conda info --base)/envs/uxarray_build" >> $GITHUB_ENV
+          if [[ "${{ matrix.os }}" == "macos-14" ]]; then
+            echo "MM_ARCH=arm64" >> $GITHUB_ENV
+          else
+            echo "MM_ARCH=x64" >> $GITHUB_ENV
+          fi
 
-      - name: Cache conda env (non-Windows)
-        if: runner.os != 'Windows'
-        id: conda-env-cache
+      - name: Setup micromamba + env cache
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          micromamba-version: "latest"
+          environment-name: uxarray_build
+          environment-file: ci/environment.yml
+          create-args: >-
+            python=${{ matrix.python-version }}
+          init-shell: bash
+          architecture: ${{ env.MM_ARCH }}
+          cache-downloads: true
+          cache-environment: true
+          cache-environment-key: >-
+            ${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('ci/environment.yml') }}
+
+      - name: Cache Numba cache
         uses: actions/cache@v4
         with:
-          path: ${{ env.CONDA_ENV_DIR }}
-          key: conda-env-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('ci/environment.yml') }}
-
-      # -- Ensure env exists (robust even if cache says hit) --
-      - name: Ensure environment exists
-        run: |
-          if ! conda env list | awk '{print $1}' | grep -qx "uxarray_build"; then
-            mamba create -y -n uxarray_build python=${{ matrix.python-version }}
-            mamba env update -n uxarray_build -f ci/environment.yml
-          fi
-          conda env list
+          path: ${{ env.NUMBA_CACHE_DIR }}
+          key: numba-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('uxarray/**/*.py') }}
 
       - name: Show conda info
         run: |
-          conda info
-          conda run -n uxarray_build python -c "import sys; print('Python in env:', sys.version)"
+          micromamba info
+          micromamba env list
+          micromamba run -n uxarray_build python -V
 
-      # -- Only reinstall UXarray each run --
       - name: Install uxarray (no deps)
         run: |
-          conda run -n uxarray_build python -m pip install . --no-deps
+          micromamba run -n uxarray_build python -m pip install . --no-deps
 
-      # -- Tests (always) --
       - name: Run Namespace Tests (timed + durations)
         run: |
-          conda run -n uxarray_build python - <<'PY'
+          micromamba run -n uxarray_build python - <<'PY'
           import subprocess, sys, time
           cmd = [sys.executable, "-m", "pytest", "test", "-q", "--durations=0"]
           t0 = time.time()
@@ -105,13 +90,12 @@ jobs:
           sys.exit(rc)
           PY
 
-      # -- Coverage (nightly only) --
       - name: Run Coverage Tests (timed + durations)
         if: github.event_name == 'schedule'
         env:
           NUMBA_DISABLE_JIT: 1
         run: |
-          conda run -n uxarray_build python - <<'PY'
+          micromamba run -n uxarray_build python - <<'PY'
           import subprocess, sys, time
           cmd = [sys.executable, "-m", "pytest", "test", "-v",
                  "--cov=./uxarray", "--cov-report=xml", "--durations=0"]
@@ -139,3 +123,36 @@ jobs:
           echo "<details><summary>Namespace: pytest --durations=0</summary>" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           sed 's/^/    /' pytest_durations_ns.txt >> "$GITHUB_STEP_SUMMARY" || true
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "<details><summary>Coverage: pytest --durations=0</summary>" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          sed 's/^/    /' pytest_durations_cov.txt >> "$GITHUB_STEP_SUMMARY" || true
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload timing logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: timings-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: |
+            pytest_durations_ns.txt
+            total_time_ns.txt
+            pytest_durations_cov.txt
+            total_time_cov.txt
+
+      - name: Upload code coverage to Codecov (nightly only)
+        if: github.event_name == 'schedule' && github.repository == 'UXARRAY/uxarray'
+        uses: codecov/codecov-action@v5.4.3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          OS: ${{ matrix.os }}
+          PYTHON: ${{ matrix.python-version }}
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          env_vars: OS,PYTHON
+          name: codecov-umbrella
+          fail_ci_if_error: false
