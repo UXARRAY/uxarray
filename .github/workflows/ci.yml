@@ -62,7 +62,6 @@ jobs:
         run: |
           conda list
 
-      # Namespace (timed + durations)
       - name: Run Namespace Tests (timed + durations)
         run: |
           python - <<'PY'
@@ -81,7 +80,6 @@ jobs:
           sys.exit(rc)
           PY
 
-      # Coverage (timed + durations)
       - name: Run Coverage Tests (timed + durations)
         env:
           NUMBA_DISABLE_JIT: 1
@@ -103,7 +101,6 @@ jobs:
           sys.exit(rc)
           PY
 
-      # Summary in job log
       - name: Add timing summary
         if: always()
         run: |
@@ -124,7 +121,6 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "</details>" >> "$GITHUB_STEP_SUMMARY"
 
-      # Upload timing artifacts
       - name: Upload timing logs
         if: always()
         uses: actions/upload-artifact@v4
