@@ -62,16 +62,79 @@ jobs:
         run: |
           conda list
 
-
-      - name: Run Namespace Tests
+      # Namespace (timed + durations)
+      - name: Run Namespace Tests (timed + durations)
         run: |
-          python -m pytest test
+          python - <<'PY'
+          import subprocess, sys, time
+          cmd = [sys.executable, "-m", "pytest", "test", "-q", "--durations=0"]
+          t0 = time.time()
+          p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+          with open("pytest_durations_ns.txt", "w", encoding="utf-8") as f:
+            for line in p.stdout:
+              print(line, end="")
+              f.write(line)
+          rc = p.wait()
+          dt = time.time() - t0
+          with open("total_time_ns.txt", "w", encoding="utf-8") as f:
+            f.write(f"{dt:.3f} seconds")
+          sys.exit(rc)
+          PY
 
-      - name: Run Coverage Tests
-        run: |
-          python -m pytest test -v --cov=./uxarray --cov-report=xml
+      # Coverage (timed + durations)
+      - name: Run Coverage Tests (timed + durations)
         env:
           NUMBA_DISABLE_JIT: 1
+        run: |
+          python - <<'PY'
+          import subprocess, sys, time
+          cmd = [sys.executable, "-m", "pytest", "test", "-v",
+                 "--cov=./uxarray", "--cov-report=xml", "--durations=0"]
+          t0 = time.time()
+          p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+          with open("pytest_durations_cov.txt", "w", encoding="utf-8") as f:
+            for line in p.stdout:
+              print(line, end="")
+              f.write(line)
+          rc = p.wait()
+          dt = time.time() - t0
+          with open("total_time_cov.txt", "w", encoding="utf-8") as f:
+            f.write(f"{dt:.3f} seconds")
+          sys.exit(rc)
+          PY
+
+      # Summary in job log
+      - name: Add timing summary
+        if: always()
+        run: |
+          echo "## Test Timing Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Namespace tests total**: \`$(cat total_time_ns.txt 2>/dev/null || echo N/A)\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Coverage tests total**:  \`$(cat total_time_cov.txt 2>/dev/null || echo N/A)\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "<details><summary>Namespace: pytest --durations=0</summary>" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          sed 's/^/    /' pytest_durations_ns.txt >> "$GITHUB_STEP_SUMMARY" || true
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "<details><summary>Coverage: pytest --durations=0</summary>" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          sed 's/^/    /' pytest_durations_cov.txt >> "$GITHUB_STEP_SUMMARY" || true
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+
+      # Upload timing artifacts
+      - name: Upload timing logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: timings-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: |
+            pytest_durations_ns.txt
+            total_time_ns.txt
+            pytest_durations_cov.txt
+            total_time_cov.txt
 
       - name: Upload code coverage to Codecov
         if: github.repository == 'UXARRAY/uxarray'
