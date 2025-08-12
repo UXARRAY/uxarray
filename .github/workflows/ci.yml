@@ -30,6 +30,7 @@ jobs:
         with:
           token: ${{ github.token }}
 
+      # -- Miniforge/conda setup --
       - name: conda_setup (x64)
         if: matrix.os != 'macos-14'
         uses: conda-incubator/setup-miniconda@v3
@@ -51,41 +52,44 @@ jobs:
           cache-downloads: true
           installer-url: https://github.com/conda-forge/miniforge/releases/download/23.11.0-0/Miniforge3-23.11.0-0-MacOSX-arm64.sh
 
+      # -- Compute paths & (non-Windows) env cache --
       - name: Compute conda paths
         id: conda_paths
         run: |
           echo "CONDA_BASE=$(conda info --base)" >> $GITHUB_ENV
           echo "CONDA_ENV_DIR=$(conda info --base)/envs/uxarray_build" >> $GITHUB_ENV
-          echo "PYVER=${{ matrix.python-version }}" >> $GITHUB_ENV
 
-      - name: Cache conda env (uxarray_build)
+      - name: Cache conda env (non-Windows)
+        if: runner.os != 'Windows'
         id: conda-env-cache
         uses: actions/cache@v4
         with:
           path: ${{ env.CONDA_ENV_DIR }}
           key: conda-env-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('ci/environment.yml') }}
 
-      - name: Create env (first run or cache miss)
-        if: steps.conda-env-cache.outputs.cache-hit != 'true'
+      # -- Ensure env exists (robust even if cache says hit) --
+      - name: Ensure environment exists
         run: |
-          mamba create -y -n uxarray_build python=${{ matrix.python-version }}
-          mamba env update -n uxarray_build -f ci/environment.yml
+          if ! conda env list | awk '{print $1}' | grep -qx "uxarray_build"; then
+            mamba create -y -n uxarray_build python=${{ matrix.python-version }}
+            mamba env update -n uxarray_build -f ci/environment.yml
+          fi
+          conda env list
 
       - name: Show conda info
         run: |
-          conda activate uxarray_build
           conda info
-          conda list
+          conda run -n uxarray_build python -c "import sys; print('Python in env:', sys.version)"
 
+      # -- Only reinstall UXarray each run --
       - name: Install uxarray (no deps)
         run: |
-          conda activate uxarray_build
-          python -m pip install . --no-deps
+          conda run -n uxarray_build python -m pip install . --no-deps
 
+      # -- Tests (always) --
       - name: Run Namespace Tests (timed + durations)
         run: |
-          conda activate uxarray_build
-          python - <<'PY'
+          conda run -n uxarray_build python - <<'PY'
           import subprocess, sys, time
           cmd = [sys.executable, "-m", "pytest", "test", "-q", "--durations=0"]
           t0 = time.time()
@@ -101,13 +105,13 @@ jobs:
           sys.exit(rc)
           PY
 
-      - name: Run Coverage Tests (timed + durations)  # nightly only
+      # -- Coverage (nightly only) --
+      - name: Run Coverage Tests (timed + durations)
         if: github.event_name == 'schedule'
         env:
           NUMBA_DISABLE_JIT: 1
         run: |
-          conda activate uxarray_build
-          python - <<'PY'
+          conda run -n uxarray_build python - <<'PY'
           import subprocess, sys, time
           cmd = [sys.executable, "-m", "pytest", "test", "-v",
                  "--cov=./uxarray", "--cov-report=xml", "--durations=0"]
@@ -135,36 +139,3 @@ jobs:
           echo "<details><summary>Namespace: pytest --durations=0</summary>" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           sed 's/^/    /' pytest_durations_ns.txt >> "$GITHUB_STEP_SUMMARY" || true
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "</details>" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "<details><summary>Coverage: pytest --durations=0</summary>" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          sed 's/^/    /' pytest_durations_cov.txt >> "$GITHUB_STEP_SUMMARY" || true
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "</details>" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload timing logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: timings-${{ matrix.os }}-py${{ matrix.python-version }}
-          path: |
-            pytest_durations_ns.txt
-            total_time_ns.txt
-            pytest_durations_cov.txt
-            total_time_cov.txt
-
-      - name: Upload code coverage to Codecov (nightly only)
-        if: github.event_name == 'schedule' && github.repository == 'UXARRAY/uxarray'
-        uses: codecov/codecov-action@v5.4.3
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-          OS: ${{ matrix.os }}
-          PYTHON: ${{ matrix.python-version }}
-        with:
-          file: ./coverage.xml
-          flags: unittests
-          env_vars: OS,PYTHON
-          name: codecov-umbrella
-          fail_ci_if_error: false
