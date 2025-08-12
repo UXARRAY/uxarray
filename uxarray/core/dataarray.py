@@ -1013,18 +1013,14 @@ class UxDataArray(xr.DataArray):
         """
         return _uxda_grid_aggregate(self, destination, "any", **kwargs)
 
-    def gradient(
-        self,
-        **kwargs,
-    ) -> UxDataset:
-        """Computes the gradient ....
-
-
-        Parameters
-        ----------
+    def gradient(self, **kwargs) -> UxDataset:
+        """
+        Computes the gradient of a data variable.
 
         Returns
         -------
+        gradient: UxDataset
+            Dataset containing the zonal and merdional components of the gradient.
 
         Notes
         -----
@@ -1047,9 +1043,6 @@ class UxDataArray(xr.DataArray):
         grad_zonal_da, grad_meridional_da = _compute_gradient(self)
 
         # Create a dataset containing both gradient components
-
-        # TODO: add a method parameter (i.e. return_vector=True) will also populate the angle and magnitude arrays
-
         return UxDataset(
             {
                 "zonal_gradient": grad_zonal_da,
@@ -1057,6 +1050,7 @@ class UxDataArray(xr.DataArray):
             },
             uxgrid=self.uxgrid,
             attrs={"gradient": True},
+            coords=self.coords,
         )
 
     def difference(self, destination: Optional[str] = "edge"):
