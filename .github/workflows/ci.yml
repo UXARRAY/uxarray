@@ -3,12 +3,10 @@ on:
   pull_request:
   workflow_dispatch:
   schedule:
-     - cron: '0 0 * * *' # Daily “At 00:00”
+    - cron: '0 0 * * *'  # Daily at 00:00 UTC
 
 jobs:
   test:
-    # if: |
-    #   github.repository == 'UXARRAY/uxarray'
     name: Python (${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     defaults:
@@ -18,52 +16,75 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu-latest", "macos-latest", "macos-14", "windows-latest"]
-        python-version: [ "3.10", "3.11", "3.12", "3.13"]
+        os: ["ubuntu-latest", "macos-latest", "macos-14", "windows-latest"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
     steps:
       - name: Cancel previous runs
         uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
 
-      - name: checkout
+      - name: Checkout
         uses: actions/checkout@v5
         with:
           token: ${{ github.token }}
 
       - name: conda_setup (x64)
-        uses: conda-incubator/setup-miniconda@v3
         if: matrix.os != 'macos-14'
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          activate-environment: uxarray_build
-          channel-priority: strict
-          python-version: ${{ matrix.python-version }}
-          channels: conda-forge
-          environment-file: ci/environment.yml
           miniforge-variant: Miniforge3
           miniforge-version: latest
+          channels: conda-forge
+          channel-priority: strict
+          use-mamba: true
+          cache-downloads: true
 
       - name: conda_setup (ARM64)
-        uses: conda-incubator/setup-miniconda@v3
         if: matrix.os == 'macos-14'
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          activate-environment: uxarray_build
-          channel-priority: strict
-          python-version: ${{ matrix.python-version }}
           channels: conda-forge
-          environment-file: ci/environment.yml
+          channel-priority: strict
+          use-mamba: true
+          cache-downloads: true
           installer-url: https://github.com/conda-forge/miniforge/releases/download/23.11.0-0/Miniforge3-23.11.0-0-MacOSX-arm64.sh
 
-      - name: Install uxarray
+      - name: Compute conda paths
+        id: conda_paths
         run: |
-          python -m pip install . --no-deps
+          echo "CONDA_BASE=$(conda info --base)" >> $GITHUB_ENV
+          echo "CONDA_ENV_DIR=$(conda info --base)/envs/uxarray_build" >> $GITHUB_ENV
+          echo "PYVER=${{ matrix.python-version }}" >> $GITHUB_ENV
 
-      - name: conda list
+      - name: Cache conda env (uxarray_build)
+        id: conda-env-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CONDA_ENV_DIR }}
+          key: conda-env-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('ci/environment.yml') }}
+
+      - name: Create env (first run or cache miss)
+        if: steps.conda-env-cache.outputs.cache-hit != 'true'
         run: |
+          mamba create -y -n uxarray_build python=${{ matrix.python-version }}
+          mamba env update -n uxarray_build -f ci/environment.yml
+
+      - name: Show conda info
+        run: |
+          conda activate uxarray_build
+          conda info
           conda list
+
+      - name: Install uxarray (no deps)
+        run: |
+          conda activate uxarray_build
+          python -m pip install . --no-deps
 
       - name: Run Namespace Tests (timed + durations)
         run: |
+          conda activate uxarray_build
           python - <<'PY'
           import subprocess, sys, time
           cmd = [sys.executable, "-m", "pytest", "test", "-q", "--durations=0"]
@@ -80,10 +101,12 @@ jobs:
           sys.exit(rc)
           PY
 
-      - name: Run Coverage Tests (timed + durations)
+      - name: Run Coverage Tests (timed + durations)  # nightly only
+        if: github.event_name == 'schedule'
         env:
           NUMBA_DISABLE_JIT: 1
         run: |
+          conda activate uxarray_build
           python - <<'PY'
           import subprocess, sys, time
           cmd = [sys.executable, "-m", "pytest", "test", "-v",
@@ -132,11 +155,13 @@ jobs:
             pytest_durations_cov.txt
             total_time_cov.txt
 
-      - name: Upload code coverage to Codecov
-        if: github.repository == 'UXARRAY/uxarray'
+      - name: Upload code coverage to Codecov (nightly only)
+        if: github.event_name == 'schedule' && github.repository == 'UXARRAY/uxarray'
         uses: codecov/codecov-action@v5.4.3
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          OS: ${{ matrix.os }}
+          PYTHON: ${{ matrix.python-version }}
         with:
           file: ./coverage.xml
           flags: unittests
