@@ -19,8 +19,6 @@ jobs:
         os: ["ubuntu-latest", "macos-latest", "macos-14", "windows-latest"]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
 
-    env:
-      NUMBA_CACHE_DIR: ${{ runner.temp }}/numba_cache
 
     steps:
       - name: Cancel previous runs
@@ -55,12 +53,6 @@ jobs:
           cache-environment: true
           cache-environment-key: >-
             ${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('ci/environment.yml') }}
-
-      - name: Cache Numba cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.NUMBA_CACHE_DIR }}
-          key: numba-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('uxarray/**/*.py') }}
 
       - name: Show conda info
         run: |
