@@ -67,9 +67,6 @@ from uxarray.grid.neighbors import (
 )
 from uxarray.grid.point_in_face import _point_in_face_query
 from uxarray.grid.r_tree import (
-    RtreeAdapter as _RtreeAdapter,
-)
-from uxarray.grid.r_tree import (
     construct_face_rtree_from_bounds as _rtree_build,
 )
 from uxarray.grid.utils import make_setter
@@ -1897,14 +1894,18 @@ class Grid:
         return self._spatialhash
 
     def get_r_tree(self, reconstruct: bool = False):
-        """Get an R-tree over per-face 3D AABBs for fast face-box intersection queries.
+        """Build or retrieve a spatialpandas.spatialindex.HilbertRtree over per-face AABBs.
 
-        Returns a lightweight adapter exposing intersects(box), where box is either
-        (xmin, ymin, zmin, xmax, ymax, zmax) for 3D or (xmin, ymin, xmax, ymax) for XY fallback.
+        The returned object is the original Numba-backed HilbertRtree instance so it can be
+        used directly in Numba via its `.numba_rtree` attribute. Boxes are built in 3D
+        (xmin, ymin, zmin, xmax, ymax, zmax) when supported.
         """
         if reconstruct or not hasattr(self, "_rtree") or self._rtree is None:
             rtree, boxes, dim = _rtree_build(self.bounds)
-            self._rtree = _RtreeAdapter(rtree, boxes, dim)
+            self._rtree = rtree
+            # cache for advanced users; may be useful for debugging or custom queries
+            self._rtree_boxes = boxes
+            self._rtree_dim = dim
         return self._rtree
 
     def copy(self):

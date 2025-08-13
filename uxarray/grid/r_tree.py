@@ -101,62 +101,6 @@ def construct_face_rtree_from_bounds(bounds_da, p: int = 10, page_size: int = 51
     return rtree, boxes, dim
 
 
-class RtreeAdapter:
-    def __init__(self, tree, boxes: np.ndarray, dim: int):
-        self._tree = tree
-        self._boxes = boxes
-        self._dim = dim
-
-    def _fallback_query(self, b: np.ndarray):
-        if b.size == 6:
-            boxes = self._boxes
-            mask = ~(
-                (boxes[:, 3] < b[0])
-                | (b[3] < boxes[:, 0])
-                | (boxes[:, 4] < b[1])
-                | (b[4] < boxes[:, 1])
-                | (boxes[:, 5] < b[2])
-                | (b[5] < boxes[:, 2])
-            )
-        else:
-            xy = np.column_stack(
-                [
-                    self._boxes[:, 0],
-                    self._boxes[:, 1],
-                    self._boxes[:, 3],
-                    self._boxes[:, 4],
-                ]
-            )
-            mask = ~(
-                (xy[:, 2] < b[0])
-                | (b[2] < xy[:, 0])
-                | (xy[:, 3] < b[1])
-                | (b[3] < xy[:, 1])
-            )
-        return np.nonzero(mask)[0].tolist()
-
-    def intersects(self, box):
-        b = np.asarray(box, dtype=np.float64)
-        if self._dim == 2:
-            if b.size == 6:
-                b = np.array([b[0], b[1], b[3], b[4]], dtype=np.float64)
-            elif b.size != 4:
-                raise ValueError("Expected 4 or 6 values for box")
-        else:
-            if b.size == 4:
-                b = np.array([b[0], b[1], -1.0, b[2], b[3], 1.0], dtype=np.float64)
-            elif b.size != 6:
-                raise ValueError("Expected 4 or 6 values for box")
-        if self._tree is not None:
-            if hasattr(self._tree, "query_rect"):
-                idx = self._tree.query_rect(b)
-                return np.asarray(idx, dtype=int).tolist()
-            if hasattr(self._tree, "query"):
-                idx = self._tree.query(b)
-                return np.asarray(idx, dtype=int).tolist()
-        return self._fallback_query(b)
-
-
 def aabb_overlap3(b1: np.ndarray, b2: np.ndarray) -> bool:
     return not (
         (b1[3] < b2[0])

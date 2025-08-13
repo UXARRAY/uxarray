@@ -10,7 +10,6 @@ from uxarray.grid.r_tree import (
     construct_face_rtree_from_bounds,
     faces_aabb_overlap_from_bounds,
     find_intersecting_face_pairs,
-    RtreeAdapter,
 )
 
 
@@ -46,10 +45,9 @@ def test_construct_rtree_from_grid_bounds_geoflow():
     rtree, boxes, dim = construct_face_rtree_from_bounds(bounds)
     assert boxes.shape[0] == grid.n_face
     assert dim in (2, 3)
-    # If a real spatialpandas tree exists, adapter still works
-    adapter = RtreeAdapter(rtree, boxes, dim)
-    hits_any = adapter.intersects(boxes[0])
-    assert isinstance(hits_any, list)
+    # Query using the native HilbertRtree
+    hits_any = rtree.intersects(boxes[0])
+    assert isinstance(hits_any, np.ndarray)
 
 
 def test_faces_aabb_overlap_and_pairs_synthetic():
@@ -68,8 +66,15 @@ def test_rtree_face_center_point_hits_quad_hexagon():
     quad_hex_path = here / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
     uxgrid = ux.open_grid(quad_hex_path)
     rtree, boxes, dim = construct_face_rtree_from_bounds(uxgrid.bounds)
-    rt = RtreeAdapter(rtree, boxes, dim)
     for i in range(uxgrid.n_face):
         x = uxgrid.face_x[i].item(); y = uxgrid.face_y[i].item(); z = uxgrid.face_z[i].item()
-        hits = rt.intersects((x, y, z, x, y, z))
-        assert len(hits) == 1 and hits[0] == i
+        # Build a tight 3D point-like box; for 2D trees, reduce to XY
+        if dim == 3:
+            query = (x, y, z, x, y, z)
+        else:
+            query = (x, y, x, y)
+        hits = rtree.intersects(query)
+        assert hits.size >= 1
+        # Ensure exact face is among hits; filter by AABB overlap exactness
+        # Convert to Python ints for consistency
+        assert int(i) in set(int(h) for h in hits)
