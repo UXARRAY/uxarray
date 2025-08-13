@@ -66,6 +66,12 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 from uxarray.grid.point_in_face import _point_in_face_query
+from uxarray.grid.r_tree import (
+    RtreeAdapter as _RtreeAdapter,
+)
+from uxarray.grid.r_tree import (
+    construct_face_rtree_from_bounds as _rtree_build,
+)
 from uxarray.grid.utils import make_setter
 from uxarray.grid.validation import (
     _check_area,
@@ -1889,6 +1895,17 @@ class Grid:
             self._spatialhash = SpatialHash(self, reconstruct)
 
         return self._spatialhash
+
+    def get_r_tree(self, reconstruct: bool = False):
+        """Get an R-tree over per-face 3D AABBs for fast face-box intersection queries.
+
+        Returns a lightweight adapter exposing intersects(box), where box is either
+        (xmin, ymin, zmin, xmax, ymax, zmax) for 3D or (xmin, ymin, xmax, ymax) for XY fallback.
+        """
+        if reconstruct or not hasattr(self, "_rtree") or self._rtree is None:
+            rtree, boxes, dim = _rtree_build(self.bounds)
+            self._rtree = _RtreeAdapter(rtree, boxes, dim)
+        return self._rtree
 
     def copy(self):
         """Returns a deep copy of this grid."""
