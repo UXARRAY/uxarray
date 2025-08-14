@@ -429,6 +429,12 @@ def _parse_face_areas(in_ds, out_ds, mesh_type):
     else:
         face_area = in_ds["areaTriangle"]
 
+    # Normalize face areas to unit sphere if needed
+    if "sphere_radius" in in_ds.attrs and in_ds.attrs["sphere_radius"] != 1.0:
+        radius = in_ds.attrs["sphere_radius"]
+        # Area scales with radius squared
+        face_area = face_area / (radius * radius)
+
     out_ds["face_areas"] = face_area.assign_attrs(descriptors.FACE_AREAS_ATTRS).rename(
         {face_area.dims[0]: ugrid.FACE_DIM}
     )
