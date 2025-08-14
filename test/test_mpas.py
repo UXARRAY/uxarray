@@ -151,3 +151,39 @@ def test_grid_normalization():
 
     # All radii should be 1.0 (unit sphere)
     nt.assert_array_almost_equal(radii, np.ones_like(radii), decimal=10)
+
+    # Check face areas are normalized for unit sphere
+    # Total surface area of unit sphere is 4*pi
+    expected_total_area = 4.0 * np.pi
+
+    # Get face areas
+    face_areas = uxgrid.face_areas.values
+
+    # Check that all face areas are positive
+    assert np.all(face_areas > 0), "All face areas should be positive"
+
+    # Check that total area equals surface area of unit sphere
+    total_area = np.sum(face_areas)
+    nt.assert_almost_equal(total_area, expected_total_area, decimal=7)
+
+    # Check that face areas are reasonable (not too small or too large)
+    # For a unit sphere, face areas should be much smaller than total area
+    max_face_area = np.max(face_areas)
+    min_face_area = np.min(face_areas)
+
+    assert max_face_area < 0.1 * expected_total_area, "Maximum face area seems too large for unit sphere"
+    assert min_face_area > 1e-10, "Minimum face area seems too small"
+
+    # Check edge lengths are normalized for unit sphere
+    # Edge lengths should be reasonable for a unit sphere (max possible is pi for antipodal points)
+    if "edge_node_distances" in uxgrid._ds:
+        edge_lengths = uxgrid._ds["edge_node_distances"].values
+
+        # All edge lengths should be positive
+        assert np.all(edge_lengths > 0), "All edge lengths should be positive"
+
+        # Maximum edge length on unit sphere cannot exceed pi
+        assert np.max(edge_lengths) <= np.pi, "Edge lengths should not exceed pi on unit sphere"
+
+        # Minimum edge length should be reasonable
+        assert np.min(edge_lengths) > 1e-10, "Minimum edge length seems too small"
