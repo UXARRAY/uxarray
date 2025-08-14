@@ -85,20 +85,3 @@ known-first-party = ["uxarray"]
 
 [tool.ruff.format]
 docstring-code-format = true
-
-[tool.pytest.ini_options]
-markers = [
-    "performance: marks tests as performance benchmarks (deselect with '-m \"not performance\"')",
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "io: marks tests as I/O related",
-    "parametric: marks tests as parametric grid generation tests",
-]
-testpaths = ["test"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = [
-    "-v",
-    "--strict-markers",
-    "--tb=short"
-]
