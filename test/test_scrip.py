@@ -1,31 +1,12 @@
-"""
-SCRIP format tests using base IO test classes.
-
-This module tests SCRIP-specific functionality while inheriting common
-test patterns from the base IO test classes.
-"""
-
-import pytest
-import numpy as np
-import xarray as xr
-import uxarray as ux
-from pathlib import Path
-import tempfile
 import os
+import xarray as xr
 import warnings
-from numpy.testing import assert_array_equal, assert_allclose
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+import numpy.testing as nt
+import pytest
+from pathlib import Path
 
-from .base_io_tests import (
-    BaseIOReaderTests,
-    BaseIOWriterTests,
-    BaseIORoundTripTests,
-    BaseIOEdgeCaseTests,
-    BaseIODatasetTests,
-    BaseIOPerformanceTests,
-    validate_grid_topology,
-    validate_grid_coordinates
-)
+import uxarray as ux
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 try:
     import constants
@@ -34,209 +15,85 @@ except ImportError:
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-# SCRIP-specific test configurations
-SCRIP_READ_CONFIGS = [
-    ("scrip", "ne8")
-]
+# Define grid file paths
+gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+gridfile_RLL1deg = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
+gridfile_RLL10deg_ne4 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
+gridfile_exo_ne8 = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
+gridfile_scrip = current_path / "meshfiles" / "scrip" / "outCSne8" /"outCSne8.nc"
 
-SCRIP_WRITE_FORMATS = []  # SCRIP doesn't support writing currently
+def test_read_ugrid():
+    """Reads a ugrid file."""
+    uxgrid_ne30 = ux.open_grid(str(gridfile_ne30))
+    uxgrid_RLL1deg = ux.open_grid(str(gridfile_RLL1deg))
+    uxgrid_RLL10deg_ne4 = ux.open_grid(str(gridfile_RLL10deg_ne4))
 
-SCRIP_ROUND_TRIP_CONFIGS = []  # No round-trip until writing is supported
+    nt.assert_equal(uxgrid_ne30.node_lon.size, constants.NNODES_outCSne30)
+    nt.assert_equal(uxgrid_RLL1deg.node_lon.size, constants.NNODES_outRLL1deg)
+    nt.assert_equal(uxgrid_RLL10deg_ne4.node_lon.size, constants.NNODES_ov_RLL10deg_CSne4)
 
+# TODO: UNCOMMENT
+# def test_read_ugrid_opendap():
+#     """Read an ugrid model from an OPeNDAP URL."""
+#     try:
+#         url = "http://test.opendap.org:8080/opendap/ugrid/NECOFS_GOM3_FORECAST.nc"
+#         uxgrid_url = ux.open_grid(url, drop_variables="siglay")
+#     except OSError:
+#         warnings.warn(f'Could not connect to OPeNDAP server: {url}')
+#         pass
+#     else:
+#         assert isinstance(getattr(uxgrid_url, "node_lon"), xr.DataArray)
+#         assert isinstance(getattr(uxgrid_url, "node_lat"), xr.DataArray)
+#         assert isinstance(getattr(uxgrid_url, "face_node_connectivity"), xr.DataArray)
 
-class TestSCRIPReader(BaseIOReaderTests):
-    """Test SCRIP reading functionality."""
+def test_to_xarray_ugrid():
+    """Read an Exodus dataset and convert it to UGRID format using to_xarray."""
+    ux_grid = ux.open_grid(gridfile_scrip)
+    xr_obj = ux_grid.to_xarray("UGRID")
+    xr_obj.to_netcdf("scrip_ugrid_csne8.nc")
+    reloaded_grid = ux.open_grid("scrip_ugrid_csne8.nc")
+    # Check that the grid topology is perfectly preserved
+    nt.assert_array_equal(ux_grid.face_node_connectivity.values,
+                          reloaded_grid.face_node_connectivity.values)
 
-    format_configs = SCRIP_READ_CONFIGS
+    # Check that node coordinates are numerically close
+    nt.assert_allclose(ux_grid.node_lon.values, reloaded_grid.node_lon.values)
+    nt.assert_allclose(ux_grid.node_lat.values, reloaded_grid.node_lat.values)
 
-    def test_scrip_basic_structure(self, test_data_paths):
-        """Test basic SCRIP file structure."""
-        grid_path = test_data_paths["scrip"]["ne8"]
-        if not grid_path.exists():
-            pytest.skip("SCRIP ne8 test file not found")
+    # Cleanup
+    reloaded_grid._ds.close()
+    del reloaded_grid
+    os.remove("scrip_ugrid_csne8.nc")
 
-        grid = ux.open_grid(grid_path)
+def test_standardized_dtype_and_fill():
+    """Test to see if Mesh2_Face_Nodes uses the expected integer datatype
+    and expected fill value as set in constants.py."""
+    ug_filename1 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+    ug_filename2 = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
+    ug_filename3 = current_path / "meshfiles" / "ugrid" / "ov_RLL10deg_CSne4" / "ov_RLL10deg_CSne4.ug"
 
-        # Basic validation
-        assert grid is not None
-        validate_grid_topology(grid)
-        validate_grid_coordinates(grid)
+    ux_grid1 = ux.open_grid(ug_filename1)
+    ux_grid2 = ux.open_grid(ug_filename2)
+    ux_grid3 = ux.open_grid(ug_filename3)
 
-    def test_scrip_dimensions(self, test_data_paths):
-        """Test SCRIP-specific dimensions and structure."""
-        grid_path = test_data_paths["scrip"]["ne8"]
-        if not grid_path.exists():
-            pytest.skip("SCRIP ne8 test file not found")
+    # Check for correct dtype and fill value
+    grids_with_fill = [ux_grid2]
+    for grid in grids_with_fill:
+        assert grid.face_node_connectivity.dtype == INT_DTYPE
+        assert grid.face_node_connectivity._FillValue == INT_FILL_VALUE
+        assert INT_FILL_VALUE in grid.face_node_connectivity.values
 
-        grid = ux.open_grid(grid_path)
-
-        # Check for expected dimensions
-        expected_dims = ['n_node', 'n_face']
-        for dim in expected_dims:
-            assert dim in grid._ds.dims
-
-        # Validate grid structure
-        assert grid.n_node > 0
-        assert grid.n_face > 0
-        assert len(grid.node_lon) == len(grid.node_lat)
-
-
-class TestSCRIPWriter(BaseIOWriterTests):
-    """Test SCRIP writing functionality (currently not supported)."""
-
-    writable_formats = SCRIP_WRITE_FORMATS  # Empty for now
-
-    def test_scrip_write_not_supported(self):
-        """Test that SCRIP writing is not currently supported."""
-        # This test documents that SCRIP writing is not yet implemented
-        # Can be updated when write support is added
-        pass
-
-
-class TestSCRIPRoundTrip(BaseIORoundTripTests):
-    """Test SCRIP round-trip consistency (currently not supported)."""
-
-    round_trip_configs = SCRIP_ROUND_TRIP_CONFIGS  # Empty for now
-
-    def test_scrip_round_trip_not_supported(self):
-        """Test that SCRIP round-trip is not currently supported."""
-        # This test documents that SCRIP round-trip is not yet implemented
-        # Can be updated when write support is added
-        pass
-
-
-class TestSCRIPEdgeCases(BaseIOEdgeCaseTests):
-    """Test SCRIP edge cases and error conditions."""
-
-    def test_standardized_dtype_and_fill_values(self, test_data_paths):
-        """Test that SCRIP files use standardized dtype and fill values."""
-        grid_path = test_data_paths["scrip"]["ne8"]
-        if not grid_path.exists():
-            pytest.skip("SCRIP ne8 test file not found")
-
-        grid = ux.open_grid(grid_path)
-
-        # Check dtype and fill value
-        assert grid.face_node_connectivity.dtype in [INT_DTYPE, np.int32, np.int64]
+    grids_without_fill = [ux_grid1, ux_grid3]
+    for grid in grids_without_fill:
+        assert grid.face_node_connectivity.dtype == INT_DTYPE
         assert grid.face_node_connectivity._FillValue == INT_FILL_VALUE
 
+def test_standardized_dtype_and_fill_dask():
+    """Test to see if Mesh2_Face_Nodes uses the expected integer datatype
+    and expected fill value as set in constants.py with dask chunking."""
+    ug_filename = current_path / "meshfiles" / "ugrid" / "outRLL1deg" / "outRLL1deg.ug"
+    ux_grid = ux.open_grid(ug_filename)
 
-class TestSCRIPDatasets(BaseIODatasetTests):
-    """Test SCRIP dataset functionality."""
-
-    def test_scrip_dataset_basic(self, test_data_paths):
-        """Basic SCRIP dataset validation."""
-        grid_path = test_data_paths["scrip"]["ne8"]
-        if not grid_path.exists():
-            pytest.skip("SCRIP ne8 test file not found")
-
-        grid = ux.open_grid(grid_path)
-
-        assert grid is not None
-        validate_grid_topology(grid)
-        validate_grid_coordinates(grid)
-
-
-class TestSCRIPPerformance(BaseIOPerformanceTests):
-    """Test SCRIP performance characteristics."""
-
-    def test_lazy_loading(self, test_data_paths):
-        """Test that SCRIP grid loading is reasonably fast."""
-        import time
-
-        grid_path = test_data_paths["scrip"]["ne8"]
-        if not grid_path.exists():
-            pytest.skip("SCRIP test file not found")
-
-        start_time = time.time()
-        grid = ux.open_grid(grid_path)
-        load_time = time.time() - start_time
-
-        # Basic validation that grid loaded successfully
-        assert grid is not None
-        assert hasattr(grid, 'node_lon')
-
-        # Loading should complete in reasonable time
-        assert load_time < 30.0, f"SCRIP loading took {load_time:.2f}s, which seems excessive"
-
-
-class TestSCRIPSpecialCases:
-    """Test SCRIP-specific special cases and functionality."""
-
-    def test_scrip_coordinate_handling(self, test_data_paths):
-        """Test SCRIP coordinate handling and conversion."""
-        grid_path = test_data_paths["scrip"]["ne8"]
-        if not grid_path.exists():
-            pytest.skip("SCRIP ne8 test file not found")
-
-        grid = ux.open_grid(grid_path)
-
-        # Validate coordinate properties
-        validate_grid_coordinates(grid)
-
-        # Check that coordinates are properly converted from SCRIP format
-        assert hasattr(grid, 'node_lon')
-        assert hasattr(grid, 'node_lat')
-        assert len(grid.node_lon) == len(grid.node_lat)
-
-    def test_scrip_format_detection(self, test_data_paths):
-        """Test that SCRIP format is correctly detected and parsed."""
-        grid_path = test_data_paths["scrip"]["ne8"]
-        if not grid_path.exists():
-            pytest.skip("SCRIP ne8 test file not found")
-
-        # Open as raw xarray dataset first
-        raw_ds = xr.open_dataset(grid_path)
-
-        # Check for SCRIP-specific variables that should be present
-        scrip_vars = ['grid_center_lat', 'grid_center_lon', 'grid_corner_lat', 'grid_corner_lon']
-        scrip_vars_found = [var for var in scrip_vars if var in raw_ds.data_vars]
-
-        # Should find some SCRIP-specific variables
-        assert len(scrip_vars_found) > 0, "No SCRIP-specific variables found"
-
-        # Now test that uxarray can properly read it
-        grid = ux.open_grid(grid_path)
-        assert grid is not None
-
-        raw_ds.close()
-
-    def test_scrip_grid_conversion(self, test_data_paths):
-        """Test conversion from SCRIP to uxarray grid format."""
-        grid_path = test_data_paths["scrip"]["ne8"]
-        if not grid_path.exists():
-            pytest.skip("SCRIP ne8 test file not found")
-
-        grid = ux.open_grid(grid_path)
-
-        # Test that the grid has been properly converted to UGRID-like format
-        assert 'face_node_connectivity' in grid._ds
-        assert 'node_lon' in grid._ds
-        assert 'node_lat' in grid._ds
-
-        # Validate the conversion
-        validate_grid_topology(grid)
-        validate_grid_coordinates(grid)
-
-    def test_scrip_comparison_with_reference(self, test_data_paths):
-        """Test SCRIP grid against reference implementations where available."""
-        # This could be expanded to compare with reference UGRID files
-        # if we have equivalent grids in different formats
-
-        grid_path = test_data_paths["scrip"]["ne8"]
-        if not grid_path.exists():
-            pytest.skip("SCRIP ne8 test file not found")
-
-        scrip_grid = ux.open_grid(grid_path)
-
-        # Basic validation that should be consistent across formats
-        validate_grid_topology(scrip_grid)
-        validate_grid_coordinates(scrip_grid)
-
-        # Check for reasonable grid size (ne8 should have specific characteristics)
-        assert scrip_grid.n_node > 0
-        assert scrip_grid.n_face > 0
-
-        # For ne8, we expect a certain order of magnitude
-        assert scrip_grid.n_face > 100  # Should have more than 100 faces
-        assert scrip_grid.n_node > 100  # Should have more than 100 nodes
+    assert ux_grid.face_node_connectivity.dtype == INT_DTYPE
+    assert ux_grid.face_node_connectivity._FillValue == INT_FILL_VALUE
+    assert INT_FILL_VALUE in ux_grid.face_node_connectivity.values
