@@ -1900,6 +1900,13 @@ class Grid:
         used directly in Numba via its `.numba_rtree` attribute. Boxes are built in 3D
         (xmin, ymin, zmin, xmax, ymax, zmax) when supported.
 
+        Note
+        ----
+        R-tree queries return all faces whose bounding boxes intersect with the query region,
+        not just exact geometric matches. For example, a point query may return multiple faces
+        if their bounding boxes overlap at that point. To find the exact face containing a point,
+        use the R-tree results as candidates for subsequent exact geometric tests.
+
         Parameters
         ----------
         reconstruct : bool, optional
