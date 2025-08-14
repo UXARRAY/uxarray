@@ -138,16 +138,16 @@ def test_distance_units():
 def test_grid_normalization():
     """Test that MPAS grid coordinates are properly normalized."""
     uxgrid = ux.open_grid(mpas_grid_path, use_dual=False)
-    
+
     # Check node coordinates are normalized
     node_lon = uxgrid._ds['node_lon'].values
     node_lat = uxgrid._ds['node_lat'].values
     node_x = uxgrid._ds['node_x'].values
     node_y = uxgrid._ds['node_y'].values
     node_z = uxgrid._ds['node_z'].values
-    
+
     # Compute radius for each node
     radii = np.sqrt(node_x**2 + node_y**2 + node_z**2)
-    
+
     # All radii should be 1.0 (unit sphere)
     nt.assert_array_almost_equal(radii, np.ones_like(radii), decimal=10)
