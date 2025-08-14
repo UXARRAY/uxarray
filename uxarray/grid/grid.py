@@ -1894,11 +1894,21 @@ class Grid:
         return self._spatialhash
 
     def get_r_tree(self, reconstruct: bool = False):
-        """Build or retrieve a spatialpandas.spatialindex.HilbertRtree over per-face AABBs.
+        """Build or retrieve a spatialpandas.spatialindex.HilbertRtree built on the bounding boxes of each face.
 
         The returned object is the original Numba-backed HilbertRtree instance so it can be
         used directly in Numba via its `.numba_rtree` attribute. Boxes are built in 3D
         (xmin, ymin, zmin, xmax, ymax, zmax) when supported.
+
+        Parameters
+        ----------
+        reconstruct : bool, optional
+            If True, rebuild the R-tree even if it already exists.
+
+        Returns
+        -------
+        HilbertRtree
+            Spatial index for efficient bounding box queries.
         """
         if reconstruct or not hasattr(self, "_rtree") or self._rtree is None:
             rtree, boxes, dim = _rtree_build(self.bounds)

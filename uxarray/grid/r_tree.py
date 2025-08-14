@@ -7,6 +7,22 @@ from spatialpandas.spatialindex import HilbertRtree
 def _face_aabb_xyz_kernel(
     lat0: float, lat1: float, lon0: float, lon1: float, eps: float = 1e-12
 ):
+    """Compute 3D Cartesian AABB for a single spherical face.
+
+    Parameters
+    ----------
+    lat0, lat1 : float
+        Latitude bounds in radians.
+    lon0, lon1 : float
+        Longitude bounds in radians.
+    eps : float, optional
+        Small padding to add to bounding box for numerical stability.
+
+    Returns
+    -------
+    tuple
+        (xmin, ymin, zmin, xmax, ymax, zmax) bounding box coordinates.
+    """
     two_pi = 2.0 * np.pi
     if lon1 < lon0:
         lon1 += two_pi
@@ -71,6 +87,22 @@ def _face_aabb_xyz_kernel(
 def face_aabb_xyz(
     lat_bounds: np.ndarray, lon_bounds: np.ndarray, eps: float = 1e-12
 ) -> np.ndarray:
+    """Compute 3D Cartesian AABBs for multiple spherical faces.
+
+    Parameters
+    ----------
+    lat_bounds : np.ndarray
+        Array of shape (n, 2) with latitude bounds in radians.
+    lon_bounds : np.ndarray
+        Array of shape (n, 2) with longitude bounds in radians.
+    eps : float, optional
+        Small padding to add to bounding boxes for numerical stability.
+
+    Returns
+    -------
+    np.ndarray
+        Array of shape (n, 6) with bounding boxes as (xmin, ymin, zmin, xmax, ymax, zmax).
+    """
     n = lat_bounds.shape[0]
     boxes = np.empty((n, 6), dtype=np.float64)
     for i in prange(n):
@@ -83,6 +115,23 @@ def face_aabb_xyz(
 
 
 def construct_face_rtree_from_bounds(bounds_da, p: int = 10, page_size: int = 512):
+    """Construct an R-tree spatial index from face bounds.
+
+    Parameters
+    ----------
+    bounds_da : xarray.DataArray
+        Face bounds data array with shape (n_face, 2, 2).
+    p : int, optional
+        Page size parameter for R-tree construction.
+    page_size : int, optional
+        Page size in bytes for R-tree.
+
+    Returns
+    -------
+    tuple
+        (rtree, boxes, dim) where rtree is the HilbertRtree instance,
+        boxes are the computed bounding boxes, and dim is 2 or 3.
+    """
     arr = bounds_da.values
     lat_bounds = arr[:, 0, :]
     lon_bounds = arr[:, 1, :]
@@ -102,6 +151,18 @@ def construct_face_rtree_from_bounds(bounds_da, p: int = 10, page_size: int = 51
 
 
 def aabb_overlap3(b1: np.ndarray, b2: np.ndarray) -> bool:
+    """Check if two 3D axis-aligned bounding boxes overlap.
+
+    Parameters
+    ----------
+    b1, b2 : np.ndarray
+        Bounding boxes as (xmin, ymin, zmin, xmax, ymax, zmax).
+
+    Returns
+    -------
+    bool
+        True if boxes overlap, False otherwise.
+    """
     return not (
         (b1[3] < b2[0])
         or (b2[3] < b1[0])
@@ -113,6 +174,20 @@ def aabb_overlap3(b1: np.ndarray, b2: np.ndarray) -> bool:
 
 
 def faces_aabb_overlap_from_bounds(bounds_da, i: int, j: int) -> bool:
+    """Check if two faces' bounding boxes overlap.
+
+    Parameters
+    ----------
+    bounds_da : xarray.DataArray
+        Face bounds data array.
+    i, j : int
+        Face indices to check.
+
+    Returns
+    -------
+    bool
+        True if face bounding boxes overlap.
+    """
     arr = bounds_da.values
     lat_bounds = arr[[i, j], 0, :]
     lon_bounds = arr[[i, j], 1, :]
@@ -121,6 +196,18 @@ def faces_aabb_overlap_from_bounds(bounds_da, i: int, j: int) -> bool:
 
 
 def find_intersecting_face_pairs(bounds_da):
+    """Find all pairs of faces with overlapping bounding boxes.
+
+    Parameters
+    ----------
+    bounds_da : xarray.DataArray
+        Face bounds data array.
+
+    Returns
+    -------
+    np.ndarray
+        Array of shape (n_pairs, 2) with face index pairs.
+    """
     arr = bounds_da.values
     lat_bounds = arr[:, 0, :]
     lon_bounds = arr[:, 1, :]
