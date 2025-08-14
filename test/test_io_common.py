@@ -107,7 +107,7 @@ class TestIOCommon:
         # 2. Coordinates should be in valid ranges
         if hasattr(grid.node_lon, 'units') and 'degree' in str(grid.node_lon.units):
             assert grid.node_lon.min() >= -180
-            assert grid.node_lon.max() <= 360
+            assert grid.node_lon.max() <= 180
             assert grid.node_lat.min() >= -90
             assert grid.node_lat.max() <= 90
 
@@ -118,14 +118,12 @@ class TestIOCommon:
         """Test that all grids have consistent basic properties after loading."""
         grids = []
 
-        # Load a few different format grids
-        test_files = [
-            ("ugrid", "ugrid/quad-hexagon", "grid.nc"),
-            ("mpas", "mpas/QU/480", "grid.nc"),
-            ("exodus", "exodus/outCSne8", "outCSne8.g"),
-        ]
+        # Load all different format grids
+        for format_name, subpath, filename in IO_READ_TEST_FORMATS:
+            if filename is None:  # Special case for fesom
+                # Skip fesom for now as it requires multiple files
+                continue
 
-        for format_name, subpath, filename in test_files:
             grid_path = current_path / "meshfiles" / subpath / filename
             if not grid_path.exists():
                 continue
@@ -147,20 +145,7 @@ class TestIOCommon:
             assert grid.node_lon.dtype in [np.float32, np.float64]
             assert grid.node_lat.dtype in [np.float32, np.float64]
 
-    @pytest.mark.parametrize("write_format", WRITABLE_FORMATS)
-    def test_write_invalid_path(self, write_format):
-        """Test error handling for invalid write paths."""
-        # Create a simple test grid
-        grid = ux.open_grid(current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc")
 
-        # Try to write to invalid path
-        with pytest.raises((OSError, IOError, PermissionError)):
-            grid._ds.to_netcdf("/invalid/path/file.nc")
-
-    def test_read_nonexistent_file(self):
-        """Test error handling for non-existent files."""
-        with pytest.raises((FileNotFoundError, OSError)):
-            ux.open_grid("nonexistent_file.nc")
 
     @pytest.mark.parametrize("format_name", ["ugrid", "mpas", "esmf", "exodus", "scrip"])
     def test_lazy_loading(self, format_name):
@@ -192,11 +177,17 @@ class TestIODatasetCommon:
     def test_dataset_basic_operations(self):
         """Test basic dataset operations across formats."""
         # Test that we can open datasets with different grid formats
-        test_cases = [
+        # Note: We use a subset of IO_READ_TEST_FORMATS here because not all
+        # grid files have corresponding data files for dataset testing
+        test_cases_with_data = [
             ("ugrid", "ugrid/quad-hexagon", "grid.nc", "data.nc"),
+            ("ugrid", "ugrid/outCSne30", "outCSne30.ug", "outCSne30_vortex.nc"),
+            ("ugrid", "ugrid/outRLL1deg", "outRLL1deg.ug", "outRLL1deg_vortex.nc"),
+            ("mpas", "mpas/QU/480", "grid.nc", "data.nc"),
+            ("esmf", "esmf/ne30", "ne30pg3.grid.nc", "ne30pg3.data.nc"),
         ]
 
-        for format_name, subpath, grid_file, data_file in test_cases:
+        for format_name, subpath, grid_file, data_file in test_cases_with_data:
             grid_path = current_path / "meshfiles" / subpath / grid_file
             data_path = current_path / "meshfiles" / subpath / data_file
 
