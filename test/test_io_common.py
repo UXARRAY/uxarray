@@ -166,8 +166,6 @@ class TestIOCommon:
         else:
             grid = ux.open_grid(test_file)
 
-        # Check that data arrays are lazy (dask arrays) where applicable
-        # This is format-dependent, so we just check it doesn't error
         assert grid._ds is not None
 
 
