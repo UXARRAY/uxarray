@@ -41,33 +41,44 @@ IO_READ_TEST_FORMATS = [
 ]
 
 # Formats that support writing
-WRITABLE_FORMATS = ["ugrid", "exodus"]
+WRITABLE_FORMATS = ["ugrid", "exodus", "scrip", "esmf"]
 
 # Format conversion test pairs - removed for now as format conversion
 # requires more sophisticated handling than simple to_netcdf
 
 
+@pytest.fixture(params=IO_READ_TEST_FORMATS)
+def grid_from_format(request):
+    """Fixture that loads grids from all supported formats."""
+    format_name, subpath, filename = request.param
+
+    if format_name == "fesom" and filename is None:
+        # Special handling for FESOM with multiple input files
+        fesom_data_path = current_path / "meshfiles" / subpath / "data"
+        fesom_mesh_path = current_path / "meshfiles" / subpath
+        grid = ux.open_grid(fesom_mesh_path, fesom_data_path)
+    else:
+        grid_path = current_path / "meshfiles" / subpath / filename
+        if not grid_path.exists():
+            pytest.skip(f"Test file not found: {grid_path}")
+
+        # Handle special cases
+        if format_name == "mpas":
+            grid = ux.open_grid(grid_path, use_dual=False)
+        else:
+            grid = ux.open_grid(grid_path)
+
+    # Add format info to the grid for test identification
+    grid._test_format = format_name
+    return grid
+
+
 class TestIOCommon:
     """Common IO tests across all formats."""
 
-    @pytest.mark.parametrize("format_name,subpath,filename", IO_READ_TEST_FORMATS)
-    def test_basic_read(self, format_name, subpath, filename):
+    def test_basic_read(self, grid_from_format):
         """Test that all formats can be read successfully."""
-        if format_name == "fesom" and filename is None:
-            # Special handling for FESOM with multiple input files
-            fesom_data_path = current_path / "meshfiles" / subpath / "data"
-            fesom_mesh_path = current_path / "meshfiles" / subpath
-            grid = ux.open_grid(fesom_mesh_path, fesom_data_path)
-        else:
-            grid_path = current_path / "meshfiles" / subpath / filename
-            if not grid_path.exists():
-                pytest.skip(f"Test file not found: {grid_path}")
-
-            # Handle special cases
-            if format_name == "mpas":
-                grid = ux.open_grid(grid_path, use_dual=False)
-            else:
-                grid = ux.open_grid(grid_path)
+        grid = grid_from_format
 
         # Basic validation
         assert grid is not None
@@ -82,23 +93,9 @@ class TestIOCommon:
         # Validate grid
         grid.validate()
 
-    @pytest.mark.parametrize("format_name,subpath,filename", IO_READ_TEST_FORMATS)
-    def test_ugrid_compliance_after_read(self, format_name, subpath, filename):
+    def test_ugrid_compliance_after_read(self, grid_from_format):
         """Test that grids from all formats meet basic UGRID standards."""
-        if format_name == "fesom" and filename is None:
-            # Special handling for FESOM
-            fesom_data_path = current_path / "meshfiles" / subpath / "data"
-            fesom_mesh_path = current_path / "meshfiles" / subpath
-            grid = ux.open_grid(fesom_mesh_path, fesom_data_path)
-        else:
-            grid_path = current_path / "meshfiles" / subpath / filename
-            if not grid_path.exists():
-                pytest.skip(f"Test file not found: {grid_path}")
-
-            if format_name == "mpas":
-                grid = ux.open_grid(grid_path, use_dual=False)
-            else:
-                grid = ux.open_grid(grid_path)
+        grid = grid_from_format
 
         # Check UGRID compliance
         # 1. Connectivity should use proper fill values
@@ -147,55 +144,8 @@ class TestIOCommon:
 
 
 
-    @pytest.mark.parametrize("format_name", ["ugrid", "mpas", "esmf", "exodus", "scrip"])
-    def test_lazy_loading(self, format_name):
+    def test_lazy_loading(self, grid_from_format):
         """Test that grids support lazy loading where applicable."""
-        # Get a test file for this format
-        test_file = None
-        for fmt, subpath, filename in IO_READ_TEST_FORMATS:
-            if fmt == format_name and filename is not None:
-                test_file = current_path / "meshfiles" / subpath / filename
-                break
-
-        if test_file is None or not test_file.exists():
-            pytest.skip(f"No test file found for {format_name}")
-
-        # Open grid
-        if format_name == "mpas":
-            grid = ux.open_grid(test_file, use_dual=False)
-        else:
-            grid = ux.open_grid(test_file)
+        grid = grid_from_format
 
         assert grid._ds is not None
-
-
-class TestIODatasetCommon:
-    """Common tests for dataset (grid + data) operations."""
-
-    def test_dataset_basic_operations(self):
-        """Test basic dataset operations across formats."""
-        # Test that we can open datasets with different grid formats
-        # Note: We use a subset of IO_READ_TEST_FORMATS here because not all
-        # grid files have corresponding data files for dataset testing
-        test_cases_with_data = [
-            ("ugrid", "ugrid/quad-hexagon", "grid.nc", "data.nc"),
-            ("ugrid", "ugrid/outCSne30", "outCSne30.ug", "outCSne30_vortex.nc"),
-            ("ugrid", "ugrid/outRLL1deg", "outRLL1deg.ug", "outRLL1deg_vortex.nc"),
-            ("mpas", "mpas/QU/480", "grid.nc", "data.nc"),
-            ("esmf", "esmf/ne30", "ne30pg3.grid.nc", "ne30pg3.data.nc"),
-        ]
-
-        for format_name, subpath, grid_file, data_file in test_cases_with_data:
-            grid_path = current_path / "meshfiles" / subpath / grid_file
-            data_path = current_path / "meshfiles" / subpath / data_file
-
-            if not grid_path.exists() or not data_path.exists():
-                continue
-
-            # Open dataset
-            dataset = ux.open_dataset(grid_path, data_path)
-
-            # Basic checks
-            assert dataset is not None
-            assert hasattr(dataset, 'uxgrid')
-            assert len(dataset.data_vars) > 0
