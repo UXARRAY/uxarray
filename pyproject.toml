@@ -38,7 +38,7 @@ dependencies = [
   "scikit-learn",
   "scipy",
   "shapely",
-  "spatialpandas",
+  "rtree",
   "geopandas",
   "xarray",
   "hvplot",

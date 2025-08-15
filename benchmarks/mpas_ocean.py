@@ -128,7 +128,7 @@ class QueryTreeStructures:
         _ = self.ball_tree.query([0.0, 0.0], return_distance=True, k=1)
 
     def time_r_tree(self):
-        _ = self.r_tree.intersects((self.x, self.y, self.z, self.x, self.y, self.z))
+        _ = list(self.r_tree.intersection((self.x, self.y, self.z, self.x, self.y, self.z)))
 
 
 class RemapDownsample:

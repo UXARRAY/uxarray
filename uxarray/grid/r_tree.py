@@ -1,6 +1,13 @@
 import numpy as np
 from numba import njit, prange
-from spatialpandas.spatialindex import HilbertRtree
+
+try:
+    from rtree import index
+
+    RTREE_AVAILABLE = True
+except ImportError:
+    RTREE_AVAILABLE = False
+    index = None
 
 
 @njit(cache=True)
@@ -114,22 +121,24 @@ def face_aabb_xyz(
     return boxes
 
 
-def construct_face_rtree_from_bounds(bounds_da, p: int = 10, page_size: int = 512):
+def construct_face_rtree_from_bounds(
+    bounds_da, leaf_capacity: int = 10, near_minimum_overlap_factor: int = 7
+):
     """Construct an R-tree spatial index from face bounds.
 
     Parameters
     ----------
     bounds_da : xarray.DataArray
         Face bounds data array with shape (n_face, 2, 2).
-    p : int, optional
-        Page size parameter for R-tree construction.
-    page_size : int, optional
-        Page size in bytes for R-tree.
+    leaf_capacity : int, optional
+        Maximum number of entries in a leaf node (default: 10).
+    near_minimum_overlap_factor : int, optional
+        Used during bulk loading to improve performance (default: 7, must be < leaf_capacity).
 
     Returns
     -------
     tuple
-        (rtree, boxes, dim) where rtree is the HilbertRtree instance,
+        (rtree, boxes, dim) where rtree is the rtree.index.Index instance,
         boxes are the computed bounding boxes, and dim is 2 or 3.
     """
     arr = bounds_da.values
@@ -137,16 +146,39 @@ def construct_face_rtree_from_bounds(bounds_da, p: int = 10, page_size: int = 51
     lon_bounds = arr[:, 1, :]
     boxes = face_aabb_xyz(lat_bounds, lon_bounds)
 
-    if HilbertRtree is None:
+    if not RTREE_AVAILABLE:
         return None, boxes, 3
 
     try:
-        rtree = HilbertRtree(boxes, p, page_size)
+        # Try 3D R-tree first
+        properties = index.Property(
+            dimension=3,
+            leaf_capacity=leaf_capacity,
+            near_minimum_overlap_factor=near_minimum_overlap_factor,
+        )
+        rtree = index.Index(properties=properties)
+
+        # Bulk insert all bounding boxes
+        for i, box in enumerate(boxes):
+            rtree.insert(i, box)
+
         dim = 3
     except Exception:
+        # Fallback to 2D if 3D fails
         xy_boxes = np.column_stack([boxes[:, 0], boxes[:, 1], boxes[:, 3], boxes[:, 4]])
-        rtree = HilbertRtree(xy_boxes, p, page_size)
+        properties = index.Property(
+            dimension=2,
+            leaf_capacity=leaf_capacity,
+            near_minimum_overlap_factor=near_minimum_overlap_factor,
+        )
+        rtree = index.Index(properties=properties)
+
+        # Bulk insert 2D bounding boxes
+        for i, box in enumerate(xy_boxes):
+            rtree.insert(i, box)
+
         dim = 2
+
     return rtree, boxes, dim
 
 
@@ -216,11 +248,19 @@ def find_intersecting_face_pairs(bounds_da):
     n = boxes.shape[0]
     pairs = []
 
-    if HilbertRtree is not None:
+    if RTREE_AVAILABLE:
         try:
-            rtree = HilbertRtree(boxes)
+            # Create 3D R-tree
+            properties = index.Property(dimension=3)
+            rtree = index.Index(properties=properties)
+
+            # Insert all boxes
+            for i, box in enumerate(boxes):
+                rtree.insert(i, box)
+
+            # Find intersecting pairs
             for i in range(n):
-                hits = rtree.query(boxes[i, :])
+                hits = list(rtree.intersection(boxes[i, :]))
                 for j in hits:
                     j = int(j)
                     if j > i and aabb_overlap3(boxes[i], boxes[j]):
@@ -229,6 +269,7 @@ def find_intersecting_face_pairs(bounds_da):
         except Exception:
             pass
 
+    # Fallback to brute force
     for i in range(n):
         bi = boxes[i]
         for j in range(i + 1, n):

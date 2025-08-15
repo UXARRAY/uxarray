@@ -10,6 +10,7 @@ from uxarray.grid.r_tree import (
     construct_face_rtree_from_bounds,
     faces_aabb_overlap_from_bounds,
     find_intersecting_face_pairs,
+    RTREE_AVAILABLE,
 )
 
 
@@ -38,6 +39,10 @@ def test_face_aabb_batch_with_wrap():
 
 
 def test_construct_rtree_from_grid_bounds_geoflow():
+    if not RTREE_AVAILABLE:
+        import pytest
+        pytest.skip("rtree not available")
+
     here = Path(os.path.dirname(os.path.realpath(__file__)))
     grid_path = here / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
     grid = ux.open_grid(grid_path)
@@ -45,9 +50,9 @@ def test_construct_rtree_from_grid_bounds_geoflow():
     rtree, boxes, dim = construct_face_rtree_from_bounds(bounds)
     assert boxes.shape[0] == grid.n_face
     assert dim in (2, 3)
-    # Query using the native HilbertRtree
-    hits_any = rtree.intersects(boxes[0])
-    assert isinstance(hits_any, np.ndarray)
+    # Query using the rtree directly
+    hits_any = list(rtree.intersection(boxes[0]))
+    assert isinstance(hits_any, list)
 
 
 def test_faces_aabb_overlap_and_pairs_synthetic():
@@ -62,6 +67,10 @@ def test_faces_aabb_overlap_and_pairs_synthetic():
 
 
 def test_rtree_face_center_point_hits_quad_hexagon():
+    if not RTREE_AVAILABLE:
+        import pytest
+        pytest.skip("rtree not available")
+
     here = Path(os.path.dirname(os.path.realpath(__file__)))
     quad_hex_path = here / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
     uxgrid = ux.open_grid(quad_hex_path)
@@ -73,8 +82,8 @@ def test_rtree_face_center_point_hits_quad_hexagon():
             query = (x, y, z, x, y, z)
         else:
             query = (x, y, x, y)
-        hits = rtree.intersects(query)
-        assert hits.size >= 1
+        hits = list(rtree.intersection(query))
+        assert len(hits) >= 1
         # Ensure exact face is among hits; filter by AABB overlap exactness
         # Convert to Python ints for consistency
         assert int(i) in set(int(h) for h in hits)

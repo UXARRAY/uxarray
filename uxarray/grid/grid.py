@@ -1894,11 +1894,11 @@ class Grid:
         return self._spatialhash
 
     def get_r_tree(self, reconstruct: bool = False):
-        """Build or retrieve a spatialpandas.spatialindex.HilbertRtree built on the bounding boxes of each face.
+        """Build or retrieve an rtree.index.Index built on the bounding boxes of each face.
 
-        The returned object is the original Numba-backed HilbertRtree instance so it can be
-        used directly in Numba via its `.numba_rtree` attribute. Boxes are built in 3D
-        (xmin, ymin, zmin, xmax, ymax, zmax) when supported.
+        The returned object is an rtree.index.Index instance backed by libspatialindex.
+        Boxes are built in 3D (xmin, ymin, zmin, xmax, ymax, zmax) when supported,
+        with fallback to 2D (xmin, ymin, xmax, ymax) if needed.
 
         Note
         ----
@@ -1907,6 +1907,15 @@ class Grid:
         if their bounding boxes overlap at that point. To find the exact face containing a point,
         use the R-tree results as candidates for subsequent exact geometric tests.
 
+        Examples
+        --------
+        >>> grid = ux.open_grid("path/to/grid.nc")
+        >>> rtree = grid.get_r_tree()
+        >>> # Query for intersecting faces
+        >>> hits = list(rtree.intersection([xmin, ymin, zmin, xmax, ymax, zmax]))
+        >>> # Find nearest faces
+        >>> nearest = list(rtree.nearest([x, y, z, x, y, z], num_results=5))
+
         Parameters
         ----------
         reconstruct : bool, optional
@@ -1914,8 +1923,9 @@ class Grid:
 
         Returns
         -------
-        HilbertRtree
-            Spatial index for efficient bounding box queries.
+        rtree.index.Index
+            Spatial index for efficient bounding box queries. Use `rtree.intersection(bbox)`
+            for spatial queries and `rtree.nearest(bbox, num_results)` for nearest neighbor queries.
         """
         if reconstruct or not hasattr(self, "_rtree") or self._rtree is None:
             rtree, boxes, dim = _rtree_build(self.bounds)
