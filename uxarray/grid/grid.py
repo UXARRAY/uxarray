@@ -66,6 +66,9 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 from uxarray.grid.point_in_face import _point_in_face_query
+from uxarray.grid.r_tree import (
+    construct_face_rtree_from_bounds as _rtree_build,
+)
 from uxarray.grid.utils import make_setter
 from uxarray.grid.validation import (
     _check_area,
@@ -1889,6 +1892,48 @@ class Grid:
             self._spatialhash = SpatialHash(self, reconstruct)
 
         return self._spatialhash
+
+    def get_r_tree(self, reconstruct: bool = False):
+        """Build or retrieve an rtree.index.Index built on the bounding boxes of each face.
+
+        The returned object is an rtree.index.Index instance backed by libspatialindex.
+        Boxes are built in 3D (xmin, ymin, zmin, xmax, ymax, zmax) when supported,
+        with fallback to 2D (xmin, ymin, xmax, ymax) if needed.
+
+        Note
+        ----
+        R-tree queries return all faces whose bounding boxes intersect with the query region,
+        not just exact geometric matches. For example, a point query may return multiple faces
+        if their bounding boxes overlap at that point. To find the exact face containing a point,
+        use the R-tree results as candidates for subsequent exact geometric tests.
+
+        Examples
+        --------
+        >>> grid = ux.open_grid("path/to/grid.nc")
+        >>> rtree = grid.get_r_tree()
+        >>> # Query for intersecting faces
+        >>> hits = list(rtree.intersection([xmin, ymin, zmin, xmax, ymax, zmax]))
+        >>> # Find nearest faces
+        >>> nearest = list(rtree.nearest([x, y, z, x, y, z], num_results=5))
+
+        Parameters
+        ----------
+        reconstruct : bool, optional
+            If True, rebuild the R-tree even if it already exists.
+
+        Returns
+        -------
+        rtree.index.Index
+            Spatial index for efficient bounding box queries. Use `rtree.intersection(bbox)`
+            for spatial queries and `rtree.nearest(bbox, num_results)` for nearest neighbor queries.
+        """
+        if reconstruct or not hasattr(self, "_rtree") or self._rtree is None:
+            rtree, boxes, dim = _rtree_build(self.bounds)
+            self._rtree = rtree
+            # cache for advanced users; may be useful for debugging or custom queries
+            self._rtree_boxes = boxes
+            self._rtree_dim = dim
+        return self._rtree
 
     def copy(self):
         """Returns a deep copy of this grid."""

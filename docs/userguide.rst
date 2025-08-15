@@ -73,6 +73,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Tree Structures <user-guide/tree_structures.ipynb>`_
  Data structures for nearest neighbor queries
 
+`R-tree Implementation <user-guide/r_tree.rst>`_
+ Details and API for the R-tree-based spatial index and adapters
+
 `Face Area Calculations <user-guide/area_calc.ipynb>`_
  Methods for computing the area of each face
 
