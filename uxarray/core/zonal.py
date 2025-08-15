@@ -1,7 +1,6 @@
 import numpy as np
 
-from uxarray.grid.arcs import compute_arc_length
-from uxarray.grid.area import get_gauss_quadrature_dg
+from uxarray.grid.area import calculate_face_area
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
 from uxarray.grid.intersections import (
     gca_const_lat_intersection,
@@ -68,69 +67,125 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
     return result
 
 
-def _band_overlap_area_for_face(face_edges_xyz, z_min, z_max, order=3):
-    """Approximate overlap area between a face and latitude band [z_min,z_max].
+def _compute_band_overlap_area(
+    face_edges_xyz, z_min, z_max, quadrature_rule="gaussian", order=4
+):
+    """Compute overlap area between a face and latitude band using area.py functions.
 
-    Integrates A = ∫_{phi1}^{phi2} L(phi) cos(phi) dphi, where L(phi) is the
-    intersection length of the face with the constant-latitude circle at phi.
-    Here z = sin(phi), so phi = arcsin(z) and dz = cos(phi) dphi.
+    This function finds the intersection polygon between a face and latitude band,
+    then uses calculate_face_area from area.py with latitude_adjusted_area=True
+    for accurate area computation when edges lie on constant latitude lines.
 
-    We change variable to z and integrate ∫ L(arcsin(z)) dz using Gauss–Legendre.
+    Parameters
+    ----------
+    face_edges_xyz : array-like
+        Cartesian coordinates of face edge nodes
+    z_min, z_max : float
+        Z-coordinate bounds of the latitude band (z = sin(latitude))
+    quadrature_rule : str, optional
+        Quadrature rule to use ("gaussian" or "triangular", default: "gaussian")
+    order : int, optional
+        Quadrature order (default: 4, same as area.py)
+
+    Returns
+    -------
+    float
+        Overlap area between face and latitude band
     """
-    # Use Gaussian quadrature nodes/weights on [0,1], then scale to [z_min,z_max]
-    dG, dW = get_gauss_quadrature_dg(order)
-    xi = dG[0]  # nodes on [0,1]
-    wi = dW  # weights for [0,1]
-    half = 0.5 * (z_max - z_min)
-    mid = 0.5 * (z_max - z_min) + z_min
+    # Collect all intersection and interior points to form the overlap polygon
+    polygon_points = []
 
-    acc = 0.0
-    for t, w in zip(xi, wi):
-        z = mid + half * (2.0 * t - 1.0)  # map [0,1] -> [-1,1] -> [z_min,z_max]
-        pts = []
+    # Find intersections with z_min and z_max boundaries
+    for z_boundary in [z_min, z_max]:
         for e in range(face_edges_xyz.shape[0]):
             edge = face_edges_xyz[e]
-            inter = gca_const_lat_intersection(edge, z)
+            inter = gca_const_lat_intersection(edge, z_boundary)
             nint = get_number_of_intersections(inter)
-            if nint == 1:
-                pts.append(inter[0])
-            elif nint == 2:
-                pts.append(inter[0])
-                pts.append(inter[1])
+            for i in range(nint):
+                polygon_points.append(inter[i])
 
-        if len(pts) == 0:
-            L = 0.0
-        else:
-            used = [False] * len(pts)
-            L = 0.0
-            for i in range(len(pts)):
-                if used[i]:
-                    continue
-                best_j = -1
-                best_d2 = 1e300
-                for j in range(len(pts)):
-                    if i == j or used[j]:
-                        continue
-                    d2 = float(((pts[i] - pts[j]) ** 2).sum())
-                    if d2 < best_d2:
-                        best_d2 = d2
-                        best_j = j
-                if best_j >= 0:
-                    L += compute_arc_length(pts[i], pts[best_j])
-                    used[i] = True
-                    used[best_j] = True
-        acc += (2.0 * w) * L
+    # Add face vertices that lie within the band
+    for e in range(face_edges_xyz.shape[0]):
+        vertex = face_edges_xyz[e, 0]  # First point of edge
+        if z_min <= vertex[2] <= z_max:
+            polygon_points.append(vertex)
 
-    area = half * acc
+    if len(polygon_points) < 3:
+        return 0.0
+
+    # Remove duplicate points
+    unique_points = []
+    tolerance = 1e-10
+    for pt in polygon_points:
+        is_duplicate = False
+        for existing_pt in unique_points:
+            if np.linalg.norm(pt - existing_pt) < tolerance:
+                is_duplicate = True
+                break
+        if not is_duplicate:
+            unique_points.append(pt)
+
+    if len(unique_points) < 3:
+        return 0.0
+
+    # Sort points to form a proper polygon
+    unique_points = np.array(unique_points)
+
+    # Compute centroid and sort by angle
+    center = np.mean(unique_points, axis=0)
+    center = center / np.linalg.norm(center)
+
+    angles = []
+    for pt in unique_points:
+        # Use longitude for sorting (works well for latitude bands)
+        angle = np.arctan2(pt[1], pt[0])
+        angles.append(angle)
+
+    sorted_indices = np.argsort(angles)
+    sorted_points = unique_points[sorted_indices]
+
+    # Use area.py calculate_face_area with latitude adjustment
+    x = sorted_points[:, 0]
+    y = sorted_points[:, 1]
+    z = sorted_points[:, 2]
+
+    area, _ = calculate_face_area(
+        x,
+        y,
+        z,
+        quadrature_rule=quadrature_rule,
+        order=order,
+        latitude_adjusted_area=True,  # Key improvement: use latitude adjustment
+    )
+
     return area
 
 
 def _compute_conservative_zonal_mean_bands(uxda, bands):
+    """
+    Compute conservative zonal mean over latitude bands.
+
+    Uses get_faces_between_latitudes to optimize computation by avoiding
+    overlap area calculations for fully contained faces.
+
+    Parameters
+    ----------
+    uxda : UxDataArray
+        The data array to compute zonal means for
+    bands : array-like
+        Latitude band edges in degrees
+
+    Returns
+    -------
+    result : array
+        Zonal means for each band
+    """
     import dask.array as da
 
     uxgrid = uxda.uxgrid
     face_axis = uxda.get_axis_num("n_face")
 
+    # Pre-compute face properties
     faces_edge_nodes_xyz = _get_cartesian_face_edge_nodes_array(
         uxgrid.face_node_connectivity.values,
         uxgrid.n_face,
@@ -140,6 +195,8 @@ def _compute_conservative_zonal_mean_bands(uxda, bands):
         uxgrid.node_z.values,
     )
     n_nodes_per_face = uxgrid.n_nodes_per_face.values
+    face_bounds_lat = uxgrid.face_bounds_lat.values
+    face_areas = uxgrid.face_areas.values
 
     bands = np.asarray(bands, dtype=float)
     if bands.ndim != 1 or bands.size < 2:
@@ -147,6 +204,7 @@ def _compute_conservative_zonal_mean_bands(uxda, bands):
 
     nb = bands.size - 1
 
+    # Initialize result array
     shape = list(uxda.shape)
     shape[face_axis] = nb
     if isinstance(uxda.data, da.Array):
@@ -154,36 +212,65 @@ def _compute_conservative_zonal_mean_bands(uxda, bands):
     else:
         result = np.zeros(shape, dtype=uxda.dtype)
 
-    fb = uxgrid.face_bounds_lat.values
-
     for bi in range(nb):
         lat0 = float(np.clip(bands[bi], -90.0, 90.0))
         lat1 = float(np.clip(bands[bi + 1], -90.0, 90.0))
+
+        # Ensure lat0 <= lat1
+        if lat0 > lat1:
+            lat0, lat1 = lat1, lat0
+
         z0 = np.sin(np.deg2rad(lat0))
         z1 = np.sin(np.deg2rad(lat1))
         zmin, zmax = (z0, z1) if z0 <= z1 else (z1, z0)
 
-        mask = ~((fb[:, 1] < min(lat0, lat1)) | (fb[:, 0] > max(lat0, lat1)))
-        face_idx = np.nonzero(mask)[0]
-        if face_idx.size == 0:
+        # Step 1: Get fully contained faces
+        fully_contained_faces = uxgrid.get_faces_between_latitudes((lat0, lat1))
+
+        # Step 2: Get all overlapping faces (including partial)
+        mask = ~((face_bounds_lat[:, 1] < lat0) | (face_bounds_lat[:, 0] > lat1))
+        all_overlapping_faces = np.nonzero(mask)[0]
+
+        if all_overlapping_faces.size == 0:
+            # No faces in this band
+            idx = [slice(None)] * result.ndim
+            idx[face_axis] = bi
+            result[tuple(idx)] = np.nan
             continue
 
-        overlap = np.zeros(face_idx.size, dtype=float)
-        for k, fi in enumerate(face_idx):
-            nedge = n_nodes_per_face[fi]
-            fe = faces_edge_nodes_xyz[fi, :nedge]
-            overlap[k] = _band_overlap_area_for_face(fe, zmin, zmax, order=3)
+        # Step 3: Partition faces into fully contained vs partially overlapping
+        is_fully_contained = np.isin(all_overlapping_faces, fully_contained_faces)
+        partially_overlapping_faces = all_overlapping_faces[~is_fully_contained]
 
-        data_slice = uxda.isel(n_face=face_idx, ignore_grid=True).data
-        w = overlap
-        total = w.sum()
-        if total == 0.0:
+        # Step 4: Compute weights
+        all_weights = np.zeros(all_overlapping_faces.size, dtype=float)
+
+        # For fully contained faces, use their full area
+        if fully_contained_faces.size > 0:
+            fully_contained_indices = np.where(is_fully_contained)[0]
+            all_weights[fully_contained_indices] = face_areas[fully_contained_faces]
+
+        # For partially overlapping faces, compute fractional area
+        if partially_overlapping_faces.size > 0:
+            partial_indices = np.where(~is_fully_contained)[0]
+            for i, face_idx in enumerate(partially_overlapping_faces):
+                nedge = n_nodes_per_face[face_idx]
+                face_edges = faces_edge_nodes_xyz[face_idx, :nedge]
+                # Use area.py functions with latitude adjustment for accurate area calculation
+                overlap_area = _compute_band_overlap_area(face_edges, zmin, zmax)
+                all_weights[partial_indices[i]] = overlap_area
+
+        # Step 5: Compute weighted average
+        data_slice = uxda.isel(n_face=all_overlapping_faces, ignore_grid=True).data
+        total_weight = all_weights.sum()
+
+        if total_weight == 0.0:
             weighted = np.nan * data_slice[..., 0]
         else:
             w_shape = [1] * data_slice.ndim
-            w_shape[face_axis] = w.size
-            w_reshaped = w.reshape(w_shape)
-            weighted = (data_slice * w_reshaped).sum(axis=face_axis) / total
+            w_shape[face_axis] = all_weights.size
+            w_reshaped = all_weights.reshape(w_shape)
+            weighted = (data_slice * w_reshaped).sum(axis=face_axis) / total_weight
 
         idx = [slice(None)] * result.ndim
         idx[face_axis] = bi
