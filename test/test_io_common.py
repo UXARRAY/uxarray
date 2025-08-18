@@ -1,11 +1,6 @@
 """
-Common IO tests that apply to all grid formats.
-
-This module tests functionality that should work across all supported formats:
-- Basic read/write operations
-- Format conversions and round-trips
-- UGRID compliance
-- Common error handling
+Common IO tests that apply to all grid formats. These tests make sure the
+same basic things work no matter which file format you start with.
 """
 
 import pytest
@@ -50,7 +45,11 @@ WRITABLE_FORMATS = ["ugrid", "exodus", "scrip", "esmf"]
 
 @pytest.fixture(params=IO_READ_TEST_FORMATS)
 def grid_from_format(request):
-    """Fixture that loads grids from all supported formats."""
+    """Load a Grid from each supported format for parameterized tests.
+
+    Handles special cases (FESOM multi-file, HEALPix) and tags the grid with
+    ``_test_format`` for easier debugging.
+    """
     format_name, subpath, filename = request.param
 
     if format_name == "fesom" and filename is None:
@@ -78,17 +77,24 @@ def grid_from_format(request):
 
 
 class TestIOCommon:
-    """Common IO tests across all formats."""
+    """Common IO tests across all formats. Helps catch format-specific
+    regressions early and keep behavior consistent.
+    """
 
     def test_return_type(self, grid_from_format):
-        """Test that all formats can be read successfully."""
+        """Open each format and return a ux.Grid. Checks that the public API
+        is consistent across readers.
+        """
         grid = grid_from_format
 
         # Basic validation
         assert isinstance(grid, ux.Grid)
 
     def test_ugrid_compliance(self, grid_from_format):
-        """Test that grids from all formats meet basic UGRID standards."""
+        """Check that a loaded grid looks like a UGRID mesh. We look for
+        required topology, coordinates, proper fill values, reasonable degree
+        ranges, and that ``validate()`` passes.
+        """
         grid = grid_from_format
 
         # Basic topology and coordinate presence
@@ -118,7 +124,9 @@ class TestIOCommon:
         # (Not all input files have Conventions attribute, but uxarray should handle them)
 
     def test_grid_properties_consistency(self, grid_from_format):
-        """Test that all grids have consistent basic properties after loading."""
+        """Make sure core dims and variables are present with the expected
+        dtypes across formats. Avoid surprises for downstream code.
+        """
         grid = grid_from_format
 
         # Check that all grids have the essential properties
@@ -133,10 +141,10 @@ class TestIOCommon:
         assert np.issubdtype(grid.node_lon.dtype, np.floating)
         assert np.issubdtype(grid.node_lat.dtype, np.floating)
 
-
-
     def test_lazy_loading(self, grid_from_format):
-        """Test that grids support lazy loading where applicable."""
+        """Confirm a backing xarray Dataset exists (grid._ds). Keeps IO and
+        compute lazy where supported.
+        """
         grid = grid_from_format
 
         assert grid._ds is not None
