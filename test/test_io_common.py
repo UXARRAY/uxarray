@@ -88,7 +88,7 @@ class TestIOCommon:
 
         # Check required dimensions
         assert 'n_node' in grid._ds.dims
-        assert 'n_face' in grid._ds.dims
+        assert 'n_face' in grid.dims
 
         # Validate grid
         grid.validate()
