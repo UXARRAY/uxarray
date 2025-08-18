@@ -80,6 +80,9 @@ class UxDataArrayCrossSectionAccessor:
         >>> uxda.cross_section(lon=0, steps=200)
         """
 
+        if steps < 2:
+            raise ValueError("steps must be at least 2")
+
         great_circle = start is not None or end is not None
         const_lon = lon is not None
         const_lat = lat is not None
