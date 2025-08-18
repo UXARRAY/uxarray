@@ -38,6 +38,7 @@ IO_READ_TEST_FORMATS = [
     ("scrip", "scrip/outCSne8", "outCSne8.nc"),
     ("icon", "icon/R02B04", "icon_grid_0010_R02B04_G.nc"),
     ("fesom", "fesom/pi", None),  # Special case - multiple files
+    ("healpix", None, None),  # Constructed via classmethod
 ]
 
 # Formats that support writing
@@ -57,6 +58,9 @@ def grid_from_format(request):
         fesom_data_path = current_path / "meshfiles" / subpath / "data"
         fesom_mesh_path = current_path / "meshfiles" / subpath
         grid = ux.open_grid(fesom_mesh_path, fesom_data_path)
+    elif format_name == "healpix":
+        # Construct a basic HEALPix grid
+        grid = ux.Grid.from_healpix(zoom=1, pixels_only=False)
     else:
         grid_path = current_path / "meshfiles" / subpath / filename
         if not grid_path.exists():
@@ -82,9 +86,9 @@ class TestIOCommon:
 
         # Basic validation
         assert isinstance(grid, ux.Grid)
-        assert hasattr(grid, 'face_node_connectivity')
-        assert hasattr(grid, 'node_lon')
-        assert hasattr(grid, 'node_lat')
+        assert 'face_node_connectivity' in grid.connectivity
+        assert 'node_lon' in grid.coordinates
+        assert 'node_lat' in grid.coordinates
 
         # Check required dimensions
         assert 'n_node' in grid.dims
@@ -111,36 +115,21 @@ class TestIOCommon:
         # 3. Check that grid has been properly standardized by uxarray
         # (Not all input files have Conventions attribute, but uxarray should handle them)
 
-    def test_grid_properties_consistency(self):
+    def test_grid_properties_consistency(self, grid_from_format):
         """Test that all grids have consistent basic properties after loading."""
-        grids = []
+        grid = grid_from_format
 
-        # Load all different format grids
-        for format_name, subpath, filename in IO_READ_TEST_FORMATS:
-            if filename is None:  # Special case for fesom
-                # Skip fesom for now as it requires multiple files
-                continue
+        # Check that all grids have the essential properties
+        assert hasattr(grid, 'n_node')
+        assert hasattr(grid, 'n_face')
+        assert 'face_node_connectivity' in grid.connectivity
+        assert 'node_lon' in grid.coordinates
+        assert 'node_lat' in grid.coordinates
 
-            grid_path = current_path / "meshfiles" / subpath / filename
-            if not grid_path.exists():
-                continue
-
-            if format_name == "mpas":
-                grid = ux.open_grid(grid_path, use_dual=False)
-            else:
-                grid = ux.open_grid(grid_path)
-
-            # Check that all grids have the essential properties
-            assert hasattr(grid, 'n_node')
-            assert hasattr(grid, 'n_face')
-            assert hasattr(grid, 'face_node_connectivity')
-            assert hasattr(grid, 'node_lon')
-            assert hasattr(grid, 'node_lat')
-
-            # Check data types are consistent
-            assert grid.face_node_connectivity.dtype in [np.int32, np.int64, INT_DTYPE]
-            assert grid.node_lon.dtype in [np.float32, np.float64]
-            assert grid.node_lat.dtype in [np.float32, np.float64]
+        # Check data types are consistent
+        assert grid.face_node_connectivity.dtype in [np.int32, np.int64, INT_DTYPE]
+        assert np.issubdtype(grid.node_lon.dtype, np.floating)
+        assert np.issubdtype(grid.node_lat.dtype, np.floating)
 
 
 
