@@ -86,20 +86,22 @@ class TestIOCommon:
 
         # Basic validation
         assert isinstance(grid, ux.Grid)
-        assert 'face_node_connectivity' in grid.connectivity
-        assert 'node_lon' in grid.coordinates
-        assert 'node_lat' in grid.coordinates
-
-        # Check required dimensions
-        assert 'n_node' in grid.dims
-        assert 'n_face' in grid.dims
-
-        # Validate grid
-        grid.validate()
 
     def test_ugrid_compliance(self, grid_from_format):
         """Test that grids from all formats meet basic UGRID standards."""
         grid = grid_from_format
+
+        # Basic topology and coordinate presence
+        assert 'face_node_connectivity' in grid.connectivity
+        assert 'node_lon' in grid.coordinates
+        assert 'node_lat' in grid.coordinates
+
+        # Required dimensions
+        assert 'n_node' in grid.dims
+        assert 'n_face' in grid.dims
+
+        # Validate grid structure
+        grid.validate()
 
         # Check UGRID compliance
         # 1. Connectivity should use proper fill values
@@ -120,8 +122,8 @@ class TestIOCommon:
         grid = grid_from_format
 
         # Check that all grids have the essential properties
-        assert hasattr(grid, 'n_node')
-        assert hasattr(grid, 'n_face')
+        assert 'n_node' in grid.dims
+        assert 'n_face' in grid.dims
         assert 'face_node_connectivity' in grid.connectivity
         assert 'node_lon' in grid.coordinates
         assert 'node_lat' in grid.coordinates
