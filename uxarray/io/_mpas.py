@@ -402,7 +402,9 @@ def _parse_face_faces(in_ds, out_ds, mesh_type):
 def _parse_edge_node_distances(in_ds, out_ds):
     """Parses ``edge_node_distances``"""
     radius = in_ds.attrs.get("sphere_radius", 1.0)
-    edge_node_distances = in_ds["dvEdge"] / radius
+    edge_node_distances = in_ds["dvEdge"]
+    if radius != 1.0:
+        edge_node_distances = edge_node_distances / radius
 
     out_ds["edge_node_distances"] = edge_node_distances.assign_attrs(
         descriptors.EDGE_NODE_DISTANCES_ATTRS
@@ -412,7 +414,9 @@ def _parse_edge_node_distances(in_ds, out_ds):
 def _parse_edge_face_distances(in_ds, out_ds):
     """Parses ``edge_face_distances``"""
     radius = in_ds.attrs.get("sphere_radius", 1.0)
-    edge_face_distances = in_ds["dcEdge"] / radius
+    edge_face_distances = in_ds["dcEdge"]
+    if radius != 1.0:
+        edge_face_distances = edge_face_distances / radius
 
     out_ds["edge_face_distances"] = edge_face_distances.assign_attrs(
         descriptors.EDGE_FACE_DISTANCES_ATTRS
