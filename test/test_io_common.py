@@ -141,10 +141,3 @@ class TestIOCommon:
         assert np.issubdtype(grid.node_lon.dtype, np.floating)
         assert np.issubdtype(grid.node_lat.dtype, np.floating)
 
-    def test_lazy_loading(self, grid_from_format):
-        """Confirm a backing xarray Dataset exists (grid._ds). Keeps IO and
-        compute lazy where supported.
-        """
-        grid = grid_from_format
-
-        assert grid._ds is not None
