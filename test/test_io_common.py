@@ -76,7 +76,7 @@ def grid_from_format(request):
 class TestIOCommon:
     """Common IO tests across all formats."""
 
-    def test_basic_read(self, grid_from_format):
+    def test_return_type(self, grid_from_format):
         """Test that all formats can be read successfully."""
         grid = grid_from_format
 
