@@ -93,7 +93,7 @@ class TestIOCommon:
         # Validate grid
         grid.validate()
 
-    def test_ugrid_compliance_after_read(self, grid_from_format):
+    def test_ugrid_compliance(self, grid_from_format):
         """Test that grids from all formats meet basic UGRID standards."""
         grid = grid_from_format
 
