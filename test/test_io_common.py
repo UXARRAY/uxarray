@@ -81,7 +81,7 @@ class TestIOCommon:
         grid = grid_from_format
 
         # Basic validation
-        assert grid is not None
+        assert isinstance(grid, ux.Grid)
         assert hasattr(grid, 'face_node_connectivity')
         assert hasattr(grid, 'node_lon')
         assert hasattr(grid, 'node_lat')
