@@ -87,7 +87,7 @@ class TestIOCommon:
         assert hasattr(grid, 'node_lat')
 
         # Check required dimensions
-        assert 'n_node' in grid._ds.dims
+        assert 'n_node' in grid.dims
         assert 'n_face' in grid.dims
 
         # Validate grid
