@@ -10,6 +10,7 @@ import uxarray as ux
 from pathlib import Path
 import tempfile
 import os
+import warnings
 from numpy.testing import assert_array_equal, assert_allclose
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 
@@ -104,8 +105,7 @@ class TestIOCommon:
         assert 'n_face' in grid.dims
 
         # Validate grid structure
-        with pytest.warns(None):
-            assert grid.validate() is True
+        assert grid.validate()
 
         # Check UGRID compliance
         # 1. Connectivity should use proper fill values
