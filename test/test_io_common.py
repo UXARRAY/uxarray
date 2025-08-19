@@ -130,4 +130,3 @@ class TestIOCommon:
         assert np.issubdtype(grid.face_node_connectivity.dtype, np.integer)
         assert np.issubdtype(grid.node_lon.dtype, np.floating)
         assert np.issubdtype(grid.node_lat.dtype, np.floating)
-
