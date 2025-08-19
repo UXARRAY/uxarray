@@ -104,7 +104,8 @@ class TestIOCommon:
         assert 'n_face' in grid.dims
 
         # Validate grid structure
-        grid.validate()
+        with pytest.warns(None):
+            assert grid.validate() is True
 
         # Check UGRID compliance
         # 1. Connectivity should use proper fill values
