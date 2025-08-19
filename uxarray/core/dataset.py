@@ -40,7 +40,8 @@ def _wrap_callable_attr(attr, wrap_result, on_error=None):
         try:
             result = attr(*args, **kwargs)
             return wrap_result(result)
-        except Exception as exc:  # pragma: no cover - only used on fallback paths
+        except Exception as exc:  # Only catch Exception, not BaseException
+            # WARNING: Catching Exception is risky. Only use on_error for known, recoverable errors.
             if on_error is not None:
                 return on_error(exc, *args, **kwargs)
             raise
