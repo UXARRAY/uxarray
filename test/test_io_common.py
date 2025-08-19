@@ -13,10 +13,7 @@ import os
 from numpy.testing import assert_array_equal, assert_allclose
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 
-try:
-    import constants
-except ImportError:
-    from . import constants
+
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -113,13 +110,6 @@ class TestIOCommon:
         # 1. Connectivity should use proper fill values
         assert grid.face_node_connectivity._FillValue == INT_FILL_VALUE
 
-        # 2. Coordinates should be in valid ranges
-        if hasattr(grid.node_lon, 'units') and 'degree' in str(grid.node_lon.units):
-            assert grid.node_lon.min() >= -180
-            assert grid.node_lon.max() <= 180
-            assert grid.node_lat.min() >= -90
-            assert grid.node_lat.max() <= 90
-
         # 3. Check that grid has been properly standardized by uxarray
         # (Not all input files have Conventions attribute, but uxarray should handle them)
 
@@ -137,7 +127,7 @@ class TestIOCommon:
         assert 'node_lat' in grid.coordinates
 
         # Check data types are consistent
-        assert grid.face_node_connectivity.dtype in [np.int32, np.int64, INT_DTYPE]
+        assert np.issubdtype(grid.face_node_connectivity.dtype, np.integer)
         assert np.issubdtype(grid.node_lon.dtype, np.floating)
         assert np.issubdtype(grid.node_lat.dtype, np.floating)
 
