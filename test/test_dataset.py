@@ -1,5 +1,9 @@
 import os
 from pathlib import Path
+import contextlib
+import io
+import numpy as np
+import pandas as pd
 import numpy.testing as nt
 import xarray as xr
 import uxarray as ux
@@ -39,10 +43,8 @@ def test_info():
     import io
 
     with contextlib.redirect_stdout(io.StringIO()):
-        try:
-            uxds_var2_geoflow.info(show_attrs=True)
-        except Exception as exc:
-            assert False, f"'uxds_var2_geoflow.info()' raised an exception: {exc}"
+        # This should not raise any exception
+        uxds_var2_geoflow.info(show_attrs=True)
 
 def test_ugrid_dim_names():
     """Tests the remapping of dimensions to the UGRID conventions."""
@@ -108,10 +110,6 @@ def test_groupby_bins_preserves_uxgrid():
 
 def test_resample_preserves_uxgrid_and_reduces_time():
     """Test that resample operations preserve uxgrid and reduce time dimension."""
-    import numpy as np
-    import pandas as pd
-    import pytest
-    import xarray as xr
 
     # Create a simple test with only time dimension
     times = pd.date_range("2000-01-01", periods=12, freq="D")
@@ -124,38 +122,22 @@ def test_resample_preserves_uxgrid_and_reduces_time():
     )
 
     # Open the minimal dataset with a real grid
-    try:
-        # Use existing test file we know works
-        uxgrid = ux.open_grid(gridfile_ne30)
+    # Use existing test file we know works
+    uxgrid = ux.open_grid(gridfile_ne30)
 
-        # Create a UxDataset with this grid
-        uxds = ux.UxDataset(xr_ds, uxgrid=uxgrid)
+    # Create a UxDataset with this grid
+    uxds = ux.UxDataset(xr_ds, uxgrid=uxgrid)
 
-        print(f"Original dataset dims: {uxds.dims}")
-        print(f"Original dataset shape: {uxds.temperature.shape}")
+    # Test the resample method directly
+    result = uxds.temperature.resample(time="1W").mean()
 
-        # Test the resample method directly
-        print("Attempting resample...")
-        result = uxds.temperature.resample(time="1W").mean()
-
-        print(f"Resampled result dims: {result.dims}")
-        print(f"Resampled result shape: {result.shape}")
-
-        # Test assertions
-        assert hasattr(result, "uxgrid"), "uxgrid not preserved on resample"
-        assert result.uxgrid == uxds.uxgrid, "uxgrid not equal after resample"
-        assert len(result.time) < len(uxds.time), "time dimension not reduced"
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        pytest.fail(f"Error in resample test: {e}")
+    # Test assertions
+    assert hasattr(result, "uxgrid"), "uxgrid not preserved on resample"
+    assert result.uxgrid == uxds.uxgrid, "uxgrid not equal after resample"
+    assert len(result.time) < len(uxds.time), "time dimension not reduced"
 
 def test_resample_preserves_uxgrid():
     """Test that resample preserves the uxgrid attribute."""
-    import numpy as np
-    import pandas as pd
-    import pytest
 
     # Create a simple dataset with a time dimension
     times = pd.date_range("2000-01-01", periods=12, freq="D")
@@ -187,9 +169,6 @@ def test_resample_preserves_uxgrid():
 
 def test_resample_reduces_time_dimension():
     """Test that resample properly reduces the time dimension."""
-    import numpy as np
-    import pandas as pd
-    import pytest
 
     # Create dataset with daily data for a year
     times = pd.date_range("2000-01-01", periods=365, freq="D")
@@ -213,8 +192,6 @@ def test_resample_reduces_time_dimension():
 
 def test_resample_with_cftime():
     """Test that resample works with cftime objects."""
-    import numpy as np
-    import pytest
 
     try:
         import cftime
@@ -243,8 +220,6 @@ def test_resample_with_cftime():
 
 def test_rolling_preserves_uxgrid():
     """Test that rolling operations preserve the uxgrid attribute."""
-    import numpy as np
-    import pandas as pd
 
     # Create a dataset with time dimension
     times = pd.date_range("2000-01-01", periods=30, freq="D")
@@ -279,8 +254,6 @@ def test_rolling_preserves_uxgrid():
 
 def test_coarsen_preserves_uxgrid():
     """Test that coarsen operations preserve the uxgrid attribute."""
-    import numpy as np
-    import pandas as pd
 
     # Create a dataset with time dimension (multiple of coarsen factor)
     times = pd.date_range("2000-01-01", periods=24, freq="D")
@@ -315,8 +288,6 @@ def test_coarsen_preserves_uxgrid():
 
 def test_weighted_preserves_uxgrid():
     """Test that weighted operations preserve the uxgrid attribute."""
-    import numpy as np
-    import pandas as pd
 
     # Create a dataset with time and face dimensions
     times = pd.date_range("2000-01-01", periods=10, freq="D")
@@ -362,8 +333,6 @@ def test_weighted_preserves_uxgrid():
 
 def test_cumulative_preserves_uxgrid():
     """Test that cumulative operations preserve the uxgrid attribute."""
-    import numpy as np
-    import pandas as pd
 
     # Create a dataset with time dimension
     times = pd.date_range("2000-01-01", periods=10, freq="D")

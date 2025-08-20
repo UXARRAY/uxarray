@@ -10,6 +10,30 @@ from typing import Any, Set
 import xarray as xr
 
 
+# Mapping of method names to their accessor classes
+DATASET_ACCESSOR_METHODS = {
+    "groupby": "UxDatasetGroupByAccessor",
+    "groupby_bins": "UxDatasetGroupByAccessor",  # Uses same accessor as groupby
+    "resample": "UxDatasetResampleAccessor",
+    "rolling": "UxDatasetRollingAccessor",
+    "coarsen": "UxDatasetCoarsenAccessor",
+    "weighted": "UxDatasetWeightedAccessor",
+    "rolling_exp": "UxDatasetRollingExpAccessor",
+    "cumulative": "UxDatasetRollingAccessor",  # Uses same accessor as rolling
+}
+
+DATAARRAY_ACCESSOR_METHODS = {
+    "groupby": "UxDataArrayGroupByAccessor",
+    "groupby_bins": "UxDataArrayGroupByAccessor",  # Uses same accessor as groupby
+    "resample": "UxDataArrayResampleAccessor",
+    "rolling": "UxDataArrayRollingAccessor",
+    "coarsen": "UxDataArrayCoarsenAccessor",
+    "weighted": "UxDataArrayWeightedAccessor",
+    "rolling_exp": "UxDataArrayRollingExpAccessor",
+    "cumulative": "UxDataArrayRollingAccessor",  # Uses same accessor as rolling
+}
+
+
 class BaseAccessor:
     """Base class for all UxArray accessor classes."""
 

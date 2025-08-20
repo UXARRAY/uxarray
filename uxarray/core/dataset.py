@@ -345,24 +345,14 @@ class UxDataset(xr.Dataset):
 
     def __getattribute__(self, name):
         """Intercept accessor method calls to return Ux-aware accessors."""
-        # Mapping of method names to their accessor classes
-        ACCESSOR_METHODS = {
-            "groupby": "UxDatasetGroupByAccessor",
-            "groupby_bins": "UxDatasetGroupByAccessor",  # Uses same accessor as groupby
-            "resample": "UxDatasetResampleAccessor",
-            "rolling": "UxDatasetRollingAccessor",
-            "coarsen": "UxDatasetCoarsenAccessor",
-            "weighted": "UxDatasetWeightedAccessor",
-            "rolling_exp": "UxDatasetRollingExpAccessor",
-            "cumulative": "UxDatasetRollingAccessor",  # Uses same accessor as rolling
-        }
+        # Lazy import to avoid circular imports
+        from uxarray.core.accessors import DATASET_ACCESSOR_METHODS
 
-        if name in ACCESSOR_METHODS:
-            # Lazy import to avoid circular imports
+        if name in DATASET_ACCESSOR_METHODS:
             from uxarray.core import accessors
 
             # Get the accessor class by name
-            accessor_class = getattr(accessors, ACCESSOR_METHODS[name])
+            accessor_class = getattr(accessors, DATASET_ACCESSOR_METHODS[name])
 
             # Get the parent method
             parent_method = super().__getattribute__(name)
