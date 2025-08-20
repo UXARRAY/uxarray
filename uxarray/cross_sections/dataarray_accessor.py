@@ -80,6 +80,9 @@ class UxDataArrayCrossSectionAccessor:
         >>> uxda.cross_section(lon=0, steps=200)
         """
 
+        if not self.uxda._face_centered():
+            raise ValueError("Data variable must be face-centered")
+
         if steps < 2:
             raise ValueError("steps must be at least 2")
 
