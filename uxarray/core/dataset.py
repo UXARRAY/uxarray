@@ -369,10 +369,22 @@ class UxDataset(xr.Dataset):
             return UxDataArray(result, uxgrid=original_uxgrid)
         return result
 
-    def groupby(self, group, squeeze: bool = False, restore_coord_dims: bool = None):
+    def groupby(
+        self,
+        group=None,
+        *,
+        squeeze=False,
+        restore_coord_dims=False,
+        eagerly_compute_group=None,
+        **groupers,
+    ):
         """Get the standard xarray groupby object"""
         groupby_obj = super().groupby(
-            group, squeeze=squeeze, restore_coord_dims=restore_coord_dims
+            group,
+            squeeze=squeeze,
+            restore_coord_dims=restore_coord_dims,
+            eagerly_compute_group=eagerly_compute_group,
+            **groupers,
         )
 
         # Store references to preserve uxgrid info
@@ -419,13 +431,13 @@ class UxDataset(xr.Dataset):
     def resample(
         self,
         indexer=None,
+        *,
         skipna=None,
         closed=None,
         label=None,
-        base=0,
         offset=None,
         origin="start_day",
-        keep_attrs=None,
+        restore_coord_dims=None,
         **indexer_kwargs,
     ):
         """Resample this dataset to a new temporal resolution."""
@@ -436,6 +448,7 @@ class UxDataset(xr.Dataset):
             label=label,
             offset=offset,
             origin=origin,
+            restore_coord_dims=restore_coord_dims,
         )
         # Remove None values to avoid passing them to xarray
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
@@ -487,18 +500,24 @@ class UxDataset(xr.Dataset):
         bins,
         right: bool = True,
         labels=None,
+        precision: int = 3,
         include_lowest: bool = False,
-        squeeze: bool = False,
-        restore_coord_dims: bool = None,
+        squeeze=False,
+        restore_coord_dims: bool = False,
+        duplicates: str = "raise",
+        eagerly_compute_group=None,
     ):
         """Group this Dataset by explicitly specified bins."""
         # Prepare kwargs for xarray's groupby_bins
         kwargs = dict(
             right=right,
             labels=labels,
+            precision=precision,
             include_lowest=include_lowest,
             squeeze=squeeze,
             restore_coord_dims=restore_coord_dims,
+            duplicates=duplicates,
+            eagerly_compute_group=eagerly_compute_group,
         )
         # Remove None values to avoid passing them to xarray
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
