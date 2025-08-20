@@ -1,9 +1,5 @@
 import os
 from pathlib import Path
-import contextlib
-import io
-import numpy as np
-import pandas as pd
 import numpy.testing as nt
 import xarray as xr
 import uxarray as ux
@@ -43,8 +39,10 @@ def test_info():
     import io
 
     with contextlib.redirect_stdout(io.StringIO()):
-        # This should not raise any exception
-        uxds_var2_geoflow.info(show_attrs=True)
+        try:
+            uxds_var2_geoflow.info(show_attrs=True)
+        except Exception as exc:
+            assert False, f"'uxds_var2_geoflow.info()' raised an exception: {exc}"
 
 def test_ugrid_dim_names():
     """Tests the remapping of dimensions to the UGRID conventions."""
@@ -61,8 +59,6 @@ def test_get_dual():
 
     assert isinstance(dual, UxDataset)
     assert len(uxds.data_vars) == len(dual.data_vars)
-
-
 
 # Uncomment the following test if you want to include it, ensuring you handle potential failures.
 # def test_read_from_https():
