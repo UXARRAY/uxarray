@@ -9,7 +9,6 @@ from typing import Any, Set
 
 import xarray as xr
 
-
 # Mapping of method names to their accessor classes
 DATASET_ACCESSOR_METHODS = {
     "groupby": "UxDatasetGroupByAccessor",
