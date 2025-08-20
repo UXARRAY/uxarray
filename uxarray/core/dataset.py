@@ -23,33 +23,6 @@ from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDatasetPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
 
-# Helper to wrap callable attributes from proxy objects
-# wrap_result: function that takes the result and returns wrapped result
-# on_error: optional function that takes (exc, *args, **kwargs) and returns a fallback
-# Returns either the original attribute or a wrapped callable
-_def_proxy_wrap_callable_doc = (
-    """Internal: returns callable wrapper that post-processes result."""
-)
-
-
-def _wrap_callable_attr(attr, wrap_result, on_error=None):
-    if not callable(attr):
-        return attr
-
-    def _wrapped(*args, **kwargs):
-        try:
-            result = attr(*args, **kwargs)
-            return wrap_result(result)
-        except Exception as exc:  # Only catch Exception, not BaseException
-            # WARNING: Catching Exception is risky. Only use on_error for known, recoverable errors.
-            if on_error is not None:
-                return on_error(exc, *args, **kwargs)
-            raise
-
-    _wrapped.__doc__ = getattr(attr, "__doc__", _def_proxy_wrap_callable_doc)
-    _wrapped.__name__ = getattr(attr, "__name__", "wrapped")
-    return _wrapped
-
 
 class UxDataset(xr.Dataset):
     """Grid informed ``xarray.Dataset`` with an attached ``Grid`` accessor and
@@ -74,6 +47,22 @@ class UxDataset(xr.Dataset):
     -----
     See `xarray.Dataset <https://docs.xarray.dev/en/stable/generated/xarray.Dataset.html>`__
     for further information about Datasets.
+
+    Grid-Aware Accessor Methods
+    ---------------------------
+    The following methods return specialized accessors that preserve grid information:
+
+    - ``groupby``: Groups data by dimension/coordinate
+    - ``groupby_bins``: Groups data by bins
+    - ``resample``: Resamples timeseries data
+    - ``rolling``: Rolling window operations
+    - ``coarsen``: Coarsens data by integer factors
+    - ``weighted``: Weighted operations
+    - ``rolling_exp``: Exponentially weighted rolling (requires numbagg)
+    - ``cumulative``: Cumulative operations
+
+    All these methods work identically to xarray but maintain the uxgrid attribute
+    throughout operations.
     """
 
     # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
@@ -354,218 +343,45 @@ class UxDataset(xr.Dataset):
 
         return cls.from_xarray(ds, uxgrid, {face_dim: "n_face"})
 
-    @classmethod
-    def _wrap_groupby_result(
-        cls, result, original_uxgrid, original_source_datasets=None
-    ):
-        """Factory method to wrap groupby results with uxgrid preservation."""
-        if isinstance(result, xr.Dataset):
-            return cls(
-                result, uxgrid=original_uxgrid, source_datasets=original_source_datasets
-            )
-        elif isinstance(result, xr.DataArray):
-            from uxarray.core.dataarray import UxDataArray
+    def __getattribute__(self, name):
+        """Intercept accessor method calls to return Ux-aware accessors."""
+        # Mapping of method names to their accessor classes
+        ACCESSOR_METHODS = {
+            "groupby": "UxDatasetGroupByAccessor",
+            "groupby_bins": "UxDatasetGroupByAccessor",  # Uses same accessor as groupby
+            "resample": "UxDatasetResampleAccessor",
+            "rolling": "UxDatasetRollingAccessor",
+            "coarsen": "UxDatasetCoarsenAccessor",
+            "weighted": "UxDatasetWeightedAccessor",
+            "rolling_exp": "UxDatasetRollingExpAccessor",
+            "cumulative": "UxDatasetRollingAccessor",  # Uses same accessor as rolling
+        }
 
-            return UxDataArray(result, uxgrid=original_uxgrid)
-        return result
+        if name in ACCESSOR_METHODS:
+            # Lazy import to avoid circular imports
+            from uxarray.core import accessors
 
-    def groupby(
-        self,
-        group=None,
-        *,
-        squeeze=False,
-        restore_coord_dims=False,
-        eagerly_compute_group=None,
-        **groupers,
-    ):
-        """Get the standard xarray groupby object"""
-        groupby_obj = super().groupby(
-            group,
-            squeeze=squeeze,
-            restore_coord_dims=restore_coord_dims,
-            eagerly_compute_group=eagerly_compute_group,
-            **groupers,
-        )
+            # Get the accessor class by name
+            accessor_class = getattr(accessors, ACCESSOR_METHODS[name])
 
-        # Store references to preserve uxgrid info
-        original_uxgrid = self.uxgrid
-        original_source_datasets = self.source_datasets
+            # Get the parent method
+            parent_method = super().__getattribute__(name)
 
-        # Get reference to the class for the nested class to use
-        cls = self.__class__
+            # Create a wrapper method
+            def method(*args, **kwargs):
+                # Call the parent method
+                result = parent_method(*args, **kwargs)
+                # Wrap the result with our accessor
+                return accessor_class(result, self.uxgrid, self.source_datasets)
 
-        # Return a lightweight proxy that forwards attribute access and wraps
-        # any callable's result to preserve uxgrid/source_datasets. This avoids
-        # hard-coding aggregation method names and works for future methods.
-        class _UxGroupByProxy:
-            def __init__(self, gb, uxgrid, source_datasets):
-                self._gb = gb
-                self._uxgrid = uxgrid
-                self._source_datasets = source_datasets
+            # Copy the docstring from the parent method
+            method.__doc__ = parent_method.__doc__
+            method.__name__ = name
 
-            def __getattr__(self, name):
-                attr = getattr(self._gb, name)
-                return _wrap_callable_attr(
-                    attr,
-                    lambda result: cls._wrap_groupby_result(
-                        result, self._uxgrid, self._source_datasets
-                    ),
-                )
+            return method
 
-            # Delegate common dunder methods for better transparency
-            def __iter__(self):
-                return iter(self._gb)
-
-            def __repr__(self):
-                return repr(self._gb)
-
-            def __dir__(self):
-                # Improve IDE/tab-completion discoverability
-                return sorted(set(dir(self.__class__)) | set(dir(self._gb)))
-
-        return _UxGroupByProxy(groupby_obj, original_uxgrid, original_source_datasets)
-
-    # Reuse the original xarray.Dataset.groupby docstring
-    groupby.__doc__ = xr.Dataset.groupby.__doc__
-
-    def resample(
-        self,
-        indexer=None,
-        *,
-        skipna=None,
-        closed=None,
-        label=None,
-        offset=None,
-        origin="start_day",
-        restore_coord_dims=None,
-        **indexer_kwargs,
-    ):
-        """Resample this dataset to a new temporal resolution."""
-        # Prepare kwargs for xarray's resample
-        kwargs = dict(
-            skipna=skipna,
-            closed=closed,
-            label=label,
-            offset=offset,
-            origin=origin,
-            restore_coord_dims=restore_coord_dims,
-        )
-        # Remove None values to avoid passing them to xarray
-        kwargs = {k: v for k, v in kwargs.items() if v is not None}
-
-        # Get the standard xarray resample object
-        resample_obj = super().resample(indexer, **kwargs, **indexer_kwargs)
-
-        # Store references to preserve uxgrid info
-        original_uxgrid = self.uxgrid
-        original_source_datasets = self.source_datasets
-
-        # Get reference to the class for the nested class to use
-        cls = self.__class__
-
-        # Return a lightweight proxy that forwards attribute access and wraps
-        # any callable's result to preserve uxgrid/source_datasets
-        class _UxResampleProxy:
-            def __init__(self, resample_obj, uxgrid, source_datasets):
-                self._resample_obj = resample_obj
-                self._uxgrid = uxgrid
-                self._source_datasets = source_datasets
-
-            def __getattr__(self, name):
-                attr = getattr(self._resample_obj, name)
-                return _wrap_callable_attr(
-                    attr,
-                    lambda result: cls._wrap_groupby_result(
-                        result, self._uxgrid, self._source_datasets
-                    ),
-                )
-
-            def __iter__(self):
-                return iter(self._resample_obj)
-
-            def __repr__(self):
-                return repr(self._resample_obj)
-
-            def __dir__(self):
-                return sorted(set(dir(self.__class__)) | set(dir(self._resample_obj)))
-
-        return _UxResampleProxy(resample_obj, original_uxgrid, original_source_datasets)
-
-    # Reuse the original xarray.Dataset.resample docstring
-    resample.__doc__ = xr.Dataset.resample.__doc__
-
-    def groupby_bins(
-        self,
-        group,
-        bins,
-        right: bool = True,
-        labels=None,
-        precision: int = 3,
-        include_lowest: bool = False,
-        squeeze=False,
-        restore_coord_dims: bool = False,
-        duplicates: str = "raise",
-        eagerly_compute_group=None,
-    ):
-        """Group this Dataset by explicitly specified bins."""
-        # Prepare kwargs for xarray's groupby_bins
-        kwargs = dict(
-            right=right,
-            labels=labels,
-            precision=precision,
-            include_lowest=include_lowest,
-            squeeze=squeeze,
-            restore_coord_dims=restore_coord_dims,
-            duplicates=duplicates,
-            eagerly_compute_group=eagerly_compute_group,
-        )
-        # Remove None values to avoid passing them to xarray
-        kwargs = {k: v for k, v in kwargs.items() if v is not None}
-
-        # Get the standard xarray groupby_bins object
-        groupby_bins_obj = super().groupby_bins(group, bins, **kwargs)
-
-        # Store references to preserve uxgrid info
-        original_uxgrid = self.uxgrid
-        original_source_datasets = self.source_datasets
-
-        # Get reference to the class for the nested class to use
-        cls = self.__class__
-
-        # Return a lightweight proxy that forwards attribute access and wraps
-        # any callable's result to preserve uxgrid/source_datasets
-        class _UxGroupByBinsProxy:
-            def __init__(self, groupby_bins_obj, uxgrid, source_datasets):
-                self._groupby_bins_obj = groupby_bins_obj
-                self._uxgrid = uxgrid
-                self._source_datasets = source_datasets
-
-            def __getattr__(self, name):
-                attr = getattr(self._groupby_bins_obj, name)
-                return _wrap_callable_attr(
-                    attr,
-                    lambda result: cls._wrap_groupby_result(
-                        result, self._uxgrid, self._source_datasets
-                    ),
-                )
-
-            def __iter__(self):
-                return iter(self._groupby_bins_obj)
-
-            def __repr__(self):
-                return repr(self._groupby_bins_obj)
-
-            def __dir__(self):
-                return sorted(
-                    set(dir(self.__class__)) | set(dir(self._groupby_bins_obj))
-                )
-
-        return _UxGroupByBinsProxy(
-            groupby_bins_obj, original_uxgrid, original_source_datasets
-        )
-
-    # Reuse the original xarray.Dataset.groupby_bins docstring
-    groupby_bins.__doc__ = xr.Dataset.groupby_bins.__doc__
+        # For all other attributes, use the default behavior
+        return super().__getattribute__(name)
 
     def info(self, buf: IO = None, show_attrs=False) -> None:
         """Concise summary of Dataset variables and attributes including grid
