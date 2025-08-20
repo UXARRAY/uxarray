@@ -128,7 +128,6 @@ class DataArraySubsetAccessor:
         self,
         lat: float,
         inverse_indices: Union[List[str], Set[str], bool] = False,
-        lon_range: Tuple[float, float] = (-180, 180),
     ):
         """Extracts a subset of the data array across a line of constant-latitude.
 
@@ -142,17 +141,11 @@ class DataArraySubsetAccessor:
             - True: Stores original face indices
             - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
-        lon_range: Tuple[float, float], optional
-            `(min_lon, max_lon)` longitude values to perform the subset. Values must lie in [-180, 180]. Default is `(-180, 180)`.
 
         Returns
         -------
         uxarray.UxDataArray
-            In **grid-based** mode, a subset of the original data array containing only the faces that intersect
-            with the specified line of constant latitude.
-        xarray.DataArray
-            In **interpolated** mode (`interpolate=True`), a new Xarray DataArray with data sampled along the line of constant latitude,
-            including longitude and latitude coordinates for each sample.
+            A new UxDataArray containing elements that intersect the line of constant latitude.
 
         Raises
         ------
@@ -170,12 +163,11 @@ class DataArraySubsetAccessor:
                 "Cross sections are only supported for face-centered data variables."
             )
 
-        # TODO: Extend to support constrained ranges
         faces = self.uxda.uxgrid.get_faces_at_constant_latitude(lat)
 
         if len(faces) == 0:
             raise ValueError(
-                f"No faces found that intersect a line of constant latitude at {lat} degrees between {lon_range[0]} and {lon_range[1]} degrees longitude."
+                f"No faces found that intersect a line of constant latitude at {lat} degrees."
             )
 
         da = self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
@@ -188,15 +180,8 @@ class DataArraySubsetAccessor:
         self,
         lon: float,
         inverse_indices: Union[List[str], Set[str], bool] = False,
-        lat_range: Tuple[float, float] = (-90, 90),
     ):
         """Extracts a subset of the data array across a line of constant-longitude.
-
-        This method supports two modes:
-          - **grid‐based** (`interpolate=False`, the default): returns exactly those faces
-            which intersect the line of constant longitude, with a new Grid containing those faces.
-          - **interpolated** (`interpolate=True`): generates `n_samples` equally‐spaced points
-            between `lon_range[0]` and `lon_range[1]` and picks whichever face contains each sample point.
 
         Parameters
         ----------
@@ -208,17 +193,13 @@ class DataArraySubsetAccessor:
             - True: Stores original face indices
             - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
-        lat_range: Tuple[float, float], optional
-            `(min_lat, max_lat)` latitude values to perform the subset. Values must lie in [-90, 90]. Default is `(-90, 90)`.
 
         Returns
         -------
         uxarray.UxDataArray
-            In **grid-based** mode, a subset of the original data array containing only the faces that intersect
-            with the specified line of constant longitude.
-        xarray.DataArray
-            In **interpolated** mode (`interpolate=True`), a new Xarray DataArray with data sampled along the line of constant longitude,
-            including longitude and latitude coordinates for each sample.
+            A subset of the original data array containing only the faces that intersect
+            with the line of constant longitude.
+
 
         Raises
         ------
@@ -235,14 +216,13 @@ class DataArraySubsetAccessor:
                 "Cross sections are only supported for face-centered data variables."
             )
 
-        # TODO: Extend to support constrained ranges
         faces = self.uxda.uxgrid.get_faces_at_constant_longitude(
             lon,
         )
 
         if len(faces) == 0:
             raise ValueError(
-                f"No faces found that intersect a line of constant longitude at {lon} degrees between {lat_range[0]} and {lat_range[1]} degrees latitude."
+                f"No faces found that intersect a line of constant longitude at {lon} degrees."
             )
 
         da = self.uxda.isel(n_face=faces, inverse_indices=inverse_indices)
@@ -273,7 +253,8 @@ class DataArraySubsetAccessor:
         Returns
         -------
         uxarray.UxDataArray
-            A subset of the original data array containing only the faces that are within a specified latitude interval.
+            A subset of the original data array containing only the faces that intersect
+            with the line of constant latitude.
 
         Raises
         ------
