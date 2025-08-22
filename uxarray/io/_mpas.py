@@ -190,6 +190,13 @@ def _parse_node_xyz_coords(in_ds, out_ds, mesh_type):
         node_y = node_y.rename({"nCells": ugrid.NODE_DIM})
         node_z = node_z.rename({"nCells": ugrid.NODE_DIM})
 
+    # Normalize coordinates to unit sphere if needed
+    radius = in_ds.attrs.get("sphere_radius", 1.0)
+    if radius != 1.0:
+        node_x = node_x / radius
+        node_y = node_y / radius
+        node_z = node_z / radius
+
     out_ds["node_x"] = node_x.assign_attrs(ugrid.NODE_X_ATTRS)
     out_ds["node_y"] = node_y.assign_attrs(ugrid.NODE_Y_ATTRS)
     out_ds["node_z"] = node_z.assign_attrs(ugrid.NODE_Z_ATTRS)
@@ -237,6 +244,13 @@ def _parse_face_xyz_coords(in_ds, out_ds, mesh_type):
         face_y = face_y.rename({"nVertices": ugrid.FACE_DIM})
         face_z = face_z.rename({"nVertices": ugrid.FACE_DIM})
 
+    # Normalize coordinates to unit sphere if needed
+    radius = in_ds.attrs.get("sphere_radius", 1.0)
+    if radius != 1.0:
+        face_x = face_x / radius
+        face_y = face_y / radius
+        face_z = face_z / radius
+
     out_ds["face_x"] = face_x.assign_attrs(ugrid.FACE_X_ATTRS)
     out_ds["face_y"] = face_y.assign_attrs(ugrid.FACE_Y_ATTRS)
     out_ds["face_z"] = face_z.assign_attrs(ugrid.FACE_Z_ATTRS)
@@ -265,6 +279,13 @@ def _parse_edge_xyz_coords(in_ds, out_ds, mesh_type):
     edge_x = edge_x.rename({"nEdges": ugrid.EDGE_DIM})
     edge_y = edge_y.rename({"nEdges": ugrid.EDGE_DIM})
     edge_z = edge_z.rename({"nEdges": ugrid.EDGE_DIM})
+
+    # Normalize coordinates to unit sphere if needed
+    radius = in_ds.attrs.get("sphere_radius", 1.0)
+    if radius != 1.0:
+        edge_x = edge_x / radius
+        edge_y = edge_y / radius
+        edge_z = edge_z / radius
 
     out_ds["edge_x"] = edge_x.assign_attrs(ugrid.EDGE_X_ATTRS)
     out_ds["edge_y"] = edge_y.assign_attrs(ugrid.EDGE_Y_ATTRS)
@@ -380,7 +401,10 @@ def _parse_face_faces(in_ds, out_ds, mesh_type):
 
 def _parse_edge_node_distances(in_ds, out_ds):
     """Parses ``edge_node_distances``"""
-    edge_node_distances = in_ds["dvEdge"] / in_ds.attrs["sphere_radius"]
+    radius = in_ds.attrs.get("sphere_radius", 1.0)
+    edge_node_distances = in_ds["dvEdge"]
+    if radius != 1.0:
+        edge_node_distances = edge_node_distances / radius
 
     out_ds["edge_node_distances"] = edge_node_distances.assign_attrs(
         descriptors.EDGE_NODE_DISTANCES_ATTRS
@@ -389,7 +413,10 @@ def _parse_edge_node_distances(in_ds, out_ds):
 
 def _parse_edge_face_distances(in_ds, out_ds):
     """Parses ``edge_face_distances``"""
-    edge_face_distances = in_ds["dcEdge"] / in_ds.attrs["sphere_radius"]
+    radius = in_ds.attrs.get("sphere_radius", 1.0)
+    edge_face_distances = in_ds["dcEdge"]
+    if radius != 1.0:
+        edge_face_distances = edge_face_distances / radius
 
     out_ds["edge_face_distances"] = edge_face_distances.assign_attrs(
         descriptors.EDGE_FACE_DISTANCES_ATTRS
@@ -407,6 +434,12 @@ def _parse_face_areas(in_ds, out_ds, mesh_type):
         face_area = in_ds["areaCell"]
     else:
         face_area = in_ds["areaTriangle"]
+
+    # Normalize face areas to unit sphere if needed
+    radius = in_ds.attrs.get("sphere_radius", 1.0)
+    if radius != 1.0:
+        # Area scales with radius squared
+        face_area = face_area / (radius * radius)
 
     out_ds["face_areas"] = face_area.assign_attrs(descriptors.FACE_AREAS_ATTRS).rename(
         {face_area.dims[0]: ugrid.FACE_DIM}
