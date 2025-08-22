@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu-latest", "macos-latest", "macos-14", "windows-latest"]
+        os: [ "ubuntu-latest", "macos-latest", "windows-latest"]
         python-version: [ "3.10", "3.11", "3.12", "3.13"]
     steps:
       - name: Cancel previous runs
@@ -66,21 +66,3 @@ jobs:
       - name: Run Namespace Tests
         run: |
           python -m pytest test
-
-      - name: Run Coverage Tests
-        run: |
-          python -m pytest test -v --cov=./uxarray --cov-report=xml
-        env:
-          NUMBA_DISABLE_JIT: 1
-
-      - name: Upload code coverage to Codecov
-        if: github.repository == 'UXARRAY/uxarray'
-        uses: codecov/codecov-action@v5.4.3
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        with:
-          file: ./coverage.xml
-          flags: unittests
-          env_vars: OS,PYTHON
-          name: codecov-umbrella
-          fail_ci_if_error: false
