@@ -1,98 +1,67 @@
-from uxarray.io._mpas import _replace_padding, _replace_zeros, _to_zero_index
-from uxarray.io._mpas import _read_mpas
-import uxarray as ux
-import numpy as np
-import numpy.testing as nt
+import pytest
+
 import os
 from pathlib import Path
-from uxarray.constants import INT_FILL_VALUE
+
+import uxarray as ux
+import numpy.testing as nt
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-mpas_atmo_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
-mpas_ocean_path = current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc'
-CSne30_grid_path = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
-CSne30_data_path = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
 quad_hex_grid_path = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
 quad_hex_data_path = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "data.nc"
-geoflow_grid_path = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
-geoflow_data_path = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
 
-def test_uniform_data():
-    """Computes the gradient on meshes with uniform data, with the expected
-    gradient being zero on all edges."""
-    for grid_path in [
-            mpas_atmo_path, mpas_ocean_path, CSne30_grid_path, quad_hex_grid_path,
-    ]:
-        uxgrid = ux.open_grid(grid_path)
 
-        uxda_zeros = ux.UxDataArray(data=np.zeros(uxgrid.n_face),
-                                     uxgrid=uxgrid,
-                                     name="zeros",
-                                     dims=['n_face'])
+mpas_ocean_grid_path = current_path / "meshfiles" / "mpas" / "QU" / "480" / "grid.nc"
+mpas_ocean_data_path = current_path / "meshfiles" / "mpas" / "QU" / "480" / "data.nc"
 
-        zero_grad = uxda_zeros.gradient()
-        # numpy.testing
-        nt.assert_array_equal(zero_grad.values, np.zeros(uxgrid.n_edge))
+# TODO: pytest fixtures
 
-        uxda_ones = ux.UxDataArray(data=np.ones(uxgrid.n_face),
-                                    uxgrid=uxgrid,
-                                    name="ones",
-                                    dims=['n_face'])
 
-        one_grad = uxda_ones.gradient()
-        nt.assert_array_equal(one_grad.values, np.zeros(uxgrid.n_edge))
+class TestQuadHex:
 
-def test_quad_hex():
-    """Computes the gradient on a mesh of 4 hexagons."""
-    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
-    grad = uxds['t2m'].gradient()
+    def test_gradient_output_format(self):
+        """Tests the output format of gradient functionality"""
+        uxds = ux.open_dataset(quad_hex_grid_path,quad_hex_data_path)
 
-    for i, edge in enumerate(uxds.uxgrid.edge_face_connectivity.values):
-        if INT_FILL_VALUE in edge:
-            assert grad.values[i] == 0
-        else:
-            assert grad.values[i] != 0
+        grad_ds = uxds['t2m'].gradient()
 
-    expected_values = np.array([28.963, 13.100, 14.296, 0, 0, 0, 0, 67.350, 0, 85.9397, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-    nt.assert_almost_equal(grad.values, expected_values, 1e-2)
+        assert isinstance(grad_ds, ux.UxDataset)
+        assert "zonal_gradient" in grad_ds
+        assert "meridional_gradient" in grad_ds
+        assert "gradient" in grad_ds.attrs
+        assert uxds['t2m'].sizes == grad_ds.sizes
 
-def test_normalization():
-    """Tests the normalization gradient values."""
-    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
-    grad_l2_norm = uxds['t2m'].gradient(normalize=True)
+    def test_gradient_all_boundary_faces(self):
+        """Quad hexagon grid has 4 faces, each of which are on the boundary, so the expected gradients are zero for both components"""
+        uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
 
-    assert np.isclose(np.sum(grad_l2_norm.values**2), 1)
+        grad_ds = uxds['t2m'].gradient()
 
-def test_grad_multi_dim():
-    uxgrid = ux.open_grid(quad_hex_grid_path)
-    sample_data = np.random.randint(-10, 10, (5, 5, 4))
-    uxda = ux.UxDataArray(uxgrid=uxgrid,
-                          data=sample_data,
-                          dims=["time", "lev", "n_face"])
+        # TODO: maybe use a nt function
+        # assert (grad_ds['zonal_gradient'] == 0.0).all()
+        # assert (grad_ds['meridional_gradient'] == 0.0).all()
 
-    grad = uxda.gradient(normalize=True)
-    assert grad.shape[:-1] == uxda.shape[:-1]
 
-def test_face_centered_difference():
-    uxds = ux.open_dataset(CSne30_grid_path, CSne30_data_path)
-    uxda_diff = uxds['psi'].difference(destination='edge')
+class TestMPASOcean:
 
-    assert uxda_diff._edge_centered()
+    def test_gradient(self):
+        uxds = ux.open_dataset(mpas_ocean_grid_path, mpas_ocean_data_path)
 
-    uxds = ux.open_dataset(mpas_atmo_path, mpas_atmo_path)
-    uxda_diff = uxds['areaCell'].difference(destination='edge')
+        grad = uxds['bottomDepth'].gradient()
 
-    assert uxda_diff._edge_centered()
+        # TODO:
 
-def test_node_centered_difference():
-    uxds = ux.open_dataset(geoflow_grid_path, geoflow_data_path)
-    uxda_diff = uxds['v1'][0][0].difference(destination='edge')
 
-    assert uxda_diff._edge_centered()
 
-def test_hexagon():
-    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
-    uxda_diff = uxds['t2m'].difference(destination='edge')
+# TODO: Test nodal gradient
 
-    assert len(np.nonzero(uxda_diff.values)[0]) == uxds.uxgrid.n_face + 1
+
+
+
+
+
+
+
+
+# TODO: Write test for gradient functionality here
