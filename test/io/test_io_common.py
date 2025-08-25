@@ -16,7 +16,7 @@ from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 
 
 
-current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+current_path = Path(os.path.dirname(os.path.realpath(__file__))).parent
 
 # Define all testable format combinations
 # Format: (format_type, subpath, filename)
