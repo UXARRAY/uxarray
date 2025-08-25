@@ -2217,6 +2217,14 @@ class Grid:
         """
         import cartopy.crs as ccrs
 
+        if kwargs.get("projection", False):
+            warn(
+                "Explicit providing a projection when construction a PolyCollection has been deprecated. Please provide a projection when"
+                "constructing a GeoAxes instead.",
+                stacklevel=2,
+            )
+            kwargs.pop("projection")
+
         if self._cached_poly_collection:
             return copy.deepcopy(self._cached_poly_collection)
 
@@ -2237,14 +2245,22 @@ class Grid:
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.LineCollection``` consisting
-        of lines representing the edges of the current ``Grid``
+        of lines representing the edges of the unstructured grid.
 
         Parameters
         ----------
         **kwargs: dict
-            Key word arguments to pass into the construction of a PolyCollection
+            Key word arguments to pass into the construction of a LineCollection
         """
         import cartopy.crs as ccrs
+
+        if kwargs.get("projection", False):
+            warn(
+                "Explicit providing a projection when construction a LineCollection has been deprecated. Please provide a projection when"
+                "constructing a GeoAxes instead.",
+                stacklevel=2,
+            )
+            kwargs.pop("projection")
 
         if self._cached_line_collection:
             return copy.deepcopy(self._cached_line_collection)
