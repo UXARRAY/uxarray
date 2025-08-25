@@ -99,3 +99,60 @@ def test_mismatched_dims():
 
     assert za.shape == (10, 19, 5)
     assert za.dims[1] == "latitudes"
+
+
+class TestConservativeZonalMean:
+    """Test conservative zonal mean functionality."""
+
+    gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
+    datafile_vortex_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
+
+    def test_conservative_zonal_mean_basic(self):
+        """Test basic conservative zonal mean with bands."""
+        grid_path = self.gridfile_ne30
+        data_path = self.datafile_vortex_ne30
+        uxds = ux.open_dataset(grid_path, data_path)
+
+        # Test with explicit bands
+        bands = np.array([-90, -30, 0, 30, 90])
+        result = uxds["psi"].zonal_mean(mode="conservative", bands=bands)
+
+        # Should have one less value than bands (4 bands from 5 edges)
+        assert result.shape == (len(bands) - 1,)
+        assert np.all(np.isfinite(result.values))
+
+    def test_conservative_full_sphere_conservation(self):
+        """Test that single band covering entire sphere conserves global mean."""
+        grid_path = self.gridfile_ne30
+        data_path = self.datafile_vortex_ne30
+        uxds = ux.open_dataset(grid_path, data_path)
+
+        # Single band covering entire sphere
+        bands = np.array([-90, 90])
+        result = uxds["psi"].zonal_mean(mode="conservative", bands=bands)
+
+        # Compare with global mean
+        global_mean = uxds["psi"].mean()
+
+        assert result.shape == (1,)
+        assert result.values[0] == pytest.approx(global_mean.values, rel=0.01)
+
+    def test_conservative_vs_nonconservative_comparison(self):
+        """Compare conservative and non-conservative methods."""
+        grid_path = self.gridfile_ne30
+        data_path = self.datafile_vortex_ne30
+        uxds = ux.open_dataset(grid_path, data_path)
+
+        # Non-conservative at band centers
+        lat_centers = np.array([-60, 0, 60])
+        non_conservative = uxds["psi"].zonal_mean(lat=lat_centers)
+
+        # Conservative with bands
+        bands = np.array([-90, -30, 30, 90])
+        conservative = uxds["psi"].zonal_mean(mode="conservative", bands=bands)
+
+        # Results should be similar but not identical
+        assert non_conservative.shape == conservative.shape
+        # Check they are in the same ballpark
+        assert np.all(np.abs(conservative.values - non_conservative.values) <
+                     np.abs(non_conservative.values) * 0.5)
