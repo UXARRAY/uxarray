@@ -58,6 +58,7 @@ from uxarray.grid.intersections import (
     faces_within_lat_bounds,
     faces_within_lon_bounds,
 )
+from uxarray.grid.interval_tree import IntervalTree
 from uxarray.grid.neighbors import (
     BallTree,
     KDTree,
@@ -220,6 +221,7 @@ class Grid:
         self._ball_tree = None
         self._kd_tree = None
         self._spatialhash = None
+        self._interval_tree = None
 
         # flag to track if coordinates are normalized
         self._normalized = None
@@ -1889,6 +1891,52 @@ class Grid:
             self._spatialhash = SpatialHash(self, reconstruct)
 
         return self._spatialhash
+
+    def get_interval_tree(
+        self,
+        reconstruct: bool = False,
+    ):
+        """Get the IntervalTree data structure of this Grid that allows for
+        fast spatial range queries using interval trees for latitude/longitude bounds.
+
+        This index is particularly efficient for:
+        - Zonal averaging operations (latitude band queries)
+        - Regional queries on face bounds
+        - Range queries without polar region issues
+
+        Parameters
+        ----------
+        reconstruct : bool, default=False
+            If true, reconstructs the interval tree
+
+        Returns
+        -------
+        self._interval_tree : IntervalTree
+            IntervalTree instance
+
+        Examples
+        --------
+        Open a grid from a file path:
+
+        >>> import uxarray as ux
+        >>> uxgrid = ux.open_grid("grid_filename.nc")
+
+        Obtain IntervalTree instance:
+
+        >>> interval_tree = uxgrid.get_interval_tree()
+
+        Query faces in a latitude band (perfect for zonal averaging):
+
+        >>> faces_in_band = interval_tree.query_lat_band(30.0, 60.0)
+
+        Query faces containing a point:
+
+        >>> faces = interval_tree.query_point(45.0, -120.0)
+        """
+        if self._interval_tree is None or reconstruct:
+            self._interval_tree = IntervalTree(self)
+
+        return self._interval_tree
 
     def copy(self):
         """Returns a deep copy of this grid."""
