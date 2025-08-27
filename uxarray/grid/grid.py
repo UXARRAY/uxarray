@@ -2219,7 +2219,7 @@ class Grid:
 
         if kwargs.get("projection", False):
             warn(
-                "Explicitly providing a projection when construction a PolyCollection has been deprecated. Please provide a projection when"
+                "Explicitly providing a projection when construction a PolyCollection has been deprecated. Please provide a projection when setting up"
                 " a GeoAxes instead.",
                 stacklevel=2,
             )
@@ -2256,7 +2256,7 @@ class Grid:
 
         if kwargs.get("projection", False):
             warn(
-                "Explicitly providing a projection when construction a LolyCollection has been deprecated. Please provide a projection when"
+                "Explicitly providing a projection when construction a LolyCollection has been deprecated. Please provide a projection when setting up"
                 " a GeoAxes instead.",
                 stacklevel=2,
             )
