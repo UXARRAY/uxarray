@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from html import escape
-from typing import IO, Any, Optional, Union
+from typing import IO, Any, Mapping, Optional, Union
 from warnings import warn
 
 import numpy as np
@@ -326,6 +326,80 @@ class UxDataset(xr.Dataset):
         )
 
         return cls.from_xarray(ds, uxgrid, {face_dim: "n_face"})
+
+    def isel(
+        self,
+        indexers: Mapping[Any, Any] | None = None,
+        drop: bool = False,
+        missing_dims: str = "raise",
+        ignore_grid: bool = False,
+        inverse_indices: bool = False,
+        **indexers_kwargs,
+    ):
+        from uxarray.constants import GRID_DIMS
+        from uxarray.core.dataarray import UxDataArray
+
+        idx_map = {}
+        if indexers is not None:
+            if not isinstance(indexers, dict):
+                raise TypeError("`indexers` must be a dict of dimension indexers")
+            idx_map.update(indexers)
+        idx_map.update(indexers_kwargs)
+
+        # detect grid dims
+        grid_dims = [
+            d
+            for d in GRID_DIMS
+            if d in idx_map
+            and not (isinstance(idx_map[d], slice) and idx_map[d] == slice(None))
+        ]
+
+        if len(grid_dims) > 1:
+            raise ValueError("Only one grid dimension can be sliced at a time")
+
+        if len(grid_dims) == 1:
+            grid_dim = grid_dims[0]
+            grid_indexer = idx_map.pop(grid_dim)
+
+            # 1) slice the grid once (keeps face/node/edge topology consistent)
+            sliced_grid = self.uxgrid.isel(**{grid_dim: grid_indexer})
+
+            # 2) re-slice all variables against the same sliced grid
+            new_vars = {}
+            for name, da in self.data_vars.items():
+                uxda = (
+                    da
+                    if isinstance(da, UxDataArray)
+                    else UxDataArray(da, uxgrid=self.uxgrid)
+                )
+                sliced_da = uxda._slice_from_grid(sliced_grid)
+                new_vars[name] = sliced_da
+
+            # TODO keep only non-grid coords
+            non_grid_coords = {
+                cname: c
+                for cname, c in self.coords.items()
+                if not any(d in c.dims for d in GRID_DIMS)
+            }
+
+            base = xr.Dataset(
+                data_vars=new_vars, coords=non_grid_coords, attrs=self.attrs
+            )
+
+            # apply any remaining (non-grid) indexers using vanilla xarray
+            if idx_map:
+                base = base.isel(indexers=idx_map, drop=drop, missing_dims=missing_dims)
+
+            # wrap back with the sliced grid
+            return type(self)(base, uxgrid=sliced_grid)
+
+        out = super().isel(
+            indexers=idx_map or None, drop=drop, missing_dims=missing_dims
+        )
+        return type(self)(out, uxgrid=self.uxgrid)
+
+    # def sel(self):
+    #     pass
 
     def info(self, buf: IO = None, show_attrs=False) -> None:
         """Concise summary of Dataset variables and attributes including grid
