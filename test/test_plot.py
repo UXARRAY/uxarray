@@ -116,6 +116,6 @@ def test_collections_projection_kwarg():
     import cartopy.crs as ccrs
     uxgrid = ux.open_grid(gridfile_ne30)
 
-    with pytest.warns(UserWarning):
+    with pytest.warns(FutureWarning):
         pc = uxgrid.to_polycollection(projection=ccrs.PlateCarree())
         lc = uxgrid.to_linecollection(projection=ccrs.PlateCarree())
