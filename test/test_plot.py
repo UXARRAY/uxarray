@@ -110,3 +110,12 @@ def test_to_raster():
     raster = uxds['bottomDepth'].to_raster(ax=ax)
 
     assert isinstance(raster, np.ndarray)
+
+
+def test_collections_projection_kwarg():
+    import cartopy.crs as ccrs
+    uxgrid = ux.open_grid(gridfile_ne30)
+
+    with pytest.warns(UserWarning):
+        pc = uxgrid.to_polycollection(projection=ccrs.PlateCarree())
+        lc = uxgrid.to_linecollection(projection=ccrs.PlateCarree())
