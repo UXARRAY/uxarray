@@ -1,6 +1,8 @@
 import numpy as np
+from numba import njit
 
 from uxarray.grid.area import calculate_face_area
+from uxarray.grid.geometry import _unique_points
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
 from uxarray.grid.intersections import (
     gca_const_lat_intersection,
@@ -67,6 +69,48 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
     return result
 
 
+@njit(cache=True)
+def _sort_points_by_angle(points):
+    """Sort points by longitude angle for proper polygon formation.
+
+    Parameters
+    ----------
+    points : ndarray
+        Array of 3D points on unit sphere, shape (n_points, 3)
+
+    Returns
+    -------
+    ndarray
+        Points sorted by longitude angle
+    """
+    n_points = points.shape[0]
+    if n_points <= 1:
+        return points.copy()
+
+    # Calculate angles (longitude)
+    angles = np.empty(n_points, dtype=np.float64)
+    for i in range(n_points):
+        angles[i] = np.arctan2(points[i, 1], points[i, 0])
+
+    # Simple insertion sort (numba-friendly for small arrays)
+    sorted_points = points.copy()
+    for i in range(1, n_points):
+        key_angle = angles[i]
+        key_point = sorted_points[i].copy()
+        j = i - 1
+
+        while j >= 0 and angles[j] > key_angle:
+            angles[j + 1] = angles[j]
+            sorted_points[j + 1] = sorted_points[j]
+            j -= 1
+
+        angles[j + 1] = key_angle
+        sorted_points[j + 1] = key_point
+
+    return sorted_points
+
+
+@njit(cache=True)
 def _compute_band_overlap_area(
     face_edges_xyz, z_min, z_max, quadrature_rule="gaussian", order=4
 ):
@@ -78,8 +122,8 @@ def _compute_band_overlap_area(
 
     Parameters
     ----------
-    face_edges_xyz : array-like
-        Cartesian coordinates of face edge nodes
+    face_edges_xyz : ndarray
+        Cartesian coordinates of face edge nodes, shape (n_edges, 2, 3)
     z_min, z_max : float
         Z-coordinate bounds of the latitude band (z = sin(latitude))
     quadrature_rule : str, optional
@@ -92,57 +136,44 @@ def _compute_band_overlap_area(
     float
         Overlap area between face and latitude band
     """
-    # Collect all intersection and interior points to form the overlap polygon
-    polygon_points = []
+    # Pre-allocate for maximum possible intersection points
+    # Worst case: 2 intersections per edge * 2 boundaries + all vertices
+    max_points = face_edges_xyz.shape[0] * 4 + face_edges_xyz.shape[0]
+    polygon_points = np.empty((max_points, 3), dtype=np.float64)
+    point_count = 0
 
     # Find intersections with z_min and z_max boundaries
-    for z_boundary in [z_min, z_max]:
+    z_boundaries = np.array([z_min, z_max])
+    for z_boundary in z_boundaries:
         for e in range(face_edges_xyz.shape[0]):
             edge = face_edges_xyz[e]
             inter = gca_const_lat_intersection(edge, z_boundary)
             nint = get_number_of_intersections(inter)
+
             for i in range(nint):
-                polygon_points.append(inter[i])
+                if point_count < max_points:
+                    polygon_points[point_count] = inter[i]
+                    point_count += 1
 
     # Add face vertices that lie within the band
     for e in range(face_edges_xyz.shape[0]):
         vertex = face_edges_xyz[e, 0]  # First point of edge
         if z_min <= vertex[2] <= z_max:
-            polygon_points.append(vertex)
+            if point_count < max_points:
+                polygon_points[point_count] = vertex
+                point_count += 1
 
-    if len(polygon_points) < 3:
+    if point_count < 3:
         return 0.0
 
     # Remove duplicate points
-    unique_points = []
-    tolerance = 1e-10
-    for pt in polygon_points:
-        is_duplicate = False
-        for existing_pt in unique_points:
-            if np.linalg.norm(pt - existing_pt) < tolerance:
-                is_duplicate = True
-                break
-        if not is_duplicate:
-            unique_points.append(pt)
+    unique_points = _unique_points(polygon_points[:point_count])
 
-    if len(unique_points) < 3:
+    if unique_points.shape[0] < 3:
         return 0.0
 
     # Sort points to form a proper polygon
-    unique_points = np.array(unique_points)
-
-    # Compute centroid and sort by angle
-    center = np.mean(unique_points, axis=0)
-    center = center / np.linalg.norm(center)
-
-    angles = []
-    for pt in unique_points:
-        # Use longitude for sorting (works well for latitude bands)
-        angle = np.arctan2(pt[1], pt[0])
-        angles.append(angle)
-
-    sorted_indices = np.argsort(angles)
-    sorted_points = unique_points[sorted_indices]
+    sorted_points = _sort_points_by_angle(unique_points)
 
     # Use area.py calculate_face_area with latitude adjustment
     x = sorted_points[:, 0]
@@ -256,7 +287,6 @@ def _compute_conservative_zonal_mean_bands(uxda, bands):
             for i, face_idx in enumerate(partially_overlapping_faces):
                 nedge = n_nodes_per_face[face_idx]
                 face_edges = faces_edge_nodes_xyz[face_idx, :nedge]
-                # Use area.py functions with latitude adjustment for accurate area calculation
                 overlap_area = _compute_band_overlap_area(face_edges, zmin, zmax)
                 all_weights[partial_indices[i]] = overlap_area
 

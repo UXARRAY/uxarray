@@ -115,7 +115,7 @@ class TestConservativeZonalMean:
 
         # Test with explicit bands
         bands = np.array([-90, -30, 0, 30, 90])
-        result = uxds["psi"].zonal_mean(mode="conservative", bands=bands)
+        result = uxds["psi"].zonal_mean(lat=bands, conservative=True)
 
         # Should have one less value than bands (4 bands from 5 edges)
         assert result.shape == (len(bands) - 1,)
@@ -129,7 +129,7 @@ class TestConservativeZonalMean:
 
         # Single band covering entire sphere
         bands = np.array([-90, 90])
-        result = uxds["psi"].zonal_mean(mode="conservative", bands=bands)
+        result = uxds["psi"].zonal_mean(lat=bands, conservative=True)
 
         # Compare with global mean
         global_mean = uxds["psi"].mean()
@@ -149,7 +149,7 @@ class TestConservativeZonalMean:
 
         # Conservative with bands
         bands = np.array([-90, -30, 30, 90])
-        conservative = uxds["psi"].zonal_mean(mode="conservative", bands=bands)
+        conservative = uxds["psi"].zonal_mean(lat=bands, conservative=True)
 
         # Results should be similar but not identical
         assert non_conservative.shape == conservative.shape
