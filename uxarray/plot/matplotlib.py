@@ -33,7 +33,7 @@ def _ensure_dimensions(data: UxDataArray) -> UxDataArray:
     return data
 
 
-def _get_points_from_axis(ax):
+def _get_points_from_axis(ax, *, pixel_ratio: int = 1):
     """
     Compute 3D Cartesian coordinates for each pixel center in an Axes.
 
@@ -59,6 +59,8 @@ def _get_points_from_axis(ax):
     y0, y1 = ax.get_ylim()
 
     _, _, nx, ny = np.array(ax.bbox.bounds, dtype=int)
+    nx *= pixel_ratio
+    ny *= pixel_ratio
 
     dx = (x1 - x0) / nx
     dy = (y1 - y0) / ny
@@ -84,6 +86,8 @@ def _get_points_from_axis(ax):
 def _nearest_neighbor_resample(
     data: UxDataArray,
     ax=None,
+    *,
+    pixel_ratio: int = 1,
 ):
     """
     Resample a UxDataArray onto screen-space grid using nearest-neighbor rasterization.
@@ -105,7 +109,7 @@ def _nearest_neighbor_resample(
     This function determines which face on the grid contains each pixel center and assigns
     the data value of the nearest face to that pixel.
     """
-    pts, valid, nx, ny = _get_points_from_axis(ax)
+    pts, valid, nx, ny = _get_points_from_axis(ax, pixel_ratio=pixel_ratio)
     face_indices, counts = data.uxgrid.get_faces_containing_point(pts)
 
     # pick the first face
