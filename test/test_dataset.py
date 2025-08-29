@@ -6,10 +6,8 @@ import uxarray as ux
 from uxarray import UxDataset
 import pytest
 
-try:
-    import constants
-except ImportError:
-    from . import constants
+import numpy as np
+from . import constants
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -18,6 +16,16 @@ dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne
 gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
 dsfile_v1_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
 mpas_ds_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
+
+
+
+
+@pytest.fixture()
+def healpix_sample_ds():
+    uxgrid = ux.Grid.from_healpix(zoom=1)
+    fc_var = ux.UxDataArray(data=np.ones((3, uxgrid.n_face)), dims=['time', 'n_face'], uxgrid=uxgrid)
+    nc_var = ux.UxDataArray(data=np.ones((3, uxgrid.n_node)), dims=['time', 'n_node'], uxgrid=uxgrid)
+    return ux.UxDataset({"fc": fc_var, "nc": nc_var}, uxgrid=uxgrid)
 
 def test_uxgrid_setget():
     """Load a dataset with its grid topology file using uxarray's
@@ -59,15 +67,3 @@ def test_get_dual():
 
     assert isinstance(dual, UxDataset)
     assert len(uxds.data_vars) == len(dual.data_vars)
-
-# Uncomment the following test if you want to include it, ensuring you handle potential failures.
-# def test_read_from_https():
-#     """Tests reading a dataset from a HTTPS link."""
-#     import requests
-#
-#     small_file_480km = requests.get(
-#         "https://web.lcrc.anl.gov/public/e3sm/inputdata/share/meshes/mpas/ocean/oQU480.230422.nc"
-#     ).content
-#
-#     ds_small_480km = ux.open_dataset(small_file_480km, small_file_480km)
-#     assert isinstance(ds_small_480km, ux.core.dataset.UxDataset)
