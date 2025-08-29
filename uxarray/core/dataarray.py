@@ -1024,7 +1024,10 @@ class UxDataArray(xr.DataArray):
 
         Notes
         -----
-        Describe the implementation, links to any papers or references, etc.
+        The Green-Gauss theorm is utilized, where a closed control volume around each cell
+        is formed connecting centroids of the neighboring cells. The surface integral is
+        approximated using the trapezoidal rule. The sum of the contributions is then
+        normalized by the cell volume.
 
         Example
         -------
