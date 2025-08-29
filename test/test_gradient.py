@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 import os
@@ -14,6 +15,12 @@ quad_hex_data_path = current_path / "meshfiles" / "ugrid" / "quad-hexagon" / "da
 
 mpas_ocean_grid_path = current_path / "meshfiles" / "mpas" / "QU" / "480" / "grid.nc"
 mpas_ocean_data_path = current_path / "meshfiles" / "mpas" / "QU" / "480" / "data.nc"
+
+dyamond_subset_grid_path = current_path / "meshfiles" /  "mpas" / "dyamond-30km" / "gradient_grid_subset.nc"
+dyamond_subset_data_path = current_path / "meshfiles" / "mpas" / "dyamond-30km" / "gradient_data_subset.nc"
+
+
+
 
 # TODO: pytest fixtures
 
@@ -36,11 +43,10 @@ class TestQuadHex:
         """Quad hexagon grid has 4 faces, each of which are on the boundary, so the expected gradients are zero for both components"""
         uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
 
-        grad_ds = uxds['t2m'].gradient()
+        grad = uxds['t2m'].gradient()
 
-        # TODO: maybe use a nt function
-        # assert (grad_ds['zonal_gradient'] == 0.0).all()
-        # assert (grad_ds['meridional_gradient'] == 0.0).all()
+        assert np.isnan(grad['meridional_gradient']).all()
+        assert np.isnan(grad['zonal_gradient']).all()
 
 
 class TestMPASOcean:
@@ -50,18 +56,92 @@ class TestMPASOcean:
 
         grad = uxds['bottomDepth'].gradient()
 
-        # TODO:
+        # There should be some boundary faces
+        assert np.isnan(grad['meridional_gradient']).any()
+        assert np.isnan(grad['zonal_gradient']).any()
+
+        # Not every face is on the boundary, ensure there are valid values
+        assert not np.isnan(grad['meridional_gradient']).all()
+        assert not np.isnan(grad['zonal_gradient']).all()
+
+
+class TestDyamondSubset:
+
+    center_fidx = 153
+    left_fidx   = 100
+    right_fidx  = 164
+    top_fidx    = 154
+    bottom_fidx = 66
+
+    def test_lat_field(self):
+        """Gradient of a latitude field. All vectors should be pointing east."""
+        uxds =  ux.open_dataset(dyamond_subset_grid_path, dyamond_subset_data_path)
+        grad = uxds['face_lat'].gradient()
+        zg, mg = grad.zonal_gradient, grad.meridional_gradient
+        assert mg.max() > zg.max()
+
+        assert mg.min() > zg.max()
+
+
+    def test_lon_field(self):
+        """Gradient of a longitude field. All vectors should be pointing north."""
+        uxds =  ux.open_dataset(dyamond_subset_grid_path, dyamond_subset_data_path)
+        grad = uxds['face_lon'].gradient()
+        zg, mg = grad.zonal_gradient, grad.meridional_gradient
+        assert zg.max() > mg.max()
+
+        assert zg.min() > mg.max()
+
+    def test_gaussian_field(self):
+        """Gradient of a gaussian field. All vectors should be pointing toward the center"""
+        uxds =  ux.open_dataset(dyamond_subset_grid_path, dyamond_subset_data_path)
+        grad = uxds['gaussian'].gradient()
+        zg, mg = grad.zonal_gradient, grad.meridional_gradient
+        mag = np.hypot(zg, mg)
+        angle = np.arctan2(mg, zg)
+
+        # Ensure a valid range for min/max
+        assert zg.min() < 0
+        assert zg.max() > 0
+        assert mg.min() < 0
+        assert mg.max() > 0
+
+        # The Magnitude at the center is less than the corners
+        assert mag[self.center_fidx] < mag[self.left_fidx]
+        assert mag[self.center_fidx] < mag[self.right_fidx]
+        assert mag[self.center_fidx] < mag[self.top_fidx]
+        assert mag[self.center_fidx] < mag[self.bottom_fidx]
+
+        # Pointing Towards Center
+        assert angle[self.left_fidx] < 0
+        assert angle[self.right_fidx] > 0
+        assert angle[self.top_fidx] < 0
+        assert angle[self.bottom_fidx] > 0
 
 
 
-# TODO: Test nodal gradient
+    def test_inverse_gaussian_field(self):
+        """Gradient of an inverse gaussian field. All vectors should be pointing outward from the center."""
+        uxds =  ux.open_dataset(dyamond_subset_grid_path, dyamond_subset_data_path)
+        grad = uxds['inverse_gaussian'].gradient()
+        zg, mg = grad.zonal_gradient, grad.meridional_gradient
+        mag = np.hypot(zg, mg)
+        angle = np.arctan2(mg, zg)
 
+        # Ensure a valid range for min/max
+        assert zg.min() < 0
+        assert zg.max() > 0
+        assert mg.min() < 0
+        assert mg.max() > 0
 
+        # The Magnitude at the center is less than the corners
+        assert mag[self.center_fidx] < mag[self.left_fidx]
+        assert mag[self.center_fidx] < mag[self.right_fidx]
+        assert mag[self.center_fidx] < mag[self.top_fidx]
+        assert mag[self.center_fidx] < mag[self.bottom_fidx]
 
-
-
-
-
-
-
-# TODO: Write test for gradient functionality here
+        # Pointing Away from Center
+        assert angle[self.left_fidx] > 0
+        assert angle[self.right_fidx] < 0
+        assert angle[self.top_fidx] > 0
+        assert angle[self.bottom_fidx] < 0
