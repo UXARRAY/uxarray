@@ -282,7 +282,7 @@ class UxDataArray(xr.DataArray):
 
         return poly_collection
 
-    def to_raster(self, ax: GeoAxes, *, pixel_ratio: int = 1):
+    def to_raster(self, ax: GeoAxes, *, pixel_ratio: float = 1):
         """
         Rasterizes a data variable stored on the faces of an unstructured grid onto the pixels of the provided Cartopy GeoAxes.
 

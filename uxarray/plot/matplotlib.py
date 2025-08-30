@@ -33,7 +33,7 @@ def _ensure_dimensions(data: UxDataArray) -> UxDataArray:
     return data
 
 
-def _get_points_from_axis(ax, *, pixel_ratio: int = 1):
+def _get_points_from_axis(ax, *, pixel_ratio: float = 1):
     """
     Compute 3D Cartesian coordinates for each pixel center in an Axes.
 
@@ -59,8 +59,8 @@ def _get_points_from_axis(ax, *, pixel_ratio: int = 1):
     y0, y1 = ax.get_ylim()
 
     _, _, nx, ny = np.array(ax.bbox.bounds, dtype=int)
-    nx *= pixel_ratio
-    ny *= pixel_ratio
+    nx = int(nx * pixel_ratio)
+    ny = int(ny * pixel_ratio)
 
     dx = (x1 - x0) / nx
     dy = (y1 - y0) / ny
@@ -87,7 +87,7 @@ def _nearest_neighbor_resample(
     data: UxDataArray,
     ax=None,
     *,
-    pixel_ratio: int = 1,
+    pixel_ratio: float = 1,
 ):
     """
     Resample a UxDataArray onto screen-space grid using nearest-neighbor rasterization.
