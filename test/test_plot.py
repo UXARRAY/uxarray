@@ -112,6 +112,37 @@ def test_to_raster():
     assert isinstance(raster, np.ndarray)
 
 
+@pytest.mark.parametrize(
+    "r1,r2",
+    [
+        (0.01, 0.07),
+        (0.1, 0.5),
+        (1, 2),
+    ],
+)
+def test_to_raster_pixel_ratio(r1, r2):
+    assert r2 > r1
+
+    _, ax = plt.subplots(
+        subplot_kw={'projection': ccrs.Robinson()},
+        constrained_layout=True,
+    )
+
+    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+
+    ax.set_extent((-20, 20, -10, 10), crs=ccrs.PlateCarree())
+    raster1 = uxds['bottomDepth'].to_raster(ax=ax, pixel_ratio=r1)
+    raster2 = uxds['bottomDepth'].to_raster(ax=ax, pixel_ratio=r2)
+
+    assert isinstance(raster1, np.ndarray) and isinstance(raster2, np.ndarray)
+    assert raster1.ndim == raster2.ndim == 2
+    assert raster2.size > raster1.size
+
+    f = r2 / r1
+    d = np.array(raster2.shape) - f * np.array(raster1.shape)
+    assert (d >= 0).all() and (d <= f - 1).all()
+
+
 def test_collections_projection_kwarg():
     import cartopy.crs as ccrs
     uxgrid = ux.open_grid(gridfile_ne30)
