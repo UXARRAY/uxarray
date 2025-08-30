@@ -137,6 +137,10 @@ def test_to_raster_pixel_ratio(r1, r2):
     assert isinstance(raster1, np.ndarray) and isinstance(raster2, np.ndarray)
     assert raster1.ndim == raster2.ndim == 2
     assert raster2.size > raster1.size
+    fna1 = np.isnan(raster1).sum() / raster1.size
+    fna2 = np.isnan(raster2).sum() / raster2.size
+    assert fna1 != fna2
+    assert fna1 == pytest.approx(fna2, abs=0.06 if r1 == 0.01 else 1e-3)
 
     f = r2 / r1
     d = np.array(raster2.shape) - f * np.array(raster1.shape)
