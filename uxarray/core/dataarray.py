@@ -291,6 +291,14 @@ class UxDataArray(xr.DataArray):
         ax : GeoAxes
             A Cartopy GeoAxes onto which the data will be rasterized. Each pixel in this axes will be sampled
             against the unstructured grid’s face geometry.
+        pixel_ratio : float, default=1.0
+            A scaling factor to adjust the resolution of the rasterization.
+            A value greater than 1 increases the resolution (sharpens the image),
+            while a value less than 1 will result in a coarser rasterization.
+            The resolution also depends on what the figure's DPI setting is
+            prior to calling :meth:`to_raster`.
+        pixel_mapping : numpy.ndarray, optional
+            Precomputed mapping of pixels to grid face indices (1-d).
 
         Returns
         -------
