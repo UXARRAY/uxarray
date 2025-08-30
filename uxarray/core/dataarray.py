@@ -303,8 +303,10 @@ class UxDataArray(xr.DataArray):
             while a value less than 1 will result in a coarser rasterization.
             The resolution also depends on what the figure's DPI setting is
             prior to calling :meth:`to_raster`.
+            You can control DPI with the ``dpi`` keyword argument when creating the figure,
+            or by using :meth:`~matplotlib.figure.Figure.set_dpi` after creation.
         pixel_mapping : numpy.ndarray, optional
-            Precomputed mapping from pixels within the Cartopy GeoAxes bbox boundary
+            Precomputed mapping from pixels within the Cartopy GeoAxes boundary
             to grid face indices (1-dimensional).
 
         Returns
