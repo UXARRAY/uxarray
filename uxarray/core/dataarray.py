@@ -295,8 +295,8 @@ class UxDataArray(xr.DataArray):
         Parameters
         ----------
         ax : GeoAxes
-            A Cartopy GeoAxes onto which the data will be rasterized. Each pixel in this axes will be sampled
-            against the unstructured grid’s face geometry.
+            A Cartopy :class:`~cartopy.mpl.geoaxes.GeoAxes` onto which the data will be rasterized.
+            Each pixel in this axes will be sampled against the unstructured grid’s face geometry.
         pixel_ratio : float, default=1.0
             A scaling factor to adjust the resolution of the rasterization.
             A value greater than 1 increases the resolution (sharpens the image),
