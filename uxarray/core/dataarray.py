@@ -304,7 +304,8 @@ class UxDataArray(xr.DataArray):
             The resolution also depends on what the figure's DPI setting is
             prior to calling :meth:`to_raster`.
         pixel_mapping : numpy.ndarray, optional
-            Precomputed mapping of pixels to grid face indices (1-d).
+            Precomputed mapping from pixels within the Cartopy GeoAxes bbox boundary
+            to grid face indices (1-dimensional).
 
         Returns
         -------
