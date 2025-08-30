@@ -6,6 +6,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from cartopy.mpl.geoaxes import GeoAxes
+
     from uxarray import UxDataArray, UxDataset
 
 
