@@ -282,15 +282,32 @@ class UxDataArray(xr.DataArray):
 
         return poly_collection
 
-    def to_raster(self, ax: GeoAxes):
+    def to_raster(
+        self,
+        ax: GeoAxes,
+        *,
+        pixel_ratio: float = 1,
+        pixel_mapping: np.ndarray | None = None,
+    ):
         """
         Rasterizes a data variable stored on the faces of an unstructured grid onto the pixels of the provided Cartopy GeoAxes.
 
         Parameters
         ----------
         ax : GeoAxes
-            A Cartopy GeoAxes onto which the data will be rasterized. Each pixel in this axes will be sampled
-            against the unstructured grid’s face geometry.
+            A Cartopy :class:`~cartopy.mpl.geoaxes.GeoAxes` onto which the data will be rasterized.
+            Each pixel in this axes will be sampled against the unstructured grid’s face geometry.
+        pixel_ratio : float, default=1.0
+            A scaling factor to adjust the resolution of the rasterization.
+            A value greater than 1 increases the resolution (sharpens the image),
+            while a value less than 1 will result in a coarser rasterization.
+            The resolution also depends on what the figure's DPI setting is
+            prior to calling :meth:`to_raster`.
+            You can control DPI with the ``dpi`` keyword argument when creating the figure,
+            or by using :meth:`~matplotlib.figure.Figure.set_dpi` after creation.
+        pixel_mapping : numpy.ndarray, optional
+            Precomputed mapping from pixels within the Cartopy GeoAxes boundary
+            to grid face indices (1-dimensional).
 
         Returns
         -------
@@ -336,7 +353,9 @@ class UxDataArray(xr.DataArray):
         if not isinstance(ax, GeoAxes):
             raise ValueError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
 
-        return _nearest_neighbor_resample(self, ax)
+        return _nearest_neighbor_resample(
+            self, ax, pixel_ratio=pixel_ratio, pixel_mapping=pixel_mapping
+        )
 
     def to_dataset(
         self,
