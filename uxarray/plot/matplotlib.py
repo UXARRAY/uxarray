@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from uxarray import UxDataArray
+    from uxarray import UxDataArray, UxDataset
 
 
 def _ensure_dimensions(data: UxDataArray) -> UxDataArray:
@@ -83,11 +83,28 @@ def _get_points_from_axis(ax, *, pixel_ratio: float = 1):
     return pts, valid, nx, ny
 
 
+def _get_raster_pixel_to_face_mapping(
+    obj: UxDataArray | UxDataset,
+    ax,
+    *,
+    pixel_ratio: float = 1,
+):
+    pts, *_ = _get_points_from_axis(ax, pixel_ratio=pixel_ratio)
+    face_indices, counts = obj.uxgrid.get_faces_containing_point(pts)
+
+    # pick the first face
+    first_face = face_indices[:, 0]
+    first_face[counts == 0] = -1
+
+    return first_face
+
+
 def _nearest_neighbor_resample(
     data: UxDataArray,
     ax=None,
     *,
     pixel_ratio: float = 1,
+    pixel_mapping: np.ndarray | None = None,
 ):
     """
     Resample a UxDataArray onto screen-space grid using nearest-neighbor rasterization.
@@ -110,11 +127,14 @@ def _nearest_neighbor_resample(
     the data value of the nearest face to that pixel.
     """
     pts, valid, nx, ny = _get_points_from_axis(ax, pixel_ratio=pixel_ratio)
-    face_indices, counts = data.uxgrid.get_faces_containing_point(pts)
+    if pixel_mapping is None:
+        face_indices, counts = data.uxgrid.get_faces_containing_point(pts)
 
-    # pick the first face
-    first_face = face_indices[:, 0]
-    first_face[counts == 0] = -1
+        # pick the first face
+        first_face = face_indices[:, 0]
+        first_face[counts == 0] = -1
+    else:
+        first_face = pixel_mapping
 
     # build an array of values for each valid point
     flat_vals = np.full(first_face.shape, np.nan, dtype=float)
