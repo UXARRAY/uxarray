@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
+    from cartopy.mpl.geoaxes import GeoAxes
     from uxarray import UxDataArray, UxDataset
 
 
@@ -33,7 +34,7 @@ def _ensure_dimensions(data: UxDataArray) -> UxDataArray:
     return data
 
 
-def _get_points_from_axis(ax, *, pixel_ratio: float = 1):
+def _get_points_from_axis(ax: GeoAxes, *, pixel_ratio: float = 1):
     """
     Compute 3D Cartesian coordinates for each pixel center in an Axes.
 
@@ -85,7 +86,7 @@ def _get_points_from_axis(ax, *, pixel_ratio: float = 1):
 
 def _get_raster_pixel_to_face_mapping(
     obj: UxDataArray | UxDataset,
-    ax,
+    ax: GeoAxes,
     *,
     pixel_ratio: float = 1,
 ):
@@ -101,7 +102,7 @@ def _get_raster_pixel_to_face_mapping(
 
 def _nearest_neighbor_resample(
     data: UxDataArray,
-    ax=None,
+    ax: GeoAxes,
     *,
     pixel_ratio: float = 1,
     pixel_mapping: np.ndarray | None = None,
@@ -113,7 +114,7 @@ def _nearest_neighbor_resample(
     ----------
     data : UxDataArray
         Unstructured-grid data to rasterize.
-    ax : matplotlib.axes.Axes
+    ax : cartopy.mpl.geoaxes.GeoAxes
         The target axes defining the sampling grid.
 
     Returns
