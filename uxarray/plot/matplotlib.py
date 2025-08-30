@@ -43,6 +43,8 @@ def _get_points_from_axis(ax: GeoAxes, *, pixel_ratio: float = 1):
     ----------
     ax : cartopy.mpl.geoaxes.GeoAxes
         The map axes defining the projection and bounds for sampling.
+    pixel_ratio : float, default=1.0
+        A scaling factor to adjust the resolution of the rasterization.
 
     Returns
     -------
@@ -91,6 +93,25 @@ def _get_raster_pixel_to_face_mapping(
     *,
     pixel_ratio: float = 1,
 ):
+    """
+    Compute a mapping from pixels within a Cartopy GeoAxes to nearest grid face index.
+
+    Parameters
+    ----------
+    obj : UxDataArray or UxDataset
+        Unstructured grid to rasterize.
+    ax : cartopy.mpl.geoaxes.GeoAxes
+        The target axes defining the sampling grid.
+    pixel_ratio : float, default=1.0
+        A scaling factor to adjust the resolution of the rasterization.
+
+    Returns
+    -------
+    pixel_mapping : numpy.ndarray, shape (n,)
+        Indices of the first (nearest) grid face containing each pixel center
+        within the Cartopy GeoAxes boundary.
+        Pixels in the boundary but not contained in any grid face are marked with -1.
+    """
     pts, *_ = _get_points_from_axis(ax, pixel_ratio=pixel_ratio)
     face_indices, counts = obj.uxgrid.get_faces_containing_point(pts)
 
@@ -117,6 +138,10 @@ def _nearest_neighbor_resample(
         Unstructured-grid data to rasterize.
     ax : cartopy.mpl.geoaxes.GeoAxes
         The target axes defining the sampling grid.
+    pixel_ratio : float, default=1.0
+        A scaling factor to adjust the resolution of the rasterization.
+    pixel_mapping : numpy.ndarray, optional
+        Pre-computed indices of the first (nearest) face containing each pixel center.
 
     Returns
     -------
