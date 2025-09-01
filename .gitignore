@@ -141,6 +141,7 @@ test/dask-worker-space/
 /dask-worker-space/
 .vscode/
 generated/
+.ipynb_checkpoints/
 
 # Test grid files.
 test/meshfiles/*.g
