@@ -170,6 +170,6 @@ def _nearest_neighbor_resample(
 
     # scatter back into a full raster via the valid mask
     res = np.full((ny, nx), np.nan, dtype=float)
-    res.flat[np.flatnonzero(valid.ravel())] = flat_vals
+    res.flat[np.flatnonzero(valid)] = flat_vals
 
     return res
