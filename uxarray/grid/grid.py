@@ -2208,7 +2208,7 @@ class Grid:
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
-        of polygons representing the faces of the current ``Grid``
+        of polygons representing the faces of the unstructured grid.
 
         Parameters
         ----------
@@ -2216,6 +2216,21 @@ class Grid:
             Key word arguments to pass into the construction of a PolyCollection
         """
         import cartopy.crs as ccrs
+
+        if "projection" in kwargs:
+            proj = kwargs.pop("projection")
+            warn(
+                (
+                    "'projection' is not a supported argument and will be ignored. "
+                    "Define the desired projection on the GeoAxes that this collection will be added to. "
+                    "Example:\n"
+                    "    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.Robinson()})\n"
+                    "    ax.add_collection(poly_collection)\n"
+                    f"(received projection={proj!r})"
+                ),
+                category=FutureWarning,
+                stacklevel=2,
+            )
 
         if self._cached_poly_collection:
             return copy.deepcopy(self._cached_poly_collection)
@@ -2237,15 +2252,29 @@ class Grid:
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.LineCollection``` consisting
-        of lines representing the edges of the current ``Grid``
+        of lines representing the edges of the unstructured grid.
 
         Parameters
         ----------
         **kwargs: dict
-            Key word arguments to pass into the construction of a PolyCollection
+            Key word arguments to pass into the construction of a LineCollection
         """
         import cartopy.crs as ccrs
 
+        if "projection" in kwargs:
+            proj = kwargs.pop("projection")
+            warn(
+                (
+                    "'projection' is not a supported argument and will be ignored. "
+                    "Define the desired projection on the GeoAxes that this collection will be added to. "
+                    "Example:\n"
+                    "    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.Robinson()})\n"
+                    "    ax.add_collection(line_collection)\n"
+                    f"(received projection={proj!r})"
+                ),
+                category=FutureWarning,
+                stacklevel=2,
+            )
         if self._cached_line_collection:
             return copy.deepcopy(self._cached_line_collection)
 
