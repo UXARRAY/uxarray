@@ -429,7 +429,7 @@ class UxDataArray(xr.DataArray):
         return uxda
 
     def zonal_mean(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
-        """Compute averages along lines of constant latitude.
+        """Compute non-conservative or conservative averages along lines of constant latitude or latitude bands.
 
         Parameters
         ----------
