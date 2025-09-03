@@ -454,7 +454,7 @@ class UxDataArray(xr.DataArray):
         # Non-conservative averaging from -90° to 90° at 10° intervals by default
         >>> uxds["var"].zonal_mean()
 
-        # Single latitude (non-conservative)
+        # Single latitude (non-conservative) over 30° latitude
         >>> uxds["var"].zonal_mean(lat=30.0)
 
         # Conservative averaging over latitude bands
