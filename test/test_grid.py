@@ -882,3 +882,22 @@ def test_from_topology():
         face_node_connectivity=face_node_connectivity,
         fill_value=-1,
     )
+
+
+def test_sphere_radius_mpas_ocean():
+    """Test sphere radius functionality with MPAS ocean mesh."""
+    # Test with MPAS ocean mesh file
+    mpas_ocean_file = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
+    grid = ux.open_grid(mpas_ocean_file)
+
+    # Check that MPAS sphere radius is preserved (Earth's radius)
+    assert np.isclose(grid.sphere_radius, 6371229.0, rtol=1e-10)
+
+    # Test setting a new radius
+    new_radius = 1000.0
+    grid.sphere_radius = new_radius
+    assert np.isclose(grid.sphere_radius, new_radius, rtol=1e-10)
+
+    # Test invalid radius
+    with pytest.raises(ValueError, match="Sphere radius must be positive"):
+        grid.sphere_radius = -1.0
