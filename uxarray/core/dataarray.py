@@ -17,7 +17,7 @@ from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.gradient import (
     _calculate_edge_face_difference,
     _calculate_edge_node_difference,
-    _calculate_grad_on_edge_from_faces,
+    _compute_gradient,
 )
 from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.core.zonal import _compute_non_conservative_zonal_mean
@@ -32,8 +32,6 @@ from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
 
 if TYPE_CHECKING:
-    import numpy as np
-
     from uxarray.core.dataset import UxDataset
 
 
@@ -1031,67 +1029,48 @@ class UxDataArray(xr.DataArray):
         """
         return _uxda_grid_aggregate(self, destination, "any", **kwargs)
 
-    def gradient(
-        self, normalize: Optional[bool] = False, use_magnitude: Optional[bool] = True
-    ):
-        """Computes the horizontal gradient of a data variable.
+    def gradient(self, **kwargs) -> UxDataset:
+        """
+        Computes the gradient of a data variable.
 
-        Currently only supports gradients of face-centered data variables, with the resulting gradient being stored
-        on each edge. The gradient of a node-centered data variable can be approximated by computing the nodal average
-        and then computing the gradient.
+        Returns
+        -------
+        gradient: UxDataset
+            Dataset containing the zonal and merdional components of the gradient.
 
-        The aboslute value of the gradient is used, since UXarray does not yet support representing the direction
-        of the gradient.
-
-        The expression for calculating the gradient on each edge comes from Eq. 22 in Ringler et al. (2010), J. Comput. Phys.
-
-        Code is adapted from https://github.com/theweathermanda/MPAS_utilities/blob/main/mpas_calc_operators.py
-
-
-        Parameters
-        ----------
-        use_magnitude : bool, default=True
-            Whether to use the magnitude (aboslute value) of the resulting gradient
-        normalize: bool, default=None
-            Whether to normalize (l2) the resulting gradient
+        Notes
+        -----
+        The Green-Gauss theorm is utilized, where a closed control volume around each cell
+        is formed connecting centroids of the neighboring cells. The surface integral is
+        approximated using the trapezoidal rule. The sum of the contributions is then
+        normalized by the cell volume.
 
         Example
         -------
         >>> uxds["var"].gradient()
-        >>> uxds["var"].topological_mean(destination="face").gradient()
         """
+        from uxarray import UxDataset
 
-        if not self._face_centered():
-            raise ValueError(
-                "Gradient computations are currently only supported for face-centered data variables. For node-centered"
-                "data, consider performing a nodal average or remapping to faces."
+        if "use_magnitude" in kwargs or "normalize" in kwargs:
+            # Deprecation warning for old gradient implementation
+            warn(
+                "The `use_magnitude` and `normalize` parameters are deprecated. ",
+                DeprecationWarning,
             )
 
-        if use_magnitude is False:
-            warnings.warn(
-                "Gradients can only be represented in terms of their aboslute value, since UXarray does not "
-                "currently store any information for representing the sign."
-            )
+        # Compute the zonal and meridional gradient components of the stored data variable
+        grad_zonal_da, grad_meridional_da = _compute_gradient(self)
 
-        _grad = _calculate_grad_on_edge_from_faces(
-            d_var=self.values,
-            edge_faces=self.uxgrid.edge_face_connectivity.values,
-            edge_face_distances=self.uxgrid.edge_face_distances.values,
-            n_edge=self.uxgrid.n_edge,
-            normalize=normalize,
-        )
-
-        dims = list(self.dims)
-        dims[-1] = "n_edge"
-
-        uxda = UxDataArray(
-            _grad,
+        # Create a dataset containing both gradient components
+        return UxDataset(
+            {
+                "zonal_gradient": grad_zonal_da,
+                "meridional_gradient": grad_meridional_da,
+            },
             uxgrid=self.uxgrid,
-            dims=dims,
-            name=self.name + "_grad" if self.name is not None else "grad",
+            attrs={"gradient": True},
+            coords=self.coords,
         )
-
-        return uxda
 
     def difference(self, destination: Optional[str] = "edge"):
         """Computes the absolute difference of a data variable.
