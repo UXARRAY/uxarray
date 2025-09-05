@@ -5,7 +5,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from uxarray import UxDataArray
+    from cartopy.mpl.geoaxes import GeoAxes
+
+    from uxarray import UxDataArray, UxDataset
 
 
 def _ensure_dimensions(data: UxDataArray) -> UxDataArray:
@@ -33,7 +35,7 @@ def _ensure_dimensions(data: UxDataArray) -> UxDataArray:
     return data
 
 
-def _get_points_from_axis(ax):
+def _get_points_from_axis(ax: GeoAxes, *, pixel_ratio: float = 1):
     """
     Compute 3D Cartesian coordinates for each pixel center in an Axes.
 
@@ -41,6 +43,8 @@ def _get_points_from_axis(ax):
     ----------
     ax : cartopy.mpl.geoaxes.GeoAxes
         The map axes defining the projection and bounds for sampling.
+    pixel_ratio : float, default=1.0
+        A scaling factor to adjust the resolution of the rasterization.
 
     Returns
     -------
@@ -59,6 +63,8 @@ def _get_points_from_axis(ax):
     y0, y1 = ax.get_ylim()
 
     _, _, nx, ny = np.array(ax.bbox.bounds, dtype=int)
+    nx = int(nx * pixel_ratio)
+    ny = int(ny * pixel_ratio)
 
     dx = (x1 - x0) / nx
     dy = (y1 - y0) / ny
@@ -81,9 +87,47 @@ def _get_points_from_axis(ax):
     return pts, valid, nx, ny
 
 
+def _get_raster_pixel_to_face_mapping(
+    obj: UxDataArray | UxDataset,
+    ax: GeoAxes,
+    *,
+    pixel_ratio: float = 1,
+):
+    """
+    Compute a mapping from pixels within a Cartopy GeoAxes to nearest grid face index.
+
+    Parameters
+    ----------
+    obj : UxDataArray or UxDataset
+        Unstructured grid to rasterize.
+    ax : cartopy.mpl.geoaxes.GeoAxes
+        The target axes defining the sampling grid.
+    pixel_ratio : float, default=1.0
+        A scaling factor to adjust the resolution of the rasterization.
+
+    Returns
+    -------
+    pixel_mapping : numpy.ndarray, shape (n,)
+        Indices of the first (nearest) grid face containing each pixel center
+        within the Cartopy GeoAxes boundary.
+        Pixels in the boundary but not contained in any grid face are marked with -1.
+    """
+    pts, *_ = _get_points_from_axis(ax, pixel_ratio=pixel_ratio)
+    face_indices, counts = obj.uxgrid.get_faces_containing_point(pts)
+
+    # pick the first face
+    first_face = face_indices[:, 0]
+    first_face[counts == 0] = -1
+
+    return first_face
+
+
 def _nearest_neighbor_resample(
     data: UxDataArray,
-    ax=None,
+    ax: GeoAxes,
+    *,
+    pixel_ratio: float = 1,
+    pixel_mapping: np.ndarray | None = None,
 ):
     """
     Resample a UxDataArray onto screen-space grid using nearest-neighbor rasterization.
@@ -92,8 +136,12 @@ def _nearest_neighbor_resample(
     ----------
     data : UxDataArray
         Unstructured-grid data to rasterize.
-    ax : matplotlib.axes.Axes
+    ax : cartopy.mpl.geoaxes.GeoAxes
         The target axes defining the sampling grid.
+    pixel_ratio : float, default=1.0
+        A scaling factor to adjust the resolution of the rasterization.
+    pixel_mapping : numpy.ndarray, optional
+        Pre-computed indices of the first (nearest) face containing each pixel center.
 
     Returns
     -------
@@ -105,12 +153,15 @@ def _nearest_neighbor_resample(
     This function determines which face on the grid contains each pixel center and assigns
     the data value of the nearest face to that pixel.
     """
-    pts, valid, nx, ny = _get_points_from_axis(ax)
-    face_indices, counts = data.uxgrid.get_faces_containing_point(pts)
+    pts, valid, nx, ny = _get_points_from_axis(ax, pixel_ratio=pixel_ratio)
+    if pixel_mapping is None:
+        face_indices, counts = data.uxgrid.get_faces_containing_point(pts)
 
-    # pick the first face
-    first_face = face_indices[:, 0]
-    first_face[counts == 0] = -1
+        # pick the first face
+        first_face = face_indices[:, 0]
+        first_face[counts == 0] = -1
+    else:
+        first_face = pixel_mapping
 
     # build an array of values for each valid point
     flat_vals = np.full(first_face.shape, np.nan, dtype=float)
@@ -119,6 +170,6 @@ def _nearest_neighbor_resample(
 
     # scatter back into a full raster via the valid mask
     res = np.full((ny, nx), np.nan, dtype=float)
-    res.flat[np.flatnonzero(valid.ravel())] = flat_vals
+    res.flat[np.flatnonzero(valid)] = flat_vals
 
     return res

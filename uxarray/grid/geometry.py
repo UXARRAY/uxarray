@@ -138,7 +138,15 @@ def _build_polygon_shells(
         .swapaxes(1, 2)
     )
 
-    return polygon_shells
+    # XXX: fixing the PolyCollection example for now
+    # fmt: off
+    bad = (
+        (polygon_shells[:,0,0][:,np.newaxis] == polygon_shells[:,1:,0]).all(axis=1)
+        | (polygon_shells[:,0,1][:,np.newaxis] == polygon_shells[:,1:,1]).all(axis=1)
+    )
+    # fmt: on
+
+    return polygon_shells[~bad, ...]
 
 
 def _correct_central_longitude(node_lon, node_lat, projection):
