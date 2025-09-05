@@ -68,7 +68,7 @@ These user guides provide detailed explanations of the core functionality in UXa
  Compute the weighted average
 
 `Gradients <user-guide/gradients.ipynb>`_
- TODO:
+ Compute the gradient of a data variable
 
 `Tree Structures <user-guide/tree_structures.ipynb>`_
  Data structures for nearest neighbor queries
