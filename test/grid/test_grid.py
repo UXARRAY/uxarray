@@ -27,7 +27,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
 # quad_hex_grid_path is now available from centralized paths as QUAD_HEXAGON_GRID
-quad_hex_grid_path = QUAD_HEXAGON_GRID
+
 import constants
 
 shp_filename = MESHFILES_PATH / "shp" / "grid_fire.shp"
@@ -753,7 +753,6 @@ def test_class_methods_from_face_vertices():
     single_face_cart = [(0.0,)]
 
 def test_latlon_bounds_populate_bounds_GCA_mix():
-    MPAS_QU_MESH = MPAS_OCEAN_MESH
     face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
     face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
     face_3 = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
@@ -771,8 +770,7 @@ def test_latlon_bounds_populate_bounds_GCA_mix():
     nt.assert_allclose(bounds_xarray.values, expected_bounds, atol=ERROR_TOLERANCE)
 
 def test_latlon_bounds_populate_bounds_MPAS():
-    MPAS_QU_MESH = MPAS_OCEAN_MESH
-    uxgrid = ux.open_grid(MPAS_QU_MESH)
+    uxgrid = ux.open_grid(MPAS_OCEAN_MESH)
     bounds_xarray = uxgrid.bounds
 
 def test_dual_mesh_mpas():

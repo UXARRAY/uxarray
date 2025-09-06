@@ -22,15 +22,15 @@ from paths import *
 
 gridfile_ne30 = OUTCSNE30_GRID
 dsfile_var2_ne30 = OUTCSNE30_VAR2
-gridfile_geoflow = GEOFLOW_GRID
+
 dsfile_v1_geoflow = GEOFLOW_V1
-mpas_ds_path = MPAS_QU_MESH
+
 
 
 def test_groupby_preserves_uxgrid():
     """Test that groupby operations preserve the uxgrid attribute."""
     # Create a dataset from a file
-    uxds = ux.open_dataset(mpas_ds_path, mpas_ds_path)
+    uxds = ux.open_dataset(MPAS_QU_MESH, MPAS_QU_MESH)
     original_grid = uxds.uxgrid
 
     # Create bins from latitude values (extract data explicitly)
@@ -53,7 +53,7 @@ def test_groupby_preserves_uxgrid():
 def test_groupby_bins_preserves_uxgrid():
     """Test that groupby_bins operations preserve the uxgrid attribute."""
     # Create a dataset from a file
-    uxds = ux.open_dataset(mpas_ds_path, mpas_ds_path)
+    uxds = ux.open_dataset(MPAS_QU_MESH, MPAS_QU_MESH)
     original_grid = uxds.uxgrid
 
     # Create bins from latitude values (extract data explicitly)

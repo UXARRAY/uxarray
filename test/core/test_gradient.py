@@ -12,11 +12,7 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
-quad_hex_grid_path = QUAD_HEXAGON_GRID
-quad_hex_data_path = QUAD_HEXAGON_DATA
 
-mpas_ocean_grid_path = MPAS_QU_GRID
-mpas_ocean_data_path = MPAS_QU_DATA
 
 # Note: dyamond paths not yet in centralized paths - keeping original for now
 current_path = Path(os.path.dirname(os.path.realpath(__file__))).parent
@@ -33,7 +29,7 @@ class TestQuadHex:
 
     def test_gradient_output_format(self):
         """Tests the output format of gradient functionality"""
-        uxds = ux.open_dataset(quad_hex_grid_path,quad_hex_data_path)
+        uxds = ux.open_dataset(QUAD_HEXAGON_GRID, QUAD_HEXAGON_DATA)
 
         grad_ds = uxds['t2m'].gradient()
 
@@ -45,7 +41,7 @@ class TestQuadHex:
 
     def test_gradient_all_boundary_faces(self):
         """Quad hexagon grid has 4 faces, each of which are on the boundary, so the expected gradients are zero for both components"""
-        uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+        uxds = ux.open_dataset(QUAD_HEXAGON_GRID, QUAD_HEXAGON_DATA)
 
         grad = uxds['t2m'].gradient()
 
@@ -56,7 +52,7 @@ class TestQuadHex:
 class TestMPASOcean:
 
     def test_gradient(self):
-        uxds = ux.open_dataset(mpas_ocean_grid_path, mpas_ocean_data_path)
+        uxds = ux.open_dataset(MPAS_QU_GRID, MPAS_QU_DATA)
 
         grad = uxds['bottomDepth'].gradient()
 
