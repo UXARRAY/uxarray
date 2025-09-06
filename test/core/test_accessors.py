@@ -21,10 +21,10 @@ sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
 gridfile_ne30 = OUTCSNE30_GRID
-dsfile_var2_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
-gridfile_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
-dsfile_v1_geoflow = current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc"
-mpas_ds_path = current_path / 'meshfiles' / "mpas" / "QU" / 'mesh.QU.1920km.151026.nc'
+dsfile_var2_ne30 = OUTCSNE30_VAR2
+gridfile_geoflow = GEOFLOW_GRID
+dsfile_v1_geoflow = GEOFLOW_V1
+mpas_ds_path = MPAS_QU_MESH
 
 
 def test_groupby_preserves_uxgrid():

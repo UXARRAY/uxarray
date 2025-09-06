@@ -826,7 +826,7 @@ def test_from_topology():
 def test_sphere_radius_mpas_ocean():
     """Test sphere radius functionality with MPAS ocean mesh."""
     # Test with MPAS ocean mesh file
-    mpas_ocean_file = current_path / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
+    mpas_ocean_file = MPAS_OCEAN_MESH
     grid = ux.open_grid(mpas_ocean_file)
 
     # Check that MPAS sphere radius is preserved (Earth's radius)
