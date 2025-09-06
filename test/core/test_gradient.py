@@ -1,96 +1,151 @@
-from uxarray.io._mpas import _replace_padding, _replace_zeros, _to_zero_index
-from uxarray.io._mpas import _read_mpas
-import uxarray as ux
 import numpy as np
-import numpy.testing as nt
+import pytest
+
 import os
 from pathlib import Path
-from uxarray.constants import INT_FILL_VALUE
+
+import uxarray as ux
+import numpy.testing as nt
 
 # Import centralized paths
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
-CSne30_grid_path = OUTCSNE30_GRID
-CSne30_data_path = OUTCSNE30_VORTEX
-geoflow_data_path = GEOFLOW_V1
+quad_hex_grid_path = QUAD_HEXAGON_GRID
+quad_hex_data_path = QUAD_HEXAGON_DATA
 
-def test_uniform_data():
-    """Computes the gradient on meshes with uniform data, with the expected
-    gradient being zero on all edges."""
-    for grid_path in [
-            MPAS_QU_MESH, MPAS_OCEAN_MESH, CSne30_grid_path, QUAD_HEXAGON_GRID,
-    ]:
-        uxgrid = ux.open_grid(grid_path)
+mpas_ocean_grid_path = MPAS_QU_GRID
+mpas_ocean_data_path = MPAS_QU_DATA
 
-        uxda_zeros = ux.UxDataArray(data=np.zeros(uxgrid.n_face),
-                                     uxgrid=uxgrid,
-                                     name="zeros",
-                                     dims=['n_face'])
+# Note: dyamond paths not yet in centralized paths - keeping original for now
+current_path = Path(os.path.dirname(os.path.realpath(__file__))).parent
+dyamond_subset_grid_path = current_path / "meshfiles" /  "mpas" / "dyamond-30km" / "gradient_grid_subset.nc"
+dyamond_subset_data_path = current_path / "meshfiles" / "mpas" / "dyamond-30km" / "gradient_data_subset.nc"
 
-        zero_grad = uxda_zeros.gradient()
-        # numpy.testing
-        nt.assert_array_equal(zero_grad.values, np.zeros(uxgrid.n_edge))
 
-        uxda_ones = ux.UxDataArray(data=np.ones(uxgrid.n_face),
-                                    uxgrid=uxgrid,
-                                    name="ones",
-                                    dims=['n_face'])
 
-        one_grad = uxda_ones.gradient()
-        nt.assert_array_equal(one_grad.values, np.zeros(uxgrid.n_edge))
 
-def test_quad_hex():
-    """Computes the gradient on a mesh of 4 hexagons."""
-    uxds = ux.open_dataset(QUAD_HEXAGON_GRID, QUAD_HEXAGON_DATA)
-    grad = uxds['t2m'].gradient()
+# TODO: pytest fixtures
 
-    for i, edge in enumerate(uxds.uxgrid.edge_face_connectivity.values):
-        if INT_FILL_VALUE in edge:
-            assert grad.values[i] == 0
-        else:
-            assert grad.values[i] != 0
 
-    expected_values = np.array([28.963, 13.100, 14.296, 0, 0, 0, 0, 67.350, 0, 85.9397, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-    nt.assert_almost_equal(grad.values, expected_values, 1e-2)
+class TestQuadHex:
 
-def test_normalization():
-    """Tests the normalization gradient values."""
-    uxds = ux.open_dataset(QUAD_HEXAGON_GRID, QUAD_HEXAGON_DATA)
-    grad_l2_norm = uxds['t2m'].gradient(normalize=True)
+    def test_gradient_output_format(self):
+        """Tests the output format of gradient functionality"""
+        uxds = ux.open_dataset(quad_hex_grid_path,quad_hex_data_path)
 
-    assert np.isclose(np.sum(grad_l2_norm.values**2), 1)
+        grad_ds = uxds['t2m'].gradient()
 
-def test_grad_multi_dim():
-    uxgrid = ux.open_grid(QUAD_HEXAGON_GRID)
-    sample_data = np.random.randint(-10, 10, (5, 5, 4))
-    uxda = ux.UxDataArray(uxgrid=uxgrid,
-                          data=sample_data,
-                          dims=["time", "lev", "n_face"])
+        assert isinstance(grad_ds, ux.UxDataset)
+        assert "zonal_gradient" in grad_ds
+        assert "meridional_gradient" in grad_ds
+        assert "gradient" in grad_ds.attrs
+        assert uxds['t2m'].sizes == grad_ds.sizes
 
-    grad = uxda.gradient(normalize=True)
-    assert grad.shape[:-1] == uxda.shape[:-1]
+    def test_gradient_all_boundary_faces(self):
+        """Quad hexagon grid has 4 faces, each of which are on the boundary, so the expected gradients are zero for both components"""
+        uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
 
-def test_face_centered_difference():
-    uxds = ux.open_dataset(CSne30_grid_path, CSne30_data_path)
-    uxda_diff = uxds['psi'].difference(destination='edge')
+        grad = uxds['t2m'].gradient()
 
-    assert uxda_diff._edge_centered()
+        assert np.isnan(grad['meridional_gradient']).all()
+        assert np.isnan(grad['zonal_gradient']).all()
 
-    uxds = ux.open_dataset(MPAS_QU_MESH, MPAS_QU_MESH)
-    uxda_diff = uxds['areaCell'].difference(destination='edge')
 
-    assert uxda_diff._edge_centered()
+class TestMPASOcean:
 
-def test_node_centered_difference():
-    uxds = ux.open_dataset(GEOFLOW_GRID, geoflow_data_path)
-    uxda_diff = uxds['v1'][0][0].difference(destination='edge')
+    def test_gradient(self):
+        uxds = ux.open_dataset(mpas_ocean_grid_path, mpas_ocean_data_path)
 
-    assert uxda_diff._edge_centered()
+        grad = uxds['bottomDepth'].gradient()
 
-def test_hexagon():
-    uxds = ux.open_dataset(QUAD_HEXAGON_GRID, QUAD_HEXAGON_DATA)
-    uxda_diff = uxds['t2m'].difference(destination='edge')
+        # There should be some boundary faces
+        assert np.isnan(grad['meridional_gradient']).any()
+        assert np.isnan(grad['zonal_gradient']).any()
 
-    assert len(np.nonzero(uxda_diff.values)[0]) == uxds.uxgrid.n_face + 1
+        # Not every face is on the boundary, ensure there are valid values
+        assert not np.isnan(grad['meridional_gradient']).all()
+        assert not np.isnan(grad['zonal_gradient']).all()
+
+
+class TestDyamondSubset:
+
+    center_fidx = 153
+    left_fidx   = 100
+    right_fidx  = 164
+    top_fidx    = 154
+    bottom_fidx = 66
+
+    def test_lat_field(self):
+        """Gradient of a latitude field. All vectors should be pointing east."""
+        uxds =  ux.open_dataset(dyamond_subset_grid_path, dyamond_subset_data_path)
+        grad = uxds['face_lat'].gradient()
+        zg, mg = grad.zonal_gradient, grad.meridional_gradient
+        assert mg.max() > zg.max()
+
+        assert mg.min() > zg.max()
+
+
+    def test_lon_field(self):
+        """Gradient of a longitude field. All vectors should be pointing north."""
+        uxds =  ux.open_dataset(dyamond_subset_grid_path, dyamond_subset_data_path)
+        grad = uxds['face_lon'].gradient()
+        zg, mg = grad.zonal_gradient, grad.meridional_gradient
+        assert zg.max() > mg.max()
+
+        assert zg.min() > mg.max()
+
+    def test_gaussian_field(self):
+        """Gradient of a gaussian field. All vectors should be pointing toward the center"""
+        uxds =  ux.open_dataset(dyamond_subset_grid_path, dyamond_subset_data_path)
+        grad = uxds['gaussian'].gradient()
+        zg, mg = grad.zonal_gradient, grad.meridional_gradient
+        mag = np.hypot(zg, mg)
+        angle = np.arctan2(mg, zg)
+
+        # Ensure a valid range for min/max
+        assert zg.min() < 0
+        assert zg.max() > 0
+        assert mg.min() < 0
+        assert mg.max() > 0
+
+        # The Magnitude at the center is less than the corners
+        assert mag[self.center_fidx] < mag[self.left_fidx]
+        assert mag[self.center_fidx] < mag[self.right_fidx]
+        assert mag[self.center_fidx] < mag[self.top_fidx]
+        assert mag[self.center_fidx] < mag[self.bottom_fidx]
+
+        # Pointing Towards Center
+        assert angle[self.left_fidx] < 0
+        assert angle[self.right_fidx] > 0
+        assert angle[self.top_fidx] < 0
+        assert angle[self.bottom_fidx] > 0
+
+
+
+    def test_inverse_gaussian_field(self):
+        """Gradient of an inverse gaussian field. All vectors should be pointing outward from the center."""
+        uxds =  ux.open_dataset(dyamond_subset_grid_path, dyamond_subset_data_path)
+        grad = uxds['inverse_gaussian'].gradient()
+        zg, mg = grad.zonal_gradient, grad.meridional_gradient
+        mag = np.hypot(zg, mg)
+        angle = np.arctan2(mg, zg)
+
+        # Ensure a valid range for min/max
+        assert zg.min() < 0
+        assert zg.max() > 0
+        assert mg.min() < 0
+        assert mg.max() > 0
+
+        # The Magnitude at the center is less than the corners
+        assert mag[self.center_fidx] < mag[self.left_fidx]
+        assert mag[self.center_fidx] < mag[self.right_fidx]
+        assert mag[self.center_fidx] < mag[self.top_fidx]
+        assert mag[self.center_fidx] < mag[self.bottom_fidx]
+
+        # Pointing Away from Center
+        assert angle[self.left_fidx] > 0
+        assert angle[self.right_fidx] < 0
+        assert angle[self.top_fidx] > 0
+        assert angle[self.bottom_fidx] < 0
