@@ -8,7 +8,10 @@ from uxarray.grid.intersections import (
     gca_const_lat_intersection,
     get_number_of_intersections,
 )
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array
+from uxarray.grid.utils import (
+    _get_cartesian_face_edge_nodes_array,
+    _small_angle_of_2_vectors,
+)
 
 
 def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=False):
@@ -89,8 +92,21 @@ def _sort_points_by_angle(points):
 
     # Calculate angles (longitude)
     angles = np.empty(n_points, dtype=np.float64)
+    x_axis = np.array([1.0, 0.0, 0.0])
     for i in range(n_points):
-        angles[i] = np.arctan2(points[i, 1], points[i, 0])
+        # Project point to xy plane for longitude calculation
+        point_xy = np.array([points[i, 0], points[i, 1], 0.0])
+        point_xy_norm = np.linalg.norm(point_xy)
+
+        if point_xy_norm < 1e-15:
+            angles[i] = 0.0  # Point at pole
+        else:
+            point_xy_unit = point_xy / point_xy_norm
+            angle = _small_angle_of_2_vectors(x_axis, point_xy_unit)
+            # Determine sign based on y coordinate
+            if points[i, 1] < 0:
+                angle = -angle
+            angles[i] = angle
 
     # Simple insertion sort (numba-friendly for small arrays)
     sorted_points = points.copy()
