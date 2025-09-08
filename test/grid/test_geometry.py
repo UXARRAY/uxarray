@@ -28,18 +28,13 @@ sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
 
-datafile_CSne30 = OUTCSNE30_VORTEX
-
-
-datafile_geoflow = GEOFLOW_V1
-
-    grid_files = [SCRIP_OUTCSNE8, GEOFLOW_GRID]
-data_files = [datafile_CSne30, datafile_geoflow]
+grid_files = [SCRIP_OUTCSNE8, GEOFLOW_GRID]
+data_files = [OUTCSNE30_VORTEX, GEOFLOW_V1]
 
 
 
 # List of grid files to test
-    grid_files_latlonBound = [QUAD_HEXAGON_GRID, GEOFLOW_GRID, SCRIP_OUTCSNE8, MPAS_OCEAN_MESH]
+grid_files_latlonBound = [QUAD_HEXAGON_GRID, GEOFLOW_GRID, SCRIP_OUTCSNE8, MPAS_OCEAN_MESH]
 
 
 def test_antimeridian_crossing():

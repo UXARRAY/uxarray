@@ -27,7 +27,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
 
-dsfile_var2_ne30 = OUTCSNE30_VAR2
+
 
 
 def test_single_dim():
