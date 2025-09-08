@@ -16,8 +16,6 @@ geoflow_data_v1 = GEOFLOW_V1
 geoflow_data_v2 = GEOFLOW_V2
 geoflow_data_v3 = GEOFLOW_V3
 
-gridfile_ne30 = OUTCSNE30_GRID
-dsfile_var2_ne30 = OUTCSNE30_VAR2
 dsfiles_mf_ne30 = str(MESHFILES_PATH) + "/ugrid/outCSne30/outCSne30_*.nc"
 
 def test_open_geoflow_dataset():
@@ -38,17 +36,17 @@ def test_open_dataset():
     """Loads a single dataset with its grid topology file using uxarray's
     open_dataset call."""
 
-    uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+    uxds_var2_ne30 = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
 
     nt.assert_equal(uxds_var2_ne30.uxgrid.node_lon.size, constants.NNODES_outCSne30)
     nt.assert_equal(len(uxds_var2_ne30.uxgrid._ds.data_vars), constants.DATAVARS_outCSne30)
-    nt.assert_equal(uxds_var2_ne30.source_datasets, str(dsfile_var2_ne30))
+    nt.assert_equal(uxds_var2_ne30.source_datasets, str(OUTCSNE30_VAR2))
 
 def test_open_mf_dataset():
     """Loads multiple datasets with their grid topology file using
     uxarray's open_dataset call."""
 
-    uxds_mf_ne30 = ux.open_mfdataset(gridfile_ne30, dsfiles_mf_ne30)
+    uxds_mf_ne30 = ux.open_mfdataset(OUTCSNE30_GRID, dsfiles_mf_ne30)
 
     nt.assert_equal(uxds_mf_ne30.uxgrid.node_lon.size, constants.NNODES_outCSne30)
     nt.assert_equal(len(uxds_mf_ne30.uxgrid._ds.data_vars), constants.DATAVARS_outCSne30)
@@ -64,7 +62,7 @@ def test_copy_dataset():
     """Loads a single dataset with its grid topology file using uxarray's
     open_dataset call and make a copy of the object."""
 
-    uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+    uxds_var2_ne30 = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
 
     # make a shallow and deep copy of the dataset object
     uxds_var2_ne30_copy_deep = uxds_var2_ne30.copy(deep=True)
@@ -114,7 +112,7 @@ def test_open_dataset_grid_kwargs():
     with pytest.raises(ValueError):
         # attempt to open a dataset after dropping face nodes should raise a KeyError
         uxds = ux.open_dataset(
-            gridfile_ne30,
-            dsfile_var2_ne30,
+            OUTCSNE30_GRID,
+            OUTCSNE30_VAR2,
             grid_kwargs={"drop_variables": "Mesh2_face_nodes"}
         )

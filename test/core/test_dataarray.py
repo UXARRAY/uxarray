@@ -11,13 +11,11 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
-gridfile_ne30 = OUTCSNE30_GRID
-dsfile_var2_ne30 = OUTCSNE30_VAR2
-dsfile_v1_geoflow = GEOFLOW_V1
+
 
 def test_to_dataset():
     """Tests the conversion of UxDataArrays to a UXDataset."""
-    uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+    uxds = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
     uxds_converted = uxds['var2'].to_dataset()
 
     assert isinstance(uxds_converted, UxDataset)
@@ -25,7 +23,7 @@ def test_to_dataset():
 
 def test_get_dual():
     """Tests the creation of the dual mesh on a data array."""
-    uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+    uxds = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
     dual = uxds['var2'].get_dual()
 
     assert isinstance(dual, UxDataArray)
@@ -34,7 +32,7 @@ def test_get_dual():
 def test_to_geodataframe():
     """Tests the conversion to ``GeoDataFrame``"""
     # GeoFlow
-    uxds_geoflow = ux.open_dataset(GEOFLOW_GRID, dsfile_v1_geoflow)
+    uxds_geoflow = ux.open_dataset(GEOFLOW_GRID, GEOFLOW_V1)
 
     # v1 is mapped to nodes, should raise a value error
     with pytest.raises(ValueError):
@@ -47,7 +45,7 @@ def test_to_geodataframe():
     assert gdf_geoflow_grid.shape == (uxds_geoflow.uxgrid.n_face, 1)
 
     # NE30
-    uxds_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+    uxds_ne30 = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
 
     gdf_geoflow_data = uxds_ne30['var2'].to_geodataframe(periodic_elements='split')
 
@@ -56,7 +54,7 @@ def test_to_geodataframe():
 def test_to_polycollection():
     """Tests the conversion to ``PolyCollection``"""
     # GeoFlow
-    uxds_geoflow = ux.open_dataset(GEOFLOW_GRID, dsfile_v1_geoflow)
+    uxds_geoflow = ux.open_dataset(GEOFLOW_GRID, GEOFLOW_V1)
 
     # v1 is mapped to nodes, should raise a value error
     with pytest.raises(ValueError):
@@ -69,7 +67,7 @@ def test_to_polycollection():
     assert len(pc_geoflow_grid._paths) == uxds_geoflow.uxgrid.n_face
 
 def test_geodataframe_caching():
-    uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+    uxds = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
 
     gdf_start = uxds['var2'].to_geodataframe()
     gdf_next = uxds['var2'].to_geodataframe()

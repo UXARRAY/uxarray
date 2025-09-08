@@ -14,16 +14,13 @@ sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 import constants
 
-gridfile_ne30 = OUTCSNE30_GRID
-gridfile_RLL1deg = OUTRLL1DEG_GRID
-gridfile_RLL10deg_ne4 = OV_RLL10DEG_CSNE4_GRID
-gridfile_exo_ne8 = EXODUS_OUTCSNE8
+
 
 def test_read_ugrid():
     """Reads a ugrid file."""
-    uxgrid_ne30 = ux.open_grid(str(gridfile_ne30))
-    uxgrid_RLL1deg = ux.open_grid(str(gridfile_RLL1deg))
-    uxgrid_RLL10deg_ne4 = ux.open_grid(str(gridfile_RLL10deg_ne4))
+    uxgrid_ne30 = ux.open_grid(str(OUTCSNE30_GRID))
+    uxgrid_RLL1deg = ux.open_grid(str(OUTRLL1DEG_GRID))
+    uxgrid_RLL10deg_ne4 = ux.open_grid(str(OV_RLL10DEG_CSNE4_GRID))
 
     nt.assert_equal(uxgrid_ne30.node_lon.size, constants.NNODES_outCSne30)
     nt.assert_equal(uxgrid_RLL1deg.node_lon.size, constants.NNODES_outRLL1deg)
@@ -44,7 +41,7 @@ def test_read_ugrid():
 
 def test_to_xarray_ugrid():
     """Read an Exodus dataset and convert it to UGRID format using to_xarray."""
-    ux_grid = ux.open_grid(gridfile_exo_ne8)
+    ux_grid = ux.open_grid(EXODUS_OUTCSNE8)
     xr_obj = ux_grid.to_xarray("UGRID")
     xr_obj.to_netcdf("ugrid_exo_csne8.nc")
     reloaded_grid = ux.open_grid("ugrid_exo_csne8.nc")

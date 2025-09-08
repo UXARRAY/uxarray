@@ -8,11 +8,11 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
-gridfile_geos_cs = GEOS_CS_C12_GRID
+
 
 def test_geodataframe_projection():
     """Test the projection of a GeoDataFrame."""
-    uxgrid = ux.open_grid(gridfile_geos_cs)
+    uxgrid = ux.open_grid(GEOS_CS_C12_GRID)
     gdf = uxgrid.to_geodataframe(projection=ccrs.Robinson(), periodic_elements='exclude')
 
     # Example assertion to check if gdf is not None

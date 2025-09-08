@@ -11,13 +11,7 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
-# Sample grid file paths
-gridfile_CSne8 = SCRIP_OUTCSNE8
-gridfile_RLL1deg = OUTRLL1DEG_GRID
-gridfile_RLL10deg_CSne4 = OV_RLL10DEG_CSNE4_GRID
-gridfile_CSne30 = OUTCSNE30_GRID
-
-corner_grid_files = [gridfile_CSne30, MPAS_QU_MESH]
+corner_grid_files = [OUTCSNE30_GRID, MPAS_QU_MESH]
 center_grid_files = [MPAS_QU_MESH]
 
 def test_construction_from_nodes():

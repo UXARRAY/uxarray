@@ -12,7 +12,7 @@ from paths import *
 
 esmf_ne30_grid_path = ESMF_NE30_GRID
 esmf_ne30_data_path = ESMF_NE30_DATA
-gridfile_ne30 = OUTCSNE30_GRID
+
 
 def test_read_esmf():
     """Tests the reading of an ESMF grid file and its encoding into the UGRID
@@ -59,7 +59,7 @@ def test_esmf_round_trip_consistency():
         AssertionError: If any round-trip validation fails
     """
     # Load original grid
-    original_grid = ux.open_grid(gridfile_ne30)
+    original_grid = ux.open_grid(OUTCSNE30_GRID)
 
     # Convert to ESMF xarray format
     esmf_dataset = original_grid.to_xarray("ESMF")

@@ -57,8 +57,7 @@ f6_deg = [[60, 0], [70, 30], [40, 30], [45, 0],
           [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
           [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
 
-gridfile_exodus = EXODUS_OUTCSNE8
-gridfile_scrip = SCRIP_OUTCSNE8
+
 
 def test_grid_validate():
     """Test to check the validate function."""
@@ -735,11 +734,11 @@ def test_class_methods_from_dataset():
     uxgrid = ux.Grid.from_dataset(xrds, use_dual=True)
 
     # Exodus
-    xrds = xr.open_dataset(gridfile_exodus)
+    xrds = xr.open_dataset(EXODUS_OUTCSNE8)
     uxgrid = ux.Grid.from_dataset(xrds)
 
     # SCRIP
-    xrds = xr.open_dataset(gridfile_scrip)
+    xrds = xr.open_dataset(SCRIP_OUTCSNE8)
     uxgrid = ux.Grid.from_dataset(xrds)
 
 def test_class_methods_from_face_vertices():

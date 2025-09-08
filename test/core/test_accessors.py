@@ -20,10 +20,7 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
-gridfile_ne30 = OUTCSNE30_GRID
-dsfile_var2_ne30 = OUTCSNE30_VAR2
 
-dsfile_v1_geoflow = GEOFLOW_V1
 
 
 
@@ -87,7 +84,7 @@ def test_resample_preserves_uxgrid_and_reduces_time():
 
     # Open the minimal dataset with a real grid
     # Use existing test file we know works
-    uxgrid = ux.open_grid(gridfile_ne30)
+    uxgrid = ux.open_grid(OUTCSNE30_GRID)
 
     # Create a UxDataset with this grid
     uxds = ux.UxDataset(xr_ds, uxgrid=uxgrid)
@@ -114,7 +111,7 @@ def test_resample_preserves_uxgrid():
     )
 
     # Create a UxDataset with a real grid
-    uxds = ux.open_dataset(gridfile_ne30, gridfile_ne30)
+    uxds = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_GRID)
     original_uxgrid = uxds.uxgrid
 
     # Create a new UxDataset with our time data and the real grid
@@ -145,7 +142,7 @@ def test_resample_reduces_time_dimension():
     )
 
     # Create a UxDataset
-    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(gridfile_ne30))
+    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(OUTCSNE30_GRID))
 
     # Test monthly resampling reduces from 365 days to 12 months
     monthly = uxds.resample(time="1M").mean()
@@ -173,7 +170,7 @@ def test_resample_with_cftime():
     )
 
     # Create a UxDataset
-    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(gridfile_ne30))
+    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(OUTCSNE30_GRID))
 
     # Test that quarterly resampling works with cftime
     quarterly = uxds.resample(time="Q").mean()
@@ -196,7 +193,7 @@ def test_rolling_preserves_uxgrid():
     )
 
     # Create a UxDataset with a real grid
-    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(gridfile_ne30))
+    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(OUTCSNE30_GRID))
     original_uxgrid = uxds.uxgrid
 
     # Test DataArray rolling preserves uxgrid
@@ -230,7 +227,7 @@ def test_coarsen_preserves_uxgrid():
     )
 
     # Create a UxDataset with a real grid
-    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(gridfile_ne30))
+    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(OUTCSNE30_GRID))
     original_uxgrid = uxds.uxgrid
 
     # Test DataArray coarsen preserves uxgrid
@@ -257,7 +254,7 @@ def test_weighted_preserves_uxgrid():
     times = pd.date_range("2000-01-01", periods=10, freq="D")
 
     # Open a real dataset to get face dimension
-    uxds_base = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+    uxds_base = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
     n_face = uxds_base.dims["n_face"]
 
     # Create data with time and face dimensions
@@ -309,7 +306,7 @@ def test_cumulative_preserves_uxgrid():
     )
 
     # Create a UxDataset with a real grid
-    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(gridfile_ne30))
+    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(OUTCSNE30_GRID))
     original_uxgrid = uxds.uxgrid
 
     # Test DataArray cumulative preserves uxgrid

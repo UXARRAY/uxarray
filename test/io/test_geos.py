@@ -8,14 +8,14 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
-gridfile_geos_cs = GEOS_CS_C12_GRID
+
 
 def test_read_geos_cs_grid():
     """Tests the conversion of a CS12 GEOS-CS Grid to the UGRID conventions.
 
     A CS12 grid has 6 faces, each with 12x12 faces and 13x13 nodes each.
     """
-    uxgrid = ux.open_grid(gridfile_geos_cs)
+    uxgrid = ux.open_grid(GEOS_CS_C12_GRID)
 
     n_face = 6 * 12 * 12
     n_node = 6 * 13 * 13
@@ -25,6 +25,6 @@ def test_read_geos_cs_grid():
 
 def test_read_geos_cs_uxds():
     """Tests the creating of a UxDataset from a CS12 GEOS-CS Grid."""
-    uxds = ux.open_dataset(gridfile_geos_cs, gridfile_geos_cs)
+    uxds = ux.open_dataset(GEOS_CS_C12_GRID, GEOS_CS_C12_GRID)
 
     assert uxds['T'].shape[-1] == uxds.uxgrid.n_face

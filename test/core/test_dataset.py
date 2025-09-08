@@ -11,9 +11,7 @@ import numpy as np
 from paths import *
 import constants
 
-gridfile_ne30 = OUTCSNE30_GRID
-dsfile_var2_ne30 = OUTCSNE30_VAR2
-dsfile_v1_geoflow = GEOFLOW_V1
+
 
 @pytest.fixture()
 def healpix_sample_ds():
@@ -35,19 +33,19 @@ def healpix_sample_ds():
 def test_uxgrid_setget():
     """Load a dataset with its grid topology file using uxarray's
     open_dataset call and check its grid object."""
-    uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
-    uxgrid_var2_ne30 = ux.open_grid(gridfile_ne30)
+    uxds_var2_ne30 = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
+    uxgrid_var2_ne30 = ux.open_grid(OUTCSNE30_GRID)
     assert (uxds_var2_ne30.uxgrid == uxgrid_var2_ne30)
 
 def test_integrate():
     """Load a dataset and calculate integrate()."""
-    uxds_var2_ne30 = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+    uxds_var2_ne30 = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
     integrate_var2 = uxds_var2_ne30.integrate()
     nt.assert_almost_equal(integrate_var2, constants.VAR2_INTG, decimal=3)
 
 def test_info():
     """Tests custom info containing grid information."""
-    uxds_var2_geoflow = ux.open_dataset(GEOFLOW_GRID, dsfile_v1_geoflow)
+    uxds_var2_geoflow = ux.open_dataset(GEOFLOW_GRID, GEOFLOW_V1)
     import contextlib
     import io
 
@@ -67,7 +65,7 @@ def test_ugrid_dim_names():
 
 def test_get_dual():
     """Tests the creation of the dual mesh on a data set."""
-    uxds = ux.open_dataset(gridfile_ne30, dsfile_var2_ne30)
+    uxds = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
     dual = uxds.get_dual()
 
     assert isinstance(dual, UxDataset)

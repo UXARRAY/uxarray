@@ -18,7 +18,7 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
-gridfile_CSne8 = SCRIP_OUTCSNE8
+
 
 
 def test_centroids_from_mean_verts_triangle():
@@ -53,7 +53,7 @@ def test_centroids_from_mean_verts_pentagon():
 
 def test_centroids_from_mean_verts_scrip():
     """Test computed centroid values compared to values from a SCRIP dataset."""
-    uxgrid = ux.open_grid(gridfile_CSne8)
+    uxgrid = ux.open_grid(SCRIP_OUTCSNE8)
 
     expected_face_x = uxgrid.face_lon.values
     expected_face_y = uxgrid.face_lat.values

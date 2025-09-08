@@ -26,13 +26,13 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
-gridfile_ne30 = OUTCSNE30_GRID
+
 dsfile_var2_ne30 = OUTCSNE30_VAR2
 
 
 def test_single_dim():
     """Integral with 1D data mapped to each face."""
-    uxgrid = ux.open_grid(gridfile_ne30)
+    uxgrid = ux.open_grid(OUTCSNE30_GRID)
     test_data = np.ones(uxgrid.n_face)
     dims = {"n_face": uxgrid.n_face}
     uxda = ux.UxDataArray(data=test_data, dims=dims, uxgrid=uxgrid, name='var2')
@@ -43,7 +43,7 @@ def test_single_dim():
 
 def test_multi_dim():
     """Integral with 3D data mapped to each face."""
-    uxgrid = ux.open_grid(gridfile_ne30)
+    uxgrid = ux.open_grid(OUTCSNE30_GRID)
     test_data = np.ones((5, 5, uxgrid.n_face))
     dims = {"a": 5, "b": 5, "n_face": uxgrid.n_face}
     uxda = ux.UxDataArray(data=test_data, dims=dims, uxgrid=uxgrid, name='var2')

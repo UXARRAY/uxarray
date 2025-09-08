@@ -27,19 +27,19 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
 
-gridfile_CSne8 = SCRIP_OUTCSNE8
+
 datafile_CSne30 = OUTCSNE30_VORTEX
 
 
 datafile_geoflow = GEOFLOW_V1
 
-grid_files = [gridfile_CSne8, GEOFLOW_GRID]
+    grid_files = [SCRIP_OUTCSNE8, GEOFLOW_GRID]
 data_files = [datafile_CSne30, datafile_geoflow]
 
 
 
 # List of grid files to test
-grid_files_latlonBound = [QUAD_HEXAGON_GRID, GEOFLOW_GRID, gridfile_CSne8, MPAS_OCEAN_MESH]
+    grid_files_latlonBound = [QUAD_HEXAGON_GRID, GEOFLOW_GRID, SCRIP_OUTCSNE8, MPAS_OCEAN_MESH]
 
 
 def test_antimeridian_crossing():
@@ -62,7 +62,7 @@ def test_antimeridian_point_on():
 
 
 def test_linecollection_execution():
-    uxgrid = ux.open_grid(gridfile_CSne8)
+    uxgrid = ux.open_grid(SCRIP_OUTCSNE8)
     lines = uxgrid.to_linecollection()
 
 
