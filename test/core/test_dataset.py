@@ -9,7 +9,10 @@ import pytest
 import numpy as np
 
 from paths import *
-import constants
+try:
+    import constants
+except ImportError:
+    from . import constants
 
 
 

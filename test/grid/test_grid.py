@@ -28,7 +28,10 @@ from paths import *
 
 # quad_hex_grid_path is now available from centralized paths as QUAD_HEXAGON_GRID
 
-import constants
+try:
+    import constants
+except ImportError:
+    from . import constants
 
 shp_filename = MESHFILES_PATH / "shp" / "grid_fire.shp"
 

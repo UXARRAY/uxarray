@@ -11,7 +11,10 @@ from uxarray.grid.arcs import point_within_gca
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
-import constants
+try:
+    import constants
+except ImportError:
+    from . import constants
 
 # Data files - using centralized paths directly
 

@@ -38,6 +38,8 @@ MPAS_QU_MESH = MPAS_PATH / "QU" / "mesh.QU.1920km.151026.nc"
 MPAS_QU_GRID = MPAS_PATH / "QU" / "480" / "grid.nc"
 MPAS_QU_DATA = MPAS_PATH / "QU" / "480" / "data.nc"
 MPAS_OCEAN_MESH = MPAS_PATH / "QU" / "oQU480.231010.nc"
+MPAS_DYAMOND_GRID = MPAS_PATH / "dyamond-30km" / "gradient_grid_subset.nc"
+MPAS_DYAMOND_DATA = MPAS_PATH / "dyamond-30km" / "gradient_data_subset.nc"
 
 # ESMF format files
 ESMF_PATH = MESHFILES_PATH / "esmf"

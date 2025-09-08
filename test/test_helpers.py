@@ -19,13 +19,10 @@ try:
 except ImportError:
     from . import constants
 
-# Data files
-current_path = Path(os.path.dirname(os.path.realpath(__file__)))
-
-gridfile_exo_CSne8 = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
-gridfile_scrip_CSne8 = current_path / 'meshfiles' / "scrip" / "outCSne8" / 'outCSne8.nc'
-gridfile_geoflowsmall_grid = current_path / 'meshfiles' / "ugrid" / "geoflow-small" / 'grid.nc'
-gridfile_geoflowsmall_var = current_path / 'meshfiles' / "ugrid" / "geoflow-small" / 'v1.nc'
+# Import centralized paths
+import sys
+sys.path.append(str(Path(__file__).parent))
+from paths import EXODUS_OUTCSNE8, SCRIP_OUTCSNE8, GEOFLOW_GRID, GEOFLOW_V1
 
 err_tolerance = 1.0e-12
 
@@ -98,7 +95,7 @@ def test_quadrature():
 def test_grid_center():
     """Calculates if the calculated center point of a grid box is the same
     as a given value for the same dataset."""
-    ds_scrip_CSne8 = xr.open_dataset(gridfile_scrip_CSne8)
+    ds_scrip_CSne8 = xr.open_dataset(SCRIP_OUTCSNE8)
 
     # select actual center_lat/lon
     scrip_center_lon = ds_scrip_CSne8['grid_center_lon']

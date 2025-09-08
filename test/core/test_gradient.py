@@ -14,10 +14,9 @@ from paths import *
 
 
 
-# Note: dyamond paths not yet in centralized paths - keeping original for now
-current_path = Path(os.path.dirname(os.path.realpath(__file__))).parent
-dyamond_subset_grid_path = current_path / "meshfiles" /  "mpas" / "dyamond-30km" / "gradient_grid_subset.nc"
-dyamond_subset_data_path = current_path / "meshfiles" / "mpas" / "dyamond-30km" / "gradient_data_subset.nc"
+# Use centralized paths for dyamond files
+dyamond_subset_grid_path = MPAS_DYAMOND_GRID
+dyamond_subset_data_path = MPAS_DYAMOND_DATA
 
 
 

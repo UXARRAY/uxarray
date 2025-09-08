@@ -9,7 +9,10 @@ import pytest
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from paths import *
-import constants
+try:
+    import constants
+except ImportError:
+    from . import constants
 
 
 geoflow_data_v1 = GEOFLOW_V1
