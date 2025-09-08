@@ -17,7 +17,7 @@ from paths import *
 
 
 class TestZonalCSne30:
-    
+
     gridfile_ne30 = OUTCSNE30_GRID
     datafile_vortex_ne30 = OUTCSNE30_VORTEX
     dsfile_var2_ne30 = OUTCSNE30_VAR2
