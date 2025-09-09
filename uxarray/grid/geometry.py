@@ -138,15 +138,7 @@ def _build_polygon_shells(
         .swapaxes(1, 2)
     )
 
-    # XXX: fixing the PolyCollection example for now
-    # fmt: off
-    bad = (
-        (polygon_shells[:,0,0][:,np.newaxis] == polygon_shells[:,1:,0]).all(axis=1)
-        | (polygon_shells[:,0,1][:,np.newaxis] == polygon_shells[:,1:,1]).all(axis=1)
-    )
-    # fmt: on
-
-    return polygon_shells[~bad, ...]
+    return polygon_shells
 
 
 def _correct_central_longitude(node_lon, node_lat, projection):
@@ -482,6 +474,15 @@ def _grid_to_matplotlib_polycollection(
         projection=None,
         central_longitude=central_longitude,
     )
+
+    # Filter out degenerate polygons, which cause issues with Cartopy 0.25
+    # fmt: off
+    degenerate = (
+        (polygon_shells[:,0,0][:,np.newaxis] == polygon_shells[:,1:,0]).all(axis=1)
+        | (polygon_shells[:,0,1][:,np.newaxis] == polygon_shells[:,1:,1]).all(axis=1)
+    )
+    # fmt: on
+    polygon_shells = polygon_shells[~degenerate, ...]
 
     # Projected polygon shells if a projection is specified
     if projection is not None:
