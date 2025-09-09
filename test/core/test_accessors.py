@@ -15,19 +15,11 @@ from uxarray import UxDataset
 import pytest
 
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
-
-
-
-
-
-def test_groupby_preserves_uxgrid():
+def test_groupby_preserves_uxgrid(datapath):
     """Test that groupby operations preserve the uxgrid attribute."""
     # Create a dataset from a file
-    uxds = ux.open_dataset(MPAS_QU_MESH, MPAS_QU_MESH)
+    mesh_path = datapath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
     original_grid = uxds.uxgrid
 
     # Create bins from latitude values (extract data explicitly)
@@ -47,10 +39,12 @@ def test_groupby_preserves_uxgrid():
     assert ds_result.uxgrid is not None
     assert ds_result.uxgrid == original_grid
 
-def test_groupby_bins_preserves_uxgrid():
+
+def test_groupby_bins_preserves_uxgrid(datapath):
     """Test that groupby_bins operations preserve the uxgrid attribute."""
     # Create a dataset from a file
-    uxds = ux.open_dataset(MPAS_QU_MESH, MPAS_QU_MESH)
+    mesh_path = datapath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
     original_grid = uxds.uxgrid
 
     # Create bins from latitude values (extract data explicitly)
@@ -68,8 +62,7 @@ def test_groupby_bins_preserves_uxgrid():
     assert ds_result.uxgrid == original_grid
 
 
-
-def test_resample_preserves_uxgrid_and_reduces_time():
+def test_resample_preserves_uxgrid_and_reduces_time(datapath):
     """Test that resample operations preserve uxgrid and reduce time dimension."""
 
     # Create a simple test with only time dimension
@@ -84,7 +77,7 @@ def test_resample_preserves_uxgrid_and_reduces_time():
 
     # Open the minimal dataset with a real grid
     # Use existing test file we know works
-    uxgrid = ux.open_grid(OUTCSNE30_GRID)
+    uxgrid = ux.open_grid(datapath("ugrid", "outCSne30", "outCSne30.ug"))
 
     # Create a UxDataset with this grid
     uxds = ux.UxDataset(xr_ds, uxgrid=uxgrid)
@@ -97,7 +90,8 @@ def test_resample_preserves_uxgrid_and_reduces_time():
     assert result.uxgrid == uxds.uxgrid, "uxgrid not equal after resample"
     assert len(result.time) < len(uxds.time), "time dimension not reduced"
 
-def test_resample_preserves_uxgrid():
+
+def test_resample_preserves_uxgrid(datapath):
     """Test that resample preserves the uxgrid attribute."""
 
     # Create a simple dataset with a time dimension
@@ -111,7 +105,8 @@ def test_resample_preserves_uxgrid():
     )
 
     # Create a UxDataset with a real grid
-    uxds = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_GRID)
+    grid_path = datapath("ugrid", "outCSne30", "outCSne30.ug")
+    uxds = ux.open_dataset(grid_path, grid_path)
     original_uxgrid = uxds.uxgrid
 
     # Create a new UxDataset with our time data and the real grid
@@ -128,7 +123,7 @@ def test_resample_preserves_uxgrid():
     assert ds_result.uxgrid is original_uxgrid, "uxgrid not identical after Dataset resample"
 
 
-def test_resample_reduces_time_dimension():
+def test_resample_reduces_time_dimension(datapath):
     """Test that resample properly reduces the time dimension."""
 
     # Create dataset with daily data for a year
@@ -142,7 +137,7 @@ def test_resample_reduces_time_dimension():
     )
 
     # Create a UxDataset
-    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(OUTCSNE30_GRID))
+    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(datapath("ugrid", "outCSne30", "outCSne30.ug")))
 
     # Test monthly resampling reduces from 365 days to 12 months
     monthly = uxds.resample(time="1M").mean()
@@ -151,7 +146,7 @@ def test_resample_reduces_time_dimension():
     assert monthly.dims["time"] <= 12, "monthly resampling should give 12 or fewer time points"
 
 
-def test_resample_with_cftime():
+def test_resample_with_cftime(datapath):
     """Test that resample works with cftime objects."""
 
     try:
@@ -170,7 +165,7 @@ def test_resample_with_cftime():
     )
 
     # Create a UxDataset
-    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(OUTCSNE30_GRID))
+    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(datapath("ugrid", "outCSne30", "outCSne30.ug")))
 
     # Test that quarterly resampling works with cftime
     quarterly = uxds.resample(time="Q").mean()
@@ -179,7 +174,7 @@ def test_resample_with_cftime():
     assert quarterly.dims["time"] < uxds.dims["time"], "time dimension not reduced with cftime"
 
 
-def test_rolling_preserves_uxgrid():
+def test_rolling_preserves_uxgrid(datapath):
     """Test that rolling operations preserve the uxgrid attribute."""
 
     # Create a dataset with time dimension
@@ -193,7 +188,7 @@ def test_rolling_preserves_uxgrid():
     )
 
     # Create a UxDataset with a real grid
-    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(OUTCSNE30_GRID))
+    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(datapath("ugrid", "outCSne30", "outCSne30.ug")))
     original_uxgrid = uxds.uxgrid
 
     # Test DataArray rolling preserves uxgrid
@@ -213,7 +208,7 @@ def test_rolling_preserves_uxgrid():
     assert not np.isnan(da_result.values[6:]).any(), "rolling mean should have valid values after window size"
 
 
-def test_coarsen_preserves_uxgrid():
+def test_coarsen_preserves_uxgrid(datapath):
     """Test that coarsen operations preserve the uxgrid attribute."""
 
     # Create a dataset with time dimension (multiple of coarsen factor)
@@ -227,7 +222,7 @@ def test_coarsen_preserves_uxgrid():
     )
 
     # Create a UxDataset with a real grid
-    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(OUTCSNE30_GRID))
+    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(datapath("ugrid", "outCSne30", "outCSne30.ug")))
     original_uxgrid = uxds.uxgrid
 
     # Test DataArray coarsen preserves uxgrid
@@ -247,14 +242,17 @@ def test_coarsen_preserves_uxgrid():
     assert ds_result.dims["time"] == 8, "coarsen should reduce time dimension"
 
 
-def test_weighted_preserves_uxgrid():
+def test_weighted_preserves_uxgrid(datapath):
     """Test that weighted operations preserve the uxgrid attribute."""
 
     # Create a dataset with time and face dimensions
     times = pd.date_range("2000-01-01", periods=10, freq="D")
 
     # Open a real dataset to get face dimension
-    uxds_base = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
+    uxds_base = ux.open_dataset(
+        datapath("ugrid", "outCSne30", "outCSne30.ug"),
+        datapath("ugrid", "outCSne30", "outCSne30_var2.nc")
+    )
     n_face = uxds_base.dims["n_face"]
 
     # Create data with time and face dimensions
@@ -292,7 +290,7 @@ def test_weighted_preserves_uxgrid():
     assert da_result.shape == (n_face,), "result should only have face dimension"
 
 
-def test_cumulative_preserves_uxgrid():
+def test_cumulative_preserves_uxgrid(datapath):
     """Test that cumulative operations preserve the uxgrid attribute."""
 
     # Create a dataset with time dimension
@@ -306,7 +304,7 @@ def test_cumulative_preserves_uxgrid():
     )
 
     # Create a UxDataset with a real grid
-    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(OUTCSNE30_GRID))
+    uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(datapath("ugrid", "outCSne30", "outCSne30.ug")))
     original_uxgrid = uxds.uxgrid
 
     # Test DataArray cumulative preserves uxgrid
