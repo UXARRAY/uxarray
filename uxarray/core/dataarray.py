@@ -567,8 +567,9 @@ class UxDataArray(xr.DataArray):
             )
             return uxda
 
-    # Alias for 'zonal_mean', since this name is also commonly used.
-    zonal_average = zonal_mean
+    def zonal_average(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
+        """Alias of zonal_mean; prefer `zonal_mean` for primary API."""
+        return self.zonal_mean(lat=lat, conservative=conservative, **kwargs)
 
     def weighted_mean(self, weights=None):
         """Computes a weighted mean.
