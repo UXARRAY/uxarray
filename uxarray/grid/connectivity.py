@@ -168,7 +168,6 @@ def _populate_edge_node_connectivity(grid):
 
     edge_node_attrs = ugrid.EDGE_NODE_CONNECTIVITY_ATTRS
     edge_node_attrs["inverse_indices"] = inverse_indices
-    edge_node_attrs["fill_value_mask"] = fill_value_mask
 
     # add edge_node_connectivity to internal dataset
     grid._ds["edge_node_connectivity"] = xr.DataArray(

@@ -66,6 +66,7 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 from uxarray.grid.point_in_face import _point_in_face_query
+from uxarray.grid.utils import make_setter
 from uxarray.grid.validation import (
     _check_area,
     _check_connectivity,
@@ -112,6 +113,10 @@ class Grid:
     For constructing a grid from non-UGRID datasets or other types of supported data, see our ``ux.open_grid`` method or
     specific class methods (``Grid.from_dataset``, ``Grid.from_face_verticies``, etc.)
 
+    Note on Sphere Radius:
+        All internal calculations use a unit sphere (radius=1.0). The physical sphere radius
+        from the source grid is preserved in the ``sphere_radius`` property for scaling results.
+
 
     Parameters
     ----------
@@ -152,12 +157,11 @@ class Grid:
         self,
         grid_ds: xr.Dataset,
         source_grid_spec: Optional[str] = None,
-        source_dims_dict: Optional[dict] = {},
+        source_dims_dict: Optional[dict] = None,
         is_subset: bool = False,
         inverse_indices: Optional[xr.Dataset] = None,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
-        # TODO:
         if source_grid_spec != "HEALPix":
             if not _validate_minimum_ugrid(grid_ds):
                 raise ValueError(
@@ -177,7 +181,7 @@ class Grid:
             # TODO: more checks for validate grid (lat/lon coords, etc)
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
-        self._source_dims_dict = source_dims_dict
+        self._source_dims_dict = source_dims_dict or {}
 
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
@@ -802,16 +806,32 @@ class Grid:
         """Dictionary of parsed attributes from the source grid."""
         return self._ds.attrs
 
+    # ==================================================================================================================
+    # Dimension Properties
+    # ==================================================================================================================
+
     @property
     def n_node(self) -> int:
-        """Total number of nodes."""
+        """Total number of nodes.
+
+        Returns
+        -------
+        n_node : int
+            The total number of nodes.
+        """
         if "face_node_connectivity" not in self._ds:
             _ = self.face_node_connectivity
         return self._ds.sizes["n_node"]
 
     @property
     def n_edge(self) -> int:
-        """Total number of edges."""
+        """Total number of edges.
+
+        Returns
+        -------
+        n_edge : int
+            The total number of edges.
+        """
         if "edge_node_connectivity" not in self._ds:
             _populate_edge_node_connectivity(self)
 
@@ -819,64 +839,116 @@ class Grid:
 
     @property
     def n_face(self) -> int:
-        """Total number of faces."""
+        """Total number of faces.
+
+        Returns
+        -------
+        n_face : int
+            The total number of faces.
+        """
         return self._ds.sizes["n_face"]
 
     @property
     def n_max_face_nodes(self) -> int:
-        """The maximum number of nodes that can make up a single face."""
+        """Maximum number of nodes defining a single face.
+
+        For example, if the grid is composed entirely of triangular faces, the value would be 3.
+        If the grid is composed of a mix of triangles and hexagons, the value would be 6.
+
+        Returns
+        -------
+        n_max_face_nodes : int
+            The maximum number of nodes that can define a face.
+        """
         return self.face_node_connectivity.shape[1]
 
     @property
     def n_max_face_edges(self) -> int:
-        """The maximum number of edges that surround a single face.
+        """Maximum number of edges defining a single face.
 
-        Equivalent to ``n_max_face_nodes``
+        This is equivalent to :py:attr:`~uxarray.Grid.n_max_face_nodes`.
+
+        Returns
+        -------
+        n_max_face_edges : int
+            The maximum number of edges that can surround a face.
         """
         return self.face_edge_connectivity.shape[1]
 
     @property
     def n_max_face_faces(self) -> int:
-        """The maximum number of faces that surround a single face."""
+        """Maximum number of neighboring faces surrounding a single face.
+
+        Returns
+        -------
+        n_max_face_faces : int
+            The maximum number of faces that can surround a face.
+        """
         return self.face_face_connectivity.shape[1]
 
     @property
     def n_max_edge_edges(self) -> int:
-        """The maximum number of edges that surround a single edge."""
+        """Maximum number of edges surrounding a single edge.
+
+        Returns
+        -------
+        n_max_edge_edges : int
+            The maximum number of edges that can surround an edge.
+        """
         return self.edge_edge_connectivity.shape[1]
 
     @property
     def n_max_node_faces(self) -> int:
-        """The maximum number of faces that surround a single node."""
+        """Maximum number of faces surrounding a single node.
+
+        Returns
+        -------
+        n_max_node_faces : int
+            The maximum number of faces that can surround a node.
+        """
         return self.node_face_connectivity.shape[1]
 
     @property
     def n_max_node_edges(self) -> int:
-        """The maximum number of edges that surround a single node."""
+        """Maximum number of edges surrounding a single node.
+
+        Returns
+        -------
+        n_max_node_edges : int
+            The maximum number of edges that can surround a node.
+        """
         return self.node_edge_connectivity.shape[1]
 
     @property
     def n_nodes_per_face(self) -> xr.DataArray:
-        """The number of nodes that make up each face.
+        """An array containing the maximum number of nodes for each face.
 
-        Dimensions: ``(n_node, )``
+        Returns
+        -------
+        n_nodes_per_face: :py:class:`xarray.DataArray`
+            An array with shape (:py:attr:`~uxarray.Grid.n_face`,)
         """
         if "n_nodes_per_face" not in self._ds:
             _populate_n_nodes_per_face(self)
 
         return self._ds["n_nodes_per_face"]
 
-    @n_nodes_per_face.setter
-    def n_nodes_per_face(self, value):
-        """Setter for ``n_nodes_per_face``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["n_nodes_per_face"] = value
+    n_nodes_per_face = n_nodes_per_face.setter(make_setter("n_nodes_per_face"))
+
+    # ==================================================================================================================
+    # Coordinate Properties
+    # ==================================================================================================================
 
     @property
     def node_lon(self) -> xr.DataArray:
-        """Longitude of each node in degrees.
+        """Longitude coordinate of each node (in degrees).
 
-        Dimensions: ``(n_node, )``
+        Values are expected to be in the range [-180.0, 180.0].
+
+        Returns
+        -------
+        node_lon: :py:class:`xarray.DataArray`
+            An array with shape (:py:attr:`~uxarray.Grid.n_node`,)
         """
         if "node_lon" not in self._ds:
             if self.source_grid_spec == "HEALPix":
@@ -886,17 +958,18 @@ class Grid:
                 _populate_node_latlon(self)
         return self._ds["node_lon"]
 
-    @node_lon.setter
-    def node_lon(self, value):
-        """Setter for ``node_lon``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_lon"] = value
+    node_lon = node_lon.setter(make_setter("node_lon"))
 
     @property
     def node_lat(self) -> xr.DataArray:
-        """Latitude of each node in degrees.
+        """Latitude coordinate of each node (in degrees).
 
-        Dimensions: ``(n_node, )``
+        Values are expected to be in the range [-90.0, 90.0].
+
+        Returns
+        -------
+        node_lat: :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`,)
         """
         if "node_lat" not in self._ds:
             if self.source_grid_spec == "HEALPix":
@@ -906,166 +979,164 @@ class Grid:
                 _populate_node_latlon(self)
         return self._ds["node_lat"]
 
-    @node_lat.setter
-    def node_lat(self, value):
-        """Setter for ``node_lat``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_lat"] = value
+    node_lat = node_lat.setter(make_setter("node_lat"))
 
     @property
     def node_x(self) -> xr.DataArray:
-        """Cartesian x location of each node in meters.
+        """Cartesian x coordinate of each node (in meters).
 
-        Dimensions: ``(n_node, )``
+        Returns
+        -------
+        node_x : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`,)
         """
         if "node_x" not in self._ds:
             _populate_node_xyz(self)
 
         return self._ds["node_x"]
 
-    @node_x.setter
-    def node_x(self, value):
-        """Setter for ``node_x``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_x"] = value
+    node_x = node_x.setter(make_setter("node_x"))
 
     @property
     def node_y(self) -> xr.DataArray:
-        """Cartesian y location of each node in meters.
+        """Cartesian y coordinate of each node (in meters).
 
-        Dimensions: ``(n_node, )``
+        Returns
+        -------
+        node_y : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`,)
         """
         if "node_y" not in self._ds:
             _populate_node_xyz(self)
         return self._ds["node_y"]
 
-    @node_y.setter
-    def node_y(self, value):
-        """Setter for ``node_y``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_y"] = value
+    node_y = node_y.setter(make_setter("node_y"))
 
     @property
     def node_z(self) -> xr.DataArray:
-        """Cartesian z location of each node in meters.
+        """Cartesian z coordinate of each node (in meters).
 
-        Dimensions: ``(n_node, )``
+        Returns
+        -------
+        node_z : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`,)
         """
         if "node_z" not in self._ds:
             _populate_node_xyz(self)
         return self._ds["node_z"]
 
-    @node_z.setter
-    def node_z(self, value):
-        """Setter for ``node_z``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_z"] = value
+    node_z = node_z.setter(make_setter("node_z"))
 
     @property
     def edge_lon(self) -> xr.DataArray:
-        """Longitude of the center of each edge in degrees.
+        """Longitude coordinate of the center of each edge (in degrees).
 
-        Dimensions: ``(n_edge, )``
+        Values are expected to be in the range [-180.0, 180.0].
+
+        Returns
+        -------
+        edge_lon : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
         if "edge_lon" not in self._ds:
             _populate_edge_centroids(self)
             _set_desired_longitude_range(self)
         return self._ds["edge_lon"]
 
-    @edge_lon.setter
-    def edge_lon(self, value):
-        """Setter for ``edge_lon``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_lon"] = value
+    edge_lon = edge_lon.setter(make_setter("edge_lon"))
 
     @property
     def edge_lat(self) -> xr.DataArray:
-        """Latitude of the center of each edge in degrees.
+        """Latitude coordinate of the center of each edge (in degrees).
 
-        Dimensions: ``(n_edge, )``
+        Values are expected to be in the range [-90.0, 90.0].
+
+        Returns
+        -------
+        edge_lat : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
         if "edge_lat" not in self._ds:
             _populate_edge_centroids(self)
         _set_desired_longitude_range(self)
         return self._ds["edge_lat"]
 
-    @edge_lat.setter
-    def edge_lat(self, value):
-        """Setter for ``edge_lat``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_lat"] = value
+    edge_lat = edge_lat.setter(make_setter("edge_lat"))
 
     @property
     def edge_x(self) -> xr.DataArray:
-        """Cartesian x location of the center of each edge in meters.
+        """Cartesian x coordinate of the center of each edge (in meters).
 
-        Dimensions: ``(n_edge, )``
+        Returns
+        -------
+        edge_x : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
         if "edge_x" not in self._ds:
             _populate_edge_centroids(self)
 
         return self._ds["edge_x"]
 
-    @edge_x.setter
-    def edge_x(self, value):
-        """Setter for ``edge_x``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_x"] = value
+    edge_x = edge_x.setter(make_setter("edge_x"))
 
     @property
     def edge_y(self) -> xr.DataArray:
-        """Cartesian y location of the center of each edge in meters.
+        """Cartesian y coordinate of the center of each edge (in meters).
 
-        Dimensions: ``(n_edge, )``
+        Returns
+        -------
+        edge_y : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
         if "edge_y" not in self._ds:
             _populate_edge_centroids(self)
         return self._ds["edge_y"]
 
-    @edge_y.setter
-    def edge_y(self, value):
-        """Setter for ``edge_y``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_y"] = value
+    edge_y = edge_y.setter(make_setter("edge_y"))
 
     @property
     def edge_z(self) -> xr.DataArray:
-        """Cartesian z location of the center of each edge in meters.
+        """Cartesian z coordinate of the center of each edge (in meters).
 
-        Dimensions: ``(n_edge, )``
+        Returns
+        -------
+        edge_z : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
         if "edge_z" not in self._ds:
             _populate_edge_centroids(self)
         return self._ds["edge_z"]
 
-    @edge_z.setter
-    def edge_z(self, value):
-        """Setter for ``edge_z``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_z"] = value
+    edge_z = edge_z.setter(make_setter("edge_z"))
 
     @property
     def face_lon(self) -> xr.DataArray:
-        """Longitude of the center of each face in degrees.
+        """Longitude coordinate of the center of each face (in degrees).
 
-        Dimensions: ``(n_face, )``
+        Values are expected to be in the range [-180.0, 180.0].
+
+        Returns
+        -------
+        face_lon : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
         """
         if "face_lon" not in self._ds:
             _populate_face_centroids(self)
             _set_desired_longitude_range(self)
         return self._ds["face_lon"]
 
-    @face_lon.setter
-    def face_lon(self, value):
-        """Setter for ``face_lon``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_lon"] = value
+    face_lon = face_lon.setter(make_setter("face_lon"))
 
     @property
     def face_lat(self) -> xr.DataArray:
-        """Latitude of the center of each face in degrees.
+        """Latitude coordinate of the center of each face (in degrees).
 
-        Dimensions: ``(n_face, )``
+        Values are expected to be in the range [-90.0, 90.0].
+
+        Returns
+        -------
+        face_lat : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
         """
         if "face_lat" not in self._ds:
             _populate_face_centroids(self)
@@ -1073,68 +1144,72 @@ class Grid:
 
         return self._ds["face_lat"]
 
-    @face_lat.setter
-    def face_lat(self, value):
-        """Setter for ``face_lat``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_lat"] = value
+    face_lat = face_lat.setter(make_setter("face_lat"))
 
     @property
     def face_x(self) -> xr.DataArray:
-        """Cartesian x location of the center of each face in meters.
+        """Cartesian x coordinate of the center of each face (in meters).
 
-        Dimensions: ``(n_face, )``
+        Returns
+        -------
+        face_x : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
         """
         if "face_x" not in self._ds:
             _populate_face_centroids(self)
 
         return self._ds["face_x"]
 
-    @face_x.setter
-    def face_x(self, value):
-        """Setter for ``face_x``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_x"] = value
+    face_x = face_x.setter(make_setter("face_x"))
 
     @property
     def face_y(self) -> xr.DataArray:
-        """Cartesian y location of the center of each face in meters.
+        """Cartesian y coordinate of the center of each face (in meters).
 
-        Dimensions: ``(n_face, )``
+        Returns
+        -------
+        face_y : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
         """
         if "face_y" not in self._ds:
             _populate_face_centroids(self)
         return self._ds["face_y"]
 
-    @face_y.setter
-    def face_y(self, value):
-        """Setter for ``face_x``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_y"] = value
+    face_y = face_y.setter(make_setter("face_y"))
 
     @property
     def face_z(self) -> xr.DataArray:
-        """Cartesian z location of the center of each face in meters.
+        """Cartesian z coordinate of the center of each face (in meters).
 
-        Dimensions: ``(n_face, )``
+        Returns
+        -------
+        face_z : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
         """
         if "face_z" not in self._ds:
             _populate_face_centroids(self)
         return self._ds["face_z"]
 
-    @face_z.setter
-    def face_z(self, value):
-        """Setter for ``face_z``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_z"] = value
+    face_z = face_z.setter(make_setter("face_z"))
+
+    # ==================================================================================================================
+    # Connectivity Properties
+    # ==================================================================================================================
 
     @property
     def face_node_connectivity(self) -> xr.DataArray:
-        """Indices of the nodes that make up each face.
+        """
+        Connectivity variable representing the indices of nodes (mesh vertices) that define each face.
 
-        Dimensions: ``(n_face, n_max_face_nodes)``
+        Each row (i.e., each face) contains at least three node indices and up to a maximum of
+        :py:attr:`~uxarray.Grid.n_max_face_nodes`. In grids with a mix of geometries (e.g., triangles and hexagons),
+        rows containing fewer than :py:attr:`~uxarray.Grid.n_max_face_nodes` indices are padded with the fill value defined in
+        :py:attr:`~uxarray.constants.INT_FILL_VALUE`. The node indices are stored in counter-clockwise order.
 
-        Nodes are in counter-clockwise order.
+        Returns
+        -------
+        face_node_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`, :py:attr:`~uxarray.Grid.n_max_face_nodes`)
         """
 
         if (
@@ -1156,119 +1231,91 @@ class Grid:
 
         return self._ds["face_node_connectivity"]
 
-    @face_node_connectivity.setter
-    def face_node_connectivity(self, value):
-        """Setter for ``face_node_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_node_connectivity"] = value
+    face_node_connectivity = face_node_connectivity.setter(
+        make_setter("face_node_connectivity")
+    )
 
     @property
     def edge_node_connectivity(self) -> xr.DataArray:
-        """Indices of the two nodes that make up each edge.
+        """
+        Connectivity variable representing the indices of nodes (mesh vertices) that define each edge.
 
-        Dimensions: ``(n_edge, two)``
+        Each row (i.e., each edge) contains exactly two node indices that define the start and end points of the edge.
+        The nodes are stored in an arbitrary order.
 
-        Nodes are in arbitrary order.
+        Returns
+        -------
+        edge_node_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`, 2)
         """
         if "edge_node_connectivity" not in self._ds:
             _populate_edge_node_connectivity(self)
 
         return self._ds["edge_node_connectivity"]
 
-    @edge_node_connectivity.setter
-    def edge_node_connectivity(self, value):
-        """Setter for ``edge_node_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_node_connectivity"] = value
-
-    @property
-    def edge_node_x(self) -> xr.DataArray:
-        """Cartesian x location for the two nodes that make up every edge.
-
-        Dimensions: ``(n_edge, two)``
-        """
-
-        if "edge_node_x" not in self._ds:
-            _edge_node_x = self.node_x[self.edge_node_connectivity]
-
-            self._ds["edge_node_x"] = xr.DataArray(
-                data=_edge_node_x,
-                dims=["n_edge", "two"],
-            )
-
-        return self._ds["edge_node_x"]
-
-    @property
-    def edge_node_y(self) -> xr.DataArray:
-        """Cartesian y location for the two nodes that make up every edge.
-
-        Dimensions: ``(n_edge, two)``
-        """
-
-        if "edge_node_y" not in self._ds:
-            _edge_node_y = self.node_y[self.edge_node_connectivity]
-
-            self._ds["edge_node_y"] = xr.DataArray(
-                data=_edge_node_y,
-                dims=["n_edge", "two"],
-            )
-
-        return self._ds["edge_node_y"]
-
-    @property
-    def edge_node_z(self) -> xr.DataArray:
-        """Cartesian z location for the two nodes that make up every edge.
-
-        Dimensions: ``(n_edge, two)``
-        """
-
-        if "edge_node_z" not in self._ds:
-            _edge_node_z = self.node_z[self.edge_node_connectivity]
-
-            self._ds["edge_node_z"] = xr.DataArray(
-                data=_edge_node_z,
-                dims=["n_edge", "two"],
-            )
-
-        return self._ds["edge_node_z"]
+    edge_node_connectivity = edge_node_connectivity.setter(
+        make_setter("edge_node_connectivity")
+    )
 
     @property
     def node_node_connectivity(self) -> xr.DataArray:
-        """Indices of the nodes that surround each node."""
+        """
+        Connectivity variable representing the indices of nodes (mesh vertices) that surround each node.
+
+        Returns
+        -------
+        node_node_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`, n_max_node_nodes)
+            representing the connectivity.
+        """
         if "node_node_connectivity" not in self._ds:
             raise NotImplementedError(
                 "Construction of `node_node_connectivity` not yet supported."
             )
         return self._ds["node_node_connectivity"]
 
-    @node_node_connectivity.setter
-    def node_node_connectivity(self, value):
-        """Setter for ``node_node_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_node_connectivity"] = value
+    node_node_connectivity = node_node_connectivity.setter(
+        make_setter("node_node_connectivity")
+    )
 
     @property
     def face_edge_connectivity(self) -> xr.DataArray:
-        """Indices of the edges that surround each face.
+        """
+        Connectivity variable representing the indices of edges that define each face.
 
-        Dimensions: ``(n_face, n_max_face_edges)``
+        Each row (i.e., each face) contains at least three edge indices and up to a maximum of
+        :py:attr:`~uxarray.Grid.n_max_face_edges`. In grids with a mix of geometries (e.g., triangles and hexagons),
+        rows containing fewer than :py:attr:`~uxarray.Grid.n_max_face_edges` indices are padded with the fill value defined in
+        :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        Returns
+        -------
+        face_edge_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`, :py:attr:`~uxarray.Grid.n_max_face_edges`)
+            representing the connectivity.
         """
         if "face_edge_connectivity" not in self._ds:
             _populate_face_edge_connectivity(self)
 
         return self._ds["face_edge_connectivity"]
 
-    @face_edge_connectivity.setter
-    def face_edge_connectivity(self, value):
-        """Setter for ``face_edge_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_edge_connectivity"] = value
+    face_edge_connectivity = face_edge_connectivity.setter(
+        make_setter("face_edge_connectivity")
+    )
 
     @property
     def edge_edge_connectivity(self) -> xr.DataArray:
-        """Indices of the edges that surround each edge.
+        """
+        Connectivity variable representing the indices of edges that share at least one node.
 
-        Dimensions: ``(n_face, n_max_edge_edges)``
+        In grids with a mix of geometries (e.g., triangles and hexagons), rows containing fewer than the maximum number
+        of edge indices are padded with the fill value defined in :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        Returns
+        -------
+        edge_edge_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`, :py:attr:`~uxarray.Grid.n_max_edge_edges`)
+            representing the connectivity.
         """
         if "edge_edge_connectivity" not in self._ds:
             raise NotImplementedError(
@@ -1277,120 +1324,162 @@ class Grid:
 
         return self._ds["edge_edge_connectivity"]
 
-    @edge_edge_connectivity.setter
-    def edge_edge_connectivity(self, value):
-        """Setter for ``edge_edge_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_edge_connectivity"] = value
+    edge_edge_connectivity = edge_edge_connectivity.setter(
+        make_setter("edge_edge_connectivity")
+    )
 
     @property
     def node_edge_connectivity(self) -> xr.DataArray:
-        """Indices of the edges that surround each node."""
+        """
+        Connectivity variable representing the indices of edges that contain each node.
+
+        In grids with a mix of geometries (e.g., triangles and hexagons), rows containing fewer than the maximum number
+        of edge indices are padded with the fill value defined in :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        Returns
+        -------
+        node_edge_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`, :py:attr:`~uxarray.Grid.n_max_node_edges`)
+            representing the connectivity.
+        """
         if "node_edge_connectivity" not in self._ds:
             _populate_node_edge_connectivity(self)
 
         return self._ds["node_edge_connectivity"]
 
-    @node_edge_connectivity.setter
-    def node_edge_connectivity(self, value):
-        """Setter for ``node_edge_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_edge_connectivity"] = value
+    node_edge_connectivity = node_edge_connectivity.setter(
+        make_setter("node_edge_connectivity")
+    )
 
     @property
     def face_face_connectivity(self) -> xr.DataArray:
-        """Indices of the faces that surround each face.
+        """
+        Connectivity variable representing the indices of faces that share edges.
 
-        Dimensions ``(n_face, n_max_face_faces)``
+        In grids with a mix of geometries (e.g., triangles and hexagons), rows containing fewer than
+        :py:attr:`~uxarray.Grid.n_max_face_faces` indices are padded with the fill value defined in
+        :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        Returns
+        -------
+        face_face_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`, :py:attr:`~uxarray.Grid.n_max_face_faces`)
+            representing the connectivity.
         """
         if "face_face_connectivity" not in self._ds:
             _populate_face_face_connectivity(self)
 
         return self._ds["face_face_connectivity"]
 
-    @face_face_connectivity.setter
-    def face_face_connectivity(self, value):
-        """Setter for ``face_face_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_face_connectivity"] = value
+    face_face_connectivity = face_face_connectivity.setter(
+        make_setter("face_face_connectivity")
+    )
 
     @property
     def edge_face_connectivity(self) -> xr.DataArray:
-        """Indices of the faces that saddle each edge.
+        """
+        Connectivity variable representing the indices of faces that saddle each edge.
 
-        Dimensions ``(n_edge, two)``
+        Each row (i.e., each edge) contains either one or two face indices. A single face indicates that there
+        exists an empty region not covered by any geometry (e.g., a coastline). If an edge neighbors only one face,
+        the second value is padded with :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        Returns
+        -------
+        edge_face_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`, 2)
+            representing the connectivity.
         """
         if "edge_face_connectivity" not in self._ds:
             _populate_edge_face_connectivity(self)
 
         return self._ds["edge_face_connectivity"]
 
-    @edge_face_connectivity.setter
-    def edge_face_connectivity(self, value):
-        """Setter for ``edge_face_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_face_connectivity"] = value
+    edge_face_connectivity = edge_face_connectivity.setter(
+        make_setter("edge_face_connectivity")
+    )
 
     @property
     def node_face_connectivity(self) -> xr.DataArray:
-        """Indices of the faces that surround each node.
+        """
+        Connectivity variable representing the indices of faces that share a given node.
 
-        Dimensions ``(n_node, n_max_node_faces)``
+        In grids with a mix of geometries (e.g., triangles and hexagons), rows containing fewer than
+        :py:attr:`~uxarray.Grid.n_max_node_faces` indices are padded with the fill value defined in
+        :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        Returns
+        -------
+        node_face_connectivity : :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_node`, :py:attr:`~uxarray.Grid.n_max_node_faces`)
+            representing the connectivity.
         """
         if "node_face_connectivity" not in self._ds:
             _populate_node_face_connectivity(self)
 
         return self._ds["node_face_connectivity"]
 
-    @node_face_connectivity.setter
-    def node_face_connectivity(self, value):
-        """Setter for ``node_face_connectivity``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["node_face_connectivity"] = value
+    node_face_connectivity = node_face_connectivity.setter(
+        make_setter("node_face_connectivity")
+    )
+
+    # ==================================================================================================================
+    # Descriptor Properties
+    # ==================================================================================================================
 
     @property
-    def edge_node_distances(self):
-        """Distances between the two nodes that surround each edge in radians.
+    def edge_node_distances(self) -> xr.DataArray:
+        """Arc distance between the two nodes that make up each edge (in radians).
 
-        Dimensions ``(n_edge, )``
+        Returns
+        -------
+        edge_node_distances: :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
         if "edge_node_distances" not in self._ds:
             _populate_edge_node_distances(self)
         return self._ds["edge_node_distances"]
 
-    @edge_node_distances.setter
-    def edge_node_distances(self, value):
-        """Setter for ``edge_node_distances``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_node_distances"] = value
+    edge_node_distances = edge_node_distances.setter(make_setter("edge_node_distances"))
 
     @property
-    def edge_face_distances(self):
-        """Distances between the centers of the faces that saddle each edge in
-        radians.
+    def edge_face_distances(self) -> xr.DataArray:
+        """Arc distance between the faces that saddle each edge (in radians).
 
-        Dimensions ``(n_edge, )``
+        Returns
+        -------
+        edge_face_distances: :py:class:`xarray.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_edge`,)
         """
         if "edge_face_distances" not in self._ds:
             _populate_edge_face_distances(self)
         return self._ds["edge_face_distances"]
 
-    @edge_face_distances.setter
-    def edge_face_distances(self, value):
-        """Setter for ``edge_face_distances``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["edge_face_distances"] = value
+    edge_face_distances = edge_face_distances.setter(make_setter("edge_face_distances"))
 
     @property
     def antimeridian_face_indices(self) -> np.ndarray:
-        """Index of each face that crosses the antimeridian."""
+        """Indices of faces that touch or cross the antimeridian.
+
+        Returns
+        -------
+        antimeridian_face_indices: :py:class:`np.ndarray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
+
+        """
         if self._antimeridian_face_indices is None:
             self._antimeridian_face_indices = _populate_antimeridian_face_indices(self)
         return self._antimeridian_face_indices
 
     @property
     def face_areas(self) -> xr.DataArray:
-        """The area of each face."""
+        """Area of each face.
+
+        Returns
+        -------
+        face_areas: :py:class:`xr.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
+        """
         from uxarray.conventions.descriptors import FACE_AREAS_ATTRS, FACE_AREAS_DIMS
 
         if "face_areas" not in self._ds:
@@ -1400,29 +1489,23 @@ class Grid:
             )
         return self._ds["face_areas"]
 
-    @face_areas.setter
-    def face_areas(self, value):
-        """Setter for ``face_areas``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["face_areas"] = value
+    face_areas = face_areas.setter(make_setter("face_areas"))
 
     @property
-    def bounds(self):
-        """Latitude Longitude Bounds for each Face in radians.
-
-        Dimensions ``(n_face", two, two)``
+    def bounds(self) -> xr.DataArray:
+        """Spherical bounds of each face in degrees
 
 
+        Returns
+        -------
+        bounds: :py:class:`xr.DataArray`
+            An array of shape (:py:attr:`~uxarray.Grid.n_face`, `two`, `two`)
         """
         if "bounds" not in self._ds:
             _populate_face_bounds(self)
         return self._ds["bounds"]
 
-    @bounds.setter
-    def bounds(self, value):
-        """Setter for ``bounds``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["bounds"] = value
+    bounds = bounds.setter(make_setter("bounds"))
 
     @property
     def face_bounds_lon(self):
@@ -1474,11 +1557,9 @@ class Grid:
             )
         return self._ds["boundary_edge_indices"]
 
-    @boundary_edge_indices.setter
-    def boundary_edge_indices(self, value):
-        """Setter for ``boundary_edge_indices``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["boundary_edge_indices"] = value
+    boundary_edge_indices = boundary_edge_indices.setter(
+        make_setter("boundary_edge_indices")
+    )
 
     @property
     def boundary_node_indices(self):
@@ -1489,11 +1570,9 @@ class Grid:
 
         return self._ds["boundary_node_indices"]
 
-    @boundary_node_indices.setter
-    def boundary_node_indices(self, value):
-        """Setter for ``boundary_node_indices``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["boundary_node_indices"] = value
+    boundary_node_indices = boundary_node_indices.setter(
+        make_setter("boundary_node_indices")
+    )
 
     @property
     def boundary_face_indices(self):
@@ -1510,11 +1589,9 @@ class Grid:
 
         return self._ds["boundary_face_indices"]
 
-    @boundary_face_indices.setter
-    def boundary_face_indices(self, value):
-        """Setter for ``boundary_face_indices``"""
-        assert isinstance(value, xr.DataArray)
-        self._ds["boundary_face_indices"] = value
+    boundary_face_indices = boundary_face_indices.setter(
+        make_setter("boundary_face_indices")
+    )
 
     @property
     def triangular(self):
@@ -1834,49 +1911,6 @@ class Grid:
             source_dims_dict=self._source_dims_dict,
         )
 
-    def encode_as(self, grid_type: str) -> xr.Dataset:
-        """Encodes the grid as a new `xarray.Dataset` per grid format supplied
-        in the `grid_type` argument.
-
-        Parameters
-        ----------
-        grid_type : str, required
-            Grid type of output dataset.
-            Currently supported options are "ugrid", "exodus", and "scrip"
-
-        Returns
-        -------
-        out_ds : xarray.Dataset
-            The output `xarray.Dataset` that is encoded from the this grid.
-
-        Raises
-        ------
-        RuntimeError
-            If provided grid type or file type is unsupported.
-        """
-
-        warn(
-            "Grid.encode_as will be deprecated in a future release. Please use Grid.to_xarray instead."
-        )
-
-        if grid_type == "UGRID":
-            out_ds = _encode_ugrid(self._ds)
-
-        elif grid_type == "Exodus":
-            out_ds = _encode_exodus(self._ds)
-
-        elif grid_type == "SCRIP":
-            out_ds = _encode_scrip(
-                self.face_node_connectivity,
-                self.node_lon,
-                self.node_lat,
-                self.face_areas,
-            )
-        else:
-            raise RuntimeError("The grid type not supported: ", grid_type)
-
-        return out_ds
-
     def calculate_total_face_area(
         self,
         quadrature_rule: Optional[str] = "triangular",
@@ -2008,6 +2042,39 @@ class Grid:
             self._ds[f"{prefix}_y"] = dy / norm
             self._ds[f"{prefix}_z"] = dz / norm
 
+    @property
+    def sphere_radius(self) -> float:
+        """Physical sphere radius from the source grid (e.g., Earth's radius for MPAS ocean grids).
+
+        Internally, all calculations use a unit sphere. This property stores the original
+        radius for scaling results back to physical units.
+
+        Returns
+        -------
+        sphere_radius : float
+            The physical sphere radius. Defaults to 1.0 if not set.
+        """
+        return self._ds.attrs.get("sphere_radius", 1.0)
+
+    @sphere_radius.setter
+    def sphere_radius(self, radius: float) -> None:
+        """Set the sphere radius for the grid.
+
+        Parameters
+        ----------
+        radius : float
+            The sphere radius to set. Must be positive.
+
+        Raises
+        ------
+        ValueError
+            If radius is not positive.
+        """
+        if radius <= 0:
+            raise ValueError(f"Sphere radius must be positive, got {radius}")
+
+        self._ds.attrs["sphere_radius"] = radius
+
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
         """Returns an ``xarray.Dataset`` with the variables stored under the
         ``Grid`` encoded in a specific grid format.
@@ -2016,21 +2083,23 @@ class Grid:
         ----------
         grid_format: str, optional
             The desired grid format for the output dataset.
-            One of "ugrid", "exodus", or "scrip"
+            One of "ugrid", "exodus", "scrip", or "esmf"
 
         Returns
         -------
         out_ds: xarray.Dataset
             Dataset representing the unstructured grid in a given grid format
         """
+        # Convert to lowercase for case-insensitive comparison
+        grid_format_lower = grid_format.lower()
 
-        if grid_format == "ugrid":
+        if grid_format_lower == "ugrid":
             out_ds = _encode_ugrid(self._ds)
 
-        elif grid_format == "exodus":
+        elif grid_format_lower == "exodus":
             out_ds = _encode_exodus(self._ds)
 
-        elif grid_format == "scrip":
+        elif grid_format_lower == "scrip":
             out_ds = _encode_scrip(
                 self.face_node_connectivity,
                 self.node_lon,
@@ -2038,9 +2107,14 @@ class Grid:
                 self.face_areas,
             )
 
+        elif grid_format_lower == "esmf":
+            from uxarray.io._esmf import _encode_esmf
+
+            out_ds = _encode_esmf(self._ds)
+
         else:
             raise ValueError(
-                f"Invalid grid_format encountered. Expected one of ['ugrid', 'exodus', 'scrip'] but received: {grid_format}"
+                f"Invalid grid_format encountered. Expected one of ['ugrid', 'exodus', 'scrip', 'esmf'] but received: {grid_format}"
             )
 
         return out_ds
@@ -2179,7 +2253,7 @@ class Grid:
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
-        of polygons representing the faces of the current ``Grid``
+        of polygons representing the faces of the unstructured grid.
 
         Parameters
         ----------
@@ -2187,6 +2261,21 @@ class Grid:
             Key word arguments to pass into the construction of a PolyCollection
         """
         import cartopy.crs as ccrs
+
+        if "projection" in kwargs:
+            proj = kwargs.pop("projection")
+            warn(
+                (
+                    "'projection' is not a supported argument and will be ignored. "
+                    "Define the desired projection on the GeoAxes that this collection will be added to. "
+                    "Example:\n"
+                    "    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.Robinson()})\n"
+                    "    ax.add_collection(poly_collection)\n"
+                    f"(received projection={proj!r})"
+                ),
+                category=FutureWarning,
+                stacklevel=2,
+            )
 
         if self._cached_poly_collection:
             return copy.deepcopy(self._cached_poly_collection)
@@ -2208,15 +2297,29 @@ class Grid:
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.LineCollection``` consisting
-        of lines representing the edges of the current ``Grid``
+        of lines representing the edges of the unstructured grid.
 
         Parameters
         ----------
         **kwargs: dict
-            Key word arguments to pass into the construction of a PolyCollection
+            Key word arguments to pass into the construction of a LineCollection
         """
         import cartopy.crs as ccrs
 
+        if "projection" in kwargs:
+            proj = kwargs.pop("projection")
+            warn(
+                (
+                    "'projection' is not a supported argument and will be ignored. "
+                    "Define the desired projection on the GeoAxes that this collection will be added to. "
+                    "Example:\n"
+                    "    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.Robinson()})\n"
+                    "    ax.add_collection(line_collection)\n"
+                    f"(received projection={proj!r})"
+                ),
+                category=FutureWarning,
+                stacklevel=2,
+            )
         if self._cached_line_collection:
             return copy.deepcopy(self._cached_line_collection)
 
@@ -2408,8 +2511,10 @@ class Grid:
                 "is not yet supported."
             )
         else:
+            edge_node_x = self.node_x[self.edge_node_connectivity].values
+            edge_node_y = self.node_y[self.edge_node_connectivity].values
             edges = constant_lon_intersections_no_extreme(
-                lon, self.edge_node_x.values, self.edge_node_y.values, self.n_edge
+                lon, edge_node_x, edge_node_y, self.n_edge
             )
             return edges.squeeze()
 
