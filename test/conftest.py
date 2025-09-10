@@ -6,8 +6,8 @@ from pathlib import Path
 
 
 @pytest.fixture
-def datapath():
-    """Get the path to a test data file.
+def gridpath():
+    """Get the path to a test grid/mesh file.
 
     Parameters
     ----------
@@ -17,14 +17,39 @@ def datapath():
     Returns
     -------
     Path
-        Full path to the test data file
+        Full path to the test grid file
     """
     base_path = Path(__file__).parent / "meshfiles"
 
     def _get_path(*args):
         path = base_path.joinpath(*args)
         if not path.exists():
-            pytest.skip(f"Test data file not found: {path}")
+            pytest.skip(f"Test grid file not found: {path}")
+        return path
+
+    return _get_path
+
+
+@pytest.fixture
+def datasetpath():
+    """Get the path to a test dataset file.
+
+    Parameters
+    ----------
+    *args : str
+        Path components relative to test/meshfiles/
+
+    Returns
+    -------
+    Path
+        Full path to the test dataset file
+    """
+    base_path = Path(__file__).parent / "meshfiles"
+
+    def _get_path(*args):
+        path = base_path.joinpath(*args)
+        if not path.exists():
+            pytest.skip(f"Test dataset file not found: {path}")
         return path
 
     return _get_path
