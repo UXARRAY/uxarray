@@ -85,7 +85,7 @@ intersphinx_mapping = {
     "rasterio": ("https://rasterio.readthedocs.io/en/latest", None),
     "sparse": ("https://sparse.pydata.org/en/latest/", None),
     "xarray": ("http://xarray.pydata.org/en/stable/", None),
-    "cartopy": ("https://scitools.org.uk/cartopy/docs/latest/", None),
+    "cartopy": ("https://cartopy.readthedocs.io/stable/", None),
 }
 
 
