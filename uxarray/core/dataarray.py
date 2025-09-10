@@ -346,7 +346,7 @@ class UxDataArray(xr.DataArray):
 
         >>> raster = uxds["psi"].to_raster(ax=ax)
 
-        Use `~cartopy.mpl.geoaxes.GeoAxes.imshow` to visualize the raster
+        Use :meth:`~cartopy.mpl.geoaxes.GeoAxes.imshow` to visualize the raster
 
         >>> ax.imshow(raster, origin="lower", extent=ax.get_xlim() + ax.get_ylim())
 
