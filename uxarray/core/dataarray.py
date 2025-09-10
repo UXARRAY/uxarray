@@ -297,7 +297,7 @@ class UxDataArray(xr.DataArray):
         ----------
         ax : GeoAxes
             A Cartopy :class:`~cartopy.mpl.geoaxes.GeoAxes` onto which the data will be rasterized.
-            Each pixel in this axes will be sampled against the unstructured grid’s face geometry.
+            Each pixel in this axes will be sampled against the unstructured grid's face geometry.
         pixel_ratio : float, default=1.0
             A scaling factor to adjust the resolution of the rasterization.
             A value greater than 1 increases the resolution (sharpens the image),
@@ -306,7 +306,7 @@ class UxDataArray(xr.DataArray):
             prior to calling :meth:`to_raster`.
             You can control DPI with the ``dpi`` keyword argument when creating the figure,
             or by using :meth:`~matplotlib.figure.Figure.set_dpi` after creation.
-        pixel_mapping : xr.DataArray or numpy.ndarray, optional
+        pixel_mapping : xr.DataArray or array-like, optional
             Precomputed mapping from pixels within the Cartopy GeoAxes boundary
             to grid face indices (1-dimensional).
         return_pixel_mapping : bool, default=False
@@ -327,17 +327,17 @@ class UxDataArray(xr.DataArray):
         Notes
         -----
         - This method currently employs a nearest-neighbor resampling approach. For every pixel in the GeoAxes,
-          it finds the face of the unstructured grid that contains the pixel’s geographic coordinate and colors
-          that pixel with the face’s data value.
-        - If a pixel does not intersect any face (i.e., lies outside the grid domain), it will be left empty (transparent).
+          it finds the face of the unstructured grid that contains the pixel's geographic coordinate and colors
+          that pixel with the face's data value.
+        - If a pixel does not intersect any face (i.e., lies outside the grid domain),
+          it will be left empty (transparent).
 
-
-        Example
-        -------
+        Examples
+        --------
         >>> import cartopy.crs as ccrs
         >>> import matplotlib.pyplot as plt
 
-        Create a GeoAxes with a Robinson projection and global extent
+        Create a :class:`~cartopy.mpl.geoaxes.GeoAxes` with a Robinson projection and global extent
 
         >>> fig, ax = plt.subplots(subplot_kw={"projection": ccrs.Robinson()})
         >>> ax.set_global()
@@ -346,10 +346,9 @@ class UxDataArray(xr.DataArray):
 
         >>> raster = uxds["psi"].to_raster(ax=ax)
 
-        Use Imshow to visualuze the raster
+        Use `~cartopy.mpl.geoaxes.GeoAxes.imshow` to visualize the raster
 
         >>> ax.imshow(raster, origin="lower", extent=ax.get_xlim() + ax.get_ylim())
-
 
         """
         from uxarray.constants import INT_DTYPE
@@ -375,7 +374,7 @@ class UxDataArray(xr.DataArray):
                         stacklevel=2,
                     )
             pixel_mapping = np.asarray(pixel_mapping, dtype=INT_DTYPE)
-        raster, pixel_mapping_ = _nearest_neighbor_resample(
+        raster, pixel_mapping_np = _nearest_neighbor_resample(
             self,
             ax,
             pixel_ratio=pixel_ratio,
@@ -384,11 +383,14 @@ class UxDataArray(xr.DataArray):
         if return_pixel_mapping:
             ny, nx = raster.shape
             pixel_mapping_da = xr.DataArray(
-                pixel_mapping_,
-                dims=["n_pixel"],
+                pixel_mapping_np,
+                dims=("n_pixel",),
                 attrs={
                     "long_name": "pixel_mapping",
-                    "description": "Mapping from raster pixels within a Cartopy GeoAxes to nearest grid face index.",
+                    "description": (
+                        "Mapping from raster pixels within a Cartopy GeoAxes "
+                        "to nearest grid face index."
+                    ),
                     "ax_projection": str(ax.projection),
                     "ax_xlim": ax.get_xlim(),
                     "ax_ylim": ax.get_ylim(),
