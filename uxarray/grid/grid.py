@@ -1854,6 +1854,8 @@ class Grid:
 
     def get_spatial_hash(
         self,
+        coordinate_system: Optional[str] = "spherical",
+        global_grid: bool = False,
         reconstruct: bool = False,
     ):
         """Get the SpatialHash data structure of this Grid that allows for
@@ -1862,6 +1864,10 @@ class Grid:
 
         Parameters
         ----------
+        coordinate_system : str, default="spherical"
+            Sets the coordinate type used for barycentric coordinate.
+        global_grid : bool, default=False
+            If true, the hash grid is constructed using the domain [-pi,pi] x [-pi,pi]
         reconstruct : bool, default=False
             If true, reconstructs the spatial hash
 
@@ -1890,7 +1896,9 @@ class Grid:
         >>> face_ids, bcoords = spatial_hash.query([0.0, 0.0])
         """
         if self._spatialhash is None or reconstruct:
-            self._spatialhash = SpatialHash(self, reconstruct)
+            self._spatialhash = SpatialHash(
+                self, coordinate_system, global_grid, reconstruct
+            )
 
         return self._spatialhash
 
