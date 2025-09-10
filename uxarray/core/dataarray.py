@@ -360,7 +360,7 @@ class UxDataArray(xr.DataArray):
         _ensure_dimensions(self)
 
         if not isinstance(ax, GeoAxes):
-            raise ValueError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
+            raise TypeError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
 
         if pixel_mapping is not None:
             if isinstance(pixel_mapping, xr.DataArray):
