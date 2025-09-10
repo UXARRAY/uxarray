@@ -352,6 +352,7 @@ class UxDataArray(xr.DataArray):
 
 
         """
+        from uxarray.constants import INT_DTYPE
         from uxarray.plot.matplotlib import (
             _ensure_dimensions,
             _nearest_neighbor_resample,
@@ -362,13 +363,28 @@ class UxDataArray(xr.DataArray):
         if not isinstance(ax, GeoAxes):
             raise ValueError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
 
-        raster, pixel_mapping = _nearest_neighbor_resample(
-            self, ax, pixel_ratio=pixel_ratio, pixel_mapping=pixel_mapping
+        if pixel_mapping is not None:
+            if isinstance(pixel_mapping, xr.DataArray):
+                pixel_ratio_input = pixel_ratio
+                pixel_ratio = pixel_mapping.attrs["pixel_ratio"]
+                if pixel_ratio_input != 1 and pixel_ratio_input != pixel_ratio:
+                    warn(
+                        "Pixel ratio mismatch: "
+                        f"{pixel_ratio_input} passed but {pixel_ratio} in pixel_mapping. "
+                        "Using the pixel_mapping attribute.",
+                        stacklevel=2,
+                    )
+            pixel_mapping = np.asarray(pixel_mapping, dtype=INT_DTYPE)
+        raster, pixel_mapping_ = _nearest_neighbor_resample(
+            self,
+            ax,
+            pixel_ratio=pixel_ratio,
+            pixel_mapping=pixel_mapping,
         )
         if return_pixel_mapping:
             ny, nx = raster.shape
             pixel_mapping_da = xr.DataArray(
-                pixel_mapping,
+                pixel_mapping_,
                 dims=["n_pixel"],
                 attrs={
                     "long_name": "pixel_mapping",
