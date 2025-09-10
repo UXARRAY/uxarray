@@ -6,33 +6,38 @@ from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygo
 from uxarray.core.dataset import UxDataset, UxDataArray
 import pytest
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
 
-
-
-def test_to_dataset():
+def test_to_dataset(gridpath, datasetpath):
     """Tests the conversion of UxDataArrays to a UXDataset."""
-    uxds = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
+    uxds = ux.open_dataset(
+        gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+        datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc")
+    )
     uxds_converted = uxds['var2'].to_dataset()
 
     assert isinstance(uxds_converted, UxDataset)
     assert uxds_converted.uxgrid == uxds.uxgrid
 
-def test_get_dual():
+
+def test_get_dual(gridpath, datasetpath):
     """Tests the creation of the dual mesh on a data array."""
-    uxds = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
+    uxds = ux.open_dataset(
+        gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+        datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc")
+    )
     dual = uxds['var2'].get_dual()
 
     assert isinstance(dual, UxDataArray)
     assert dual._node_centered()
 
-def test_to_geodataframe():
+
+def test_to_geodataframe(gridpath, datasetpath):
     """Tests the conversion to ``GeoDataFrame``"""
     # GeoFlow
-    uxds_geoflow = ux.open_dataset(GEOFLOW_GRID, GEOFLOW_V1)
+    uxds_geoflow = ux.open_dataset(
+        gridpath("ugrid", "geoflow-small", "grid.nc"),
+        datasetpath("ugrid", "geoflow-small", "v1.nc")
+    )
 
     # v1 is mapped to nodes, should raise a value error
     with pytest.raises(ValueError):
@@ -45,16 +50,23 @@ def test_to_geodataframe():
     assert gdf_geoflow_grid.shape == (uxds_geoflow.uxgrid.n_face, 1)
 
     # NE30
-    uxds_ne30 = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
+    uxds_ne30 = ux.open_dataset(
+        gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+        datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc")
+    )
 
     gdf_geoflow_data = uxds_ne30['var2'].to_geodataframe(periodic_elements='split')
 
     assert gdf_geoflow_data.shape == (uxds_ne30.uxgrid.n_face, 2)
 
-def test_to_polycollection():
+
+def test_to_polycollection(gridpath, datasetpath):
     """Tests the conversion to ``PolyCollection``"""
     # GeoFlow
-    uxds_geoflow = ux.open_dataset(GEOFLOW_GRID, GEOFLOW_V1)
+    uxds_geoflow = ux.open_dataset(
+        gridpath("ugrid", "geoflow-small", "grid.nc"),
+        datasetpath("ugrid", "geoflow-small", "v1.nc")
+    )
 
     # v1 is mapped to nodes, should raise a value error
     with pytest.raises(ValueError):
@@ -66,8 +78,12 @@ def test_to_polycollection():
     # number of elements
     assert len(pc_geoflow_grid._paths) == uxds_geoflow.uxgrid.n_face
 
-def test_geodataframe_caching():
-    uxds = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VAR2)
+
+def test_geodataframe_caching(gridpath, datasetpath):
+    uxds = ux.open_dataset(
+        gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+        datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc")
+    )
 
     gdf_start = uxds['var2'].to_geodataframe()
     gdf_next = uxds['var2'].to_geodataframe()

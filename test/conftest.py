@@ -7,50 +7,78 @@ from pathlib import Path
 
 @pytest.fixture
 def gridpath():
-    """Get the path to a test grid/mesh file.
+    """Get the path to test grid/mesh file(s).
 
     Parameters
     ----------
     *args : str
         Path components relative to test/meshfiles/
+        The last argument can be a list of filenames to return multiple paths.
 
     Returns
     -------
-    Path
-        Full path to the test grid file
+    Path or list of Path
+        Single path or list of paths to test grid files
     """
     base_path = Path(__file__).parent / "meshfiles"
 
     def _get_path(*args):
-        path = base_path.joinpath(*args)
-        if not path.exists():
-            pytest.skip(f"Test grid file not found: {path}")
-        return path
+        # If the last argument is a list, handle multiple files
+        if args and isinstance(args[-1], list):
+            base_parts = args[:-1]
+            filenames = args[-1]
+            paths = []
+            for filename in filenames:
+                path = base_path.joinpath(*base_parts, filename)
+                if not path.exists():
+                    pytest.skip(f"Test grid file not found: {path}")
+                paths.append(path)
+            return paths
+        else:
+            # Single file case
+            path = base_path.joinpath(*args)
+            if not path.exists():
+                pytest.skip(f"Test grid file not found: {path}")
+            return path
 
     return _get_path
 
 
 @pytest.fixture
 def datasetpath():
-    """Get the path to a test dataset file.
+    """Get the path to test dataset file(s).
 
     Parameters
     ----------
     *args : str
         Path components relative to test/meshfiles/
+        The last argument can be a list of filenames to return multiple paths.
 
     Returns
     -------
-    Path
-        Full path to the test dataset file
+    Path or list of Path
+        Single path or list of paths to test dataset files
     """
     base_path = Path(__file__).parent / "meshfiles"
 
     def _get_path(*args):
-        path = base_path.joinpath(*args)
-        if not path.exists():
-            pytest.skip(f"Test dataset file not found: {path}")
-        return path
+        # If the last argument is a list, handle multiple files
+        if args and isinstance(args[-1], list):
+            base_parts = args[:-1]
+            filenames = args[-1]
+            paths = []
+            for filename in filenames:
+                path = base_path.joinpath(*base_parts, filename)
+                if not path.exists():
+                    pytest.skip(f"Test dataset file not found: {path}")
+                paths.append(path)
+            return paths
+        else:
+            # Single file case
+            path = base_path.joinpath(*args)
+            if not path.exists():
+                pytest.skip(f"Test dataset file not found: {path}")
+            return path
 
     return _get_path
 
