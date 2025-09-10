@@ -87,41 +87,6 @@ def _get_points_from_axis(ax: GeoAxes, *, pixel_ratio: float = 1):
     return pts, valid, nx, ny
 
 
-def _get_raster_pixel_to_face_mapping(
-    obj: UxDataArray | UxDataset,
-    ax: GeoAxes,
-    *,
-    pixel_ratio: float = 1,
-):
-    """
-    Compute a mapping from pixels within a Cartopy GeoAxes to nearest grid face index.
-
-    Parameters
-    ----------
-    obj : UxDataArray or UxDataset
-        Unstructured grid to rasterize.
-    ax : cartopy.mpl.geoaxes.GeoAxes
-        The target axes defining the sampling grid.
-    pixel_ratio : float, default=1.0
-        A scaling factor to adjust the resolution of the rasterization.
-
-    Returns
-    -------
-    pixel_mapping : numpy.ndarray, shape (n,)
-        Indices of the first (nearest) grid face containing each pixel center
-        within the Cartopy GeoAxes boundary.
-        Pixels in the boundary but not contained in any grid face are marked with -1.
-    """
-    pts, *_ = _get_points_from_axis(ax, pixel_ratio=pixel_ratio)
-    face_indices, counts = obj.uxgrid.get_faces_containing_point(pts)
-
-    # pick the first face
-    first_face = face_indices[:, 0]
-    first_face[counts == 0] = -1
-
-    return first_face
-
-
 def _nearest_neighbor_resample(
     data: UxDataArray,
     ax: GeoAxes,
@@ -141,12 +106,17 @@ def _nearest_neighbor_resample(
     pixel_ratio : float, default=1.0
         A scaling factor to adjust the resolution of the rasterization.
     pixel_mapping : numpy.ndarray, optional
-        Pre-computed indices of the first (nearest) face containing each pixel center.
+        Pre-computed indices of the first (nearest) face containing each pixel center
+        within the Cartopy GeoAxes boundary.
+        Pixels in the boundary but not contained in any grid face are marked with -1.
 
     Returns
     -------
     res : numpy.ndarray, shape (ny, nx)
         Array of resampled data values corresponding to each pixel.
+    pixel_mapping : numpy.ndarray, shape (n,)
+        Computed using :meth:`~uxarray.Grid.get_faces_containing_point`,
+        or the one you passed in.
 
     Notes
     -----
@@ -172,4 +142,4 @@ def _nearest_neighbor_resample(
     res = np.full((ny, nx), np.nan, dtype=float)
     res.flat[np.flatnonzero(valid)] = flat_vals
 
-    return res
+    return res, first_face

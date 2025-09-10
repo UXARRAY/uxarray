@@ -287,7 +287,8 @@ class UxDataArray(xr.DataArray):
         ax: GeoAxes,
         *,
         pixel_ratio: float = 1,
-        pixel_mapping: np.ndarray | None = None,
+        pixel_mapping: xr.DataArray | np.ndarray | None = None,
+        return_pixel_mapping: bool = False,
     ):
         """
         Rasterizes a data variable stored on the faces of an unstructured grid onto the pixels of the provided Cartopy GeoAxes.
@@ -305,15 +306,23 @@ class UxDataArray(xr.DataArray):
             prior to calling :meth:`to_raster`.
             You can control DPI with the ``dpi`` keyword argument when creating the figure,
             or by using :meth:`~matplotlib.figure.Figure.set_dpi` after creation.
-        pixel_mapping : numpy.ndarray, optional
+        pixel_mapping : xr.DataArray or numpy.ndarray, optional
             Precomputed mapping from pixels within the Cartopy GeoAxes boundary
             to grid face indices (1-dimensional).
+        return_pixel_mapping : bool, default=False
+            If ``True``, the pixel mapping will be returned in addition to the raster,
+            and then you can pass it via the `pixel_mapping` parameter for future rasterizations
+            using the same or equivalent :attr:`uxgrid` and `ax`.
+            Note that this is also specific to the pixel ratio setting.
 
         Returns
         -------
         raster : numpy.ndarray, shape (ny, nx)
             Array of resampled data values corresponding to each pixel.
-
+        pixel_mapping : xr.DataArray, shape (n,)
+            If ``return_pixel_mapping=True``, the computed pixel mapping is returned
+            so that you can reuse it.
+            Axes and pixel ratio info are included as attributes.
 
         Notes
         -----
@@ -353,9 +362,28 @@ class UxDataArray(xr.DataArray):
         if not isinstance(ax, GeoAxes):
             raise ValueError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
 
-        return _nearest_neighbor_resample(
+        raster, pixel_mapping = _nearest_neighbor_resample(
             self, ax, pixel_ratio=pixel_ratio, pixel_mapping=pixel_mapping
         )
+        if return_pixel_mapping:
+            ny, nx = raster.shape
+            pixel_mapping_da = xr.DataArray(
+                pixel_mapping,
+                dims=["n_pixel"],
+                attrs={
+                    "long_name": "pixel_mapping",
+                    "description": "Mapping from raster pixels within a Cartopy GeoAxes to nearest grid face index.",
+                    "ax_projection": str(ax.projection),
+                    "ax_xlim": ax.get_xlim(),
+                    "ax_ylim": ax.get_ylim(),
+                    "ax_width": nx,
+                    "ax_height": ny,
+                    "pixel_ratio": pixel_ratio,
+                },
+            )
+            return raster, pixel_mapping_da
+        else:
+            return raster
 
     def to_dataset(
         self,
