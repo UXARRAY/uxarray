@@ -392,8 +392,8 @@ class UxDataArray(xr.DataArray):
                         "to nearest grid face index."
                     ),
                     "ax_projection": str(ax.projection),
-                    "ax_xlim": ax.get_xlim(),
-                    "ax_ylim": ax.get_ylim(),
+                    "ax_xlim": np.asarray(ax.get_xlim()),
+                    "ax_ylim": np.asarray(ax.get_ylim()),
                     "ax_width": nx,
                     "ax_height": ny,
                     "pixel_ratio": pixel_ratio,
