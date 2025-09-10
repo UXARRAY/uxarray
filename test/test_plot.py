@@ -1,5 +1,6 @@
 import os
 import uxarray as ux
+import xarray as xr
 import holoviews as hv
 import pytest
 from pathlib import Path
@@ -110,6 +111,52 @@ def test_to_raster():
     raster = uxds['bottomDepth'].to_raster(ax=ax)
 
     assert isinstance(raster, np.ndarray)
+
+
+def test_to_raster_reuse_mapping():
+
+    fig, ax = plt.subplots(
+        subplot_kw={'projection': ccrs.Robinson()},
+        constrained_layout=True,
+        figsize=(10, 5),
+    )
+
+    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+
+    # Returning
+    raster1, pixel_mapping = uxds['bottomDepth'].to_raster(
+        ax=ax, pixel_ratio=0.5, return_pixel_mapping=True
+    )
+    assert isinstance(raster1, np.ndarray)
+    assert isinstance(pixel_mapping, xr.DataArray)
+
+    # Reusing
+    with pytest.warns(UserWarning, match="Pixel ratio mismatch"):
+        raster2 = uxds['bottomDepth'].to_raster(
+            ax=ax, pixel_ratio=0.1, pixel_mapping=pixel_mapping
+        )
+    np.testing.assert_array_equal(raster1, raster2)
+
+    # Data pass-through
+    raster3, pixel_mapping_returned = uxds['bottomDepth'].to_raster(
+        ax=ax, pixel_mapping=pixel_mapping, return_pixel_mapping=True
+    )
+    np.testing.assert_array_equal(raster1, raster3)
+    assert pixel_mapping_returned is not pixel_mapping
+    xr.testing.assert_identical(pixel_mapping_returned, pixel_mapping)
+    assert np.shares_memory(pixel_mapping_returned, pixel_mapping)
+
+    # Passing array-like pixel mapping works,
+    # but now we need pixel_ratio to get the correct raster
+    raster4_bad = uxds['bottomDepth'].to_raster(
+        ax=ax, pixel_mapping=pixel_mapping.values.tolist()
+    )
+    raster4 = uxds['bottomDepth'].to_raster(
+        ax=ax, pixel_ratio=0.5, pixel_mapping=pixel_mapping.values.tolist()
+    )
+    np.testing.assert_array_equal(raster1, raster4)
+    with pytest.raises(AssertionError):
+        np.testing.assert_array_equal(raster1, raster4_bad)
 
 
 @pytest.mark.parametrize(
