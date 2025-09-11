@@ -343,6 +343,34 @@ class UxDataset(xr.Dataset):
 
         return cls.from_xarray(ds, uxgrid, {face_dim: "n_face"})
 
+    def _slice_dataset_from_grid(self, sliced_grid, grid_dim: str, grid_indexer):
+        data_vars = {}
+        for name, da in self.data_vars.items():
+            if grid_dim in da.dims:
+                if hasattr(da, "_slice_from_grid"):
+                    data_vars[name] = da._slice_from_grid(sliced_grid)
+                else:
+                    data_vars[name] = da.isel({grid_dim: grid_indexer})
+            else:
+                data_vars[name] = da
+
+        coords = {}
+        for cname, cda in self.coords.items():
+            if grid_dim in cda.dims:
+                # Prefer authoritative coords from the sliced grid if available
+                replacement = getattr(sliced_grid, cname, None)
+                coords[cname] = (
+                    replacement
+                    if replacement is not None
+                    else cda.isel({grid_dim: grid_indexer})
+                )
+            else:
+                coords[cname] = cda
+
+        ds = xr.Dataset(data_vars=data_vars, coords=coords, attrs=self.attrs)
+
+        return ds
+
     def isel(
         self,
         indexers: Mapping[Any, Any] | None = None,
@@ -352,70 +380,50 @@ class UxDataset(xr.Dataset):
         inverse_indices: bool = False,
         **indexers_kwargs,
     ):
-        from uxarray.constants import GRID_DIMS
-        from uxarray.core.dataarray import UxDataArray
+        from uxarray.core.utils import _validate_indexers
 
-        idx_map = {}
-        if indexers is not None:
-            if not isinstance(indexers, dict):
-                raise TypeError("`indexers` must be a dict of dimension indexers")
-            idx_map.update(indexers)
-        idx_map.update(indexers_kwargs)
-
-        # detect grid dims
-        grid_dims = [
-            d
-            for d in GRID_DIMS
-            if d in idx_map
-            and not (isinstance(idx_map[d], slice) and idx_map[d] == slice(None))
-        ]
-
-        if len(grid_dims) > 1:
-            raise ValueError("Only one grid dimension can be sliced at a time")
-
-        if len(grid_dims) == 1:
-            grid_dim = grid_dims[0]
-            grid_indexer = idx_map.pop(grid_dim)
-
-            # 1) slice the grid once (keeps face/node/edge topology consistent)
-            sliced_grid = self.uxgrid.isel(**{grid_dim: grid_indexer})
-
-            # 2) re-slice all variables against the same sliced grid
-            new_vars = {}
-            for name, da in self.data_vars.items():
-                uxda = (
-                    da
-                    if isinstance(da, UxDataArray)
-                    else UxDataArray(da, uxgrid=self.uxgrid)
-                )
-                sliced_da = uxda._slice_from_grid(sliced_grid)
-                new_vars[name] = sliced_da
-
-            # TODO keep only non-grid coords
-            non_grid_coords = {
-                cname: c
-                for cname, c in self.coords.items()
-                if not any(d in c.dims for d in GRID_DIMS)
-            }
-
-            base = xr.Dataset(
-                data_vars=new_vars, coords=non_grid_coords, attrs=self.attrs
-            )
-
-            # apply any remaining (non-grid) indexers using vanilla xarray
-            if idx_map:
-                base = base.isel(indexers=idx_map, drop=drop, missing_dims=missing_dims)
-
-            # wrap back with the sliced grid
-            return type(self)(base, uxgrid=sliced_grid)
-
-        out = super().isel(
-            indexers=idx_map or None, drop=drop, missing_dims=missing_dims
+        indexers, grid_dims = _validate_indexers(
+            indexers, indexers_kwargs, "isel", ignore_grid
         )
-        return type(self)(out, uxgrid=self.uxgrid)
 
-    # def sel(self):
-    #     pass
+        if not ignore_grid:
+            if len(grid_dims) == 1:
+                grid_dim = grid_dims.pop()
+                grid_indexer = indexers.pop(grid_dim)
+
+                # slice the grid
+                sliced_grid = self.uxgrid.isel(
+                    **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
+                )
+
+                ds = self._slice_dataset_from_grid(
+                    sliced_grid=sliced_grid,
+                    grid_dim=grid_dim,
+                    grid_indexer=grid_indexer,
+                )
+
+                if indexers:
+                    ds = xr.Dataset.isel(
+                        ds, indexers=indexers, drop=drop, missing_dims=missing_dims
+                    )
+
+                return type(self)(ds, uxgrid=sliced_grid)
+            else:
+                return type(self)(
+                    super().isel(
+                        indexers=indexers or None,
+                        drop=drop,
+                        missing_dims=missing_dims,
+                    ),
+                    uxgrid=self.uxgrid,
+                )
+
+        return super().isel(
+            indexers=indexers or None,
+            drop=drop,
+            missing_dims=missing_dims,
+        )
+
     def __getattribute__(self, name):
         """Intercept accessor method calls to return Ux-aware accessors."""
         # Lazy import to avoid circular imports
