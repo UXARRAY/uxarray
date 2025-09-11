@@ -74,17 +74,17 @@ extlinks = {
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
-    "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
-    "iris": ("https://scitools-iris.readthedocs.io/en/latest", None),
-    "numpy": ("https://numpy.org/doc/stable", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy", None),
-    "numba": ("https://numba.readthedocs.io/en/latest", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
+    "iris": ("https://scitools-iris.readthedocs.io/en/stable/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "numba": ("https://numba.readthedocs.io/en/stable/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
-    "dask": ("https://docs.dask.org/en/latest", None),
-    "cftime": ("https://unidata.github.io/cftime", None),
-    "rasterio": ("https://rasterio.readthedocs.io/en/latest", None),
-    "sparse": ("https://sparse.pydata.org/en/latest/", None),
-    "xarray": ("http://xarray.pydata.org/en/stable/", None),
+    "dask": ("https://docs.dask.org/en/stable/", None),
+    "cftime": ("https://unidata.github.io/cftime/", None),
+    "rasterio": ("https://rasterio.readthedocs.io/en/stable/", None),
+    "sparse": ("https://sparse.pydata.org/en/stable/", None),
+    "xarray": ("https://docs.xarray.dev/en/stable/", None),
     "cartopy": ("https://cartopy.readthedocs.io/stable/", None),
 }
 
