@@ -1,5 +1,6 @@
 import os
 import uxarray as ux
+import xarray as xr
 import holoviews as hv
 import pytest
 from pathlib import Path
@@ -110,6 +111,104 @@ def test_to_raster():
     raster = uxds['bottomDepth'].to_raster(ax=ax)
 
     assert isinstance(raster, np.ndarray)
+
+
+def test_to_raster_reuse_mapping(tmpdir):
+
+    fig, ax = plt.subplots(
+        subplot_kw={'projection': ccrs.Robinson()},
+        constrained_layout=True,
+        figsize=(10, 5),
+    )
+
+    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+
+    # Returning
+    raster1, pixel_mapping = uxds['bottomDepth'].to_raster(
+        ax=ax, pixel_ratio=0.5, return_pixel_mapping=True
+    )
+    assert isinstance(raster1, np.ndarray)
+    assert isinstance(pixel_mapping, xr.DataArray)
+
+    # Reusing (passed pixel ratio overridden by pixel mapping attr)
+    with pytest.warns(UserWarning, match="Pixel ratio mismatch"):
+        raster2 = uxds['bottomDepth'].to_raster(
+            ax=ax, pixel_ratio=0.1, pixel_mapping=pixel_mapping
+        )
+    np.testing.assert_array_equal(raster1, raster2)
+
+    # Data pass-through
+    raster3, pixel_mapping_returned = uxds['bottomDepth'].to_raster(
+        ax=ax, pixel_mapping=pixel_mapping, return_pixel_mapping=True
+    )
+    np.testing.assert_array_equal(raster1, raster3)
+    assert pixel_mapping_returned is not pixel_mapping
+    xr.testing.assert_identical(pixel_mapping_returned, pixel_mapping)
+    assert np.shares_memory(pixel_mapping_returned, pixel_mapping)
+
+    # Passing array-like pixel mapping works,
+    # but now we need pixel_ratio to get the correct raster
+    raster4_bad = uxds['bottomDepth'].to_raster(
+        ax=ax, pixel_mapping=pixel_mapping.values.tolist()
+    )
+    raster4 = uxds['bottomDepth'].to_raster(
+        ax=ax, pixel_ratio=0.5, pixel_mapping=pixel_mapping.values.tolist()
+    )
+    np.testing.assert_array_equal(raster1, raster4)
+    with pytest.raises(AssertionError):
+        np.testing.assert_array_equal(raster1, raster4_bad)
+
+    # Recover attrs from disk
+    p = tmpdir / "pixel_mapping.nc"
+    pixel_mapping.to_netcdf(p)
+    with xr.open_dataarray(p) as da:
+        xr.testing.assert_identical(da, pixel_mapping)
+        for v1, v2 in zip(da.attrs.values(), pixel_mapping.attrs.values()):
+            assert type(v1) is type(v2)
+            if isinstance(v1, np.ndarray):
+                assert v1.dtype == v2.dtype
+
+    # Modified pixel mapping raises error
+    pixel_mapping.attrs["ax_shape"] = (2, 3)
+    with pytest.raises(ValueError, match=r"Pixel mapping incompatible with ax\. shape \(2, 3\) !="):
+        _ = uxds['bottomDepth'].to_raster(
+            ax=ax, pixel_mapping=pixel_mapping
+        )
+
+
+@pytest.mark.parametrize(
+    "r1,r2",
+    [
+        (0.01, 0.07),
+        (0.1, 0.5),
+        (1, 2),
+    ],
+)
+def test_to_raster_pixel_ratio(r1, r2):
+    assert r2 > r1
+
+    _, ax = plt.subplots(
+        subplot_kw={'projection': ccrs.Robinson()},
+        constrained_layout=True,
+    )
+
+    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+
+    ax.set_extent((-20, 20, -10, 10), crs=ccrs.PlateCarree())
+    raster1 = uxds['bottomDepth'].to_raster(ax=ax, pixel_ratio=r1)
+    raster2 = uxds['bottomDepth'].to_raster(ax=ax, pixel_ratio=r2)
+
+    assert isinstance(raster1, np.ndarray) and isinstance(raster2, np.ndarray)
+    assert raster1.ndim == raster2.ndim == 2
+    assert raster2.size > raster1.size
+    fna1 = np.isnan(raster1).sum() / raster1.size
+    fna2 = np.isnan(raster2).sum() / raster2.size
+    assert fna1 != fna2
+    assert fna1 == pytest.approx(fna2, abs=0.06 if r1 == 0.01 else 1e-3)
+
+    f = r2 / r1
+    d = np.array(raster2.shape) - f * np.array(raster1.shape)
+    assert (d >= 0).all() and (d <= f - 1).all()
 
 
 def test_collections_projection_kwarg():
