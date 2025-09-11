@@ -286,7 +286,7 @@ class UxDataArray(xr.DataArray):
         self,
         ax: GeoAxes,
         *,
-        pixel_ratio: float = 1,
+        pixel_ratio: float | None = None,
         pixel_mapping: xr.DataArray | np.ndarray | None = None,
         return_pixel_mapping: bool = False,
     ):
@@ -355,6 +355,7 @@ class UxDataArray(xr.DataArray):
         from uxarray.plot.matplotlib import (
             _ensure_dimensions,
             _nearest_neighbor_resample,
+            _RasterAxAttrs,
         )
 
         _ensure_dimensions(self)
@@ -362,18 +363,33 @@ class UxDataArray(xr.DataArray):
         if not isinstance(ax, GeoAxes):
             raise TypeError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
 
+        pixel_ratio_set = pixel_ratio is not None
+        if not pixel_ratio_set:
+            pixel_ratio = 1.0
+        input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
         if pixel_mapping is not None:
             if isinstance(pixel_mapping, xr.DataArray):
                 pixel_ratio_input = pixel_ratio
                 pixel_ratio = pixel_mapping.attrs["pixel_ratio"]
-                if pixel_ratio_input != 1 and pixel_ratio_input != pixel_ratio:
+                if pixel_ratio_set and pixel_ratio_input != pixel_ratio:
                     warn(
                         "Pixel ratio mismatch: "
                         f"{pixel_ratio_input} passed but {pixel_ratio} in pixel_mapping. "
                         "Using the pixel_mapping attribute.",
                         stacklevel=2,
                     )
+                input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
+                pm_ax_attrs = _RasterAxAttrs.from_xr_attrs(pixel_mapping.attrs)
+                if input_ax_attrs != pm_ax_attrs:
+                    msg = "Pixel mapping incompatible with ax."
+                    for (k, v_input), (_, v_pm) in zip(
+                        input_ax_attrs._asdict().items(), pm_ax_attrs._asdict().items()
+                    ):
+                        if v_input != v_pm:
+                            msg += f" {k} {v_pm} != {v_input}."
+                    raise ValueError(msg)
             pixel_mapping = np.asarray(pixel_mapping, dtype=INT_DTYPE)
+
         raster, pixel_mapping_np = _nearest_neighbor_resample(
             self,
             ax,
@@ -381,7 +397,6 @@ class UxDataArray(xr.DataArray):
             pixel_mapping=pixel_mapping,
         )
         if return_pixel_mapping:
-            ny, nx = raster.shape
             pixel_mapping_da = xr.DataArray(
                 pixel_mapping_np,
                 dims=("n_pixel",),
@@ -391,12 +406,7 @@ class UxDataArray(xr.DataArray):
                         "Mapping from raster pixels within a Cartopy GeoAxes "
                         "to nearest grid face index."
                     ),
-                    "ax_projection": str(ax.projection),
-                    "ax_xlim": np.asarray(ax.get_xlim()),
-                    "ax_ylim": np.asarray(ax.get_ylim()),
-                    "ax_width": nx,
-                    "ax_height": ny,
-                    "pixel_ratio": pixel_ratio,
+                    **input_ax_attrs.to_xr_attrs(),
                 },
             )
             return raster, pixel_mapping_da

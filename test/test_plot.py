@@ -130,7 +130,7 @@ def test_to_raster_reuse_mapping():
     assert isinstance(raster1, np.ndarray)
     assert isinstance(pixel_mapping, xr.DataArray)
 
-    # Reusing
+    # Reusing (passed pixel ratio overridden by pixel mapping attr)
     with pytest.warns(UserWarning, match="Pixel ratio mismatch"):
         raster2 = uxds['bottomDepth'].to_raster(
             ax=ax, pixel_ratio=0.1, pixel_mapping=pixel_mapping
@@ -157,6 +157,13 @@ def test_to_raster_reuse_mapping():
     np.testing.assert_array_equal(raster1, raster4)
     with pytest.raises(AssertionError):
         np.testing.assert_array_equal(raster1, raster4_bad)
+
+    # Modified pixel mapping raises error
+    pixel_mapping.attrs["ax_shape"] = (2, 3)
+    with pytest.raises(ValueError, match=r"Pixel mapping incompatible with ax\. shape \(2, 3\) !="):
+        _ = uxds['bottomDepth'].to_raster(
+            ax=ax, pixel_mapping=pixel_mapping
+        )
 
 
 @pytest.mark.parametrize(

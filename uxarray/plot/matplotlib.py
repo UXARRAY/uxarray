@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 
@@ -35,6 +35,46 @@ def _ensure_dimensions(data: UxDataArray) -> UxDataArray:
     return data
 
 
+class _RasterAxAttrs(NamedTuple):
+    projection: str
+    xlim: tuple[float, float]
+    ylim: tuple[float, float]
+    shape: tuple[int, int]
+    pixel_ratio: float = 1
+
+    @classmethod
+    def from_ax(cls, ax: GeoAxes, *, pixel_ratio: float = 1):
+        _, _, w, h = ax.bbox.bounds
+        nx = int(w * pixel_ratio)
+        ny = int(h * pixel_ratio)
+        return cls(
+            projection=str(ax.projection),
+            xlim=ax.get_xlim(),
+            ylim=ax.get_ylim(),
+            shape=(ny, nx),
+            pixel_ratio=pixel_ratio,
+        )
+
+    def to_xr_attrs(self):
+        return {
+            "projection": self.projection,
+            "ax_xlim": np.asarray(self.xlim),
+            "ax_ylim": np.asarray(self.ylim),
+            "ax_shape": np.asarray(self.shape),
+            "pixel_ratio": self.pixel_ratio,
+        }
+
+    @classmethod
+    def from_xr_attrs(cls, attrs: dict):
+        return cls(
+            projection=attrs["projection"],
+            xlim=tuple(x.item() for x in np.asarray(attrs["ax_xlim"])),
+            ylim=tuple(x.item() for x in np.asarray(attrs["ax_ylim"])),
+            shape=tuple(x.item() for x in np.asarray(attrs["ax_shape"])),
+            pixel_ratio=attrs["pixel_ratio"],
+        )
+
+
 def _get_points_from_axis(ax: GeoAxes, *, pixel_ratio: float = 1):
     """
     Compute 3D Cartesian coordinates for each pixel center in an Axes.
@@ -59,12 +99,11 @@ def _get_points_from_axis(ax: GeoAxes, *, pixel_ratio: float = 1):
     """
     import cartopy.crs as ccrs
 
-    x0, x1 = ax.get_xlim()
-    y0, y1 = ax.get_ylim()
+    ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
 
-    _, _, nx, ny = np.array(ax.bbox.bounds, dtype=int)
-    nx = int(nx * pixel_ratio)
-    ny = int(ny * pixel_ratio)
+    x0, x1 = ax_attrs.xlim
+    y0, y1 = ax_attrs.ylim
+    ny, nx = ax_attrs.shape
 
     dx = (x1 - x0) / nx
     dy = (y1 - y0) / ny
