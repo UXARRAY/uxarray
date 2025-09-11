@@ -62,6 +62,8 @@ extensions = [
 ]
 
 suppress_warnings = [
+    # mystnb doesn't recognize MIME type 'application/vnd.holoviews_load.v0+json'
+    # from the holoviews plots and otherwise spams the build with warnings
     "mystnb.unknown_mime_type",
 ]
 
