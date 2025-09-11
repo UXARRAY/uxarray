@@ -107,8 +107,8 @@ def test_to_raster(gridpath):
 
     assert isinstance(raster, np.ndarray)
 
-    
-    
+
+
 def test_to_raster_reuse_mapping(tmpdir):
 
     fig, ax = plt.subplots(
@@ -171,7 +171,7 @@ def test_to_raster_reuse_mapping(tmpdir):
             ax=ax, pixel_mapping=pixel_mapping
         )
 
-        
+
 
 @pytest.mark.parametrize(
     "r1,r2",
