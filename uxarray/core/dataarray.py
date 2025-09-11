@@ -381,13 +381,10 @@ class UxDataArray(xr.DataArray):
                 input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
                 pm_ax_attrs = _RasterAxAttrs.from_xr_attrs(pixel_mapping.attrs)
                 if input_ax_attrs != pm_ax_attrs:
-                    msg = "Pixel mapping incompatible with ax."
-                    for (k, v_input), (_, v_pm) in zip(
-                        input_ax_attrs._asdict().items(), pm_ax_attrs._asdict().items()
-                    ):
-                        if v_input != v_pm:
-                            msg += f" {k} {v_pm} != {v_input}."
-                    raise ValueError(msg)
+                    raise ValueError(
+                        "Pixel mapping incompatible with ax. "
+                        + input_ax_attrs._value_comparison_message(pm_ax_attrs)
+                    )
             pixel_mapping = np.asarray(pixel_mapping, dtype=INT_DTYPE)
 
         raster, pixel_mapping_np = _nearest_neighbor_resample(

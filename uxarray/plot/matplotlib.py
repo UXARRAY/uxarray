@@ -74,6 +74,15 @@ class _RasterAxAttrs(NamedTuple):
             pixel_ratio=attrs["pixel_ratio"],
         )
 
+    def _value_comparison_message(self, other):
+        parts = []
+        for (k, v_self), (_, v_other) in zip(
+            self._asdict().items(), other._asdict().items()
+        ):
+            if v_self != v_other:
+                parts.append(f"{k} {v_other} != {v_self}.")
+        return " ".join(parts)
+
 
 def _get_points_from_axis(ax: GeoAxes, *, pixel_ratio: float = 1):
     """
