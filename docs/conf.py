@@ -61,6 +61,9 @@ extensions = [
     "sphinx_copybutton",
 ]
 
+suppress_warnings = [
+    "mystnb.unknown_mime_type",
+]
 
 # nbsphinx_execute = "never"
 # jupyter_execute_notebooks = "off"
