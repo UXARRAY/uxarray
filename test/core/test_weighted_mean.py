@@ -9,21 +9,11 @@ import numpy.testing as nt
 
 import uxarray as ux
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
-
-# Paths to test files
-csne30_grid_path = OUTCSNE30_GRID
-csne30_data_path = OUTCSNE30_VORTEX
-quad_hex_data_path_edge_centered = MESHFILES_PATH / "ugrid" / "quad-hexagon" / "random-edge-data.nc"
-
-def test_quad_hex_face_centered():
+def test_quad_hex_face_centered(gridpath, datasetpath):
     """Compares the weighted average computation for the quad hexagon grid
     using a face centered data variable to the expected value computed by
     hand."""
-    uxds = ux.open_dataset(QUAD_HEXAGON_GRID, QUAD_HEXAGON_DATA)
+    uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
     # expected weighted average computed by hand
     expected_weighted_mean = 297.55
@@ -34,11 +24,11 @@ def test_quad_hex_face_centered():
     # ensure values are within 3 decimal points of each other
     nt.assert_almost_equal(result.values, expected_weighted_mean, decimal=3)
 
-def test_quad_hex_face_centered_dask():
+def test_quad_hex_face_centered_dask(gridpath, datasetpath):
     """Compares the weighted average computation for the quad hexagon grid
     using a face centered data variable on a dask-backed UxDataset & Grid to the expected value computed by
     hand."""
-    uxds = ux.open_dataset(QUAD_HEXAGON_GRID, QUAD_HEXAGON_DATA)
+    uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
     # data to be dask
     uxda = uxds['t2m'].chunk(n_face=1)
@@ -61,11 +51,12 @@ def test_quad_hex_face_centered_dask():
     # ensure values are within 3 decimal points of each other
     nt.assert_almost_equal(computed_result.values, expected_weighted_mean, decimal=3)
 
-def test_quad_hex_edge_centered():
+def test_quad_hex_edge_centered(gridpath, test_data_dir):
     """Compares the weighted average computation for the quad hexagon grid
     using an edge centered data variable to the expected value computed by
     hand."""
-    uxds = ux.open_dataset(QUAD_HEXAGON_GRID, quad_hex_data_path_edge_centered)
+    quad_hex_data_path_edge_centered = test_data_dir / "ugrid" / "quad-hexagon" / "random-edge-data.nc"
+    uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), quad_hex_data_path_edge_centered)
 
     # expected weighted average computed by hand
     expected_weighted_mean = (uxds['random_data_edge'].values * uxds.uxgrid.edge_node_distances).sum() / uxds.uxgrid.edge_node_distances.sum()
@@ -75,11 +66,12 @@ def test_quad_hex_edge_centered():
 
     nt.assert_equal(result, expected_weighted_mean)
 
-def test_quad_hex_edge_centered_dask():
+def test_quad_hex_edge_centered_dask(gridpath, test_data_dir):
     """Compares the weighted average computation for the quad hexagon grid
     using an edge centered data variable on a dask-backed UxDataset & Grid to the expected value computed by
     hand."""
-    uxds = ux.open_dataset(QUAD_HEXAGON_GRID, quad_hex_data_path_edge_centered)
+    quad_hex_data_path_edge_centered = test_data_dir / "ugrid" / "quad-hexagon" / "random-edge-data.nc"
+    uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), quad_hex_data_path_edge_centered)
 
     # data to be dask
     uxda = uxds['random_data_edge'].chunk(n_edge=1)
@@ -104,10 +96,13 @@ def test_quad_hex_edge_centered_dask():
     # ensure values are within 3 decimal points of each other
     nt.assert_almost_equal(computed_result.values, expected_weighted_mean, decimal=3)
 
-def test_csne30_equal_area():
+def test_csne30_equal_area(gridpath, datasetpath):
     """Compute the weighted average with a grid that has equal-area faces and
     compare the result to the regular mean."""
-    uxds = ux.open_dataset(csne30_grid_path, csne30_data_path)
+    uxds = ux.open_dataset(
+        gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+        datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
+    )
     face_areas = uxds.uxgrid.face_areas
 
     # set the area of each face to be one
@@ -120,11 +115,14 @@ def test_csne30_equal_area():
     nt.assert_almost_equal(weighted_mean, unweighted_mean)
 
 @pytest.mark.parametrize("chunk_size", [1, 2, 4])
-def test_csne30_equal_area_dask(chunk_size):
+def test_csne30_equal_area_dask(gridpath, datasetpath, chunk_size):
     """Compares the weighted average computation for the quad hexagon grid
         using a face centered data variable on a dask-backed UxDataset & Grid to the expected value computed by
         hand."""
-    uxds = ux.open_dataset(csne30_grid_path, csne30_data_path)
+    uxds = ux.open_dataset(
+        gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+        datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
+    )
 
     # data and weights to be dask
     uxda = uxds['psi'].chunk(n_face=chunk_size)

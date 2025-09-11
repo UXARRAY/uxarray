@@ -9,14 +9,6 @@ from pathlib import Path
 from uxarray.constants import ERROR_TOLERANCE
 
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
-
-ds_path = HEALPIX_OUTCSNE30_DATA
-
-
 @pytest.mark.parametrize("resolution_level", [0, 1, 2, 3])
 def test_to_ugrid(resolution_level):
     uxgrid = ux.Grid.from_healpix(resolution_level)
@@ -43,7 +35,8 @@ def test_boundaries(resolution_level):
     assert (uxgrid.n_node == uxgrid.n_face + 2)
 
 @pytest.mark.parametrize("pixels_only", [True, False])
-def test_time_dimension_roundtrip(pixels_only):
+def test_time_dimension_roundtrip(datasetpath, pixels_only):
+    ds_path = datasetpath("healpix", "outCSne30", "data.nc")
     ds = xr.open_dataset(ds_path)
     dummy_time = pd.to_datetime(["2025-01-01T00:00:00"])
     ds_time = ds.expand_dims(time=dummy_time)
@@ -53,7 +46,8 @@ def test_time_dimension_roundtrip(pixels_only):
     assert "time" in uxds.dims
     assert uxds.sizes["time"] == 1
 
-def test_dataset():
+def test_dataset(datasetpath):
+    ds_path = datasetpath("healpix", "outCSne30", "data.nc")
     uxds = ux.UxDataset.from_healpix(ds_path)
 
     assert uxds.uxgrid.source_grid_spec == "HEALPix"

@@ -8,17 +8,13 @@ import pytest
 import uxarray as ux
 from uxarray.constants import INT_FILL_VALUE
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
 
 @pytest.fixture(params=["healpix", "quadhex"])
-def grid(request):
+def grid(request, gridpath):
     if request.param == "healpix":
         g = ux.Grid.from_healpix(zoom=0)
     else:
-        g = ux.open_grid(QUAD_HEXAGON_GRID)
+        g = ux.open_grid(gridpath("ugrid", "quad-hexagon", "grid.nc"))
     g.normalize_cartesian_coordinates()
     return g
 
@@ -97,11 +93,11 @@ def test_node_corners(grid):
         assert set(hits_ll) == set(expected)
         assert len(hits_ll) == len(expected)
 
-def test_number_of_faces_found():
+def test_number_of_faces_found(gridpath):
     """Test function for `self.get_face_containing_point`,
     to ensure the correct number of faces is found, depending on where the point is."""
-    grid = ux.open_grid(MPAS_QU_MESH)
-    partial_grid = ux.open_grid(QUAD_HEXAGON_GRID)
+    grid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
+    partial_grid = ux.open_grid(gridpath("ugrid", "quad-hexagon", "grid.nc"))
 
     # For a face center only one face should be found
     point_xyz = np.array([grid.face_x[100].values, grid.face_y[100].values, grid.face_z[100].values], dtype=np.float64)

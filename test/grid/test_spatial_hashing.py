@@ -6,21 +6,18 @@ from pathlib import Path
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
 
-grid_files = [SCRIP_OUTCSNE8,
-              OUTRLL1DEG_GRID,
-              OV_RLL10DEG_CSNE4_GRID,
-              OUTCSNE30_GRID,
-              FESOM_MESH_DIAG,
-              GEOFLOW_GRID,
-              MPAS_QU_MESH]
 
-def test_construction():
+
+def test_construction(gridpath):
     """Tests the construction of the SpatialHash object"""
+    grid_files = [
+        gridpath("scrip", "outCSne8", "outCSne8.nc"),
+        gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug"),
+        gridpath("ugrid", "ov_RLL10deg_CSne4", "ov_RLL10deg_CSne4.ug"),
+        gridpath("ugrid", "fesom", "fesom.mesh.diag.nc"),
+        gridpath("ugrid", "geoflow-small", "grid.nc")
+    ]
     for grid_file in grid_files:
         uxgrid = ux.open_grid(grid_file)
         face_ids, bcoords = uxgrid.get_spatial_hash().query([0.9, 1.8])
@@ -72,9 +69,9 @@ def test_list_of_coords_simple():
     assert face_ids[1] == 0
     assert np.allclose(bcoords[1], [0.25, 0.5, 0.25], atol=1e-06)
 
-def test_list_of_coords_fesom():
+def test_list_of_coords_fesom(gridpath):
     """Verifies test using list of points on the fesom grid"""
-    uxgrid = ux.open_grid(FESOM_MESH_DIAG)
+    uxgrid = ux.open_grid(gridpath("ugrid", "fesom", "fesom.mesh.diag.nc"))
 
     num_particles = 20
     coords = np.zeros((num_particles,2))
@@ -91,9 +88,9 @@ def test_list_of_coords_fesom():
     assert bcoords.shape[1] == 3
     assert np.all(face_ids >= 0) # All particles should be inside an element
 
-def test_list_of_coords_mpas_dual():
+def test_list_of_coords_mpas_dual(gridpath):
     """Verifies test using list of points on the dual MPAS grid"""
-    uxgrid = ux.open_grid(MPAS_QU_MESH, use_dual=True)
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"), use_dual=True)
 
     num_particles = 20
     coords = np.zeros((num_particles,2))
@@ -110,9 +107,9 @@ def test_list_of_coords_mpas_dual():
     assert bcoords.shape[1] == 3 # max sides of an element
     assert np.all(face_ids >= 0) # All particles should be inside an element
 
-def test_list_of_coords_mpas_primal():
+def test_list_of_coords_mpas_primal(gridpath):
     """Verifies test using list of points on the primal MPAS grid"""
-    uxgrid = ux.open_grid(MPAS_QU_MESH, use_dual=False)
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"), use_dual=False)
 
     num_particles = 20
     coords = np.zeros((num_particles,2))

@@ -11,14 +11,11 @@ from uxarray.io._mpas import _replace_padding, _replace_zeros, _to_zero_index, _
 
 
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
+
 
 @pytest.fixture
-def mpas_xr_ds():
-    return xr.open_dataset(MPAS_QU_MESH)
+def mpas_xr_ds(gridpath):
+    return xr.open_dataset(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
 
 
 # Fill value
@@ -40,15 +37,15 @@ def test_read_primal(mpas_xr_ds):
 def test_read_dual(mpas_xr_ds):
     mpas_dual_ugrid, _ = _read_mpas(mpas_xr_ds, use_dual=True)
 
-def test_mpas_to_grid():
+def test_mpas_to_grid(gridpath):
     """Tests creation of Grid object from converted MPAS dataset."""
-    mpas_uxgrid_primal = ux.open_grid(MPAS_QU_MESH, use_dual=False)
-    mpas_uxgrid_dual = ux.open_grid(MPAS_QU_MESH, use_dual=True)
+    mpas_uxgrid_primal = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"), use_dual=False)
+    mpas_uxgrid_dual = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"), use_dual=True)
     mpas_uxgrid_dual.__repr__()
 
-def test_primal_to_ugrid_conversion(mpas_xr_ds):
+def test_primal_to_ugrid_conversion(mpas_xr_ds, gridpath):
     """Verifies that the Primal-Mesh was converted properly."""
-    for path in [MPAS_QU_MESH, MPAS_OCEAN_MESH]:
+    for path in [gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"), gridpath("mpas", "QU", "oQU480.231010.nc")]:
         uxgrid = ux.open_grid(path, use_dual=False)
         ds = uxgrid._ds
 
@@ -66,9 +63,9 @@ def test_primal_to_ugrid_conversion(mpas_xr_ds):
         n_max_face_nodes = ds.sizes['n_max_face_nodes']
         assert ds['face_node_connectivity'].shape == (n_face, n_max_face_nodes)
 
-def test_dual_to_ugrid_conversion():
+def test_dual_to_ugrid_conversion(gridpath):
     """Verifies that the Dual-Mesh was converted properly."""
-    for path in [MPAS_QU_MESH, MPAS_OCEAN_MESH]:
+    for path in [gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"), gridpath("mpas", "QU", "oQU480.231010.nc")]:
         uxgrid = ux.open_grid(path, use_dual=True)
         ds = uxgrid._ds
 
@@ -121,18 +118,18 @@ def test_set_attrs(mpas_xr_ds):
     for mpas_attr in expected_attrs:
         assert mpas_attr in uxgrid._ds.attrs
 
-def test_face_area():
+def test_face_area(gridpath):
     """Tests the parsing of face areas for MPAS grids."""
-    uxgrid_primal = ux.open_grid(MPAS_QU_MESH, use_dual=False)
-    uxgrid_dual = ux.open_grid(MPAS_QU_MESH, use_dual=True)
+    uxgrid_primal = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"), use_dual=False)
+    uxgrid_dual = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"), use_dual=True)
 
     assert "face_areas" in uxgrid_primal._ds
     assert "face_areas" in uxgrid_dual._ds
 
 
-def test_distance_units():
-    xrds = xr.open_dataset(MPAS_OCEAN_MESH)
-    uxgrid = ux.open_grid(MPAS_OCEAN_MESH)
+def test_distance_units(gridpath):
+    xrds = xr.open_dataset(gridpath("mpas", "QU", "oQU480.231010.nc"))
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
 
     assert "edge_node_distances" in uxgrid._ds
     assert "edge_face_distances" in uxgrid._ds
@@ -141,10 +138,10 @@ def test_distance_units():
     nt.assert_array_almost_equal(uxgrid['edge_face_distances'].values, (xrds['dcEdge'].values / xrds.attrs['sphere_radius']))
 
 
-def test_ocean_mesh_normalization():
+def test_ocean_mesh_normalization(gridpath):
     """Test that MPAS ocean mesh with non-unit sphere radius is properly normalized."""
     # Ocean mesh has sphere_radius = 6371229.0 meters
-    uxgrid = ux.open_grid(MPAS_OCEAN_MESH, use_dual=False)
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"), use_dual=False)
 
     # Check node coordinates are normalized to unit sphere
     node_x = uxgrid._ds['node_x'].values
@@ -184,9 +181,9 @@ def test_ocean_mesh_normalization():
         assert np.max(edge_lengths) <= np.pi, "Edge lengths should not exceed pi on unit sphere"
 
 
-def test_grid_normalization():
+def test_grid_normalization(gridpath):
     """Test that MPAS grid coordinates are properly normalized."""
-    uxgrid = ux.open_grid(MPAS_QU_MESH, use_dual=False)
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"), use_dual=False)
 
     # Check node coordinates are normalized
     node_lon = uxgrid._ds['node_lon'].values

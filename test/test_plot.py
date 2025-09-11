@@ -7,17 +7,10 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent))
-from paths import GEOFLOW_GRID, GEOFLOW_V1, MPAS_OCEAN_MESH, OUTCSNE30_GRID, OUTCSNE30_VORTEX
 
-grid_files = [GEOFLOW_GRID, MPAS_OCEAN_MESH]
-grid_plot_routines = ['points', 'nodes', 'node_coords', '']
-
-def test_topology():
+def test_topology(gridpath):
     """Tests execution on Grid elements."""
-    uxgrid = ux.open_grid(MPAS_OCEAN_MESH)
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
 
     for backend in ['matplotlib', 'bokeh']:
         uxgrid.plot(backend=backend)
@@ -31,27 +24,28 @@ def test_topology():
         uxgrid.plot.edge_centers(backend=backend)
         uxgrid.plot.edge_coords(backend=backend)
 
-def test_face_centered_data():
+def test_face_centered_data(gridpath):
     """Tests execution of plotting methods on face-centered data."""
-    uxds = ux.open_dataset(MPAS_OCEAN_MESH, MPAS_OCEAN_MESH)
+    mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
 
     for backend in ['matplotlib', 'bokeh']:
         assert isinstance(uxds['bottomDepth'].plot(backend=backend, dynamic=True), hv.DynamicMap)
         assert isinstance(uxds['bottomDepth'].plot.polygons(backend=backend, dynamic=True), hv.DynamicMap)
         assert isinstance(uxds['bottomDepth'].plot.points(backend=backend), hv.Points)
 
-def test_face_centered_remapped_dim():
+def test_face_centered_remapped_dim(gridpath, datasetpath):
     """Tests execution of plotting method on a data variable whose dimension needed to be re-mapped."""
-    uxds = ux.open_dataset(OUTCSNE30_GRID, OUTCSNE30_VORTEX)
+    uxds = ux.open_dataset(gridpath("ugrid", "outCSne30", "outCSne30.ug"), datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"))
 
     for backend in ['matplotlib', 'bokeh']:
         assert isinstance(uxds['psi'].plot(backend=backend, dynamic=True), hv.DynamicMap)
         assert isinstance(uxds['psi'].plot.polygons(backend=backend, dynamic=True), hv.DynamicMap)
         assert isinstance(uxds['psi'].plot.points(backend=backend), hv.Points)
 
-def test_node_centered_data():
+def test_node_centered_data(gridpath, datasetpath):
     """Tests execution of plotting methods on node-centered data."""
-    uxds = ux.open_dataset(GEOFLOW_GRID, GEOFLOW_V1)
+    uxds = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
 
     for backend in ['matplotlib', 'bokeh']:
         assert isinstance(uxds['v1'][0][0].plot(backend=backend), hv.Points)
@@ -59,42 +53,45 @@ def test_node_centered_data():
         assert isinstance(uxds['v1'][0][0].topological_mean(destination='face').plot.polygons(backend=backend, dynamic=True), hv.DynamicMap)
 
 
-def test_engine():
+def test_engine(gridpath):
     """Tests different plotting engines."""
-    uxds = ux.open_dataset(MPAS_OCEAN_MESH, MPAS_OCEAN_MESH)
+    mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
     _plot_sp = uxds['bottomDepth'].plot.polygons(rasterize=True, dynamic=True, engine='spatialpandas')
     _plot_gp = uxds['bottomDepth'].plot.polygons(rasterize=True, dynamic=True, engine='geopandas')
 
     assert isinstance(_plot_sp, hv.DynamicMap)
     assert isinstance(_plot_gp, hv.DynamicMap)
 
-def test_dataset_methods():
+def test_dataset_methods(gridpath, datasetpath):
     """Tests whether a Xarray DataArray method can be called through the UxDataArray plotting accessor."""
-    uxds = ux.open_dataset(GEOFLOW_GRID, GEOFLOW_V1)
+    uxds = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
 
     # plot.hist() is an xarray method
     assert hasattr(uxds['v1'].plot, 'hist')
 
-def test_dataarray_methods():
+def test_dataarray_methods(gridpath, datasetpath):
     """Tests whether a Xarray Dataset method can be called through the UxDataset plotting accessor."""
-    uxds = ux.open_dataset(GEOFLOW_GRID, GEOFLOW_V1)
+    uxds = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
 
     # plot.scatter() is an xarray method
     assert hasattr(uxds.plot, 'scatter')
 
-def test_line():
-    uxds = ux.open_dataset(MPAS_OCEAN_MESH, MPAS_OCEAN_MESH)
+def test_line(gridpath):
+    mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
     _plot_line = uxds['bottomDepth'].zonal_average().plot.line()
     assert isinstance(_plot_line, hv.Curve)
 
-def test_scatter():
-    uxds = ux.open_dataset(MPAS_OCEAN_MESH, MPAS_OCEAN_MESH)
+def test_scatter(gridpath):
+    mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
     _plot_line = uxds['bottomDepth'].zonal_average().plot.scatter()
     assert isinstance(_plot_line, hv.Scatter)
 
 
 
-def test_to_raster():
+def test_to_raster(gridpath):
 
     fig, ax = plt.subplots(
         subplot_kw={'projection': ccrs.Robinson()},
@@ -102,16 +99,17 @@ def test_to_raster():
         figsize=(10, 5),
     )
 
-    uxds = ux.open_dataset(MPAS_OCEAN_MESH, MPAS_OCEAN_MESH)
+    mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
 
     raster = uxds['bottomDepth'].to_raster(ax=ax)
 
     assert isinstance(raster, np.ndarray)
 
 
-def test_collections_projection_kwarg():
+def test_collections_projection_kwarg(gridpath):
     import cartopy.crs as ccrs
-    uxgrid = ux.open_grid(OUTCSNE30_GRID)
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
 
     with pytest.warns(FutureWarning):
         pc = uxgrid.to_polycollection(projection=ccrs.PlateCarree())

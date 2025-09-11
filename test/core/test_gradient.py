@@ -7,17 +7,6 @@ from pathlib import Path
 import uxarray as ux
 import numpy.testing as nt
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
-
-
-
-# Use centralized paths for dyamond files
-dyamond_subset_grid_path = MPAS_DYAMOND_GRID
-dyamond_subset_data_path = MPAS_DYAMOND_DATA
-
 
 
 
@@ -26,9 +15,9 @@ dyamond_subset_data_path = MPAS_DYAMOND_DATA
 
 class TestQuadHex:
 
-    def test_gradient_output_format(self):
+    def test_gradient_output_format(self, gridpath, datasetpath):
         """Tests the output format of gradient functionality"""
-        uxds = ux.open_dataset(QUAD_HEXAGON_GRID, QUAD_HEXAGON_DATA)
+        uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
         grad_ds = uxds['t2m'].gradient()
 
@@ -38,9 +27,9 @@ class TestQuadHex:
         assert "gradient" in grad_ds.attrs
         assert uxds['t2m'].sizes == grad_ds.sizes
 
-    def test_gradient_all_boundary_faces(self):
+    def test_gradient_all_boundary_faces(self, gridpath, datasetpath):
         """Quad hexagon grid has 4 faces, each of which are on the boundary, so the expected gradients are zero for both components"""
-        uxds = ux.open_dataset(QUAD_HEXAGON_GRID, QUAD_HEXAGON_DATA)
+        uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
         grad = uxds['t2m'].gradient()
 
@@ -50,8 +39,8 @@ class TestQuadHex:
 
 class TestMPASOcean:
 
-    def test_gradient(self):
-        uxds = ux.open_dataset(MPAS_QU_GRID, MPAS_QU_DATA)
+    def test_gradient(self, gridpath, datasetpath):
+        uxds = ux.open_dataset(gridpath("mpas", "QU", "480", "grid.nc"), datasetpath("mpas", "QU", "480", "data.nc"))
 
         grad = uxds['bottomDepth'].gradient()
 
@@ -72,9 +61,12 @@ class TestDyamondSubset:
     top_fidx    = 154
     bottom_fidx = 66
 
-    def test_lat_field(self):
+    def test_lat_field(self, gridpath, datasetpath):
         """Gradient of a latitude field. All vectors should be pointing east."""
-        uxds =  ux.open_dataset(dyamond_subset_grid_path, dyamond_subset_data_path)
+        uxds =  ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
+        )
         grad = uxds['face_lat'].gradient()
         zg, mg = grad.zonal_gradient, grad.meridional_gradient
         assert mg.max() > zg.max()
@@ -82,18 +74,24 @@ class TestDyamondSubset:
         assert mg.min() > zg.max()
 
 
-    def test_lon_field(self):
+    def test_lon_field(self, gridpath, datasetpath):
         """Gradient of a longitude field. All vectors should be pointing north."""
-        uxds =  ux.open_dataset(dyamond_subset_grid_path, dyamond_subset_data_path)
+        uxds =  ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
+        )
         grad = uxds['face_lon'].gradient()
         zg, mg = grad.zonal_gradient, grad.meridional_gradient
         assert zg.max() > mg.max()
 
         assert zg.min() > mg.max()
 
-    def test_gaussian_field(self):
+    def test_gaussian_field(self, gridpath, datasetpath):
         """Gradient of a gaussian field. All vectors should be pointing toward the center"""
-        uxds =  ux.open_dataset(dyamond_subset_grid_path, dyamond_subset_data_path)
+        uxds =  ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
+        )
         grad = uxds['gaussian'].gradient()
         zg, mg = grad.zonal_gradient, grad.meridional_gradient
         mag = np.hypot(zg, mg)
@@ -119,9 +117,12 @@ class TestDyamondSubset:
 
 
 
-    def test_inverse_gaussian_field(self):
+    def test_inverse_gaussian_field(self, gridpath, datasetpath):
         """Gradient of an inverse gaussian field. All vectors should be pointing outward from the center."""
-        uxds =  ux.open_dataset(dyamond_subset_grid_path, dyamond_subset_data_path)
+        uxds =  ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
+        )
         grad = uxds['inverse_gaussian'].gradient()
         zg, mg = grad.zonal_gradient, grad.meridional_gradient
         mag = np.hypot(zg, mg)

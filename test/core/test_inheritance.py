@@ -4,16 +4,13 @@ import numpy as np
 from pathlib import Path
 import xarray as xr
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
+
 
 @pytest.fixture
-def uxds_fixture():
+def uxds_fixture(gridpath, datasetpath):
     """Fixture to load test dataset."""
     # Load the dataset
-    ds = ux.open_dataset(QUAD_HEXAGON_GRID, QUAD_HEXAGON_DATA)
+    ds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
     # Add a dummy coordinate
     if 'n_face' in ds.dims:

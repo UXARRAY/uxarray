@@ -21,18 +21,10 @@ from uxarray.grid.integrate import _get_zonal_face_interval, _process_overlapped
 
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
 
-
-
-
-
-def test_single_dim():
+def test_single_dim(gridpath):
     """Integral with 1D data mapped to each face."""
-    uxgrid = ux.open_grid(OUTCSNE30_GRID)
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     test_data = np.ones(uxgrid.n_face)
     dims = {"n_face": uxgrid.n_face}
     uxda = ux.UxDataArray(data=test_data, dims=dims, uxgrid=uxgrid, name='var2')
@@ -40,17 +32,15 @@ def test_single_dim():
     assert integral.ndim == len(dims) - 1
     nt.assert_almost_equal(integral, 4 * np.pi)
 
-
-def test_multi_dim():
+def test_multi_dim(gridpath):
     """Integral with 3D data mapped to each face."""
-    uxgrid = ux.open_grid(OUTCSNE30_GRID)
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     test_data = np.ones((5, 5, uxgrid.n_face))
     dims = {"a": 5, "b": 5, "n_face": uxgrid.n_face}
     uxda = ux.UxDataArray(data=test_data, dims=dims, uxgrid=uxgrid, name='var2')
     integral = uxda.integrate()
     assert integral.ndim == len(dims) - 1
     nt.assert_almost_equal(integral, np.ones((5, 5)) * 4 * np.pi)
-
 
 def test_get_faces_constLat_intersection_info_one_intersection():
     face_edges_cart = np.array([
@@ -73,7 +63,6 @@ def test_get_faces_constLat_intersection_info_one_intersection():
     unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
                                                                                          is_GCA_list, is_latlonface)
     assert len(unique_intersections) == 1
-
 
 def test_get_faces_constLat_intersection_info_encompass_pole():
     face_edges_cart = np.array([
@@ -104,7 +93,6 @@ def test_get_faces_constLat_intersection_info_encompass_pole():
                                                                                          is_GCA_list, is_latlonface)
     assert len(unique_intersections) <= 2 * len(face_edges_cart)
 
-
 def test_get_faces_constLat_intersection_info_on_pole():
     face_edges_cart = np.array([
         [[-5.2264427688714095e-02, -5.2264427688714102e-02, -9.9726468863423734e-01],
@@ -126,7 +114,6 @@ def test_get_faces_constLat_intersection_info_on_pole():
                                                                                          is_GCA_list, is_latlonface)
     assert len(unique_intersections) == 2
 
-
 def test_get_faces_constLat_intersection_info_near_pole():
     face_edges_cart = np.array([
         [[-5.1693346290592648e-02, 1.5622531297347531e-01, -9.8636780641686628e-01],
@@ -147,7 +134,6 @@ def test_get_faces_constLat_intersection_info_near_pole():
     unique_intersections, pt_lon_min, pt_lon_max = _get_faces_constLat_intersection_info(face_edges_cart, latitude_cart,
                                                                                          is_GCA_list, is_latlonface)
     assert len(unique_intersections) == 1
-
 
 def test_get_zonal_face_interval():
     """Test the _get_zonal_face_interval function for correct interval computation."""
@@ -177,7 +163,6 @@ def test_get_zonal_face_interval():
 
     nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
-
 def test_get_zonal_face_interval_empty_interval():
     """Test the _get_zonal_face_interval function for cases where the interval is empty."""
     face_edges_cart = np.array([
@@ -203,7 +188,6 @@ def test_get_zonal_face_interval_empty_interval():
     res = _get_zonal_face_interval(face_edges_cart, latitude_cart, face_latlon_bounds)
     expected_res = pl.DataFrame({"start": [0.0], "end": [0.0]})
     assert_frame_equal(res, expected_res)
-
 
 def test_get_zonal_face_interval_encompass_pole():
     """Test the _get_zonal_face_interval function for cases where the face encompasses the pole inside."""
@@ -239,7 +223,6 @@ def test_get_zonal_face_interval_encompass_pole():
 
     assert_frame_equal(res, expected_df)
 
-
 def test_get_zonal_face_interval_FILL_VALUE():
     """Test the _get_zonal_face_interval function for cases where there are dummy nodes."""
     dummy_node = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
@@ -270,7 +253,6 @@ def test_get_zonal_face_interval_FILL_VALUE():
 
     nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
 
-
 def test_get_zonal_face_interval_GCA_constLat():
     vertices_lonlat = [[-0.4 * np.pi, 0.25 * np.pi],
                        [-0.4 * np.pi, -0.25 * np.pi],
@@ -299,7 +281,6 @@ def test_get_zonal_face_interval_GCA_constLat():
     expected_values_sorted = expected_interval_df_sorted[['start', 'end']].to_numpy()
 
     nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=13)
-
 
 def test_get_zonal_face_interval_equator():
     """Test that the face interval is correctly computed when the latitude
@@ -351,7 +332,6 @@ def test_get_zonal_face_interval_equator():
 
     # Asserting almost equal arrays
     nt.assert_array_almost_equal(actual_values_sorted, expected_values_sorted, decimal=10)
-
 
 def test_process_overlapped_intervals_overlap_and_gap():
     intervals_data = [
@@ -419,7 +399,6 @@ def test_process_overlapped_intervals_overlap_and_gap():
     assert abs(sum(overlap_contributions.values()) - total_length) < 1e-10, \
         "Sum of contributions doesn't match total length"
 
-
 def test_process_overlapped_intervals_antimeridian():
     intervals_data = [
         {
@@ -486,7 +465,6 @@ def test_process_overlapped_intervals_antimeridian():
     sum_contributions = sum(overlap_contributions.values())
     assert abs(sum_contributions - total_length) < 1e-10, \
         f"Sum of contributions ({sum_contributions}) doesn't match total length ({total_length})"
-
 
 def test_get_zonal_faces_weight_at_constLat_equator():
     face_0 = [[1.7 * np.pi, 0.25 * np.pi], [1.7 * np.pi, 0.0],
@@ -558,7 +536,6 @@ def test_get_zonal_faces_weight_at_constLat_equator():
         _zonal_face_weights_robust(np.array([
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
         ]), np.deg2rad(20), latlon_bounds)
-
 
 def test_get_zonal_faces_weight_at_constLat_regular():
     face_0 = [[1.7 * np.pi, 0.25 * np.pi], [1.7 * np.pi, 0.0],
@@ -636,7 +613,6 @@ def test_get_zonal_faces_weight_at_constLat_regular():
     #
     # nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
 
-
 def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
     # The face is touching the pole, so the weight should be 1.0 since there's only 1 face
     face_edges_cart = np.array([[
@@ -679,7 +655,6 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
     # assert_frame_equal(weight_df, expected_weight_df), \
     #     f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
 
-
 def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
     # There will be 4 faces touching the pole, so the weight should be 0.25 for each face
     face_edges_cart = np.array([
@@ -742,7 +717,6 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
     # assert_frame_equal(weight_df, expected_weight_df), \
     #     f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
 
-
 def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
     # The face is touching the pole, so the weight should be 1.0 since there's only 1 face
     face_edges_cart = np.array([[
@@ -784,7 +758,6 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
     # # Assert equality by comparing columns
     # assert (weight_df.select(pl.all()).collect() == expected_weight_df.select(pl.all()).collect()), \
     #     f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
-
 
 def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
     # There will be 4 faces touching the pole, so the weight should be 0.25 for each face
@@ -847,7 +820,6 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
     # assert (weight_df.select(pl.all()).collect() == expected_weight_df.select(pl.all()).collect()), \
     #     f"Expected:\n{expected_weight_df}\nGot:\n{weight_df}"
 
-
 def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
     # The face is touching the pole, so the weight should be 1.0 since there's only 1 face
     face_edges_cart = np.array([[
@@ -888,7 +860,6 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
     expected_weights = np.array([1.0, ])
 
     nt.assert_array_equal(weights, expected_weights)
-
 
 def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
     # There will be 4 faces touching the pole, so the weight should be 0.25 for each face
@@ -940,7 +911,6 @@ def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
 
     nt.assert_array_equal(weights, expected_weights)
 
-
 def test_get_zonal_face_interval_pole():
     # The face is touching the pole
     face_edges_cart = np.array([
@@ -967,7 +937,6 @@ def test_get_zonal_face_interval_pole():
     total_nulls = df_null_counts.to_numpy().sum()
 
     assert total_nulls == 0, f"Found {total_nulls} null values in the DataFrame"
-
 
 def test_get_zonal_faces_weight_at_constLat_latlonface():
     face_0 = [[np.deg2rad(350), np.deg2rad(40)], [np.deg2rad(350), np.deg2rad(20)],
@@ -1026,13 +995,12 @@ def test_get_zonal_faces_weight_at_constLat_latlonface():
             face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
         ]), np.deg2rad(20), latlon_bounds)
 
-
-def test_compare_zonal_weights():
+def test_compare_zonal_weights(gridpath):
     """Compares the existing weights calculation (get_non_conservative_zonal_face_weights_at_const_lat_overlap) to
     the faster implementation (get_non_conservative_zonal_face_weights_at_const_lat)"""
-    gridfiles = [OUTCSNE30_GRID,
-                 SCRIP_OUTCSNE8,
-                 GEOFLOW_GRID,]
+    gridfiles = [gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+                 gridpath("scrip", "outCSne8", "outCSne8.nc"),
+                 gridpath("ugrid", "geoflow-small", "grid.nc"),]
 
     lat = (-90, 90, 10)
     latitudes = np.arange(lat[0], lat[1] + lat[2], lat[2])

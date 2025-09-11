@@ -7,15 +7,6 @@ import pytest
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 from uxarray.grid.arcs import point_within_gca
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
-try:
-    import constants
-except ImportError:
-    from . import constants
-
 # Data files - using centralized paths directly
 
 def test_pt_within_gcr():

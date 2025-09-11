@@ -21,27 +21,19 @@ from uxarray.grid.arcs import extreme_gca_latitude
 
 from uxarray.grid.validation import _find_duplicate_nodes
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
 
 # quad_hex_grid_path is now available from centralized paths as QUAD_HEXAGON_GRID
 
-try:
-    import constants
-except ImportError:
-    from . import constants
+# These will be set in test methods that need them
+shp_filename = None
+grid_CSne30 = None
 
-shp_filename = MESHFILES_PATH / "shp" / "grid_fire.shp"
 
-grid_CSne30 = ux.open_grid(OUTCSNE30_GRID)
-grid_RLL1deg = ux.open_grid(OUTRLL1DEG_GRID)
-grid_RLL10deg_CSne4 = ux.open_grid(OV_RLL10DEG_CSNE4_GRID)
 
-grid_mpas = ux.open_grid(MPAS_QU_MESH)
-grid_exodus = ux.open_grid(EXODUS_OUTCSNE8)
-grid_ugrid = ux.open_grid(OUTCSNE30_GRID)
+# These will be set in test methods that need them
+grid_mpas = None
+grid_exodus = None
+grid_ugrid = None
 
 f0_deg = [[120, -20], [130, -10], [120, 0], [105, 0], [95, -10], [105, -20]]
 f1_deg = [[120, 0], [120, 10], [115, 0],
@@ -60,22 +52,20 @@ f6_deg = [[60, 0], [70, 30], [40, 30], [45, 0],
           [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
           [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE]]
 
-
-
-def test_grid_validate():
+def test_grid_validate(gridpath):
     """Test to check the validate function."""
-    grid_mpas = ux.open_grid(MPAS_QU_MESH)
+    grid_mpas = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
     assert grid_mpas.validate()
 
-def test_grid_with_holes():
+def test_grid_with_holes(gridpath):
     """Test _holes_in_mesh function."""
-    grid_without_holes = ux.open_grid(MPAS_QU_MESH)
-    grid_with_holes = ux.open_grid(MPAS_OCEAN_MESH)
+    grid_without_holes = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
+    grid_with_holes = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
 
     assert grid_with_holes.partial_sphere_coverage
     assert grid_without_holes.global_sphere_coverage
 
-def test_grid_ugrid_exodus_roundtrip():
+def test_grid_ugrid_exodus_roundtrip(gridpath):
     """Test round-trip serialization of grid objects through UGRID and Exodus xarray formats.
 
     Validates that grid objects can be successfully converted to xarray.Dataset
@@ -91,6 +81,10 @@ def test_grid_ugrid_exodus_roundtrip():
     Raises:
         AssertionError: If any round-trip validation fails
     """
+    # Load grids
+    grid_CSne30 = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    grid_RLL1deg = ux.open_grid(gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug"))
+    grid_RLL10deg_CSne4 = ux.open_grid(gridpath("ugrid", "ov_RLL10deg_CSne4", "ov_RLL10deg_CSne4.ug"))
 
     # Convert grids to xarray.Dataset objects in different formats
     ugrid_datasets = {
@@ -122,17 +116,17 @@ def test_grid_ugrid_exodus_roundtrip():
 
         # Define output file paths
         ugrid_filepath = f"test_ugrid_{grid_name}.nc"
-        EXODUS_OUTCSNE8 = f"test_exodus_{grid_name}.exo"
+        exodus_filepath = f"test_exodus_{grid_name}.exo"
         test_files.append(ugrid_filepath)
-        test_files.append(EXODUS_OUTCSNE8)
+        test_files.append(exodus_filepath)
 
         # Serialize datasets to disk
         ugrid_dataset.to_netcdf(ugrid_filepath)
-        exodus_dataset.to_netcdf(EXODUS_OUTCSNE8)
+        exodus_dataset.to_netcdf(exodus_filepath)
 
         # Reload grids from serialized files
         reloaded_ugrid = ux.open_grid(ugrid_filepath)
-        reloaded_exodus = ux.open_grid(EXODUS_OUTCSNE8)
+        reloaded_exodus = ux.open_grid(exodus_filepath)
 
         # Validate topological consistency (face-node connectivity)
         # Integer connectivity arrays must be exactly preserved
@@ -286,8 +280,9 @@ def test_grid_init_verts_fill_values():
     assert vgrid.n_face == 3
     assert vgrid.n_node == 12
 
-def test_grid_properties():
+def test_grid_properties(gridpath):
     """Tests to see if accessing variables through set properties is equal to using the dict."""
+    grid_CSne30 = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     xr.testing.assert_equal(grid_CSne30.node_lon, grid_CSne30._ds["node_lon"])
     xr.testing.assert_equal(grid_CSne30.node_lat, grid_CSne30._ds["node_lat"])
     xr.testing.assert_equal(grid_CSne30.face_node_connectivity, grid_CSne30._ds["face_node_connectivity"])
@@ -299,7 +294,7 @@ def test_grid_properties():
     assert n_faces == grid_CSne30.n_face
     assert n_face_nodes == grid_CSne30.n_max_face_nodes
 
-    grid_geoflow = ux.open_grid(GEOFLOW_GRID)
+    grid_geoflow = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
 
     xr.testing.assert_equal(grid_geoflow.node_lon, grid_geoflow._ds["node_lon"])
     xr.testing.assert_equal(grid_geoflow.node_lat, grid_geoflow._ds["node_lat"])
@@ -317,23 +312,23 @@ def test_read_shpfile():
     with pytest.raises(ValueError):
         grid_shp = ux.open_grid(shp_filename)
 
-def test_read_scrip():
+def test_read_scrip(gridpath):
     """Reads a scrip file."""
-    grid_CSne8 = ux.open_grid(SCRIP_OUTCSNE8)  # tests from scrip
+    grid_CSne8 = ux.open_grid(gridpath("scrip", "outCSne8", "outCSne8.nc"))  # tests from scrip
 
-def test_operators_eq():
+def test_operators_eq(gridpath):
     """Test Equals ('==') operator."""
-    grid_CSne30_01 = ux.open_grid(OUTCSNE30_GRID)
-    grid_CSne30_02 = ux.open_grid(OUTCSNE30_GRID)
+    grid_CSne30_01 = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    grid_CSne30_02 = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     assert grid_CSne30_01 == grid_CSne30_02
 
-def test_operators_ne():
+def test_operators_ne(gridpath):
     """Test Not Equals ('!=') operator."""
-    grid_CSne30_01 = ux.open_grid(OUTCSNE30_GRID)
-    grid_RLL1deg = ux.open_grid(OUTRLL1DEG_GRID)
+    grid_CSne30_01 = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    grid_RLL1deg = ux.open_grid(gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug"))
     assert grid_CSne30_01 != grid_RLL1deg
 
-def test_face_areas_calculate_total_face_area_triangle():
+def test_face_areas_calculate_total_face_area_triangle(mesh_constants):
     """Create a uxarray grid from vertices and saves an exodus file."""
     verts = [
     [[0.02974582, -0.74469018, 0.66674712],
@@ -349,48 +344,49 @@ def test_face_areas_calculate_total_face_area_triangle():
     # calculate area without correction
     area_triangular = grid_verts.calculate_total_face_area(
         quadrature_rule="triangular", order=4)
-    nt.assert_almost_equal(area_triangular, constants.TRI_AREA, decimal=1)
+    nt.assert_almost_equal(area_triangular, mesh_constants['TRI_AREA'], decimal=1)
 
     # calculate area
     area_gaussian = grid_verts.calculate_total_face_area(
         quadrature_rule="gaussian", order=5, latitude_adjusted_area=True)
-    nt.assert_almost_equal(area_gaussian, constants.CORRECTED_TRI_AREA, decimal=3)
+    nt.assert_almost_equal(area_gaussian, mesh_constants['CORRECTED_TRI_AREA'], decimal=3)
 
-def test_face_areas_calculate_total_face_area_file():
-    """Create a uxarray grid from vertices and saves an exodus file."""
-    area = ux.open_grid(OUTCSNE30_GRID).calculate_total_face_area()
-    nt.assert_almost_equal(area, constants.MESH30_AREA, decimal=3)
+    def test_face_areas_calculate_total_face_area_file(self, gridpath, mesh_constants):
+        """Create a uxarray grid from vertices and saves an exodus file."""
+        area = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug")).calculate_total_face_area()
+        nt.assert_almost_equal(area, mesh_constants['MESH30_AREA'], decimal=3)
 
-def test_face_areas_calculate_total_face_area_sphere():
-    """Computes the total face area of an MPAS mesh that lies on a unit sphere, with an expected total face area of 4pi."""
-    mpas_grid_path = MPAS_QU_MESH
+    def test_face_areas_calculate_total_face_area_sphere(self, gridpath, mesh_constants):
+        """Computes the total face area of an MPAS mesh that lies on a unit sphere, with an expected total face area of 4pi."""
+        mpas_grid_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
 
-    primal_grid = ux.open_grid(mpas_grid_path, use_dual=False)
-    dual_grid = ux.open_grid(mpas_grid_path, use_dual=True)
+        primal_grid = ux.open_grid(mpas_grid_path, use_dual=False)
+        dual_grid = ux.open_grid(mpas_grid_path, use_dual=True)
 
-    primal_face_area = primal_grid.calculate_total_face_area()
-    dual_face_area = dual_grid.calculate_total_face_area()
+        primal_face_area = primal_grid.calculate_total_face_area()
+        dual_face_area = dual_grid.calculate_total_face_area()
 
-    nt.assert_almost_equal(primal_face_area, constants.UNIT_SPHERE_AREA, decimal=3)
-    nt.assert_almost_equal(dual_face_area, constants.UNIT_SPHERE_AREA, decimal=3)
+        nt.assert_almost_equal(primal_face_area, mesh_constants['UNIT_SPHERE_AREA'], decimal=3)
+        nt.assert_almost_equal(dual_face_area, mesh_constants['UNIT_SPHERE_AREA'], decimal=3)
 
-def test_face_areas_compute_face_areas_geoflow_small():
+def test_face_areas_compute_face_areas_geoflow_small(gridpath):
     """Checks if the GeoFlow Small can generate a face areas output."""
-    grid_geoflow = ux.open_grid(GEOFLOW_GRID)
+    grid_geoflow = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
     grid_geoflow.compute_face_areas()
 
-def test_face_areas_verts_calc_area():
-    faces_verts_ndarray = np.array([
-        np.array([[150, 10, 0], [160, 20, 0], [150, 30, 0], [135, 30, 0],
-                  [125, 20, 0], [135, 10, 0]]),
-        np.array([[125, 20, 0], [135, 30, 0], [125, 60, 0], [110, 60, 0],
-                  [100, 30, 0], [105, 20, 0]]),
-        np.array([[95, 10, 0], [105, 20, 0], [100, 30, 0], [85, 30, 0],
-                  [75, 20, 0], [85, 10, 0]]),
-    ])
-    verts_grid = ux.open_grid(faces_verts_ndarray, latlon=True)
-    face_verts_areas = verts_grid.face_areas
-    nt.assert_almost_equal(face_verts_areas.sum(), constants.FACE_VERTS_AREA, decimal=3)
+class TestFaceAreas:
+    def test_face_areas_verts_calc_area(self, gridpath, mesh_constants):
+        faces_verts_ndarray = np.array([
+            np.array([[150, 10, 0], [160, 20, 0], [150, 30, 0], [135, 30, 0],
+                      [125, 20, 0], [135, 10, 0]]),
+            np.array([[125, 20, 0], [135, 30, 0], [125, 60, 0], [110, 60, 0],
+                      [100, 30, 0], [105, 20, 0]]),
+            np.array([[95, 10, 0], [105, 20, 0], [100, 30, 0], [85, 30, 0],
+                      [75, 20, 0], [85, 10, 0]]),
+        ])
+        verts_grid = ux.open_grid(faces_verts_ndarray, latlon=True)
+        face_verts_areas = verts_grid.face_areas
+        nt.assert_almost_equal(face_verts_areas.sum(), mesh_constants['FACE_VERTS_AREA'], decimal=3)
 
 def test_populate_coordinates_populate_cartesian_xyz_coord():
     # The following testcases are generated through the matlab cart2sph/sph2cart functions
@@ -520,8 +516,11 @@ def _revert_edges_conn_to_face_nodes_conn(edge_nodes_connectivity: np.ndarray,
 
     return np.array(res_face_nodes_connectivity)
 
-def test_connectivity_build_n_nodes_per_face():
+def test_connectivity_build_n_nodes_per_face(gridpath):
     """Tests the construction of the ``n_nodes_per_face`` variable."""
+    grid_mpas = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
+    grid_exodus = ux.open_grid(gridpath("exodus", "outCSne8", "outCSne8.g"))
+    grid_ugrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     grids = [grid_mpas, grid_exodus, grid_ugrid]
 
     for grid in grids:
@@ -537,9 +536,9 @@ def test_connectivity_build_n_nodes_per_face():
     expected_nodes_per_face = np.array([6, 3, 4, 6, 6, 4, 4], dtype=int)
     nt.assert_equal(grid_from_verts.n_nodes_per_face.values, expected_nodes_per_face)
 
-def test_connectivity_edge_nodes_euler():
+def test_connectivity_edge_nodes_euler(gridpath):
     """Verifies that (``n_edge``) follows euler's formula."""
-    grid_paths = [EXODUS_OUTCSNE8, OUTCSNE30_GRID, OUTRLL1DEG_GRID, OV_RLL10DEG_CSNE4_GRID]
+    grid_paths = [gridpath("exodus", "outCSne8", "outCSne8.g"), gridpath("ugrid", "outCSne30", "outCSne30.ug"), gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug"), gridpath("ugrid", "ov_RLL10deg_CSne4", "ov_RLL10deg_CSne4.ug")]
 
     for grid_path in grid_paths:
         grid_ux = ux.open_grid(grid_path)
@@ -550,11 +549,11 @@ def test_connectivity_edge_nodes_euler():
 
         assert (n_face == n_edge - n_node + 2)
 
-def test_connectivity_build_face_edges_connectivity_mpas():
+def test_connectivity_build_face_edges_connectivity_mpas(gridpath):
     """Tests the construction of (``Mesh2_edge_nodes``) on an MPAS grid with known edge nodes."""
     from uxarray.grid.connectivity import _build_edge_node_connectivity
 
-    mpas_grid_ux = ux.open_grid(MPAS_QU_MESH)
+    mpas_grid_ux = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
     edge_nodes_expected = mpas_grid_ux._ds['edge_node_connectivity'].values
 
     edge_nodes_expected.sort(axis=1)
@@ -572,9 +571,9 @@ def test_connectivity_build_face_edges_connectivity_mpas():
 
     assert (n_face == n_edge - n_node + 2)
 
-def test_connectivity_build_face_edges_connectivity():
+def test_connectivity_build_face_edges_connectivity(gridpath):
     """Generates Grid.Mesh2_edge_nodes from Grid.face_node_connectivity."""
-    ug_filename_list = [OUTCSNE30_GRID, OUTRLL1DEG_GRID, OV_RLL10DEG_CSNE4_GRID]
+    ug_filename_list = [gridpath("ugrid", "outCSne30", "outCSne30.ug"), gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug"), gridpath("ugrid", "ov_RLL10deg_CSne4", "ov_RLL10deg_CSne4.ug")]
     for ug_file_name in ug_filename_list:
         tgrid = ux.open_grid(ug_file_name)
 
@@ -653,9 +652,9 @@ def test_connectivity_node_face_connectivity_from_verts():
 
     assert np.array_equal(vgrid.node_face_connectivity.values, expected)
 
-def test_connectivity_node_face_connectivity_from_files():
+def test_connectivity_node_face_connectivity_from_files(gridpath):
     """Test generating Grid.Mesh2_node_faces from file input."""
-    grid_paths = [EXODUS_OUTCSNE8, OUTCSNE30_GRID, OUTRLL1DEG_GRID, OV_RLL10DEG_CSNE4_GRID]
+    grid_paths = [gridpath("exodus", "outCSne8", "outCSne8.g"), gridpath("ugrid", "outCSne30", "outCSne30.ug"), gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug"), gridpath("ugrid", "ov_RLL10deg_CSne4", "ov_RLL10deg_CSne4.ug")]
 
     for grid_path in grid_paths:
         grid_xr = xr.open_dataset(grid_path)
@@ -680,9 +679,9 @@ def test_connectivity_node_face_connectivity_from_files():
             face_index_from_dict.sort()
             assert np.array_equal(valid_face_index_from_sparse_matrix, face_index_from_dict)
 
-def test_connectivity_edge_face_connectivity_mpas():
+def test_connectivity_edge_face_connectivity_mpas(gridpath):
     """Tests the construction of ``Mesh2_face_edges`` to the expected results of an MPAS grid."""
-    uxgrid = ux.open_grid(MPAS_QU_MESH)
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
 
     edge_faces_gold = uxgrid.edge_face_connectivity.values
 
@@ -714,9 +713,9 @@ def test_connectivity_edge_face_connectivity_sample():
     assert n_solo == uxgrid.n_edge - n_shared
     assert n_invalid == 0
 
-def test_connectivity_face_face_connectivity_construction():
+def test_connectivity_face_face_connectivity_construction(gridpath):
     """Tests the construction of face-face connectivity."""
-    grid = ux.open_grid(MPAS_QU_MESH)
+    grid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
     face_face_conn_old = grid.face_face_connectivity.values
 
     face_face_conn_new = _build_face_face_connectivity(grid)
@@ -726,22 +725,22 @@ def test_connectivity_face_face_connectivity_construction():
 
     nt.assert_array_equal(face_face_conn_new_sorted, face_face_conn_old_sorted)
 
-def test_class_methods_from_dataset():
+def test_class_methods_from_dataset(gridpath):
     # UGRID
-    xrds = xr.open_dataset(GEOFLOW_GRID)
+    xrds = xr.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"))
     uxgrid = ux.Grid.from_dataset(xrds)
 
     # MPAS
-    xrds = xr.open_dataset(MPAS_QU_MESH)
+    xrds = xr.open_dataset(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
     uxgrid = ux.Grid.from_dataset(xrds, use_dual=False)
     uxgrid = ux.Grid.from_dataset(xrds, use_dual=True)
 
     # Exodus
-    xrds = xr.open_dataset(EXODUS_OUTCSNE8)
+    xrds = xr.open_dataset(gridpath("exodus", "outCSne8", "outCSne8.g"))
     uxgrid = ux.Grid.from_dataset(xrds)
 
     # SCRIP
-    xrds = xr.open_dataset(SCRIP_OUTCSNE8)
+    xrds = xr.open_dataset(gridpath("scrip", "outCSne8", "outCSne8.nc"))
     uxgrid = ux.Grid.from_dataset(xrds)
 
 def test_class_methods_from_face_vertices():
@@ -771,13 +770,13 @@ def test_latlon_bounds_populate_bounds_GCA_mix():
     bounds_xarray = grid.bounds
     nt.assert_allclose(bounds_xarray.values, expected_bounds, atol=ERROR_TOLERANCE)
 
-def test_latlon_bounds_populate_bounds_MPAS():
-    uxgrid = ux.open_grid(MPAS_OCEAN_MESH)
+def test_latlon_bounds_populate_bounds_MPAS(gridpath):
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
     bounds_xarray = uxgrid.bounds
 
-def test_dual_mesh_mpas():
-    grid = ux.open_grid(MPAS_QU_MESH, use_dual=False)
-    mpas_dual = ux.open_grid(MPAS_QU_MESH, use_dual=True)
+def test_dual_mesh_mpas(gridpath):
+    grid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"), use_dual=False)
+    mpas_dual = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"), use_dual=True)
 
     dual = grid.get_dual()
 
@@ -787,14 +786,14 @@ def test_dual_mesh_mpas():
 
     nt.assert_equal(dual.face_node_connectivity.values, mpas_dual.face_node_connectivity.values)
 
-def test_dual_duplicate():
-    dataset = ux.open_dataset(GEOFLOW_GRID, GEOFLOW_GRID)
+def test_dual_duplicate(gridpath):
+    dataset = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), gridpath("ugrid", "geoflow-small", "grid.nc"))
     with pytest.raises(RuntimeError):
         dataset.get_dual()
 
-def test_normalize_existing_coordinates_non_norm_initial():
+def test_normalize_existing_coordinates_non_norm_initial(gridpath):
     from uxarray.grid.validation import _check_normalization
-    uxgrid = ux.open_grid(MPAS_QU_MESH)
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
 
     uxgrid.node_x.data = 5 * uxgrid.node_x.data
     uxgrid.node_y.data = 5 * uxgrid.node_y.data
@@ -804,9 +803,9 @@ def test_normalize_existing_coordinates_non_norm_initial():
     uxgrid.normalize_cartesian_coordinates()
     assert _check_normalization(uxgrid)
 
-def test_normalize_existing_coordinates_norm_initial():
+def test_normalize_existing_coordinates_norm_initial(gridpath):
     from uxarray.grid.validation import _check_normalization
-    uxgrid = ux.open_grid(OUTCSNE30_GRID)
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
 
     assert _check_normalization(uxgrid)
 
@@ -822,11 +821,10 @@ def test_from_topology():
         fill_value=-1,
     )
 
-
-def test_sphere_radius_mpas_ocean():
+def test_sphere_radius_mpas_ocean(gridpath):
     """Test sphere radius functionality with MPAS ocean mesh."""
     # Test with MPAS ocean mesh file
-    mpas_ocean_file = MPAS_OCEAN_MESH
+    mpas_ocean_file = gridpath("mpas", "QU", "oQU480.231010.nc")
     grid = ux.open_grid(mpas_ocean_file)
 
     # Check that MPAS sphere radius is preserved (Earth's radius)

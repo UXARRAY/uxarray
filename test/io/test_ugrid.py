@@ -8,26 +8,20 @@ import xarray as xr
 import uxarray as ux
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
-try:
-    import constants
-except ImportError:
-    from . import constants
+
+# Constants now come from fixtures
 
 
 
-def test_read_ugrid():
+def test_read_ugrid(gridpath, mesh_constants):
     """Reads a ugrid file."""
-    uxgrid_ne30 = ux.open_grid(str(OUTCSNE30_GRID))
-    uxgrid_RLL1deg = ux.open_grid(str(OUTRLL1DEG_GRID))
-    uxgrid_RLL10deg_ne4 = ux.open_grid(str(OV_RLL10DEG_CSNE4_GRID))
+    uxgrid_ne30 = ux.open_grid(str(gridpath("ugrid", "outCSne30", "outCSne30.ug")))
+    uxgrid_RLL1deg = ux.open_grid(str(gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug")))
+    uxgrid_RLL10deg_ne4 = ux.open_grid(str(gridpath("ugrid", "ov_RLL10deg_CSne4", "ov_RLL10deg_CSne4.ug")))
 
-    nt.assert_equal(uxgrid_ne30.node_lon.size, constants.NNODES_outCSne30)
-    nt.assert_equal(uxgrid_RLL1deg.node_lon.size, constants.NNODES_outRLL1deg)
-    nt.assert_equal(uxgrid_RLL10deg_ne4.node_lon.size, constants.NNODES_ov_RLL10deg_CSne4)
+    nt.assert_equal(uxgrid_ne30.node_lon.size, mesh_constants['NNODES_outCSne30'])
+    nt.assert_equal(uxgrid_RLL1deg.node_lon.size, mesh_constants['NNODES_outRLL1deg'])
+    nt.assert_equal(uxgrid_RLL10deg_ne4.node_lon.size, mesh_constants['NNODES_ov_RLL10deg_CSne4'])
 
 # Uncomment this test if you want to test OPeNDAP functionality
 # def test_read_ugrid_opendap():
@@ -42,9 +36,9 @@ def test_read_ugrid():
 #         assert isinstance(getattr(uxgrid_url, "node_lat"), xr.DataArray)
 #         assert isinstance(getattr(uxgrid_url, "face_node_connectivity"), xr.DataArray)
 
-def test_to_xarray_ugrid():
+def test_to_xarray_ugrid(gridpath):
     """Read an Exodus dataset and convert it to UGRID format using to_xarray."""
-    ux_grid = ux.open_grid(EXODUS_OUTCSNE8)
+    ux_grid = ux.open_grid(gridpath("exodus", "outCSne8", "outCSne8.g"))
     xr_obj = ux_grid.to_xarray("UGRID")
     xr_obj.to_netcdf("ugrid_exo_csne8.nc")
     reloaded_grid = ux.open_grid("ugrid_exo_csne8.nc")
@@ -61,12 +55,12 @@ def test_to_xarray_ugrid():
     del reloaded_grid
     os.remove("ugrid_exo_csne8.nc")
 
-def test_standardized_dtype_and_fill():
+def test_standardized_dtype_and_fill(gridpath):
     """Test to see if Mesh2_Face_Nodes uses the expected integer datatype and expected fill value."""
     ug_filenames = [
-        OUTCSNE30_GRID,
-        OUTRLL1DEG_GRID,
-        OV_RLL10DEG_CSNE4_GRID
+        gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+        gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug"),
+        gridpath("ugrid", "ov_RLL10deg_CSne4", "ov_RLL10deg_CSne4.ug")
     ]
 
     grids_with_fill = [ux.open_grid(ug_filenames[1])]
@@ -80,9 +74,9 @@ def test_standardized_dtype_and_fill():
         assert grid.face_node_connectivity.dtype == INT_DTYPE
         assert grid.face_node_connectivity._FillValue == INT_FILL_VALUE
 
-def test_standardized_dtype_and_fill_dask():
+def test_standardized_dtype_and_fill_dask(gridpath):
     """Test to see if Mesh2_Face_Nodes uses the expected integer datatype with dask chunking."""
-    ug_filename = OUTRLL1DEG_GRID
+    ug_filename = gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug")
     ux_grid = ux.open_grid(ug_filename)
 
     assert ux_grid.face_node_connectivity.dtype == INT_DTYPE

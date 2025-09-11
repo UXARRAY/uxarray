@@ -5,19 +5,12 @@ import pytest
 import xarray as xr
 import numpy as np
 from uxarray.constants import ERROR_TOLERANCE
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
-
-esmf_ne30_grid_path = ESMF_NE30_GRID
-esmf_ne30_data_path = ESMF_NE30_DATA
 
 
-def test_read_esmf():
+def test_read_esmf(gridpath):
     """Tests the reading of an ESMF grid file and its encoding into the UGRID
     conventions."""
-    uxgrid = ux.open_grid(esmf_ne30_grid_path)
+    uxgrid = ux.open_grid(gridpath("esmf", "ne30", "ne30pg3.grid.nc"))
 
     dims = ['n_node', 'n_face', 'n_max_face_nodes']
     coords = ['node_lon', 'node_lat', 'face_lon', 'face_lat']
@@ -32,17 +25,18 @@ def test_read_esmf():
     for conn in conns:
         assert conn in uxgrid._ds
 
-def test_read_esmf_dataset():
+def test_read_esmf_dataset(gridpath, datasetpath):
     """Tests the constructing of a UxDataset from an ESMF Grid and Data
     File."""
-    uxds = ux.open_dataset(esmf_ne30_grid_path, esmf_ne30_data_path)
+    uxds = ux.open_dataset(gridpath("esmf", "ne30", "ne30pg3.grid.nc"),
+                           datasetpath("esmf", "ne30", "ne30pg3.data.nc"))
 
     dims = ['n_node', 'n_face']
 
     for dim in dims:
         assert dim in uxds.dims
 
-def test_esmf_round_trip_consistency():
+def test_esmf_round_trip_consistency(gridpath):
     """Test round-trip serialization of grid objects through ESMF xarray format.
 
     Validates that grid objects can be successfully converted to ESMF xarray.Dataset
@@ -59,7 +53,7 @@ def test_esmf_round_trip_consistency():
         AssertionError: If any round-trip validation fails
     """
     # Load original grid
-    original_grid = ux.open_grid(OUTCSNE30_GRID)
+    original_grid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
 
     # Convert to ESMF xarray format
     esmf_dataset = original_grid.to_xarray("ESMF")

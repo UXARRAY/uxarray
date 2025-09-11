@@ -38,7 +38,7 @@ def gridpath():
             # Single file case
             path = base_path.joinpath(*args)
             if not path.exists():
-                pytest.skip(f"Test grid file not found: {path}")
+                raise FileNotFoundError(f"Test grid file not found: {path}")
             return path
 
     return _get_path
@@ -77,10 +77,16 @@ def datasetpath():
             # Single file case
             path = base_path.joinpath(*args)
             if not path.exists():
-                pytest.skip(f"Test dataset file not found: {path}")
+                raise FileNotFoundError(f"Test dataset file not found: {path}")
             return path
 
     return _get_path
+
+
+@pytest.fixture
+def test_data_dir():
+    """Return the path to the test data directory."""
+    return Path(__file__).parent / "meshfiles"
 
 
 @pytest.fixture

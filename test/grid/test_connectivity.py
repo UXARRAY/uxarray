@@ -5,17 +5,12 @@ import numpy as np
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE as fv
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
-
 
 class TestQuadHexagon:
 
     @pytest.fixture()
-    def uxgrid(self):
-        return ux.open_grid(QUAD_HEXAGON_GRID)
+    def uxgrid(self, gridpath):
+        return ux.open_grid(gridpath("ugrid", "quad-hexagon", "grid.nc"))
 
     # ─── Node Connectivity ────────────────────────────────────────────────────────────────────────────────────────────
 

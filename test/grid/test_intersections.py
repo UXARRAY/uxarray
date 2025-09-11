@@ -25,7 +25,6 @@ def test_get_GCA_GCA_intersections_antimeridian():
         _lonlat_rad_to_xyz(np.deg2rad(170.0), np.deg2rad(-10.0))
     ])
 
-
     GCR2_cart = np.array([
         _lonlat_rad_to_xyz(np.deg2rad(70.0), 0.0),
         _lonlat_rad_to_xyz(np.deg2rad(175.0), 0.0)
@@ -70,7 +69,6 @@ def test_get_GCA_GCA_intersections_perpendicular():
 
     # rest_cart should be empty since these two GCAs are not intersecting
     assert(len(res_cart) == 0)
-
 
     # def test_GCA_GCA_single_edge_to_pole(self):
     #     # GCA_a - Face Center connected to South Pole
@@ -157,7 +155,6 @@ def test_GCA_GCA_north_pole_angled():
 
     # The edge should intersect
     assert(len(gca_gca_intersection(gca_a_xyz, gca_b_xyz)))
-
 
 def test_GCA_edge_intersection_count():
 

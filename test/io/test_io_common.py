@@ -16,10 +16,7 @@ from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 
 
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
+
 
 # Define all testable format combinations
 # Format: (format_type, subpath, filename)
@@ -45,7 +42,7 @@ WRITABLE_FORMATS = ["ugrid", "exodus", "scrip", "esmf"]
 
 
 @pytest.fixture(params=IO_READ_TEST_FORMATS)
-def grid_from_format(request):
+def grid_from_format(request, test_data_dir):
     """Load a Grid from each supported format for parameterized tests.
 
     Handles special cases (FESOM multi-file, HEALPix) and tags the grid with
@@ -55,14 +52,14 @@ def grid_from_format(request):
 
     if format_name == "fesom" and filename is None:
         # Special handling for FESOM with multiple input files
-        fesom_data_path = FESOM_PI_PATH / "data"
-        fesom_mesh_path = FESOM_PI_PATH
+        fesom_data_path = test_data_dir / "fesom" / "pi" / "data"
+        fesom_mesh_path = test_data_dir / "fesom" / "pi"
         grid = ux.open_grid(fesom_mesh_path, fesom_data_path)
     elif format_name == "healpix":
         # Construct a basic HEALPix grid
         grid = ux.Grid.from_healpix(zoom=1, pixels_only=False)
     else:
-        grid_path = MESHFILES_PATH / subpath / filename
+        grid_path = test_data_dir / subpath / filename
         if not grid_path.exists():
             pytest.skip(f"Test file not found: {grid_path}")
 

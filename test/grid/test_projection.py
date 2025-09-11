@@ -3,16 +3,10 @@ import cartopy.crs as ccrs
 import os
 from pathlib import Path
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
 
-
-
-def test_geodataframe_projection():
+def test_geodataframe_projection(gridpath):
     """Test the projection of a GeoDataFrame."""
-    uxgrid = ux.open_grid(GEOS_CS_C12_GRID)
+    uxgrid = ux.open_grid(gridpath("geos-cs", "c12", "test-c12.native.nc4"))
     gdf = uxgrid.to_geodataframe(projection=ccrs.Robinson(), periodic_elements='exclude')
 
     # Example assertion to check if gdf is not None

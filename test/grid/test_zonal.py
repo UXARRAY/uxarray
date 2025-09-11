@@ -10,44 +10,38 @@ import numpy.testing as nt
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
-
-
 class TestZonalCSne30:
 
-    gridfile_ne30 = OUTCSNE30_GRID
-    datafile_vortex_ne30 = OUTCSNE30_VORTEX
-    dsfile_var2_ne30 = OUTCSNE30_VAR2
-    test_file_2 = OUTCSNE30_TEST2
-    test_file_3 = OUTCSNE30_TEST3
+    gridfile_ne30 = None  # Will be set in test methods
+    datafile_vortex_ne30 = None  # Will be set in test methods
+    dsfile_var2_ne30 = None  # Will be set in test methods
+    test_file_2 = None  # Will be set in test methods
+    test_file_3 = None  # Will be set in test methods
 
-    def test_non_conservative_zonal_mean_equator(self):
+    def test_non_conservative_zonal_mean_equator(self, gridpath, datasetpath):
         """Tests the zonal mean at the equator. This grid contains points that are exactly """
-        grid_path = self.gridfile_ne30
-        data_path = self.datafile_vortex_ne30
+        grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+        data_path = datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
         uxds = ux.open_dataset(grid_path, data_path)
 
         res = uxds['psi'].zonal_mean(0)
 
         assert res.values[0] == pytest.approx(1, abs=ERROR_TOLERANCE)
 
-    def test_non_conservative_zonal_mean(self):
+    def test_non_conservative_zonal_mean(self, gridpath, datasetpath):
         """Tests if the correct number of queries are returned."""
-        grid_path = self.gridfile_ne30
-        data_path = self.datafile_vortex_ne30
+        grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+        data_path = datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
         uxds = ux.open_dataset(grid_path, data_path)
 
         res = uxds['psi'].zonal_mean((-90.0, 90.0, 1))
 
         assert len(res) == 181
 
-    def test_non_conservative_zonal_mean_at_pole(self):
+    def test_non_conservative_zonal_mean_at_pole(self, gridpath, datasetpath):
         """Tests the zonal average execution at both poles."""
-        grid_path = self.gridfile_ne30
-        data_path = self.datafile_vortex_ne30
+        grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+        data_path = datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
         uxds = ux.open_dataset(grid_path, data_path)
 
         # Test at the poles
@@ -58,11 +52,10 @@ class TestZonalCSne30:
         assert len(res_n90.values) == 1
         assert len(res_p90.values) == 1
 
-
-    def test_zonal_mean_dask(self):
+    def test_zonal_mean_dask(self, gridpath, datasetpath):
         """Tests if zonal average returns Dask arrays when appropriate."""
-        grid_path = self.gridfile_ne30
-        data_path = self.datafile_vortex_ne30
+        grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+        data_path = datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
         uxds = ux.open_dataset(grid_path, data_path)
 
         uxds['psi'] = uxds['psi'].chunk()
@@ -75,9 +68,9 @@ class TestZonalCSne30:
 
         assert isinstance(res_computed.data, np.ndarray)
 
-    def test_zonal_weights(self):
-        grid_path = self.gridfile_ne30
-        data_path = self.datafile_vortex_ne30
+    def test_zonal_weights(self, gridpath, datasetpath):
+        grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+        data_path = datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
         uxds = ux.open_dataset(grid_path, data_path)
 
         za_1 = uxds['psi'].zonal_mean((-90, 90, 30), use_robust_weights=True)
@@ -85,15 +78,13 @@ class TestZonalCSne30:
 
         nt.assert_almost_equal(za_1.data, za_2.data)
 
-    def test_lat_inputs(self):
-        grid_path = self.gridfile_ne30
-        data_path = self.datafile_vortex_ne30
+    def test_lat_inputs(self, gridpath, datasetpath):
+        grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+        data_path = datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
         uxds = ux.open_dataset(grid_path, data_path)
 
         assert len(uxds['psi'].zonal_mean(lat=1)) == 1
         assert len(uxds['psi'].zonal_mean(lat=(-90, 90, 1))) == 181
-
-
 
 def test_mismatched_dims():
     uxgrid = ux.Grid.from_healpix(zoom=0)

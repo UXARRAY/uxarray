@@ -5,20 +5,14 @@ import pytest
 from pathlib import Path
 from uxarray.constants import INT_FILL_VALUE
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
-
-GRID_PATHS = [
-    MPAS_OCEAN_MESH,
-    GEOFLOW_GRID,
-    OUTCSNE30_GRID
-]
-
-def test_minimal_class_method():
+def test_minimal_class_method(gridpath):
     """Tests the minimal required variables for constructing a grid using the
     from topology class method."""
+    GRID_PATHS = [
+        gridpath("mpas", "QU", "oQU480.231010.nc"),
+        gridpath("ugrid", "geoflow-small", "grid.nc"),
+        gridpath("ugrid", "outCSne30", "outCSne30.ug")
+    ]
     for grid_path in GRID_PATHS:
         uxgrid = ux.open_grid(grid_path)
 
@@ -34,9 +28,14 @@ def test_minimal_class_method():
         nt.assert_array_equal(uxgrid.node_lat.values, uxgrid_ft.node_lat.values)
         nt.assert_array_equal(uxgrid.face_node_connectivity.values, uxgrid_ft.face_node_connectivity.values)
 
-def test_minimal_api():
+def test_minimal_api(gridpath):
     """Tests the minimal required variables for constructing a grid using the
     ``ux.open_dataset`` method."""
+    GRID_PATHS = [
+        gridpath("mpas", "QU", "oQU480.231010.nc"),
+        gridpath("ugrid", "geoflow-small", "grid.nc"),
+        gridpath("ugrid", "outCSne30", "outCSne30.ug")
+    ]
     for grid_path in GRID_PATHS:
         uxgrid = ux.open_grid(grid_path)
 
@@ -62,7 +61,12 @@ def test_minimal_api():
         nt.assert_array_equal(uxgrid.node_lat.values, uxgrid_ft.node_lat.values)
         nt.assert_array_equal(uxgrid.face_node_connectivity.values, uxgrid_ft.face_node_connectivity.values)
 
-def test_dataset():
+def test_dataset(gridpath):
+    GRID_PATHS = [
+        gridpath("mpas", "QU", "oQU480.231010.nc"),
+        gridpath("ugrid", "geoflow-small", "grid.nc"),
+        gridpath("ugrid", "outCSne30", "outCSne30.ug")
+    ]
     uxds = ux.open_dataset(GRID_PATHS[0], GRID_PATHS[0])
 
     grid_topology = {

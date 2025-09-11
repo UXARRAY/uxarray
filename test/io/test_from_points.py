@@ -3,15 +3,8 @@ import os
 import pytest
 from pathlib import Path
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
-
-grid_path = OUTCSNE30_GRID
-
-def test_spherical_delaunay():
-    uxgrid = ux.open_grid(grid_path)
+def test_spherical_delaunay(gridpath):
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     points_xyz = (uxgrid.node_x.values, uxgrid.node_y.values, uxgrid.node_z.values)
     points_latlon = (uxgrid.node_lon.values, uxgrid.node_lat.values)
 
@@ -24,8 +17,8 @@ def test_spherical_delaunay():
     assert uxgrid_dt_xyz.triangular
     assert uxgrid_dt_latlon.triangular
 
-def test_regional_delaunay():
-    uxgrid = ux.open_grid(grid_path)
+def test_regional_delaunay(gridpath):
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
 
     uxgrid_regional = uxgrid.subset.nearest_neighbor((0.0, 0.0), k=50)
 
@@ -39,8 +32,8 @@ def test_regional_delaunay():
     assert uxgrid_dt_xyz.triangular
     assert uxgrid_dt_latlon.triangular
 
-def test_spherical_voronoi():
-    uxgrid = ux.open_grid(grid_path)
+def test_spherical_voronoi(gridpath):
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     points_xyz = (uxgrid.node_x.values, uxgrid.node_y.values, uxgrid.node_z.values)
     points_latlon = (uxgrid.node_lon.values, uxgrid.node_lat.values)
 

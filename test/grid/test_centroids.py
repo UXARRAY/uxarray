@@ -13,13 +13,6 @@ from uxarray.grid.coordinates import (
     _normalize_xyz,
 )
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
-
-
-
 
 def test_centroids_from_mean_verts_triangle():
     """Test finding the centroid of a triangle."""
@@ -51,9 +44,9 @@ def test_centroids_from_mean_verts_pentagon():
     assert norm_y == grid.face_y
     assert norm_z == grid.face_z
 
-def test_centroids_from_mean_verts_scrip():
+def test_centroids_from_mean_verts_scrip(gridpath):
     """Test computed centroid values compared to values from a SCRIP dataset."""
-    uxgrid = ux.open_grid(SCRIP_OUTCSNE8)
+    uxgrid = ux.open_grid(gridpath("scrip", "outCSne8", "outCSne8.nc"))
 
     expected_face_x = uxgrid.face_lon.values
     expected_face_y = uxgrid.face_lat.values
@@ -80,9 +73,9 @@ def test_edge_centroids_from_triangle():
     assert centroid_y == grid.edge_y[0]
     assert centroid_z == grid.edge_z[0]
 
-def test_edge_centroids_from_mpas():
+def test_edge_centroids_from_mpas(gridpath):
     """Test computed centroid values compared to values from a MPAS dataset."""
-    uxgrid = ux.open_grid(MPAS_QU_MESH)
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
 
     expected_edge_lon = uxgrid.edge_lon.values
     expected_edge_lat = uxgrid.edge_lat.values

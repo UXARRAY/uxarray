@@ -5,17 +5,10 @@ import pytest
 import uxarray as ux
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from paths import *
 
-exo_filename = EXODUS_OUTCSNE8
-
-
-def test_read_exodus():
+def test_read_exodus(gridpath):
     """Read an exodus file and writes a exodus file."""
-    uxgrid = ux.open_grid(exo_filename)
+    uxgrid = ux.open_grid(gridpath("exodus", "outCSne8", "outCSne8.g"))
     # Add assertions or checks as needed
     assert uxgrid is not None  # Example assertion
 
@@ -26,15 +19,15 @@ def test_init_verts():
     # Add assertions or checks as needed
     assert uxgrid is not None  # Example assertion
 
-def test_encode_exodus():
+def test_encode_exodus(gridpath):
     """Read a UGRID dataset and encode that as an Exodus format."""
-    uxgrid = ux.open_grid(exo_filename)
+    uxgrid = ux.open_grid(gridpath("exodus", "outCSne8", "outCSne8.g"))
     # Add encoding logic and assertions as needed
     pass  # Placeholder for actual implementation
 
-def test_mixed_exodus():
+def test_mixed_exodus(gridpath):
     """Read/write an exodus file with two types of faces (triangle and quadrilaterals) and writes a ugrid file."""
-    uxgrid = ux.open_grid(EXODUS_MIXED)
+    uxgrid = ux.open_grid(gridpath("exodus", "mixed", "mixed.exo"))
 
     ugrid_obj = uxgrid.to_xarray("UGRID")
     exo_obj = uxgrid.to_xarray("Exodus")
@@ -61,9 +54,9 @@ def test_mixed_exodus():
     os.remove("test_ugrid.nc")
     os.remove("test_exo.exo")
 
-def test_standardized_dtype_and_fill():
+def test_standardized_dtype_and_fill(gridpath):
     """Test to see if Mesh2_Face_Nodes uses the expected integer datatype and expected fill value as set in constants.py."""
-    uxgrid = ux.open_grid(EXODUS_MIXED)
+    uxgrid = ux.open_grid(gridpath("exodus", "mixed", "mixed.exo"))
 
     assert uxgrid.face_node_connectivity.dtype == INT_DTYPE
     assert uxgrid.face_node_connectivity._FillValue == INT_FILL_VALUE

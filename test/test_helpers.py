@@ -14,19 +14,9 @@ from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array, _get_lonlat_rad_face_edge_nodes_array
 from uxarray.grid.geometry import pole_point_inside_polygon, _pole_point_inside_polygon_cartesian
 
-try:
-    import constants
-except ImportError:
-    from . import constants
-
-# Import centralized paths
-import sys
-sys.path.append(str(Path(__file__).parent))
-from paths import EXODUS_OUTCSNE8, SCRIP_OUTCSNE8, GEOFLOW_GRID, GEOFLOW_V1
-
 err_tolerance = 1.0e-12
 
-def test_face_area_coords():
+def test_face_area_coords(mesh_constants):
     """Test function for helper function get_all_face_area_from_coords."""
     # Note: currently only testing one face, but this can be used to get area of multiple faces
     # Cartesian coordinates (x, y, z) for each city
@@ -39,10 +29,10 @@ def test_face_area_coords():
 
     area, _ = ux.grid.area.get_all_face_area_from_coords(
         x, y, z, face_nodes, face_dimension)
-    nt.assert_almost_equal(area, constants.TRI_AREA, decimal=5)
+    nt.assert_almost_equal(area, mesh_constants['TRI_AREA'], decimal=5)
 
 
-def test_calculate_face_area():
+def test_calculate_face_area(mesh_constants):
     """Test function for helper function calculate_face_area - only one face."""
     # Note: currently only testing one face, but this can be used to get area of multiple faces
     # Also note, this does not need face_nodes, assumes nodes are in counterclockwise orientation
@@ -53,12 +43,12 @@ def test_calculate_face_area():
     area, _ = ux.grid.area.calculate_face_area(
         x, y, z, "gaussian", 5, latitude_adjusted_area=False)
 
-    nt.assert_almost_equal(area, constants.TRI_AREA, decimal=5)
+    nt.assert_almost_equal(area, mesh_constants['TRI_AREA'], decimal=5)
 
     area_corrected, _ = ux.grid.area.calculate_face_area(
         x, y, z, "gaussian", 5, latitude_adjusted_area=True)
 
-    nt.assert_almost_equal(area_corrected, constants.CORRECTED_TRI_AREA, decimal=5)
+    nt.assert_almost_equal(area_corrected, mesh_constants['CORRECTED_TRI_AREA'], decimal=5)
 
     # Make the same grid using lon/lat check area = constants.TRI_AREA
     lon = np.array([-87.7126, -80.1918, -75.7355])
@@ -73,7 +63,7 @@ def test_calculate_face_area():
     )
 
     area, _ = grid.compute_face_areas()
-    nt.assert_almost_equal(area, constants.TRI_AREA, decimal=5)
+    nt.assert_almost_equal(area, mesh_constants['TRI_AREA'], decimal=5)
 
 def test_quadrature():
     order = 1
@@ -92,10 +82,10 @@ def test_quadrature():
     np.testing.assert_array_almost_equal(G, dG)
     np.testing.assert_array_almost_equal(W, dW)
 
-def test_grid_center():
+def test_grid_center(gridpath):
     """Calculates if the calculated center point of a grid box is the same
     as a given value for the same dataset."""
-    ds_scrip_CSne8 = xr.open_dataset(SCRIP_OUTCSNE8)
+    ds_scrip_CSne8 = xr.open_dataset(gridpath("scrip", "outCSne8", "outCSne8.nc"))
 
     # select actual center_lat/lon
     scrip_center_lon = ds_scrip_CSne8['grid_center_lon']
