@@ -113,6 +113,10 @@ class Grid:
     For constructing a grid from non-UGRID datasets or other types of supported data, see our ``ux.open_grid`` method or
     specific class methods (``Grid.from_dataset``, ``Grid.from_face_verticies``, etc.)
 
+    Note on Sphere Radius:
+        All internal calculations use a unit sphere (radius=1.0). The physical sphere radius
+        from the source grid is preserved in the ``sphere_radius`` property for scaling results.
+
 
     Parameters
     ----------
@@ -2029,6 +2033,39 @@ class Grid:
             self._ds[x_var] = dx / norm
             self._ds[f"{prefix}_y"] = dy / norm
             self._ds[f"{prefix}_z"] = dz / norm
+
+    @property
+    def sphere_radius(self) -> float:
+        """Physical sphere radius from the source grid (e.g., Earth's radius for MPAS ocean grids).
+
+        Internally, all calculations use a unit sphere. This property stores the original
+        radius for scaling results back to physical units.
+
+        Returns
+        -------
+        sphere_radius : float
+            The physical sphere radius. Defaults to 1.0 if not set.
+        """
+        return self._ds.attrs.get("sphere_radius", 1.0)
+
+    @sphere_radius.setter
+    def sphere_radius(self, radius: float) -> None:
+        """Set the sphere radius for the grid.
+
+        Parameters
+        ----------
+        radius : float
+            The sphere radius to set. Must be positive.
+
+        Raises
+        ------
+        ValueError
+            If radius is not positive.
+        """
+        if radius <= 0:
+            raise ValueError(f"Sphere radius must be positive, got {radius}")
+
+        self._ds.attrs["sphere_radius"] = radius
 
     def to_xarray(self, grid_format: Optional[str] = "ugrid"):
         """Returns an ``xarray.Dataset`` with the variables stored under the

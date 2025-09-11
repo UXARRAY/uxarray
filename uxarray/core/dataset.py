@@ -47,6 +47,22 @@ class UxDataset(xr.Dataset):
     -----
     See `xarray.Dataset <https://docs.xarray.dev/en/stable/generated/xarray.Dataset.html>`__
     for further information about Datasets.
+
+    Grid-Aware Accessor Methods
+    ---------------------------
+    The following methods return specialized accessors that preserve grid information:
+
+    - ``groupby``: Groups data by dimension/coordinate
+    - ``groupby_bins``: Groups data by bins
+    - ``resample``: Resamples timeseries data
+    - ``rolling``: Rolling window operations
+    - ``coarsen``: Coarsens data by integer factors
+    - ``weighted``: Weighted operations
+    - ``rolling_exp``: Exponentially weighted rolling (requires numbagg)
+    - ``cumulative``: Cumulative operations
+
+    All these methods work identically to xarray but maintain the uxgrid attribute
+    throughout operations.
     """
 
     # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
@@ -314,7 +330,7 @@ class UxDataset(xr.Dataset):
 
         if face_dim not in ds.dims:
             raise ValueError(
-                f"The provided face dimension '{face_dim}' is present in the provided healpix dataset."
+                f"The provided face dimension '{face_dim}' is not present in the provided healpix dataset."
                 f"Please set 'face_dim' to the dimension corresponding to the healpix face dimension."
             )
 
@@ -400,6 +416,35 @@ class UxDataset(xr.Dataset):
 
     # def sel(self):
     #     pass
+    def __getattribute__(self, name):
+        """Intercept accessor method calls to return Ux-aware accessors."""
+        # Lazy import to avoid circular imports
+        from uxarray.core.accessors import DATASET_ACCESSOR_METHODS
+
+        if name in DATASET_ACCESSOR_METHODS:
+            from uxarray.core import accessors
+
+            # Get the accessor class by name
+            accessor_class = getattr(accessors, DATASET_ACCESSOR_METHODS[name])
+
+            # Get the parent method
+            parent_method = super().__getattribute__(name)
+
+            # Create a wrapper method
+            def method(*args, **kwargs):
+                # Call the parent method
+                result = parent_method(*args, **kwargs)
+                # Wrap the result with our accessor
+                return accessor_class(result, self.uxgrid, self.source_datasets)
+
+            # Copy the docstring from the parent method
+            method.__doc__ = parent_method.__doc__
+            method.__name__ = name
+
+            return method
+
+        # For all other attributes, use the default behavior
+        return super().__getattribute__(name)
 
     def info(self, buf: IO = None, show_attrs=False) -> None:
         """Concise summary of Dataset variables and attributes including grid
