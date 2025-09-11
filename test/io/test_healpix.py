@@ -2,10 +2,8 @@ import uxarray as ux
 import healpix as hp
 import numpy as np
 import pytest
-import os
 import xarray as xr
 import pandas as pd
-from pathlib import Path
 from uxarray.constants import ERROR_TOLERANCE
 
 

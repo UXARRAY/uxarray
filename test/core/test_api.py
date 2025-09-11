@@ -1,5 +1,3 @@
-import os
-from pathlib import Path
 import numpy.testing as nt
 import uxarray as ux
 import numpy as np

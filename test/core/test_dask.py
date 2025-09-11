@@ -1,5 +1,3 @@
-import os
-from pathlib import Path
 
 import dask.array as da
 import numpy as np

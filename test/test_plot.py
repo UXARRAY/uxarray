@@ -1,9 +1,7 @@
-import os
 import uxarray as ux
 import xarray as xr
 import holoviews as hv
 import pytest
-from pathlib import Path
 import numpy as np
 
 import matplotlib.pyplot as plt

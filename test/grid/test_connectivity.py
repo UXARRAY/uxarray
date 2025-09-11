@@ -1,5 +1,4 @@
 import pytest
-from pathlib import Path
 import uxarray as ux
 import numpy as np
 

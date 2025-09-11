@@ -1,7 +1,5 @@
 import uxarray as ux
 import cartopy.crs as ccrs
-import os
-from pathlib import Path
 
 
 def test_geodataframe_projection(gridpath):

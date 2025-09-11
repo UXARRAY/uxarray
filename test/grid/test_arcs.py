@@ -1,7 +1,5 @@
-import os
 import numpy as np
 import numpy.testing as nt
-from pathlib import Path
 import uxarray as ux
 import pytest
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz

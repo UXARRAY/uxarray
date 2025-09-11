@@ -1,9 +1,7 @@
 import uxarray as ux
-import os
 
 import pytest
 
-from pathlib import Path
 
 def test_repr(gridpath, datasetpath):
     uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))

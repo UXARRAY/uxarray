@@ -1,8 +1,6 @@
-import os
 import numpy as np
 import numpy.testing as nt
 import pytest
-from pathlib import Path
 
 import uxarray as ux
 from uxarray.core.dataarray import UxDataArray

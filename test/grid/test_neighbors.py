@@ -1,8 +1,6 @@
-import os
 import numpy as np
 import pytest
 import xarray as xr
-from pathlib import Path
 import uxarray as ux
 from uxarray.grid.neighbors import _construct_edge_face_distances
 

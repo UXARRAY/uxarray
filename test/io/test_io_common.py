@@ -7,9 +7,7 @@ import pytest
 import numpy as np
 import xarray as xr
 import uxarray as ux
-from pathlib import Path
 import tempfile
-import os
 import warnings
 from numpy.testing import assert_array_equal, assert_allclose
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE

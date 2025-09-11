@@ -3,7 +3,6 @@ import xarray as xr
 import warnings
 import numpy.testing as nt
 import pytest
-from pathlib import Path
 
 import uxarray as ux
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE

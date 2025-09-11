@@ -1,9 +1,7 @@
 import uxarray as ux
-import os
 
 import pytest
 
-from pathlib import Path
 
 
 def test_grid_repr(gridpath):

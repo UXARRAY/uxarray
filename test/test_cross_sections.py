@@ -1,9 +1,8 @@
 import uxarray as ux
 import pytest
 import numpy as np
-from pathlib import Path
-import os
 import xarray as xr
+from pathlib import Path
 
 import numpy.testing as nt
 

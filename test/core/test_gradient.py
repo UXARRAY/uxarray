@@ -1,8 +1,6 @@
 import numpy as np
 import pytest
 
-import os
-from pathlib import Path
 
 import uxarray as ux
 import numpy.testing as nt

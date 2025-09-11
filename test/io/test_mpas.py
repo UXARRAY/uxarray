@@ -1,10 +1,8 @@
 import numpy as np
-import os
 import pytest
 
 import uxarray as ux
 import xarray as xr
-from pathlib import Path
 import numpy.testing as nt
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.io._mpas import _replace_padding, _replace_zeros, _to_zero_index, _read_mpas

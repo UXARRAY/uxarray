@@ -1,5 +1,3 @@
-import os
-from pathlib import Path
 import numpy as np
 import uxarray as ux
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells

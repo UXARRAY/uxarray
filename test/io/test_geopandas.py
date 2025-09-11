@@ -1,6 +1,4 @@
-import os
 import numpy as np
-from pathlib import Path
 import uxarray as ux
 
 def test_read_shpfile(test_data_dir):

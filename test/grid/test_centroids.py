@@ -1,8 +1,6 @@
-import os
 import numpy as np
 import numpy.testing as nt
 import uxarray as ux
-from pathlib import Path
 from uxarray.grid.coordinates import (
     _populate_face_centroids,
     _populate_edge_centroids,

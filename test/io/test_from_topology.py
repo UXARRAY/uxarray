@@ -1,8 +1,6 @@
 import uxarray as ux
-import os
 import numpy.testing as nt
 import pytest
-from pathlib import Path
 from uxarray.constants import INT_FILL_VALUE
 
 def test_minimal_class_method(gridpath):

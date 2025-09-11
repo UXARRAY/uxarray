@@ -1,6 +1,5 @@
 import os
 import numpy as np
-from pathlib import Path
 import pytest
 import uxarray as ux
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE

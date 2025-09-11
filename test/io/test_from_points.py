@@ -1,7 +1,5 @@
 import uxarray as ux
-import os
 import pytest
-from pathlib import Path
 
 def test_spherical_delaunay(gridpath):
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))

@@ -5,8 +5,6 @@ This module tests that accessor methods properly preserve uxgrid attributes
 and return UxDataArray/UxDataset objects.
 """
 
-import os
-from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr

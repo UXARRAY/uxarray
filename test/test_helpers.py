@@ -1,9 +1,7 @@
-import os
 import numpy as np
 import numpy.testing as nt
 import random
 import xarray as xr
-from pathlib import Path
 import pytest
 
 import uxarray as ux

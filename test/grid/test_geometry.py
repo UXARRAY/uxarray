@@ -1,10 +1,8 @@
-import os
 import numpy as np
 import numpy.testing as nt
 import xarray as xr
 import pytest
 
-from pathlib import Path
 
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE

@@ -1,7 +1,6 @@
 import uxarray as ux
 import pytest
 import numpy as np
-from pathlib import Path
 import xarray as xr
 
 
