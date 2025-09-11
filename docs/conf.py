@@ -173,7 +173,7 @@ html_theme_options = {
     "use_repository_button": True,
     "use_issues_button": True,
     "home_page_in_toc": False,
-    "navbar_footer_text": "",
+    # "navbar_footer_text": "",
     # "extra_footer": "<p></p>",
     "logo": {
         "image_light": "_static/images/logos/uxarray_logo_h_dark.svg",
