@@ -380,6 +380,49 @@ class UxDataset(xr.Dataset):
         inverse_indices: bool = False,
         **indexers_kwargs,
     ):
+        """Returns a new dataset with each array indexed along the specified
+        dimension(s).
+
+        Performs xarray-style integer-location indexing along specified dimensions.
+        If a single grid dimension ('n_node', 'n_edge', or 'n_face') is provided
+        and `ignore_grid=False`, the underlying grid is sliced accordingly,
+        and remaining indexers are applied to the resulting Dataset.
+
+        Parameters
+        ----------
+        indexers : dict, optional
+            A dict with keys matching dimensions and values given
+            by integers, slice objects or arrays.
+            indexer can be a integer, slice, array-like or DataArray.
+            If DataArrays are passed as indexers, xarray-style indexing will be
+            carried out. See :ref:`indexing` for the details.
+            One of indexers or indexers_kwargs must be provided.
+        drop : bool, default: False
+            If ``drop=True``, drop coordinates variables indexed by integers
+            instead of making them scalar.
+        missing_dims : {"raise", "warn", "ignore"}, default: "raise"
+            What to do if dimensions that should be selected from are not present in the
+            Dataset:
+            - "raise": raise an exception
+            - "warn": raise a warning, and ignore the missing dimensions
+            - "ignore": ignore the missing dimensions
+        ignore_grid : bool, default=False
+            If False (default), allow slicing on one grid dimension to automatically
+            update the associated UXarray grid. If True, fall back to pure xarray behavior.
+        inverse_indices : bool, default=False
+            For grid-based slicing, pass this flag to `Grid.isel` to invert indices
+            when selecting (useful for staggering or reversing order).
+        **indexers_kwargs : dimension=indexer pairs, optional
+
+        **indexers_kwargs : {dim: indexer, ...}, optional
+            The keyword arguments form of ``indexers``.
+            One of indexers or indexers_kwargs must be provided.
+
+                Returns
+        -------
+        UxDataset
+            A new UxDataset indexed according to `indexers` and updated grid if applicable.
+        """
         from uxarray.core.utils import _validate_indexers
 
         indexers, grid_dims = _validate_indexers(
