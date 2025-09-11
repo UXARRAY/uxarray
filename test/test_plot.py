@@ -109,7 +109,7 @@ def test_to_raster(gridpath):
 
 
 
-def test_to_raster_reuse_mapping(tmpdir):
+def test_to_raster_reuse_mapping(gridpath, tmpdir):
 
     fig, ax = plt.subplots(
         subplot_kw={'projection': ccrs.Robinson()},
@@ -117,7 +117,8 @@ def test_to_raster_reuse_mapping(tmpdir):
         figsize=(10, 5),
     )
 
-    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+    mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
 
     # Returning
     raster1, pixel_mapping = uxds['bottomDepth'].to_raster(
@@ -181,7 +182,7 @@ def test_to_raster_reuse_mapping(tmpdir):
         (1, 2),
     ],
 )
-def test_to_raster_pixel_ratio(r1, r2):
+def test_to_raster_pixel_ratio(gridpath, r1, r2):
     assert r2 > r1
 
     _, ax = plt.subplots(
@@ -189,7 +190,8 @@ def test_to_raster_pixel_ratio(r1, r2):
         constrained_layout=True,
     )
 
-    uxds = ux.open_dataset(gridfile_mpas, gridfile_mpas)
+    mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
 
     ax.set_extent((-20, 20, -10, 10), crs=ccrs.PlateCarree())
     raster1 = uxds['bottomDepth'].to_raster(ax=ax, pixel_ratio=r1)
