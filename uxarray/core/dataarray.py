@@ -396,6 +396,7 @@ class UxDataArray(xr.DataArray):
         if return_pixel_mapping:
             pixel_mapping_da = xr.DataArray(
                 pixel_mapping_np,
+                name="pixel_mapping",
                 dims=("n_pixel",),
                 attrs={
                     "long_name": "pixel_mapping",

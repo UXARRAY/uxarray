@@ -113,7 +113,7 @@ def test_to_raster():
     assert isinstance(raster, np.ndarray)
 
 
-def test_to_raster_reuse_mapping():
+def test_to_raster_reuse_mapping(tmpdir):
 
     fig, ax = plt.subplots(
         subplot_kw={'projection': ccrs.Robinson()},
@@ -157,6 +157,16 @@ def test_to_raster_reuse_mapping():
     np.testing.assert_array_equal(raster1, raster4)
     with pytest.raises(AssertionError):
         np.testing.assert_array_equal(raster1, raster4_bad)
+
+    # Recover attrs from disk
+    p = tmpdir / "pixel_mapping.nc"
+    pixel_mapping.to_netcdf(p)
+    with xr.open_dataarray(p) as da:
+        xr.testing.assert_identical(da, pixel_mapping)
+        for v1, v2 in zip(da.attrs.values(), pixel_mapping.attrs.values()):
+            assert type(v1) is type(v2)
+            if isinstance(v1, np.ndarray):
+                assert v1.dtype == v2.dtype
 
     # Modified pixel mapping raises error
     pixel_mapping.attrs["ax_shape"] = (2, 3)

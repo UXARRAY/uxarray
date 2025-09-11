@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
 
@@ -37,13 +37,20 @@ def _ensure_dimensions(data: UxDataArray) -> UxDataArray:
 
 class _RasterAxAttrs(NamedTuple):
     projection: str
+    """``str(ax.projection)`` (e.g. a PROJ string)."""
+
     xlim: tuple[float, float]
     ylim: tuple[float, float]
+
     shape: tuple[int, int]
+    """``(ny, nx)`` shape of the raster grid in pixels.
+    Computed using the ``ax`` bbox and ``pixel_ratio``.
+    """
+
     pixel_ratio: float = 1
 
     @classmethod
-    def from_ax(cls, ax: GeoAxes, *, pixel_ratio: float = 1):
+    def from_ax(cls, ax: GeoAxes, *, pixel_ratio: float = 1) -> _RasterAxAttrs:
         _, _, w, h = ax.bbox.bounds
         nx = int(w * pixel_ratio)
         ny = int(h * pixel_ratio)
@@ -55,26 +62,33 @@ class _RasterAxAttrs(NamedTuple):
             pixel_ratio=pixel_ratio,
         )
 
-    def to_xr_attrs(self):
+    def to_xr_attrs(self) -> dict[str, Any]:
+        """Convert instance to a DataArray attrs dict suitable for saving to nc."""
         return {
             "projection": self.projection,
             "ax_xlim": np.asarray(self.xlim),
             "ax_ylim": np.asarray(self.ylim),
             "ax_shape": np.asarray(self.shape),
-            "pixel_ratio": self.pixel_ratio,
+            "pixel_ratio": np.float64(self.pixel_ratio),
         }
 
     @classmethod
-    def from_xr_attrs(cls, attrs: dict):
+    def from_xr_attrs(cls, attrs: dict[str, Any]) -> _RasterAxAttrs:
+        """Create instance from the :meth:`to_xr_attrs` attrs dict."""
         return cls(
             projection=attrs["projection"],
             xlim=tuple(x.item() for x in np.asarray(attrs["ax_xlim"])),
             ylim=tuple(x.item() for x in np.asarray(attrs["ax_ylim"])),
             shape=tuple(x.item() for x in np.asarray(attrs["ax_shape"])),
-            pixel_ratio=attrs["pixel_ratio"],
+            pixel_ratio=np.float64(attrs["pixel_ratio"]).item(),
         )
 
-    def _value_comparison_message(self, other):
+    def _value_comparison_message(self, other: _RasterAxAttrs) -> str:
+        """Generate a human-readable message describing differences in field values.
+
+        For example: ``'shape (2, 3) != (400, 300). pixel_ratio 2.0 != 1.0.'``,
+        where the `other` value is on the LHS.
+        """
         parts = []
         for (k, v_self), (_, v_other) in zip(
             self._asdict().items(), other._asdict().items()
