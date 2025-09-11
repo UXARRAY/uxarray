@@ -5,8 +5,6 @@ import pytest
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 from uxarray.grid.arcs import point_within_gca
 
-# Data files - using centralized paths directly
-
 def test_pt_within_gcr():
     # The GCR that's exactly 180 degrees will raise a ValueError
     gcr_180degree_cart = np.asarray([

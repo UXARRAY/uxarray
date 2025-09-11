@@ -8,10 +8,6 @@ import uxarray as ux
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
-# Constants now come from fixtures
-
-
-
 def test_read_ugrid(gridpath, mesh_constants):
     """Reads a ugrid file."""
     uxgrid_ne30 = ux.open_grid(str(gridpath("ugrid", "outCSne30", "outCSne30.ug")))

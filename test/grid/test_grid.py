@@ -20,20 +20,6 @@ from uxarray.grid.arcs import extreme_gca_latitude
 
 from uxarray.grid.validation import _find_duplicate_nodes
 
-
-# quad_hex_grid_path is now available from centralized paths as QUAD_HEXAGON_GRID
-
-# These will be set in test methods that need them
-shp_filename = None
-grid_CSne30 = None
-
-
-
-# These will be set in test methods that need them
-grid_mpas = None
-grid_exodus = None
-grid_ugrid = None
-
 f0_deg = [[120, -20], [130, -10], [120, 0], [105, 0], [95, -10], [105, -20]]
 f1_deg = [[120, 0], [120, 10], [115, 0],
           [ux.INT_FILL_VALUE, ux.INT_FILL_VALUE],
@@ -306,8 +292,9 @@ def test_grid_properties(gridpath):
     assert n_faces == grid_geoflow.n_face
     assert n_face_nodes == grid_geoflow.n_max_face_nodes
 
-def test_read_shpfile():
+def test_read_shpfile(test_data_dir):
     """Reads a shape file and write ugrid file."""
+    shp_filename = test_data_dir / "shp" / "grid_fire.shp"
     with pytest.raises(ValueError):
         grid_shp = ux.open_grid(shp_filename)
 
