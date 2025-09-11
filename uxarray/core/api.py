@@ -26,7 +26,7 @@ def open_grid(
     ----------
     grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.dataset
         Strings and Path objects are interpreted as a path to a grid file. Xarray Datasets assume that
-        each member variable is in the UGRID conventions and will be used to create a ``ux.Grid``. Simiarly, a dictionary
+        each member variable is in the UGRID conventions and will be used to create a ``ux.Grid``. Similarly, a dictionary
         containing UGRID variables can be used to create a ``ux.Grid``
     chunks : int, dict, 'auto' or None, default: None
         If provided, used to load the grid into dask arrays.
@@ -129,7 +129,7 @@ def open_dataset(
     ----------
     grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.dataset
         Strings and Path objects are interpreted as a path to a grid file. Xarray Datasets assume that
-        each member variable is in the UGRID conventions and will be used to create a ``ux.Grid``. Simiarly, a dictionary
+        each member variable is in the UGRID conventions and will be used to create a ``ux.Grid``. Similarly, a dictionary
         containing UGRID variables can be used to create a ``ux.Grid``
     filename_or_obj : str | os.PathLike[Any]
         String or Path object as a path to a netCDF file or an OpenDAP URL that
@@ -205,7 +205,7 @@ def open_mfdataset(
     ----------
     grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.dataset
         Strings and Path objects are interpreted as a path to a grid file. Xarray Datasets assume that
-        each member variable is in the UGRID conventions and will be used to create a ``ux.Grid``. Simiarly, a dictionary
+        each member variable is in the UGRID conventions and will be used to create a ``ux.Grid``. Similarly, a dictionary
         containing UGRID variables can be used to create a ``ux.Grid``
     paths : string, required
         Either a string glob in the form ``"path/to/my/files/*.nc"`` or an explicit
