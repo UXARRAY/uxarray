@@ -30,6 +30,7 @@ def open_grid(
         containing UGRID variables can be used to create a ``ux.Grid``
     chunks : int, dict, 'auto' or None, default: None
         If provided, used to load the grid into dask arrays.
+
         - ``chunks="auto"`` will use dask ``auto`` chunking taking into account the
           engine preferred chunks.
         - ``chunks=None`` skips using dask, which is generally faster for
@@ -38,13 +39,13 @@ def open_grid(
         - ``chunks={}`` loads the data with dask using the engine's preferred chunk
           size, generally identical to the format's chunk size. If not available, a
           single chunk for all arrays.
+
         See dask chunking for more details.
-    use_dual:
+    use_dual : bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is MPAS
-    **kwargs : Dict[str, Any]
-        Additional arguments passed on to ``xarray.open_dataset``. Refer to the
-        [xarray
-        docs](https://xarray.pydata.org/en/stable/generated/xarray.open_dataset.html)
+    **kwargs
+        Additional arguments passed on to ``xarray.open_dataset``.
+        Refer to the :func:`xarray docs <xarray.open_dataset>`
         for accepted keyword arguments.
 
     Returns
@@ -126,7 +127,7 @@ def open_dataset(
 
     Parameters
     ----------
-    grid_filename_or_obj: str | os.PathLike[Any] | dict | xr.dataset
+    grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.dataset
         Strings and Path objects are interpreted as a path to a grid file. Xarray Datasets assume that
         each member variable is in the UGRID conventions and will be used to create a ``ux.Grid``. Simiarly, a dictionary
         containing UGRID variables can be used to create a ``ux.Grid``
@@ -136,6 +137,7 @@ def open_dataset(
         ``xarray.open_dataset``.
     chunks : int, dict, 'auto' or None, default: None
         If provided, used to load the grid into dask arrays.
+
         - ``chunks="auto"`` will use dask ``auto`` chunking taking into account the
           engine preferred chunks.
         - ``chunks=None`` skips using dask, which is generally faster for
@@ -144,16 +146,15 @@ def open_dataset(
         - ``chunks={}`` loads the data with dask using the engine's preferred chunk
           size, generally identical to the format's chunk size. If not available, a
           single chunk for all arrays.
-    chunk_grid: bool, default: True
+    chunk_grid : bool, default: True
         If valid chunks are passed in, determines whether to also apply the same chunks to the attached ``Grid``
-    use_dual: bool, optional
+    use_dual : bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is MPAS
     grid_kwargs : dict, optional
         Additional arguments passed on to ``ux.open_grid`` when opening up a Grid File.
-    **kwargs:
-        Additional arguments passed on to ``xarray.open_dataset``. Refer to the
-        [xarray
-        docs](https://xarray.pydata.org/en/stable/generated/xarray.open_dataset.html)
+    **kwargs
+        Additional arguments passed on to ``xarray.open_dataset``.
+        Refer to the :func:`xarray docs <xarray.open_dataset>`
         for accepted keyword arguments.
 
     Returns
@@ -207,10 +208,11 @@ def open_mfdataset(
         each member variable is in the UGRID conventions and will be used to create a ``ux.Grid``. Simiarly, a dictionary
         containing UGRID variables can be used to create a ``ux.Grid``
     paths : string, required
-        Either a string glob in the form "path/to/my/files/*.nc" or an explicit
+        Either a string glob in the form ``"path/to/my/files/*.nc"`` or an explicit
         list of files to open. It is the same ``paths`` in ``xarray.open_mfdataset``.
     chunks : int, dict, 'auto' or None, default: None
         If provided, used to load the grid into dask arrays.
+
         - ``chunks="auto"`` will use dask ``auto`` chunking taking into account the
           engine preferred chunks.
         - ``chunks=None`` skips using dask, which is generally faster for
@@ -219,16 +221,15 @@ def open_mfdataset(
         - ``chunks={}`` loads the data with dask using the engine's preferred chunk
           size, generally identical to the format's chunk size. If not available, a
           single chunk for all arrays.
-    chunk_grid: bool, default: True
+    chunk_grid : bool, default: True
         If valid chunks are passed in, determines whether to also apply the same chunks to the attached ``Grid``
-    use_dual: bool, optional
+    use_dual : bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is mpas
     grid_kwargs : dict, optional
         Additional arguments passed on to ``ux.open_grid`` when opening up a Grid File.
-    **kwargs : Dict[str, Any]
-        Additional arguments passed on to ``xarray.open_mfdataset``. Refer to the
-        [xarray
-        docs](https://xarray.pydata.org/en/stable/generated/xarray.open_mfdataset.html)
+    **kwargs
+        Additional arguments passed on to ``xarray.open_mfdataset``.
+        Refer to the :func:`xarray docs <xarray.open_mfdataset>`
         for accepted keyword arguments.
 
     Returns
