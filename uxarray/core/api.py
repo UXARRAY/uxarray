@@ -56,10 +56,13 @@ def open_grid(
     Examples
     --------
     >>> import uxarray as ux
+
     Open a grid from a file path
+
     >>> uxgrid = ux.open_grid("grid_filename.nc")
 
     Lazily load grid variables using Dask
+
     >>> uxgrid = ux.open_grid("grid_filename.nc", chunks=-1)
     """
     import xarray as xr
@@ -166,6 +169,7 @@ def open_dataset(
     Examples
     --------
     Open a dataset with a grid file and data file
+
     >>> import uxarray as ux
     >>> ux_ds = ux.open_dataset("grid_file.nc", "data_file.nc")
     """
