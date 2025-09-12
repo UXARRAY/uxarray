@@ -4,220 +4,210 @@ import numpy as np
 import xarray as xr
 
 
+@pytest.fixture()
+def ds():
+    """Basic dataset containing temporal and spatial variables on a HEALPix grid."""
+    uxgrid = ux.Grid.from_healpix(zoom=1)
+    t_var = ux.UxDataArray(data=np.ones((3,)), dims=['time'], uxgrid=uxgrid)
+    fc_var = ux.UxDataArray(data=np.ones((3, uxgrid.n_face)), dims=['time', 'n_face'], uxgrid=uxgrid)
+    nc_var = ux.UxDataArray(data=np.ones((3, uxgrid.n_node)), dims=['time', 'n_node'], uxgrid=uxgrid)
 
-@pytest.fixture
-def uxds_fixture(gridpath, datasetpath):
-    """Fixture to load test dataset."""
-    # Load the dataset
-    ds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
+    uxds = ux.UxDataset({"fc": fc_var, "nc": nc_var, "t": t_var}, uxgrid=uxgrid)
 
-    # Add a dummy coordinate
-    if 'n_face' in ds.dims:
-        n_face_size = ds.dims['n_face']
-        ds = ds.assign_coords(face_id=('n_face', np.arange(n_face_size)))
+    uxds["fc"] = uxds["fc"].assign_coords(face_id=("n_face", np.arange(uxgrid.n_face)))
+    uxds["nc"] = uxds["nc"].assign_coords(node_id=("n_node", np.arange(uxgrid.n_node)))
+    uxds["t"] = uxds["t"].assign_coords(time_id=("time", np.arange(uxds.dims["time"])))
 
-    return ds
+    return uxds
 
-def test_isel(uxds_fixture):
-    """Test that isel method preserves UxDataset type."""
-    result = uxds_fixture.isel(n_face=[1, 2])
-    assert isinstance(result, ux.UxDataset)
-    assert hasattr(result, 'uxgrid')
 
-def test_where(uxds_fixture):
-    """Test that where method preserves UxDataset type."""
-    result = uxds_fixture.where(uxds_fixture['t2m'] > uxds_fixture['t2m'].min())
-    assert isinstance(result, ux.UxDataset)
-    assert hasattr(result, 'uxgrid')
+class TestInheritedMethods:
 
-def test_assign(uxds_fixture):
-    """Test that assign method preserves UxDataset type."""
-    # Create a new variable based on t2m
-    new_var = xr.DataArray(
-        np.ones_like(uxds_fixture['t2m']),
-        dims=uxds_fixture['t2m'].dims
-    )
-    result = uxds_fixture.assign(new_var=new_var)
-    assert isinstance(result, ux.UxDataset)
-    assert hasattr(result, 'uxgrid')
-    assert result.uxgrid is uxds_fixture.uxgrid
-    assert 'new_var' in result.data_vars
-
-def test_drop_vars(uxds_fixture):
-    """Test that drop_vars method preserves UxDataset type."""
-    # Create a copy with a new variable so we can drop it
-    ds_copy = uxds_fixture.copy(deep=True)
-    ds_copy['t2m_copy'] = ds_copy['t2m'].copy()
-    result = ds_copy.drop_vars('t2m_copy')
-    assert isinstance(result, ux.UxDataset)
-    assert hasattr(result, 'uxgrid')
-    assert result.uxgrid is ds_copy.uxgrid
-    assert 't2m_copy' not in result.data_vars
-
-def test_transpose(uxds_fixture):
-    """Test that transpose method preserves UxDataset type."""
-    # Get all dimensions
-    dims = list(uxds_fixture.dims)
-    if len(dims) > 1:
-        # Reverse dimensions for transpose
-        reversed_dims = dims.copy()
-        reversed_dims.reverse()
-        result = uxds_fixture.transpose(*reversed_dims)
+    def test_where(self, ds):
+        cond = (ds['face_id'] % 2) == 0
+        result = ds.where(cond)
         assert isinstance(result, ux.UxDataset)
-        assert hasattr(result, 'uxgrid')
-        assert result.uxgrid is uxds_fixture.uxgrid
+        assert hasattr(result, 'uxgrid') and result.uxgrid is ds.uxgrid
+        # odd faces should be NaN after masking
+        assert np.isnan(result['fc'].isel(n_face=1)).all()
 
-def test_fillna(uxds_fixture):
-    """Test that fillna method preserves UxDataset type."""
-    # Create a copy with some NaN values in t2m
-    ds_with_nans = uxds_fixture.copy(deep=True)
-    t2m_data = ds_with_nans['t2m'].values
-    if t2m_data.size > 0:
-        t2m_data.ravel()[0:2] = np.nan
-        result = ds_with_nans.fillna(0)
-        assert isinstance(result, ux.UxDataset)
-        assert hasattr(result, 'uxgrid')
-        # Verify NaNs were filled
-        assert not np.isnan(result['t2m'].values).any()
 
-def test_rename(uxds_fixture):
-    """Test that rename method preserves UxDataset type."""
-    result = uxds_fixture.rename({'t2m': 't2m_renamed'})
-    assert isinstance(result, ux.UxDataset)
-    assert hasattr(result, 'uxgrid')
-    assert result.uxgrid is uxds_fixture.uxgrid
-    assert 't2m_renamed' in result.data_vars
-    assert 't2m' not in result.data_vars
+    def test_assignment(self, ds):
+        out = ds.assign(fc_doubled=ds['fc'] * 2)
+        assert isinstance(out, ux.UxDataset)
+        assert hasattr(out, 'uxgrid') and out.uxgrid is ds.uxgrid
+        assert 'fc_doubled' in out
 
-def test_to_array(uxds_fixture):
-    """Test that to_array method preserves UxDataArray type for its result."""
-    # Create a dataset with multiple variables to test to_array
-    ds_multi = uxds_fixture.copy(deep=True)
-    ds_multi['t2m_celsius'] = ds_multi['t2m']
-    ds_multi['t2m_kelvin'] = ds_multi['t2m'] + 273.15
+    def test_drop_vars(self, ds):
+        ds_copy = ds.copy(deep=True)
+        ds_copy['fc_copy'] = ds_copy['fc'].copy()
+        out = ds_copy.drop_vars('fc_copy')
+        assert isinstance(out, ux.UxDataset)
+        assert hasattr(out, 'uxgrid') and out.uxgrid is ds_copy.uxgrid
+        assert 'fc_copy' not in out
 
-    result = ds_multi.to_array()
-    assert isinstance(result, ux.UxDataArray)
-    assert hasattr(result, 'uxgrid')
-    assert result.uxgrid == uxds_fixture.uxgrid
+    def test_transpose(self, ds):
+        dims = list(ds.dims)
+        dims_rev = list(reversed(dims))
+        out = ds.transpose(*dims_rev)
+        assert isinstance(out, ux.UxDataset)
+        assert hasattr(out, 'uxgrid') and out.uxgrid is ds.uxgrid
 
-def test_arithmetic_operations(uxds_fixture):
-    """Test arithmetic operations preserve UxDataset type."""
-    # Test addition
-    result = uxds_fixture['t2m'] + 1
-    assert isinstance(result, ux.UxDataArray)
-    assert hasattr(result, 'uxgrid')
 
-    # Test dataset-level operations
-    result = uxds_fixture * 2
-    assert isinstance(result, ux.UxDataset)
-    assert hasattr(result, 'uxgrid')
+    def test_fillna(self, ds):
+        ds_nan = ds.copy(deep=True)
+        ds_nan['t'].values[0] = np.nan
+        ds_nan['fc'].values[0, 0] = np.nan
+        out = ds_nan.fillna(0)
+        assert isinstance(out, ux.UxDataset)
+        assert hasattr(out, 'uxgrid') and out.uxgrid is ds_nan.uxgrid
+        assert not np.isnan(out['t'].values).any()
+        assert not np.isnan(out['fc'].values).any()
 
-    # Test more complex operations
-    result = uxds_fixture.copy(deep=True)
-    result['t2m_squared'] = uxds_fixture['t2m'] ** 2
-    assert isinstance(result, ux.UxDataset)
-    assert hasattr(result, 'uxgrid')
-    assert 't2m_squared' in result.data_vars
+    def test_rename(self, ds):
+        out = ds.rename({'t': 't_renamed'})
+        assert isinstance(out, ux.UxDataset)
+        assert hasattr(out, 'uxgrid') and out.uxgrid is ds.uxgrid
+        assert 't_renamed' in out and 't' not in out
 
-def test_reduction_methods(uxds_fixture):
-    """Test reduction methods preserve UxDataset type when dimensions remain."""
-    if len(uxds_fixture.dims) > 1:
-        # Get a dimension to reduce over
-        dim_to_reduce = list(uxds_fixture.dims)[0]
+    def test_to_array(self, ds):
+        arr = ds.to_array()
+        assert isinstance(arr, ux.UxDataArray)
+        assert hasattr(arr, 'uxgrid') and arr.uxgrid is ds.uxgrid
+        # variables dimension should include our three variables
+        for v in ['fc', 'nc', 't']:
+            assert v in arr['variable'].values
 
-        # Test mean
-        result = uxds_fixture.mean(dim=dim_to_reduce)
-        assert isinstance(result, ux.UxDataset)
-        assert hasattr(result, 'uxgrid')
+    def test_arithmetic_operations(self, ds):
+        da = ds['fc'] + 1
+        assert isinstance(da, ux.UxDataArray)
+        assert hasattr(da, 'uxgrid')
 
-        # Test sum on specific variable
-        result = uxds_fixture['t2m'].sum(dim=dim_to_reduce)
-        assert isinstance(result, ux.UxDataArray)
-        assert hasattr(result, 'uxgrid')
+        out = ds * 2
+        assert isinstance(out, ux.UxDataset)
+        assert hasattr(out, 'uxgrid')
 
-def test_groupby(uxds_fixture):
-    """Test that groupby operations preserve UxDataset type."""
-    # Use face_id coordinate for grouping
-    if 'face_id' in uxds_fixture.coords:
-        # Create a discrete grouping variable
-        grouper = uxds_fixture['face_id'] % 2  # Group by even/odd
-        uxds_fixture = uxds_fixture.assign_coords(parity=grouper)
-        groups = uxds_fixture.groupby('parity')
-        result = groups.mean()
-        assert isinstance(result, ux.UxDataset)
-        assert hasattr(result, 'uxgrid')
+        out2 = ds.copy(deep=True)
+        out2['fc_squared'] = ds['fc'] ** 2
+        assert isinstance(out2, ux.UxDataset)
+        assert hasattr(out2, 'uxgrid')
+        assert 'fc_squared' in out2
 
-def test_assign_coords(uxds_fixture):
-    """Test that assign_coords preserves UxDataset type."""
-    if 'n_face' in uxds_fixture.dims:
-        dim = 'n_face'
-        size = uxds_fixture.dims[dim]
-        # Create a coordinate that's different from face_id
-        new_coord = xr.DataArray(np.arange(size) * 10, dims=[dim])
-        result = uxds_fixture.assign_coords(scaled_id=new_coord)
-        assert isinstance(result, ux.UxDataset)
-        assert hasattr(result, 'uxgrid')
-        assert 'scaled_id' in result.coords
+    def test_reduction_methods(self, ds):
+        # Reduce over time -> keep spatial dims; result should stay a Dataset
+        reduced = ds.mean(dim='time')
+        assert isinstance(reduced, ux.UxDataset)
+        assert hasattr(reduced, 'uxgrid')
 
-def test_expand_dims(uxds_fixture):
-    """Test that expand_dims preserves UxDataset type."""
-    result = uxds_fixture.expand_dims(dim='time')
-    assert isinstance(result, ux.UxDataset)
-    assert hasattr(result, 'uxgrid')
-    assert 'time' in result.dims
-    assert result.dims['time'] == 1
+        da_sum = ds['fc'].sum(dim='n_face')
+        assert isinstance(da_sum, ux.UxDataArray)
+        assert hasattr(da_sum, 'uxgrid')
 
-    # Verify data variable shape was updated correctly
-    assert result['t2m'].shape[0] == 1
+    def test_groupby(self, ds):
+        grouped = ds['fc'].groupby('face_id').mean()
+        assert isinstance(grouped, ux.UxDataArray)
+        assert hasattr(grouped, 'uxgrid')
 
-def test_method_chaining(uxds_fixture):
-    """Test that methods can be chained while preserving UxDataset type."""
-    # Chain multiple operations
-    result = (uxds_fixture
-              .assign(t2m_kelvin=uxds_fixture['t2m'] + 273.15)
-              .rename({'t2m': 't2m_celsius'})
-              .fillna(0))
-    assert isinstance(result, ux.UxDataset)
-    assert hasattr(result, 'uxgrid')
-    assert 't2m_celsius' in result.data_vars
-    assert 't2m_kelvin' in result.data_vars
+    def test_assign_coords(self, ds):
+        n = ds.dims['n_face']
+        new_coord = xr.DataArray(np.arange(n) * 10, dims=['n_face'])
+        out = ds.assign_coords(scaled_id=new_coord)
+        assert isinstance(out, ux.UxDataset)
+        assert hasattr(out, 'uxgrid') and out.uxgrid is ds.uxgrid
+        assert 'scaled_id' in out.coords
+        assert np.array_equal(out['scaled_id'].values, np.arange(n) * 10)
 
-def test_stack_unstack(uxds_fixture):
-    """Test that stack and unstack preserve UxDataset type."""
-    if len(uxds_fixture.dims) >= 2:
-        # Get two dimensions to stack
-        dims = list(uxds_fixture.dims)[:2]
-        # Stack the dimensions
-        stacked_name = f"{dims[0]}_{dims[1]}"
-        stacked = uxds_fixture.stack({stacked_name: dims})
+    def test_expand_dims(self, ds):
+        out = ds.expand_dims({'member': 1})
+        assert isinstance(out, ux.UxDataset)
+        assert hasattr(out, 'uxgrid') and out.uxgrid is ds.uxgrid
+        assert 'member' in out.dims and out.dims['member'] == 1
+        assert 'member' in out['t'].dims and out['t'].sizes['member'] == 1
+
+    def test_method_chaining(self, ds):
+        out = (
+            ds.assign(t_kelvin=ds['t'] + 273.15)
+              .rename({'t': 't_celsius'})
+              .fillna(0)
+        )
+        assert isinstance(out, ux.UxDataset)
+        assert hasattr(out, 'uxgrid') and out.uxgrid is ds.uxgrid
+        assert 't_celsius' in out and 't_kelvin' in out
+
+    def test_stack_unstack(self, ds):
+        # stack only over a subset with compatible dims
+        ds_fc = ds[['fc']]
+        stacked = ds_fc.stack(tf=('time', 'n_face'))
         assert isinstance(stacked, ux.UxDataset)
         assert hasattr(stacked, 'uxgrid')
 
-        # Unstack them
-        unstacked = stacked.unstack(stacked_name)
+        unstacked = stacked.unstack('tf')
         assert isinstance(unstacked, ux.UxDataset)
         assert hasattr(unstacked, 'uxgrid')
+        assert unstacked['fc'].shape == ds_fc['fc'].shape
 
-def test_sortby(uxds_fixture):
-    """Test that sortby preserves UxDataset type."""
-    if 'face_id' in uxds_fixture.coords:
-        # Create a reverse sorted coordinate
-        size = len(uxds_fixture.face_id)
-        uxds_fixture = uxds_fixture.assign_coords(reverse_id=('n_face', np.arange(size)[::-1]))
+    def test_sortby(self, ds):
+        n = ds.dims['n_face']
+        ds_fc = ds[['fc']].assign_coords(reverse_id=('n_face', np.arange(n)[::-1]))
+        out = ds_fc.sortby('reverse_id')
+        assert isinstance(out, ux.UxDataset)
+        assert hasattr(out, 'uxgrid')
+        assert np.array_equal(out['face_id'].values, ds_fc['face_id'].values[::-1])
 
-        # Sort by this new coordinate
-        result = uxds_fixture.sortby('reverse_id')
-        assert isinstance(result, ux.UxDataset)
-        assert hasattr(result, 'uxgrid')
-        # Verify sorting changed the order
-        assert np.array_equal(result.face_id.values, np.sort(uxds_fixture.face_id.values)[::-1])
+    def test_shift(self, ds):
+        ds_fc = ds[['fc']]
+        out = ds_fc.shift(n_face=1)
+        assert isinstance(out, ux.UxDataset)
+        assert hasattr(out, 'uxgrid')
+        assert np.isnan(out['fc'].isel(n_face=0).values).all()
 
-def test_shift(uxds_fixture):
-    """Test that shift preserves UxDataset type."""
-    if 'n_face' in uxds_fixture.dims:
-        result = uxds_fixture.shift(n_face=1)
-        assert isinstance(result, ux.UxDataset)
-        assert hasattr(result, 'uxgrid')
-        # Verify data has shifted (first element now NaN)
-        assert np.isnan(result['t2m'].isel(n_face=0).values.item())
+
+class TestDatasetSelection:
+
+    def test_isel_face_dim(self, ds):
+        ds_f_single = ds.isel(n_face=0)
+
+        assert len(ds_f_single.coords) == 3
+
+        assert ds_f_single.uxgrid != ds.uxgrid
+        assert ds_f_single.sizes['n_face'] == 1
+        assert ds_f_single.sizes['n_node'] >= 4
+
+        ds_f_multi = ds.isel(n_face=[0, 1])
+
+        assert len(ds_f_multi.coords) == 3
+
+        assert ds_f_multi.uxgrid != ds.uxgrid
+        assert ds_f_multi.sizes['n_face'] == 2
+        assert ds_f_multi.sizes['n_node'] >= 4
+
+
+    def test_isel_node_dim(self, ds):
+        ds_n_single = ds.isel(n_node=0)
+
+        assert len(ds_n_single.coords) == 3
+
+        assert ds_n_single.uxgrid != ds.uxgrid
+        assert ds_n_single.sizes['n_face'] >= 1
+
+        ds_n_multi = ds.isel(n_node=[0, 1])
+
+        assert len(ds_n_multi.coords) == 3
+
+        assert ds_n_multi.uxgrid != ds.uxgrid
+        assert ds_n_multi.uxgrid.sizes['n_face'] >= 1
+
+    def test_isel_non_grid_dim(self, ds):
+        ds_t_single = ds.isel(time=0)
+
+        assert len(ds_t_single.coords) == 3
+
+        assert ds_t_single.uxgrid == ds.uxgrid
+        assert "time" not in ds_t_single.sizes
+
+        ds_t_multi = ds.isel(time=[0, 1])
+
+        assert len(ds_t_multi.coords) == 3
+
+        assert ds_t_multi.uxgrid == ds.uxgrid
+        assert ds_t_multi.sizes['time'] == 2

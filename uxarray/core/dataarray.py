@@ -1258,7 +1258,7 @@ class UxDataArray(xr.DataArray):
         **indexers_kwargs,
     ):
         """
-        Grid-aware index selection.
+        Return a new DataArray whose data is given by selecting indexes along the specified dimension(s).
 
         Performs xarray-style integer-location indexing along specified dimensions.
         If a single grid dimension ('n_node', 'n_edge', or 'n_face') is provided
@@ -1294,61 +1294,50 @@ class UxDataArray(xr.DataArray):
 
         Raises
         ------
-        TypeError
-            If `indexers` is provided and is not a Mapping.
         ValueError
             If more than one grid dimension is selected and `ignore_grid=False`.
         """
-        from uxarray.constants import GRID_DIMS
-        from uxarray.core.dataarray import UxDataArray
+        from uxarray.core.utils import _validate_indexers
 
-        # merge dict‐style + kw‐style indexers
-        idx_map = {}
-        if indexers is not None:
-            if not isinstance(indexers, dict):
-                raise TypeError("`indexers` must be a dict of dimension indexers")
-            idx_map.update(indexers)
-        idx_map.update(indexers_kwargs)
-
-        # detect grid dims
-        grid_dims = [
-            d
-            for d in GRID_DIMS
-            if d in idx_map
-            and not (isinstance(idx_map[d], slice) and idx_map[d] == slice(None))
-        ]
+        indexers, grid_dims = _validate_indexers(
+            indexers, indexers_kwargs, "isel", ignore_grid
+        )
 
         # Grid Branch
-        if not ignore_grid and len(grid_dims) == 1:
-            # pop off the one grid‐dim indexer
-            grid_dim = grid_dims[0]
-            grid_indexer = idx_map.pop(grid_dim)
+        if not ignore_grid:
+            if len(grid_dims) == 1:
+                # pop off the one grid‐dim indexer
+                grid_dim = grid_dims.pop()
+                grid_indexer = indexers.pop(grid_dim)
 
-            # slice the grid
-            sliced_grid = self.uxgrid.isel(
-                **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
-            )
-
-            da = self._slice_from_grid(sliced_grid)
-
-            # if there are any remaining indexers, apply them
-            if idx_map:
-                xarr = super(UxDataArray, da).isel(
-                    indexers=idx_map, drop=drop, missing_dims=missing_dims
+                sliced_grid = self.uxgrid.isel(
+                    **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
                 )
-                # re‐wrap so the grid sticks around
-                return UxDataArray(xarr, uxgrid=sliced_grid)
 
-            # no other dims, return the grid‐sliced da
-            return da
+                da = self._slice_from_grid(sliced_grid)
 
-        # More than one grid dim provided
-        if not ignore_grid and len(grid_dims) > 1:
-            raise ValueError("Only one grid dimension can be sliced at a time")
+                # if there are any remaining indexers, apply them
+                if indexers:
+                    xarr = super(UxDataArray, da).isel(
+                        indexers=indexers, drop=drop, missing_dims=missing_dims
+                    )
+                    # re‐wrap so the grid sticks around
+                    return type(self)(xarr, uxgrid=sliced_grid)
 
-        # Fallback to Xarray
+                # no other dims, return the grid‐sliced da
+                return da
+            else:
+                return type(self)(
+                    super().isel(
+                        indexers=indexers or None,
+                        drop=drop,
+                        missing_dims=missing_dims,
+                    ),
+                    uxgrid=self.uxgrid,
+                )
+
         return super().isel(
-            indexers=idx_map or None,
+            indexers=indexers or None,
             drop=drop,
             missing_dims=missing_dims,
         )
