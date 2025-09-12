@@ -3,10 +3,8 @@ import uxarray as ux
 import numpy as np
 
 
-
 def test_gaussian(gridpath, datasetpath):
-
-    uxds =  ux.open_dataset(
+    uxds = ux.open_dataset(
         gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
         datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
     )
