@@ -456,7 +456,7 @@ on each face.
 Azimuthal
 ~~~~~~~~~
 
-Topological aggregations apply an aggregation (i.e. averaging) along circles of constant great-circle distance from a point.
+Azimuthal aggregations apply an aggregation (i.e. averaging) along circles of constant great-circle distance from a specified point on the sphere.
 
 Zonal Average
 ~~~~~~~~~~~~~
