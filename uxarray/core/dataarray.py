@@ -17,7 +17,7 @@ from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.gradient import (
     _calculate_edge_face_difference,
     _calculate_edge_node_difference,
-    _calculate_grad_on_edge_from_faces,
+    _compute_gradient,
 )
 from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.core.zonal import _compute_non_conservative_zonal_mean
@@ -32,8 +32,6 @@ from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
 
 if TYPE_CHECKING:
-    import numpy as np
-
     from uxarray.core.dataset import UxDataset
 
 
@@ -59,6 +57,22 @@ class UxDataArray(xr.DataArray):
     -----
     See `xarray.DataArray <https://docs.xarray.dev/en/stable/generated/xarray.DataArray.html>`__
     for further information about DataArrays.
+
+    Grid-Aware Accessor Methods
+    ---------------------------
+    The following methods return specialized accessors that preserve grid information:
+
+    - ``groupby``: Groups data by dimension/coordinate
+    - ``groupby_bins``: Groups data by bins
+    - ``resample``: Resamples timeseries data
+    - ``rolling``: Rolling window operations
+    - ``coarsen``: Coarsens data by integer factors
+    - ``weighted``: Weighted operations
+    - ``rolling_exp``: Exponentially weighted rolling (requires numbagg)
+    - ``cumulative``: Cumulative operations
+
+    All these methods work identically to xarray but maintain the uxgrid attribute
+    throughout operations.
     """
 
     # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
@@ -282,36 +296,62 @@ class UxDataArray(xr.DataArray):
 
         return poly_collection
 
-    def to_raster(self, ax: GeoAxes):
+    def to_raster(
+        self,
+        ax: GeoAxes,
+        *,
+        pixel_ratio: float | None = None,
+        pixel_mapping: xr.DataArray | np.ndarray | None = None,
+        return_pixel_mapping: bool = False,
+    ):
         """
         Rasterizes a data variable stored on the faces of an unstructured grid onto the pixels of the provided Cartopy GeoAxes.
 
         Parameters
         ----------
         ax : GeoAxes
-            A Cartopy GeoAxes onto which the data will be rasterized. Each pixel in this axes will be sampled
-            against the unstructured grid’s face geometry.
+            A Cartopy :class:`~cartopy.mpl.geoaxes.GeoAxes` onto which the data will be rasterized.
+            Each pixel in this axes will be sampled against the unstructured grid's face geometry.
+        pixel_ratio : float, default=1.0
+            A scaling factor to adjust the resolution of the rasterization.
+            A value greater than 1 increases the resolution (sharpens the image),
+            while a value less than 1 will result in a coarser rasterization.
+            The resolution also depends on what the figure's DPI setting is
+            prior to calling :meth:`to_raster`.
+            You can control DPI with the ``dpi`` keyword argument when creating the figure,
+            or by using :meth:`~matplotlib.figure.Figure.set_dpi` after creation.
+        pixel_mapping : xr.DataArray or array-like, optional
+            Precomputed mapping from pixels within the Cartopy GeoAxes boundary
+            to grid face indices (1-dimensional).
+        return_pixel_mapping : bool, default=False
+            If ``True``, the pixel mapping will be returned in addition to the raster,
+            and then you can pass it via the `pixel_mapping` parameter for future rasterizations
+            using the same or equivalent :attr:`uxgrid` and `ax`.
+            Note that this is also specific to the pixel ratio setting.
 
         Returns
         -------
         raster : numpy.ndarray, shape (ny, nx)
             Array of resampled data values corresponding to each pixel.
-
+        pixel_mapping : xr.DataArray, shape (n,)
+            If ``return_pixel_mapping=True``, the computed pixel mapping is returned
+            so that you can reuse it.
+            Axes and pixel ratio info are included as attributes.
 
         Notes
         -----
         - This method currently employs a nearest-neighbor resampling approach. For every pixel in the GeoAxes,
-          it finds the face of the unstructured grid that contains the pixel’s geographic coordinate and colors
-          that pixel with the face’s data value.
-        - If a pixel does not intersect any face (i.e., lies outside the grid domain), it will be left empty (transparent).
+          it finds the face of the unstructured grid that contains the pixel's geographic coordinate and colors
+          that pixel with the face's data value.
+        - If a pixel does not intersect any face (i.e., lies outside the grid domain),
+          it will be left empty (transparent).
 
-
-        Example
-        -------
+        Examples
+        --------
         >>> import cartopy.crs as ccrs
         >>> import matplotlib.pyplot as plt
 
-        Create a GeoAxes with a Robinson projection and global extent
+        Create a :class:`~cartopy.mpl.geoaxes.GeoAxes` with a Robinson projection and global extent
 
         >>> fig, ax = plt.subplots(subplot_kw={"projection": ccrs.Robinson()})
         >>> ax.set_global()
@@ -320,23 +360,70 @@ class UxDataArray(xr.DataArray):
 
         >>> raster = uxds["psi"].to_raster(ax=ax)
 
-        Use Imshow to visualuze the raster
+        Use :meth:`~cartopy.mpl.geoaxes.GeoAxes.imshow` to visualize the raster
 
         >>> ax.imshow(raster, origin="lower", extent=ax.get_xlim() + ax.get_ylim())
 
-
         """
+        from uxarray.constants import INT_DTYPE
         from uxarray.plot.matplotlib import (
             _ensure_dimensions,
             _nearest_neighbor_resample,
+            _RasterAxAttrs,
         )
 
         _ensure_dimensions(self)
 
         if not isinstance(ax, GeoAxes):
-            raise ValueError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
+            raise TypeError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
 
-        return _nearest_neighbor_resample(self, ax)
+        pixel_ratio_set = pixel_ratio is not None
+        if not pixel_ratio_set:
+            pixel_ratio = 1.0
+        input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
+        if pixel_mapping is not None:
+            if isinstance(pixel_mapping, xr.DataArray):
+                pixel_ratio_input = pixel_ratio
+                pixel_ratio = pixel_mapping.attrs["pixel_ratio"]
+                if pixel_ratio_set and pixel_ratio_input != pixel_ratio:
+                    warn(
+                        "Pixel ratio mismatch: "
+                        f"{pixel_ratio_input} passed but {pixel_ratio} in pixel_mapping. "
+                        "Using the pixel_mapping attribute.",
+                        stacklevel=2,
+                    )
+                input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
+                pm_ax_attrs = _RasterAxAttrs.from_xr_attrs(pixel_mapping.attrs)
+                if input_ax_attrs != pm_ax_attrs:
+                    raise ValueError(
+                        "Pixel mapping incompatible with ax. "
+                        + input_ax_attrs._value_comparison_message(pm_ax_attrs)
+                    )
+            pixel_mapping = np.asarray(pixel_mapping, dtype=INT_DTYPE)
+
+        raster, pixel_mapping_np = _nearest_neighbor_resample(
+            self,
+            ax,
+            pixel_ratio=pixel_ratio,
+            pixel_mapping=pixel_mapping,
+        )
+        if return_pixel_mapping:
+            pixel_mapping_da = xr.DataArray(
+                pixel_mapping_np,
+                name="pixel_mapping",
+                dims=("n_pixel",),
+                attrs={
+                    "long_name": "pixel_mapping",
+                    "description": (
+                        "Mapping from raster pixels within a Cartopy GeoAxes "
+                        "to nearest grid face index."
+                    ),
+                    **input_ax_attrs.to_xr_attrs(),
+                },
+            )
+            return raster, pixel_mapping_da
+        else:
+            return raster
 
     def to_dataset(
         self,
@@ -606,8 +693,10 @@ class UxDataArray(xr.DataArray):
         weights : np.ndarray or None, optional
             The weights to use for the weighted mean calculation. If `None`, the function will
             determine weights based on the variable's association:
-                - For face-centered variables: uses `self.uxgrid.face_areas.data`
-                - For edge-centered variables: uses `self.uxgrid.edge_node_distances.data`
+
+            - For face-centered variables: uses `self.uxgrid.face_areas.data`
+            - For edge-centered variables: uses `self.uxgrid.edge_node_distances.data`
+
             If the variable is neither face-centered nor edge-centered, a warning is raised, and
             an unweighted mean is computed instead. User-defined weights should match the shape
             of the data variable's last dimension.
@@ -1107,67 +1196,48 @@ class UxDataArray(xr.DataArray):
         """
         return _uxda_grid_aggregate(self, destination, "any", **kwargs)
 
-    def gradient(
-        self, normalize: Optional[bool] = False, use_magnitude: Optional[bool] = True
-    ):
-        """Computes the horizontal gradient of a data variable.
+    def gradient(self, **kwargs) -> UxDataset:
+        """
+        Computes the gradient of a data variable.
 
-        Currently only supports gradients of face-centered data variables, with the resulting gradient being stored
-        on each edge. The gradient of a node-centered data variable can be approximated by computing the nodal average
-        and then computing the gradient.
+        Returns
+        -------
+        gradient: UxDataset
+            Dataset containing the zonal and merdional components of the gradient.
 
-        The aboslute value of the gradient is used, since UXarray does not yet support representing the direction
-        of the gradient.
-
-        The expression for calculating the gradient on each edge comes from Eq. 22 in Ringler et al. (2010), J. Comput. Phys.
-
-        Code is adapted from https://github.com/theweathermanda/MPAS_utilities/blob/main/mpas_calc_operators.py
-
-
-        Parameters
-        ----------
-        use_magnitude : bool, default=True
-            Whether to use the magnitude (aboslute value) of the resulting gradient
-        normalize: bool, default=None
-            Whether to normalize (l2) the resulting gradient
+        Notes
+        -----
+        The Green-Gauss theorm is utilized, where a closed control volume around each cell
+        is formed connecting centroids of the neighboring cells. The surface integral is
+        approximated using the trapezoidal rule. The sum of the contributions is then
+        normalized by the cell volume.
 
         Example
         -------
         >>> uxds["var"].gradient()
-        >>> uxds["var"].topological_mean(destination="face").gradient()
         """
+        from uxarray import UxDataset
 
-        if not self._face_centered():
-            raise ValueError(
-                "Gradient computations are currently only supported for face-centered data variables. For node-centered"
-                "data, consider performing a nodal average or remapping to faces."
+        if "use_magnitude" in kwargs or "normalize" in kwargs:
+            # Deprecation warning for old gradient implementation
+            warn(
+                "The `use_magnitude` and `normalize` parameters are deprecated. ",
+                DeprecationWarning,
             )
 
-        if use_magnitude is False:
-            warnings.warn(
-                "Gradients can only be represented in terms of their aboslute value, since UXarray does not "
-                "currently store any information for representing the sign."
-            )
+        # Compute the zonal and meridional gradient components of the stored data variable
+        grad_zonal_da, grad_meridional_da = _compute_gradient(self)
 
-        _grad = _calculate_grad_on_edge_from_faces(
-            d_var=self.values,
-            edge_faces=self.uxgrid.edge_face_connectivity.values,
-            edge_face_distances=self.uxgrid.edge_face_distances.values,
-            n_edge=self.uxgrid.n_edge,
-            normalize=normalize,
-        )
-
-        dims = list(self.dims)
-        dims[-1] = "n_edge"
-
-        uxda = UxDataArray(
-            _grad,
+        # Create a dataset containing both gradient components
+        return UxDataset(
+            {
+                "zonal_gradient": grad_zonal_da,
+                "meridional_gradient": grad_meridional_da,
+            },
             uxgrid=self.uxgrid,
-            dims=dims,
-            name=self.name + "_grad" if self.name is not None else "grad",
+            attrs={"gradient": True},
+            coords=self.coords,
         )
-
-        return uxda
 
     def difference(self, destination: Optional[str] = "edge"):
         """Computes the absolute difference of a data variable.
@@ -1280,7 +1350,7 @@ class UxDataArray(xr.DataArray):
         **indexers_kwargs,
     ):
         """
-        Grid-aware index selection.
+        Return a new DataArray whose data is given by selecting indexes along the specified dimension(s).
 
         Performs xarray-style integer-location indexing along specified dimensions.
         If a single grid dimension ('n_node', 'n_edge', or 'n_face') is provided
@@ -1316,61 +1386,50 @@ class UxDataArray(xr.DataArray):
 
         Raises
         ------
-        TypeError
-            If `indexers` is provided and is not a Mapping.
         ValueError
             If more than one grid dimension is selected and `ignore_grid=False`.
         """
-        from uxarray.constants import GRID_DIMS
-        from uxarray.core.dataarray import UxDataArray
+        from uxarray.core.utils import _validate_indexers
 
-        # merge dict‐style + kw‐style indexers
-        idx_map = {}
-        if indexers is not None:
-            if not isinstance(indexers, dict):
-                raise TypeError("`indexers` must be a dict of dimension indexers")
-            idx_map.update(indexers)
-        idx_map.update(indexers_kwargs)
-
-        # detect grid dims
-        grid_dims = [
-            d
-            for d in GRID_DIMS
-            if d in idx_map
-            and not (isinstance(idx_map[d], slice) and idx_map[d] == slice(None))
-        ]
+        indexers, grid_dims = _validate_indexers(
+            indexers, indexers_kwargs, "isel", ignore_grid
+        )
 
         # Grid Branch
-        if not ignore_grid and len(grid_dims) == 1:
-            # pop off the one grid‐dim indexer
-            grid_dim = grid_dims[0]
-            grid_indexer = idx_map.pop(grid_dim)
+        if not ignore_grid:
+            if len(grid_dims) == 1:
+                # pop off the one grid‐dim indexer
+                grid_dim = grid_dims.pop()
+                grid_indexer = indexers.pop(grid_dim)
 
-            # slice the grid
-            sliced_grid = self.uxgrid.isel(
-                **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
-            )
-
-            da = self._slice_from_grid(sliced_grid)
-
-            # if there are any remaining indexers, apply them
-            if idx_map:
-                xarr = super(UxDataArray, da).isel(
-                    indexers=idx_map, drop=drop, missing_dims=missing_dims
+                sliced_grid = self.uxgrid.isel(
+                    **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
                 )
-                # re‐wrap so the grid sticks around
-                return UxDataArray(xarr, uxgrid=sliced_grid)
 
-            # no other dims, return the grid‐sliced da
-            return da
+                da = self._slice_from_grid(sliced_grid)
 
-        # More than one grid dim provided
-        if not ignore_grid and len(grid_dims) > 1:
-            raise ValueError("Only one grid dimension can be sliced at a time")
+                # if there are any remaining indexers, apply them
+                if indexers:
+                    xarr = super(UxDataArray, da).isel(
+                        indexers=indexers, drop=drop, missing_dims=missing_dims
+                    )
+                    # re‐wrap so the grid sticks around
+                    return type(self)(xarr, uxgrid=sliced_grid)
 
-        # Fallback to Xarray
+                # no other dims, return the grid‐sliced da
+                return da
+            else:
+                return type(self)(
+                    super().isel(
+                        indexers=indexers or None,
+                        drop=drop,
+                        missing_dims=missing_dims,
+                    ),
+                    uxgrid=self.uxgrid,
+                )
+
         return super().isel(
-            indexers=idx_map or None,
+            indexers=indexers or None,
             drop=drop,
             missing_dims=missing_dims,
         )
@@ -1515,6 +1574,36 @@ class UxDataArray(xr.DataArray):
         uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=self.name)
 
         return uxda
+
+    def __getattribute__(self, name):
+        """Intercept accessor method calls to return Ux-aware accessors."""
+        # Lazy import to avoid circular imports
+        from uxarray.core.accessors import DATAARRAY_ACCESSOR_METHODS
+
+        if name in DATAARRAY_ACCESSOR_METHODS:
+            from uxarray.core import accessors
+
+            # Get the accessor class by name
+            accessor_class = getattr(accessors, DATAARRAY_ACCESSOR_METHODS[name])
+
+            # Get the parent method
+            parent_method = super().__getattribute__(name)
+
+            # Create a wrapper method
+            def method(*args, **kwargs):
+                # Call the parent method
+                result = parent_method(*args, **kwargs)
+                # Wrap the result with our accessor
+                return accessor_class(result, self.uxgrid)
+
+            # Copy the docstring from the parent method
+            method.__doc__ = parent_method.__doc__
+            method.__name__ = name
+
+            return method
+
+        # For all other attributes, use the default behavior
+        return super().__getattribute__(name)
 
     def where(self, cond: Any, other: Any = dtypes.NA, drop: bool = False):
         return UxDataArray(super().where(cond, other, drop), uxgrid=self.uxgrid)

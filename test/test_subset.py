@@ -1,29 +1,10 @@
 import uxarray as ux
-import os
 
 import pytest
 
-from pathlib import Path
 
-current_path = Path(os.path.dirname(os.path.realpath(__file__)))
-
-GRID_PATHS = [
-    current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc',
-    current_path / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc",
-    current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
-]
-
-DATA_PATHS = [
-    current_path / 'meshfiles' / "mpas" / "QU" / 'oQU480.231010.nc',
-    current_path / "meshfiles" / "ugrid" / "geoflow-small" / "v1.nc",
-    current_path / "meshfiles" / "ugrid" / "outCSne30" / "var2.nc"
-]
-
-quad_hex_grid_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'grid.nc'
-quad_hex_data_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'data.nc'
-
-def test_repr():
-    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+def test_repr(gridpath, datasetpath):
+    uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
     # grid repr
     grid_repr = uxds.uxgrid.subset.__repr__()
@@ -38,7 +19,12 @@ def test_repr():
     assert "nearest_neighbor" in da_repr
 
 
-def test_grid_face_isel():
+def test_grid_face_isel(gridpath):
+    GRID_PATHS = [
+        gridpath("mpas", "QU", "oQU480.231010.nc"),
+        gridpath("ugrid", "geoflow-small", "grid.nc"),
+        gridpath("ugrid", "outCSne30", "outCSne30.ug")
+    ]
     for grid_path in GRID_PATHS:
         grid = ux.open_grid(grid_path)
 
@@ -58,7 +44,12 @@ def test_grid_face_isel():
                 assert "edge_node_connectivity" not in grid_subset._ds
 
 
-def test_grid_node_isel():
+def test_grid_node_isel(gridpath):
+    GRID_PATHS = [
+        gridpath("mpas", "QU", "oQU480.231010.nc"),
+        gridpath("ugrid", "geoflow-small", "grid.nc"),
+        gridpath("ugrid", "outCSne30", "outCSne30.ug")
+    ]
     for grid_path in GRID_PATHS:
         grid = ux.open_grid(grid_path)
 
@@ -72,7 +63,12 @@ def test_grid_node_isel():
             grid_subset = grid.isel(n_face=face_indices)
 
 
-def test_grid_nn_subset():
+def test_grid_nn_subset(gridpath):
+    GRID_PATHS = [
+        gridpath("mpas", "QU", "oQU480.231010.nc"),
+        gridpath("ugrid", "geoflow-small", "grid.nc"),
+        gridpath("ugrid", "outCSne30", "outCSne30.ug")
+    ]
     coord_locs = [[0, 0], [-180, 0], [180, 0], [0, 90], [0, -90]]
 
     for grid_path in GRID_PATHS:
@@ -98,9 +94,15 @@ def test_grid_nn_subset():
                 assert isinstance(grid_subset, ux.Grid)
 
 
-def test_grid_bounding_circle_subset():
-    coord_locs = [[0, 0], [-180, 0], [180, 0], [0, 90], [0, -90]]
-    rs = [45, 90, 180]
+def test_grid_bounding_circle_subset(gridpath):
+    GRID_PATHS = [
+        gridpath("mpas", "QU", "oQU480.231010.nc"),
+        gridpath("ugrid", "geoflow-small", "grid.nc"),
+        gridpath("ugrid", "outCSne30", "outCSne30.ug")
+    ]
+    center_locs = [[0, 0], [-180, 0], [180, 0], [0, 90], [0, -90]]
+    coord_locs = center_locs  # Use the same locations
+    rs = [45, 90, 180]  # Define radii
 
     for grid_path in GRID_PATHS:
         grid = ux.open_grid(grid_path)
@@ -112,7 +114,12 @@ def test_grid_bounding_circle_subset():
                     assert isinstance(grid_subset, ux.Grid)
 
 
-def test_grid_bounding_box_subset():
+def test_grid_bounding_box_subset(gridpath):
+    GRID_PATHS = [
+        gridpath("mpas", "QU", "oQU480.231010.nc"),
+        gridpath("ugrid", "geoflow-small", "grid.nc"),
+        gridpath("ugrid", "outCSne30", "outCSne30.ug")
+    ]
     bbox = [(-10, 10), (-10, 10)]
     bbox_antimeridian = [(-170, 170), (-45, 45)]
 
@@ -127,16 +134,16 @@ def test_grid_bounding_box_subset():
                 bbox_antimeridian[0], bbox_antimeridian[1])
 
 
-def test_uxda_isel():
-    uxds = ux.open_dataset(GRID_PATHS[0], DATA_PATHS[0])
+def test_uxda_isel(gridpath, datasetpath):
+    uxds = ux.open_dataset(gridpath("mpas", "QU", "oQU480.231010.nc"), gridpath("mpas", "QU", "oQU480.231010.nc"))
 
     sub = uxds['bottomDepth'].isel(n_face=[1, 2, 3])
 
     assert len(sub) == 3
 
 
-def test_uxda_isel_with_coords():
-    uxds = ux.open_dataset(GRID_PATHS[0], DATA_PATHS[0])
+def test_uxda_isel_with_coords(gridpath, datasetpath):
+    uxds = ux.open_dataset(gridpath("mpas", "QU", "oQU480.231010.nc"), gridpath("mpas", "QU", "oQU480.231010.nc"))
     uxds = uxds.assign_coords({"lon_face": uxds.uxgrid.face_lon})
     sub = uxds['bottomDepth'].isel(n_face=[1, 2, 3])
 
@@ -144,8 +151,8 @@ def test_uxda_isel_with_coords():
     assert len(sub.coords['lon_face']) == 3
 
 
-def test_inverse_indices():
-    grid = ux.open_grid(GRID_PATHS[0])
+def test_inverse_indices(gridpath):
+    grid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
 
     # Test nearest neighbor subsetting
     coord = [0, 0]
@@ -175,8 +182,8 @@ def test_inverse_indices():
     assert subset.inverse_indices.face.values == 1
 
 
-def test_da_subset():
-    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+def test_da_subset(gridpath, datasetpath):
+    uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
     res1 = uxds['t2m'].subset.bounding_box(lon_bounds=(-10, 10), lat_bounds=(-10, 10))
     res2 = uxds['t2m'].subset.bounding_circle(center_coord=(0,0), r=10)

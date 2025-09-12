@@ -61,6 +61,11 @@ extensions = [
     "sphinx_copybutton",
 ]
 
+suppress_warnings = [
+    # mystnb doesn't recognize MIME type 'application/vnd.holoviews_load.v0+json'
+    # from the holoviews plots and otherwise spams the build with warnings
+    "mystnb.unknown_mime_type",
+]
 
 # nbsphinx_execute = "never"
 # jupyter_execute_notebooks = "off"
@@ -74,17 +79,18 @@ extlinks = {
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
-    "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
-    "iris": ("https://scitools-iris.readthedocs.io/en/latest", None),
-    "numpy": ("https://numpy.org/doc/stable", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy", None),
-    "numba": ("https://numba.pydata.org/numba-doc/latest", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
+    "iris": ("https://scitools-iris.readthedocs.io/en/stable/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "numba": ("https://numba.readthedocs.io/en/stable/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
-    "dask": ("https://docs.dask.org/en/latest", None),
-    "cftime": ("https://unidata.github.io/cftime", None),
-    "rasterio": ("https://rasterio.readthedocs.io/en/latest", None),
-    "sparse": ("https://sparse.pydata.org/en/latest/", None),
-    "xarray": ("http://xarray.pydata.org/en/stable/", None),
+    "dask": ("https://docs.dask.org/en/stable/", None),
+    "cftime": ("https://unidata.github.io/cftime/", None),
+    "rasterio": ("https://rasterio.readthedocs.io/en/stable/", None),
+    "sparse": ("https://sparse.pydata.org/en/stable/", None),
+    "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "cartopy": ("https://cartopy.readthedocs.io/stable/", None),
 }
 
 
@@ -136,7 +142,15 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
+exclude_patterns = [
+    "_build",
+    "**.ipynb_checkpoints",
+    # Not included (yet)
+    "examples/template.ipynb",
+    "user-guide/custom-grid.ipynb",
+    "user-guide/spatial-hashing.ipynb",
+    "user-guide/template.ipynb",
+]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
@@ -172,7 +186,7 @@ html_theme_options = {
     "use_repository_button": True,
     "use_issues_button": True,
     "home_page_in_toc": False,
-    "navbar_footer_text": "",
+    # "navbar_footer_text": "",
     # "extra_footer": "<p></p>",
     "logo": {
         "image_light": "_static/images/logos/uxarray_logo_h_dark.svg",

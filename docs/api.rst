@@ -176,8 +176,16 @@ Constructors
    UxDataArray.from_xarray
    UxDataArray.from_healpix
 
+Selection & Indexing
+~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.isel
+
 Grid Accessor
-~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -200,12 +208,20 @@ Constructors
    UxDataset.from_healpix
 
 Grid Accessor
-~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
 
    UxDataset.uxgrid
+
+Selection & Indexing
+~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset.isel
 
 
 Conversion Methods
@@ -318,6 +334,10 @@ Grid
    Grid.subset.nearest_neighbor
    Grid.subset.bounding_box
    Grid.subset.bounding_circle
+   Grid.subset.constant_latitude
+   Grid.subset.constant_longitude
+   Grid.subset.constant_latitude_interval
+   Grid.subset.constant_longitude_interval
 
 
 UxDataArray
@@ -331,38 +351,27 @@ UxDataArray
    UxDataArray.subset.nearest_neighbor
    UxDataArray.subset.bounding_box
    UxDataArray.subset.bounding_circle
+   UxDataArray.subset.constant_latitude
+   UxDataArray.subset.constant_longitude
+   UxDataArray.subset.constant_latitude_interval
+   UxDataArray.subset.constant_longitude_interval
 
 
 Cross Sections
 --------------
 
+.. seealso::
 
-Grid
-~~~~
-
-.. autosummary::
-   :toctree: generated/
-   :template: autosummary/accessor_method.rst
-
-   Grid.cross_section
-   Grid.cross_section.constant_latitude
-   Grid.cross_section.constant_longitude
-   Grid.cross_section.constant_latitude_interval
-   Grid.cross_section.constant_longitude_interval
+    `Cross Sections User Guide Section <https://uxarray.readthedocs.io/en/latest/user-guide/cross-sections.html>`_
 
 
-UxDataArray
-~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
    :template: autosummary/accessor_method.rst
 
    UxDataArray.cross_section
-   UxDataArray.cross_section.constant_latitude
-   UxDataArray.cross_section.constant_longitude
-   UxDataArray.cross_section.constant_latitude_interval
-   UxDataArray.cross_section.constant_longitude_interval
+
 Remapping
 ---------
 

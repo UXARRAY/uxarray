@@ -51,6 +51,9 @@ def _primal_to_ugrid(in_ds, out_ds):
     _parse_face_nodes(in_ds, out_ds, mesh_type="primal")
     _parse_node_faces(in_ds, out_ds, mesh_type="primal")
 
+    if "edgesOnVertex" in in_ds:
+        _parse_node_edges(in_ds, out_ds, mesh_type="primal")
+
     if "verticesOnEdge" in in_ds:
         _parse_edge_nodes(in_ds, out_ds, "primal")
         source_dims_dict[in_ds["verticesOnEdge"].dims[0]] = "n_edge"
@@ -68,7 +71,7 @@ def _primal_to_ugrid(in_ds, out_ds):
         _parse_edge_face_distances(in_ds, out_ds)
 
     if "cellsOnCell" in in_ds:
-        _parse_face_faces(in_ds, out_ds)
+        _parse_face_faces(in_ds, out_ds, mesh_type="primal")
 
     if "areaCell" in in_ds:
         _parse_face_areas(in_ds, out_ds, mesh_type="primal")
@@ -111,6 +114,9 @@ def _dual_to_ugrid(in_ds, out_ds):
 
     _parse_face_nodes(in_ds, out_ds, mesh_type="dual")
     _parse_node_faces(in_ds, out_ds, mesh_type="dual")
+
+    if "edgesOnCell" in in_ds:
+        _parse_node_edges(in_ds, out_ds, mesh_type="dual")
 
     if "cellsOnEdge" in in_ds:
         _parse_edge_nodes(in_ds, out_ds, mesh_type="dual")
@@ -184,6 +190,13 @@ def _parse_node_xyz_coords(in_ds, out_ds, mesh_type):
         node_y = node_y.rename({"nCells": ugrid.NODE_DIM})
         node_z = node_z.rename({"nCells": ugrid.NODE_DIM})
 
+    # Normalize coordinates to unit sphere if needed
+    radius = in_ds.attrs.get("sphere_radius", 1.0)
+    if radius != 1.0:
+        node_x = node_x / radius
+        node_y = node_y / radius
+        node_z = node_z / radius
+
     out_ds["node_x"] = node_x.assign_attrs(ugrid.NODE_X_ATTRS)
     out_ds["node_y"] = node_y.assign_attrs(ugrid.NODE_Y_ATTRS)
     out_ds["node_z"] = node_z.assign_attrs(ugrid.NODE_Z_ATTRS)
@@ -231,6 +244,13 @@ def _parse_face_xyz_coords(in_ds, out_ds, mesh_type):
         face_y = face_y.rename({"nVertices": ugrid.FACE_DIM})
         face_z = face_z.rename({"nVertices": ugrid.FACE_DIM})
 
+    # Normalize coordinates to unit sphere if needed
+    radius = in_ds.attrs.get("sphere_radius", 1.0)
+    if radius != 1.0:
+        face_x = face_x / radius
+        face_y = face_y / radius
+        face_z = face_z / radius
+
     out_ds["face_x"] = face_x.assign_attrs(ugrid.FACE_X_ATTRS)
     out_ds["face_y"] = face_y.assign_attrs(ugrid.FACE_Y_ATTRS)
     out_ds["face_z"] = face_z.assign_attrs(ugrid.FACE_Z_ATTRS)
@@ -260,34 +280,29 @@ def _parse_edge_xyz_coords(in_ds, out_ds, mesh_type):
     edge_y = edge_y.rename({"nEdges": ugrid.EDGE_DIM})
     edge_z = edge_z.rename({"nEdges": ugrid.EDGE_DIM})
 
+    # Normalize coordinates to unit sphere if needed
+    radius = in_ds.attrs.get("sphere_radius", 1.0)
+    if radius != 1.0:
+        edge_x = edge_x / radius
+        edge_y = edge_y / radius
+        edge_z = edge_z / radius
+
     out_ds["edge_x"] = edge_x.assign_attrs(ugrid.EDGE_X_ATTRS)
     out_ds["edge_y"] = edge_y.assign_attrs(ugrid.EDGE_Y_ATTRS)
     out_ds["edge_z"] = edge_z.assign_attrs(ugrid.EDGE_Z_ATTRS)
 
 
 def _parse_face_nodes(in_ds, out_ds, mesh_type):
-    """Parses face node connectivity for either the Primal or Dual Mesh."""
+    """Parses face node connectivity for either the primal or dual mesh."""
+    key = "verticesOnCell" if mesh_type == "primal" else "cellsOnVertex"
+    arr = in_ds[key].astype(INT_DTYPE)
+
     if mesh_type == "primal":
-        verticesOnCell = in_ds["verticesOnCell"].astype(INT_DTYPE)
-        nEdgesOnCell = in_ds["nEdgesOnCell"].astype(INT_DTYPE)
+        count = in_ds["nEdgesOnCell"].astype(INT_DTYPE)
+        arr = _replace_padding(arr, count)
 
-        # Replace padded values with fill values
-        verticesOnCell = _replace_padding(verticesOnCell, nEdgesOnCell)
-
-        # Replace missing/zero values with fill values
-        verticesOnCell = _replace_zeros(verticesOnCell)
-
-        # Convert to zero-indexed
-        face_nodes = _to_zero_index(verticesOnCell)
-
-    else:
-        cellsOnVertex = in_ds["cellsOnVertex"].astype(INT_DTYPE)
-
-        # Replace missing/zero values with fill values
-        cellsOnVertex = _replace_zeros(cellsOnVertex)
-
-        # Convert to zero-indexed
-        face_nodes = _to_zero_index(cellsOnVertex)
+    arr = _replace_zeros(arr)
+    face_nodes = _to_zero_index(arr)
 
     out_ds["face_node_connectivity"] = face_nodes.assign_attrs(
         ugrid.FACE_NODE_CONNECTIVITY_ATTRS
@@ -295,24 +310,12 @@ def _parse_face_nodes(in_ds, out_ds, mesh_type):
 
 
 def _parse_edge_nodes(in_ds, out_ds, mesh_type):
-    """Parses edge node connectivity for either the Primal or Dual Mesh."""
-    if mesh_type == "primal":
-        verticesOnEdge = in_ds["verticesOnEdge"].astype(INT_DTYPE)
+    """Parses edge node connectivity for either the primal or dual mesh."""
+    key = "verticesOnEdge" if mesh_type == "primal" else "cellsOnEdge"
+    arr = in_ds[key].astype(INT_DTYPE)
 
-        # Replace missing/zero values with fill values
-        verticesOnEdge = _replace_zeros(verticesOnEdge)
-
-        # Convert to zero-indexed
-        edge_nodes = _to_zero_index(verticesOnEdge)
-
-    else:
-        cellsOnEdge = in_ds["cellsOnEdge"].astype(INT_DTYPE)
-
-        # Replace missing/zero values with fill values
-        cellsOnEdge = _replace_zeros(cellsOnEdge)
-
-        # Convert to zero-indexed
-        edge_nodes = _to_zero_index(cellsOnEdge)
+    arr = _replace_zeros(arr)
+    edge_nodes = _to_zero_index(arr)
 
     out_ds["edge_node_connectivity"] = edge_nodes.assign_attrs(
         ugrid.EDGE_NODE_CONNECTIVITY_ATTRS
@@ -320,56 +323,46 @@ def _parse_edge_nodes(in_ds, out_ds, mesh_type):
 
 
 def _parse_node_faces(in_ds, out_ds, mesh_type):
-    """Parses node face connectivity for either the Primal or Dual Mesh."""
-    if mesh_type == "primal":
-        cellsOnVertex = in_ds["cellsOnVertex"].astype(INT_DTYPE)
+    """Parses node face connectivity for either the primal or dual mesh."""
+    key = "cellsOnVertex" if mesh_type == "primal" else "verticesOnCell"
+    arr = in_ds[key].astype(INT_DTYPE)
 
-        # Replace missing/zero values with fill values
-        cellsOnVertex = _replace_zeros(cellsOnVertex)
+    if mesh_type != "primal":
+        count = in_ds["nEdgesOnCell"].astype(INT_DTYPE)
+        arr = _replace_padding(arr, count)
 
-        # Convert to zero-indexed
-        node_faces = _to_zero_index(cellsOnVertex)
-    else:
-        verticesOnCell = in_ds["verticesOnCell"].astype(INT_DTYPE)
-        nEdgesOnCell = in_ds["nEdgesOnCell"].astype(INT_DTYPE)
-
-        # Replace padded values with fill values
-        verticesOnCell = _replace_padding(verticesOnCell, nEdgesOnCell)
-
-        # Replace missing/zero values with fill values
-        verticesOnCell = _replace_zeros(verticesOnCell)
-
-        # Convert to zero-indexed
-        node_faces = _to_zero_index(verticesOnCell)
+    arr = _replace_zeros(arr)
+    node_faces = _to_zero_index(arr)
 
     out_ds["node_face_connectivity"] = node_faces.assign_attrs(
         ugrid.NODE_FACE_CONNECTIVITY_ATTRS
     ).rename(dict(zip(node_faces.dims, ugrid.NODE_FACE_CONNECTIVITY_DIMS)))
 
 
+def _parse_node_edges(in_ds, out_ds, mesh_type):
+    """Parses node edge connectivity for either the Primal or Dual Mesh."""
+    key = "edgesOnVertex" if mesh_type == "primal" else "edgesOnCell"
+    arr = in_ds[key].astype(INT_DTYPE)
+    arr = _replace_zeros(arr)
+    node_edges = _to_zero_index(arr)
+
+    out_ds["node_edge_connectivity"] = node_edges.assign_attrs(
+        ugrid.NODE_EDGE_CONNECTIVITY_ATTRS
+    ).rename(dict(zip(node_edges.dims, ugrid.NODE_EDGE_CONNECTIVITY_DIMS)))
+
+
 def _parse_face_edges(in_ds, out_ds, mesh_type):
-    """Parses face edge connectivity for either the Primal or Dual Mesh."""
+    """Parses face edge connectivity for either the primal or dual mesh."""
+    # choose the right source array
+    key = "edgesOnCell" if mesh_type == "primal" else "edgesOnVertex"
+    arr = in_ds[key].astype(INT_DTYPE)
+
     if mesh_type == "primal":
-        edgesOnCell = in_ds["edgesOnCell"].astype(INT_DTYPE)
-        nEdgesOnCell = in_ds["nEdgesOnCell"].astype(INT_DTYPE)
+        count = in_ds["nEdgesOnCell"].astype(INT_DTYPE)
+        arr = _replace_padding(arr, count)
 
-        # Replace padded values with fill values
-        edgesOnCell = _replace_padding(edgesOnCell, nEdgesOnCell)
-
-        # Replace missing/zero values with fill values
-        edgesOnCell = _replace_zeros(edgesOnCell)
-
-        # Convert to zero-indexed
-        face_edges = _to_zero_index(edgesOnCell)
-
-    else:
-        edgesOnVertex = in_ds["edgesOnVertex"].astype(INT_DTYPE)
-
-        # Replace missing/zero values with fill values
-        edgesOnVertex = _replace_zeros(edgesOnVertex)
-
-        # Convert to zero-indexed
-        face_edges = _to_zero_index(edgesOnVertex)
+    arr = _replace_zeros(arr)
+    face_edges = _to_zero_index(arr)
 
     out_ds["face_edge_connectivity"] = face_edges.assign_attrs(
         ugrid.FACE_EDGE_CONNECTIVITY_ATTRS
@@ -377,33 +370,41 @@ def _parse_face_edges(in_ds, out_ds, mesh_type):
 
 
 def _parse_edge_faces(in_ds, out_ds, mesh_type):
-    """Parses edge face connectivity for either the Primal or Dual Mesh."""
-    if mesh_type == "primal":
-        cellsOnEdge = in_ds["cellsOnEdge"].astype(INT_DTYPE)
+    """Parses edge face connectivity for either the primal or dual mesh."""
 
-        # Replace missing/zero values with fill values
-        cellsOnEdge = _replace_zeros(cellsOnEdge)
+    key = "cellsOnEdge" if mesh_type == "primal" else "verticesOnEdge"
+    arr = in_ds[key].astype(INT_DTYPE)
 
-        # Convert to zero-indexed
-        edge_faces = _to_zero_index(cellsOnEdge)
-
-    else:
-        verticesOnEdge = in_ds["verticesOnEdge"].astype(INT_DTYPE)
-
-        # Replace missing/zero values with fill values
-        verticesOnEdge = _replace_zeros(verticesOnEdge)
-
-        # Convert to zero-indexed
-        edge_faces = _to_zero_index(verticesOnEdge)
+    arr = _replace_zeros(arr)
+    edge_faces = _to_zero_index(arr)
 
     out_ds["edge_face_connectivity"] = edge_faces.assign_attrs(
         ugrid.EDGE_FACE_CONNECTIVITY_ATTRS
     ).rename(dict(zip(edge_faces.dims, ugrid.EDGE_FACE_CONNECTIVITY_DIMS)))
 
 
+def _parse_face_faces(in_ds, out_ds, mesh_type):
+    """Parses face face connectivity for the primal mesh."""
+    cellsOnCell = in_ds["cellsOnCell"].astype(INT_DTYPE)
+    nEdgesOnCell = in_ds["nEdgesOnCell"].astype(INT_DTYPE)
+
+    cellsOnCell = _replace_padding(cellsOnCell, nEdgesOnCell)
+
+    cellsOnCell = _replace_zeros(cellsOnCell)
+
+    face_face_connectivity = _to_zero_index(cellsOnCell)
+
+    out_ds["face_face_connectivity"] = face_face_connectivity.assign_attrs(
+        ugrid.FACE_FACE_CONNECTIVITY_ATTRS
+    ).rename(dict(zip(face_face_connectivity.dims, ugrid.FACE_FACE_CONNECTIVITY_DIMS)))
+
+
 def _parse_edge_node_distances(in_ds, out_ds):
     """Parses ``edge_node_distances``"""
-    edge_node_distances = in_ds["dvEdge"] / in_ds.attrs["sphere_radius"]
+    radius = in_ds.attrs.get("sphere_radius", 1.0)
+    edge_node_distances = in_ds["dvEdge"]
+    if radius != 1.0:
+        edge_node_distances = edge_node_distances / radius
 
     out_ds["edge_node_distances"] = edge_node_distances.assign_attrs(
         descriptors.EDGE_NODE_DISTANCES_ATTRS
@@ -412,7 +413,10 @@ def _parse_edge_node_distances(in_ds, out_ds):
 
 def _parse_edge_face_distances(in_ds, out_ds):
     """Parses ``edge_face_distances``"""
-    edge_face_distances = in_ds["dcEdge"] / in_ds.attrs["sphere_radius"]
+    radius = in_ds.attrs.get("sphere_radius", 1.0)
+    edge_face_distances = in_ds["dcEdge"]
+    if radius != 1.0:
+        edge_face_distances = edge_face_distances / radius
 
     out_ds["edge_face_distances"] = edge_face_distances.assign_attrs(
         descriptors.EDGE_FACE_DISTANCES_ATTRS
@@ -424,31 +428,18 @@ def _parse_global_attrs(in_ds, out_ds):
     out_ds.attrs = in_ds.attrs
 
 
-def _parse_face_faces(in_ds, out_ds):
-    """Parses face-face connectivity for Primal Mesh."""
-    cellsOnCell = in_ds["cellsOnCell"].astype(INT_DTYPE)
-    nEdgesOnCell = in_ds["nEdgesOnCell"].astype(INT_DTYPE)
-
-    # Replace padded values with fill values
-    cellsOnCell = _replace_padding(cellsOnCell, nEdgesOnCell)
-
-    # Replace missing/zero values with fill values
-    cellsOnCell = _replace_zeros(cellsOnCell)
-
-    # Convert to zero-indexed
-    face_face_connectivity = _to_zero_index(cellsOnCell)
-
-    out_ds["face_face_connectivity"] = face_face_connectivity.assign_attrs(
-        ugrid.FACE_FACE_CONNECTIVITY_ATTRS
-    ).rename(dict(zip(face_face_connectivity.dims, ugrid.FACE_FACE_CONNECTIVITY_DIMS)))
-
-
 def _parse_face_areas(in_ds, out_ds, mesh_type):
     """Parses the face area for either a primal or dual grid."""
     if mesh_type == "primal":
         face_area = in_ds["areaCell"]
     else:
         face_area = in_ds["areaTriangle"]
+
+    # Normalize face areas to unit sphere if needed
+    radius = in_ds.attrs.get("sphere_radius", 1.0)
+    if radius != 1.0:
+        # Area scales with radius squared
+        face_area = face_area / (radius * radius)
 
     out_ds["face_areas"] = face_area.assign_attrs(descriptors.FACE_AREAS_ATTRS).rename(
         {face_area.dims[0]: ugrid.FACE_DIM}
@@ -457,17 +448,16 @@ def _parse_face_areas(in_ds, out_ds, mesh_type):
 
 def _parse_boundary_node_indices(in_ds, out_ds, mesh_type):
     """Parses the boundary node indices."""
+
     boundary_node_mask = in_ds["boundaryVertex"]
     boundary_node_indices = boundary_node_mask.where(boundary_node_mask).dropna(
         dim=boundary_node_mask.dims[0]
     )
 
-    # Convert to integer indices
     boundary_node_indices = boundary_node_indices.coords[
         boundary_node_indices.dims[0]
     ].astype(INT_DTYPE)
 
-    # Ensure zero-indexed
     boundary_node_indices = boundary_node_indices - 1
 
     out_ds["boundary_node_indices"] = boundary_node_indices.rename(
