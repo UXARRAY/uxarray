@@ -588,7 +588,9 @@ class UxDataArray(xr.DataArray):
     # Alias for 'zonal_mean', since this name is also commonly used.
     zonal_average = zonal_mean
 
-    def azimuthal_mean(self, center_coord, outer_radius: int, radius_step: int):
+    def azimuthal_mean(
+        self, center_coord, outer_radius: int | float, radius_step: int | float
+    ):
         """Compute averages along circles of constant great-circle distance from a point.
 
         Parameters
