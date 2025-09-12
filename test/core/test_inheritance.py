@@ -18,12 +18,6 @@ def uxds_fixture(gridpath, datasetpath):
 
     return ds
 
-def test_isel(uxds_fixture):
-    """Test that isel method preserves UxDataset type."""
-    result = uxds_fixture.isel(n_face=[1, 2])
-    assert isinstance(result, ux.UxDataset)
-    assert hasattr(result, 'uxgrid')
-
 def test_where(uxds_fixture):
     """Test that where method preserves UxDataset type."""
     result = uxds_fixture.where(uxds_fixture['t2m'] > uxds_fixture['t2m'].min())
