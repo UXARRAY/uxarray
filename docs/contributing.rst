@@ -69,8 +69,9 @@ Some important UXarray resources are as follows:
 
 * `UXarray documentation <https://uxarray.readthedocs.io/>`_
   houses significant documentation such as :ref:`quickstart`, :ref:`installation`,
-  :ref:`contributing` (i.e. this document), :ref:`examples`, :ref:`tutorials`,
-  and :ref:`api`.
+  :ref:`contributing` (i.e. this document),
+  examples (:ref:`gallery` or :ref:`userguide`),
+  :ref:`tutorials`, and :ref:`api`.
 
 * `UXarray Milestones <https://github.com/UXARRAY/uxarray/milestones>`_ and
   `UXarray Roadmap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_ shows
@@ -515,24 +516,24 @@ as follows:
   into your Conda environment for UXarray development).
 
 * Test scripts themselves are not intended to use ``pytest`` through implementation.
-Instead, ``pytest`` should be used only for running test scripts as follows::
+  Instead, ``pytest`` should be used only for running test scripts as follows::
 
     $ pytest test/<test_script_name>.py
 
-, or::
+  , or::
 
     $ python -m pytest test/<test_script_name>.py
 
-, the latter of which will also add the current directory to ``sys.path``.
+  , the latter of which will also add the current directory to ``sys.path``.
 
-Not using ``pytest`` for implementation allows the unit tests to be also run
-by using (a number of benefits/conveniences coming from using ``pytest`` can be
-seen `here <https://docs.pytest.org/en/7.1.x/how-to/unittest.html#how-to-use-unittest-based-tests-with-pytest>`_
-though)::
+  Not using ``pytest`` for implementation allows the unit tests to be also run
+  by using (a number of benefits/conveniences coming from using ``pytest`` can be
+  seen `here <https://docs.pytest.org/en/7.1.x/how-to/unittest.html#how-to-use-unittest-based-tests-with-pytest>`_
+  though)::
 
     $ python -m unittest test/<test_script_name>.py
 
-Also, all of the test scripts can be run at once with the following command::
+  Also, all of the test scripts can be run at once with the following command::
 
     $ pytest test
 
@@ -541,7 +542,7 @@ Also, all of the test scripts can be run at once with the following command::
   the test scripts.
 
 * Reference results (i.e. expected output or ground truth for not all but the most cases)
-should not be magic values (i.e. they need to be justified and/or documented).
+  should not be magic values (i.e. they need to be justified and/or documented).
 
 * Recommended, but not mandatory, implementation approach is as follows:
 
@@ -602,7 +603,7 @@ The docstrings must contain:
 ~~~~~~~~~~~~~~~~~~~~~~
 
 As we mentioned a few times throughout this guide, UXarray has a static `documentation
-<https://uxarray.readthedocs.io/>`_ :ref:`index` page that is being generated automatically from the
+<https://uxarray.readthedocs.io/>`_ page that is being generated automatically from the
 repository's code structure. However, there needs to be some manual additions to the
 proper documentation index file(s) for the automation to work.
 

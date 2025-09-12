@@ -177,7 +177,7 @@ Constructors
    UxDataArray.from_healpix
 
 Grid Accessor
-~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -200,7 +200,7 @@ Constructors
    UxDataset.from_healpix
 
 Grid Accessor
-~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/

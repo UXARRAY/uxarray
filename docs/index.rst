@@ -112,6 +112,7 @@ around the `UGRID <http://ugrid-conventions.github.io/ugrid-conventions/>`_ conv
     GitHub Discussions <https://github.com/UXARRAY/uxarray/discussions>
     GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
     UGRID Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
+    contributing
 
 .. raw:: html
 
