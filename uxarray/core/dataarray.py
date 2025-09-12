@@ -604,19 +604,16 @@ class UxDataArray(xr.DataArray):
 
         Returns
         -------
-        UxDataArray
-            Contains azimuthal means with a new 'radius' dimension and corresponding coordinates.
-            Name will be original_name + '_azimuthal_mean' or 'azimuthal_mean' if unnamed.
-
-        np.ndarray(dtype=np.int_)
-            `hit_count` variable that indicates the number of faces included in the
+        UxDataset
+            Contains two data variables, azimuthal means with a new 'radius' dimension and corresponding coordinates.
+            Name will be original_name + '_azimuthal_mean' or 'azimuthal_mean' if unnamed and 'hit_count', which indicates the number of faces included in the
             calculation at each radius.
 
         Examples
         --------
         # Range from 0° to 5° at 0.5° intervals, around the central point lon,lat=10,50
         >>> az = uxds["var"].azimuthal_mean((10, 50), 5.0, 0.5)
-        >>> az.plot.line(title="Azimuthal Mean")
+        >>> az["var_azimuthal_mean"].plot.line(title="Azimuthal Mean")
 
         Notes
         -----
@@ -624,59 +621,80 @@ class UxDataArray(xr.DataArray):
         using bounding circles - for radii = [r1, r2, r3, ...] faces whose centers lie at distance d,
         r2 < d <= r3 are included in calculations for r3.
         """
+        from uxarray.core.dataset import UxDataset
+        from uxarray.grid.coordinates import _lonlat_rad_to_xyz
+
         if not self._face_centered():
             raise ValueError(
                 "Azimuthal mean computations are currently only supported for face-centered data variables."
             )
 
-        coords = np.asarray(center_coord)
-        tree = self.uxgrid.get_ball_tree()
-        faces_processed = np.array([], dtype=np.int_)
+        kdtree = self.uxgrid._get_scipy_kd_tree()
 
-        radii = np.arange(0, outer_radius + radius_step, radius_step)
-        means = np.full(
-            (radii.size, *self.to_xarray().isel(drop=True, n_face=0).shape), np.nan
+        lon_deg, lat_deg = map(float, np.asarray(center_coord))
+        center_xyz = np.array(
+            _lonlat_rad_to_xyz(np.deg2rad(lon_deg), np.deg2rad(lat_deg))
         )
-        hit_count = np.zeros_like(radii, dtype=np.int_)
 
-        for ii, rad in enumerate(radii):
-            faces_within_rad = tree.query_radius(coords, rad)
+        radii_deg = np.arange(0.0, outer_radius + radius_step, radius_step, dtype=float)
+        radii_rad = np.deg2rad(radii_deg)
+        chord_radii = 2.0 * np.sin(radii_rad / 2.0)
 
-            faces_in_bin = np.setdiff1d(
-                faces_within_rad, faces_processed, assume_unique=True
+        faces_processed = np.array([], dtype=np.int_)
+        means = np.full(
+            (radii_deg.size, *self.to_xarray().isel(drop=True, n_face=0).shape), np.nan
+        )
+        hit_count = np.zeros_like(radii_deg, dtype=np.int_)
+
+        for ii, r_chord in enumerate(chord_radii):
+            # indices of faces within the bounding circle for this radius
+            within = np.array(
+                kdtree.query_ball_point(center_xyz, r_chord), dtype=np.int_
             )
+            if within.size:
+                within.sort()
 
+            # include only the new ring: r_(i-1) < d <= r_i
+            faces_in_bin = np.setdiff1d(within, faces_processed, assume_unique=True)
             hit_count[ii] = faces_in_bin.size
 
             if hit_count[ii] == 0:
                 continue
 
-            faces_processed = faces_within_rad
-            tpose = self.isel(n_face=faces_in_bin).transpose(..., "n_face")
+            faces_processed = within  # cumulative set for next iteration
 
+            tpose = self.isel(n_face=faces_in_bin).transpose(..., "n_face")
             means[ii, ...] = tpose.weighted_mean().data
 
+        # swap the leading 'radius' axis into the former n_face position
         face_axis = self.dims.index("n_face")
         dims = list(self.dims)
         dims[face_axis] = "radius"
         means = np.moveaxis(means, 0, face_axis)
 
+        hit_count = xr.DataArray(
+            data=hit_count, dims="radius", coords={"radius": radii_deg}
+        )
+
         uxda = UxDataArray(
             means,
             uxgrid=self.uxgrid,
             dims=dims,
-            coords={"radius": radii},
+            coords={"radius": radii_deg},
             name=self.name + "_azimuthal_mean"
             if self.name is not None
             else "azimuthal_mean",
             attrs={
                 "azimuthal_mean": True,
-                "center_lon": coords[0],
-                "center_lat": coords[1],
+                "center_lon": lon_deg,
+                "center_lat": lat_deg,
+                "radius_units": "degrees",
             },
         )
 
-        return uxda, hit_count
+        uxds = UxDataset({uxda.name: uxda, "hit_count": hit_count})
+
+        return uxds
 
     azimuthal_average = azimuthal_mean
 
