@@ -601,8 +601,10 @@ class UxDataArray(xr.DataArray):
         weights : np.ndarray or None, optional
             The weights to use for the weighted mean calculation. If `None`, the function will
             determine weights based on the variable's association:
-                - For face-centered variables: uses `self.uxgrid.face_areas.data`
-                - For edge-centered variables: uses `self.uxgrid.edge_node_distances.data`
+
+            - For face-centered variables: uses `self.uxgrid.face_areas.data`
+            - For edge-centered variables: uses `self.uxgrid.edge_node_distances.data`
+
             If the variable is neither face-centered nor edge-centered, a warning is raised, and
             an unweighted mean is computed instead. User-defined weights should match the shape
             of the data variable's last dimension.

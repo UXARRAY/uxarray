@@ -61,6 +61,11 @@ extensions = [
     "sphinx_copybutton",
 ]
 
+suppress_warnings = [
+    # mystnb doesn't recognize MIME type 'application/vnd.holoviews_load.v0+json'
+    # from the holoviews plots and otherwise spams the build with warnings
+    "mystnb.unknown_mime_type",
+]
 
 # nbsphinx_execute = "never"
 # jupyter_execute_notebooks = "off"
@@ -137,7 +142,15 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "**.ipynb_checkpoints"]
+exclude_patterns = [
+    "_build",
+    "**.ipynb_checkpoints",
+    # Not included (yet)
+    "examples/template.ipynb",
+    "user-guide/custom-grid.ipynb",
+    "user-guide/spatial-hashing.ipynb",
+    "user-guide/template.ipynb",
+]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
@@ -173,7 +186,7 @@ html_theme_options = {
     "use_repository_button": True,
     "use_issues_button": True,
     "home_page_in_toc": False,
-    "navbar_footer_text": "",
+    # "navbar_footer_text": "",
     # "extra_footer": "<p></p>",
     "logo": {
         "image_light": "_static/images/logos/uxarray_logo_h_dark.svg",
