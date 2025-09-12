@@ -1,22 +1,9 @@
 import uxarray as ux
 import pytest
 import numpy as np
-from pathlib import Path
-import os
 import xarray as xr
 
 import numpy.testing as nt
-
-# Define the current path and file paths for grid and data
-current_path = Path(__file__).resolve().parent
-quad_hex_grid_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'grid.nc'
-quad_hex_data_path = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'data.nc'
-quad_hex_node_data = current_path / 'meshfiles' / "ugrid" / "quad-hexagon" / 'random-node-data.nc'
-cube_sphere_grid = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
-
-
-csne8_grid = current_path / "meshfiles" / "scrip" / "ne30pg2" / "grid.nc"
-csne8_data = current_path / "meshfiles" / "scrip" / "ne30pg2" / "data.nc"
 
 
 
@@ -27,8 +14,8 @@ from uxarray.grid.intersections import constant_lat_intersections_face_bounds
 
 
 
-def test_constant_lat_subset_grid():
-    uxgrid = ux.open_grid(quad_hex_grid_path)
+def test_constant_lat_subset_grid(gridpath):
+    uxgrid = ux.open_grid(gridpath("ugrid", "quad-hexagon", "grid.nc"))
 
     grid_top_two = uxgrid.subset.constant_latitude(lat=0.1)
     assert grid_top_two.n_face == 2
@@ -42,8 +29,8 @@ def test_constant_lat_subset_grid():
     with pytest.raises(ValueError):
         uxgrid.subset.constant_latitude(lat=10.0)
 
-def test_constant_lon_subset_grid():
-    uxgrid = ux.open_grid(quad_hex_grid_path)
+def test_constant_lon_subset_grid(gridpath):
+    uxgrid = ux.open_grid(gridpath("ugrid", "quad-hexagon", "grid.nc"))
 
     grid_left_two = uxgrid.subset.constant_longitude(lon=-0.1)
     assert grid_left_two.n_face == 2
@@ -54,8 +41,8 @@ def test_constant_lon_subset_grid():
     with pytest.raises(ValueError):
         uxgrid.subset.constant_longitude(lon=10.0)
 
-def test_constant_lat_subset_uxds():
-    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+def test_constant_lat_subset_uxds(gridpath, datasetpath):
+    uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
     uxds.uxgrid.normalize_cartesian_coordinates()
 
     da_top_two = uxds['t2m'].subset.constant_latitude(lat=0.1)
@@ -70,8 +57,8 @@ def test_constant_lat_subset_uxds():
     with pytest.raises(ValueError):
         uxds['t2m'].subset.constant_latitude(lat=10.0)
 
-def test_constant_lon_subset_uxds():
-    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+def test_constant_lon_subset_uxds(gridpath, datasetpath):
+    uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
     uxds.uxgrid.normalize_cartesian_coordinates()
 
     da_left_two = uxds['t2m'].subset.constant_longitude(lon=-0.1)
@@ -83,16 +70,16 @@ def test_constant_lon_subset_uxds():
     with pytest.raises(ValueError):
         uxds['t2m'].subset.constant_longitude(lon=10.0)
 
-def test_north_pole():
-    uxgrid = ux.open_grid(cube_sphere_grid)
+def test_north_pole(gridpath):
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     lats = [89.85, 89.9, 89.95, 89.99]
 
     for lat in lats:
         cross_grid = uxgrid.subset.constant_latitude(lat=lat)
         assert cross_grid.n_face == 4
 
-def test_south_pole():
-    uxgrid = ux.open_grid(cube_sphere_grid)
+def test_south_pole(gridpath):
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     lats = [-89.85, -89.9, -89.95, -89.99]
 
     for lat in lats:
@@ -134,8 +121,8 @@ def test_constant_lat_out_of_bounds():
 
 
 
-def test_const_lat_interval_da():
-    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+def test_const_lat_interval_da(gridpath, datasetpath):
+    uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
     uxds.uxgrid.normalize_cartesian_coordinates()
 
     res = uxds['t2m'].subset.constant_latitude_interval(lats=(-10, 10))
@@ -143,8 +130,8 @@ def test_const_lat_interval_da():
     assert len(res) == 4
 
 
-def test_const_lat_interval_grid():
-    uxgrid = ux.open_grid(quad_hex_grid_path)
+def test_const_lat_interval_grid(gridpath):
+    uxgrid = ux.open_grid(gridpath("ugrid", "quad-hexagon", "grid.nc"))
 
     res = uxgrid.subset.constant_latitude_interval(lats=(-10, 10))
 
@@ -154,8 +141,8 @@ def test_const_lat_interval_grid():
 
     assert len(indices) == 4
 
-def test_const_lon_interva_da():
-    uxds = ux.open_dataset(quad_hex_grid_path, quad_hex_data_path)
+def test_const_lon_interva_da(gridpath, datasetpath):
+    uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
     uxds.uxgrid.normalize_cartesian_coordinates()
 
     res = uxds['t2m'].subset.constant_longitude_interval(lons=(-10, 10))
@@ -163,8 +150,8 @@ def test_const_lon_interva_da():
     assert len(res) == 4
 
 
-def test_const_lon_interval_grid():
-    uxgrid = ux.open_grid(quad_hex_grid_path)
+def test_const_lon_interval_grid(gridpath):
+    uxgrid = ux.open_grid(gridpath("ugrid", "quad-hexagon", "grid.nc"))
 
     res = uxgrid.subset.constant_longitude_interval(lons=(-10, 10))
 
@@ -193,8 +180,8 @@ class TestArcs:
 
 
 
-def test_double_subset():
-    uxgrid = ux.open_grid(quad_hex_grid_path)
+def test_double_subset(gridpath):
+    uxgrid = ux.open_grid(gridpath("ugrid", "quad-hexagon", "grid.nc"))
 
     # construct edges
     sub_lat = uxgrid.subset.constant_latitude(0.0)
@@ -214,8 +201,8 @@ def test_double_subset():
     assert "n_edge" in sub_lat_lon._ds.dims
 
 
-def test_cross_section():
-    uxds = ux.open_dataset(csne8_grid, csne8_data)
+def test_cross_section(gridpath, datasetpath):
+    uxds = ux.open_dataset(gridpath("scrip", "ne30pg2", "grid.nc"), datasetpath("scrip", "ne30pg2", "data.nc"))
 
     # Tributary GCA
     ss_gca = uxds['RELHUM'].cross_section(start=(-45, -45), end=(45, 45))
