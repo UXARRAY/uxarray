@@ -1,23 +1,10 @@
-import os
 import numpy as np
 import numpy.testing as nt
 import pytest
-from pathlib import Path
 
 import uxarray as ux
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.dataset import UxDataset
-
-ROOT = Path(__file__).parent
-gridfile_geoflow = ROOT / "meshfiles" / "ugrid" / "geoflow-small" / "grid.nc"
-dsfiles_geoflow = [
-    ROOT / "meshfiles" / "ugrid" / "geoflow-small" / f"v{i}.nc"
-    for i in (1, 2, 3)
-]
-mpasfile_QU = ROOT / "meshfiles" / "mpas" / "QU" / "mesh.QU.1920km.151026.nc"
-mpasfile_QU_2 = ROOT / "meshfiles" / "mpas" / "QU" / "oQU480.231010.nc"
-outCSne30 = ROOT / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
-outCSne30_var2 = ROOT / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_var2.nc"
 
 # ------------------------------------------------------------
 # Helper: small 3‐point spherical grid
@@ -47,18 +34,21 @@ def test_remap_to_same_grid_corner_nodes():
     nt.assert_array_equal(src_da.values, remapped.values)
 
 
-def test_nn_remap_returns_nonempty():
+def test_nn_remap_returns_nonempty(gridpath, datasetpath):
     """A real v1 DataArray remapping must yield non-empty output."""
-    uxds = ux.open_dataset(gridfile_geoflow, dsfiles_geoflow[0])
-    uxgrid = ux.open_grid(gridfile_geoflow)
+    grid_path = gridpath("ugrid", "geoflow-small", "grid.nc")
+    uxds = ux.open_dataset(grid_path, datasetpath("ugrid", "geoflow-small", "v1.nc"))
+    uxgrid = ux.open_grid(grid_path)
     out = uxds["v1"].remap.nearest_neighbor(destination_grid=uxgrid, remap_to="nodes")
     assert out.size > 0
 
 
-def test_nn_return_types_and_counts():
+def test_nn_return_types_and_counts(gridpath, datasetpath):
     """Nearest‐neighbor on a multi‐file dataset yields correct types and var counts."""
-    uxds = ux.open_mfdataset(gridfile_geoflow, dsfiles_geoflow)
-    dest = ux.open_grid(gridfile_geoflow)
+    grid_path = gridpath("ugrid", "geoflow-small", "grid.nc")
+    dsfiles_geoflow = [datasetpath("ugrid", "geoflow-small", "v1.nc"), datasetpath("ugrid", "geoflow-small", "v2.nc"), datasetpath("ugrid", "geoflow-small", "v3.nc")]
+    uxds = ux.open_mfdataset(grid_path, dsfiles_geoflow)
+    dest = ux.open_grid(grid_path)
 
     # single DataArray → UxDataArray
     da_remap = uxds["v1"].remap.nearest_neighbor(destination_grid=dest, remap_to="nodes")
@@ -70,27 +60,28 @@ def test_nn_return_types_and_counts():
     assert len(ds_remap.data_vars) == len(uxds.data_vars)
 
 
-def test_edge_centers_dim_change():
+def test_edge_centers_dim_change(gridpath, datasetpath):
     """Nearest‐neighbor remap to edge centers produces an 'n_edge' dimension."""
-    uxds = ux.open_dataset(gridfile_geoflow, dsfiles_geoflow[0])
-    dest = ux.open_grid(mpasfile_QU)
+    uxds = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
+    dest = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
     da = uxds["v1"].remap.nearest_neighbor(destination_grid=dest, remap_to="edge centers")
     assert "n_edge" in da.dims
 
 
-def test_original_not_overwritten():
+def test_original_not_overwritten(gridpath, datasetpath):
     """Check that remapping does not mutate the source."""
-    uxds = ux.open_dataset(gridfile_geoflow, dsfiles_geoflow[0])
+    uxds = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
     original = uxds["v1"].copy()
     dest = uxds.uxgrid
     remap = uxds["v1"].remap.nearest_neighbor(destination_grid=dest, remap_to="face centers")
     assert not np.array_equal(original.values, remap.values)
 
 
-def test_source_positions_work():
+def test_source_positions_work(gridpath):
     """Nearest‐neighbor works whether source is on faces, nodes, or edges."""
-    uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
-    dest = ux.open_grid(gridfile_geoflow)
+    mesh_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+    dest = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
     for var, expected_dim in (
         ("latCell",   "n_node"),
         ("latVertex", "n_node"),
@@ -101,30 +92,33 @@ def test_source_positions_work():
         assert "n_node" in out.dims
 
 
-def test_preserve_nonspatial_coords():
+def test_preserve_nonspatial_coords(gridpath, datasetpath):
     """Non‐spatial coords (e.g. time) survive remapping on a Dataset."""
-    uxds = ux.open_dataset(gridfile_geoflow, dsfiles_geoflow[0])
-    dest = ux.open_grid(mpasfile_QU)
+    uxds = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
+    dest = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
     ds_out = uxds.remap.nearest_neighbor(destination_grid=dest, remap_to="nodes")
     assert "time" in ds_out.coords
 
 # ------------------------------------------------------------
 # Inverse‐distance‐weighted (IDW) tests
 # ------------------------------------------------------------
-def test_idw_modifies_values():
+def test_idw_modifies_values(gridpath, datasetpath):
     """Simple IDW remap should change the array when remap_to != source."""
-    uxds = ux.open_dataset(gridfile_geoflow, dsfiles_geoflow[0])
-    dest = ux.open_grid(gridfile_geoflow)
+    grid_path = gridpath("ugrid", "geoflow-small", "grid.nc")
+    uxds = ux.open_dataset(grid_path, datasetpath("ugrid", "geoflow-small", "v1.nc"))
+    dest = ux.open_grid(grid_path)
     da_idw = uxds["v1"].remap.inverse_distance_weighted(
         destination_grid=dest, remap_to="nodes", power=3, k=8
     )
     assert not np.array_equal(uxds["v1"].values, da_idw.values)
 
 
-def test_idw_return_types_and_counts():
+def test_idw_return_types_and_counts(gridpath, datasetpath):
     """IDW remap returns UxDataArray or UxDataset with correct var counts."""
-    uxds = ux.open_mfdataset(gridfile_geoflow, dsfiles_geoflow)
-    dest = ux.open_grid(gridfile_geoflow)
+    grid_path = gridpath("ugrid", "geoflow-small", "grid.nc")
+    dsfiles_geoflow = [datasetpath("ugrid", "geoflow-small", "v1.nc"), datasetpath("ugrid", "geoflow-small", "v2.nc"), datasetpath("ugrid", "geoflow-small", "v3.nc")]
+    uxds = ux.open_mfdataset(grid_path, dsfiles_geoflow)
+    dest = ux.open_grid(grid_path)
 
     da_idw = uxds["v1"].remap.inverse_distance_weighted(destination_grid=dest)
     ds_idw = uxds.remap.inverse_distance_weighted(destination_grid=dest)
@@ -134,10 +128,10 @@ def test_idw_return_types_and_counts():
     assert set(ds_idw.data_vars) == set(uxds.data_vars)
 
 
-def test_idw_edge_centers_dim_change():
+def test_idw_edge_centers_dim_change(gridpath, datasetpath):
     """IDW remap to edge centers produces an 'n_edge' dimension."""
-    uxds = ux.open_dataset(gridfile_geoflow, dsfiles_geoflow[0])
-    dest = ux.open_grid(mpasfile_QU)
+    uxds = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
+    dest = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
     da = uxds["v1"].remap.inverse_distance_weighted(
         destination_grid=dest, remap_to="edge centers", k=8
     )
@@ -193,11 +187,11 @@ def test_nn_equals_idw_high_power():
     nt.assert_allclose(nn.values, idw.values)
 
 
-def test_dataset_remap_preserves_coords():
+def test_dataset_remap_preserves_coords(gridpath, datasetpath):
     """When remapping a Dataset, time coords and attrs must survive."""
-    uxds = ux.open_dataset(gridfile_geoflow, dsfiles_geoflow[0])
+    uxds = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
     uxds = uxds.assign_coords(time=("time", np.arange(len(uxds.time))))
-    dest = ux.open_grid(mpasfile_QU)
+    dest = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
     ds_out = uxds.remap.inverse_distance_weighted(destination_grid=dest, remap_to="nodes")
     assert "time" in ds_out.coords
 
@@ -205,20 +199,22 @@ def test_dataset_remap_preserves_coords():
 # ------------------------------------------------------------
 # Bilinear tests
 # ------------------------------------------------------------
-def test_b_modifies_values():
+def test_b_modifies_values(gridpath):
     """Bilinear remap should change the array when remap_to != source."""
-    uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
-    dest = ux.open_grid(gridfile_geoflow)
+    mesh_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+    dest = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
     da_idw = uxds["latCell"].remap.inverse_distance_weighted(
         destination_grid=dest, remap_to="nodes"
     )
     assert not np.array_equal(uxds["latCell"].values, da_idw.values)
 
 
-def test_b_return_types_and_counts():
+def test_b_return_types_and_counts(gridpath):
     """Bilinear remap returns UxDataArray or UxDataset with correct var counts."""
-    uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
-    dest = ux.open_grid(gridfile_geoflow)
+    mesh_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+    dest = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
 
     da_idw = uxds["latCell"].remap.bilinear(destination_grid=dest)
 
@@ -230,28 +226,30 @@ def test_b_return_types_and_counts():
     assert isinstance(ds_idw, UxDataset)
     assert set(ds_idw.data_vars) == set(face_center_uxds.data_vars)
 
-def test_b_edge_centers_dim_change():
+def test_b_edge_centers_dim_change(gridpath):
     """Bilinear remap to edge centers produces an 'n_edge' dimension."""
-    uxds = ux.open_dataset(mpasfile_QU, mpasfile_QU)
-    dest = ux.open_grid(mpasfile_QU)
+    mesh_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+    dest = ux.open_grid(mesh_path)
     da = uxds["latCell"].remap.bilinear(
         destination_grid=dest, remap_to="edges"
     )
     assert "n_edge" in da.dims
 
 
-def test_b_value_errors():
+def test_b_value_errors(gridpath, datasetpath):
     """Bilinear remapping raises a value error when the source data is not on the faces"""
-    uxds = ux.open_dataset(gridfile_geoflow, dsfiles_geoflow[0])
-    dest = ux.open_grid(gridfile_geoflow)
+    grid_path = gridpath("ugrid", "geoflow-small", "grid.nc")
+    uxds = ux.open_dataset(grid_path, datasetpath("ugrid", "geoflow-small", "v1.nc"))
+    dest = ux.open_grid(grid_path)
 
     with nt.assert_raises(ValueError):
         uxds['v1'].remap.bilinear(destination_grid=dest, remap_to="nodes")
 
-def test_b_quadrilateral():
+def test_b_quadrilateral(gridpath, datasetpath):
     """Bilinear remapping on quadrilaterals, to test Newton Quadrilateral weights calculation"""
-    uxds = ux.open_dataset(outCSne30, outCSne30_var2)
-    dest = ux.open_grid(mpasfile_QU)
+    uxds = ux.open_dataset(gridpath("ugrid", "outCSne30", "outCSne30.ug"), datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc"))
+    dest = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
 
     out = uxds['var2'].remap.bilinear(destination_grid=dest)
 

@@ -2367,15 +2367,15 @@ class Grid:
         exclusive and clipped indexing is in the works.
 
         Parameters
+        ----------
         inverse_indices : Union[List[str], Set[str], bool], default=False
             Indicates whether to store the original grids indices. Passing `True` stores the original face indices,
             other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         **dims_kwargs: kwargs
             Dimension to index, one of ['n_node', 'n_edge', 'n_face']
 
-
         Example
-        -------`
+        -------
         >> grid = ux.open_grid(grid_path)
         >> grid.isel(n_face = [1,2,3,4])
         """

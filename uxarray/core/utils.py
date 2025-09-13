@@ -80,3 +80,19 @@ def match_chunks_to_ugrid(grid_filename_or_obj, chunks):
             chunks[original_grid_dim] = chunks[ugrid_grid_dim]
 
     return chunks
+
+
+def _validate_indexers(indexers, indexers_kwargs, func_name, ignore_grid):
+    from xarray.core.utils import either_dict_or_kwargs
+
+    from uxarray.constants import GRID_DIMS
+
+    indexers = either_dict_or_kwargs(indexers, indexers_kwargs, func_name)
+    grid_dims = set(GRID_DIMS).intersection(indexers)
+
+    if not ignore_grid and len(grid_dims) > 1:
+        raise ValueError(
+            f"Only one grid dimension can be sliced at a time; got {sorted(grid_dims)}."
+        )
+
+    return indexers, grid_dims

@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from html import escape
-from typing import IO, Any, Optional, Union
+from typing import IO, Any, Mapping, Optional, Union
 from warnings import warn
 
 import numpy as np
@@ -342,6 +342,130 @@ class UxDataset(xr.Dataset):
         )
 
         return cls.from_xarray(ds, uxgrid, {face_dim: "n_face"})
+
+    def _slice_dataset_from_grid(self, sliced_grid, grid_dim: str, grid_indexer):
+        data_vars = {}
+        for name, da in self.data_vars.items():
+            if grid_dim in da.dims:
+                if hasattr(da, "_slice_from_grid"):
+                    data_vars[name] = da._slice_from_grid(sliced_grid)
+                else:
+                    data_vars[name] = da.isel({grid_dim: grid_indexer})
+            else:
+                data_vars[name] = da
+
+        coords = {}
+        for cname, cda in self.coords.items():
+            if grid_dim in cda.dims:
+                # Prefer authoritative coords from the sliced grid if available
+                replacement = getattr(sliced_grid, cname, None)
+                coords[cname] = (
+                    replacement
+                    if replacement is not None
+                    else cda.isel({grid_dim: grid_indexer})
+                )
+            else:
+                coords[cname] = cda
+
+        ds = xr.Dataset(data_vars=data_vars, coords=coords, attrs=self.attrs)
+
+        return ds
+
+    def isel(
+        self,
+        indexers: Mapping[Any, Any] | None = None,
+        drop: bool = False,
+        missing_dims: str = "raise",
+        ignore_grid: bool = False,
+        inverse_indices: bool = False,
+        **indexers_kwargs,
+    ):
+        """Returns a new dataset with each array indexed along the specified
+        dimension(s).
+
+        Performs xarray-style integer-location indexing along specified dimensions.
+        If a single grid dimension ('n_node', 'n_edge', or 'n_face') is provided
+        and `ignore_grid=False`, the underlying grid is sliced accordingly,
+        and remaining indexers are applied to the resulting Dataset.
+
+        Parameters
+        ----------
+        indexers : dict, optional
+            A dict with keys matching dimensions and values given
+            by integers, slice objects or arrays.
+            indexer can be a integer, slice, array-like or DataArray.
+            If DataArrays are passed as indexers, xarray-style indexing will be
+            carried out. See :ref:`indexing` for the details.
+            One of indexers or indexers_kwargs must be provided.
+        drop : bool, default: False
+            If ``drop=True``, drop coordinates variables indexed by integers
+            instead of making them scalar.
+        missing_dims : {"raise", "warn", "ignore"}, default: "raise"
+            What to do if dimensions that should be selected from are not present in the
+            Dataset:
+            - "raise": raise an exception
+            - "warn": raise a warning, and ignore the missing dimensions
+            - "ignore": ignore the missing dimensions
+        ignore_grid : bool, default=False
+            If False (default), allow slicing on one grid dimension to automatically
+            update the associated UXarray grid. If True, fall back to pure xarray behavior.
+        inverse_indices : bool, default=False
+            For grid-based slicing, pass this flag to `Grid.isel` to invert indices
+            when selecting (useful for staggering or reversing order).
+        **indexers_kwargs : dimension=indexer pairs, optional
+
+        **indexers_kwargs : {dim: indexer, ...}, optional
+            The keyword arguments form of ``indexers``.
+            One of indexers or indexers_kwargs must be provided.
+
+                Returns
+        -------
+        UxDataset
+            A new UxDataset indexed according to `indexers` and updated grid if applicable.
+        """
+        from uxarray.core.utils import _validate_indexers
+
+        indexers, grid_dims = _validate_indexers(
+            indexers, indexers_kwargs, "isel", ignore_grid
+        )
+
+        if not ignore_grid:
+            if len(grid_dims) == 1:
+                grid_dim = grid_dims.pop()
+                grid_indexer = indexers.pop(grid_dim)
+
+                # slice the grid
+                sliced_grid = self.uxgrid.isel(
+                    **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
+                )
+
+                ds = self._slice_dataset_from_grid(
+                    sliced_grid=sliced_grid,
+                    grid_dim=grid_dim,
+                    grid_indexer=grid_indexer,
+                )
+
+                if indexers:
+                    ds = xr.Dataset.isel(
+                        ds, indexers=indexers, drop=drop, missing_dims=missing_dims
+                    )
+
+                return type(self)(ds, uxgrid=sliced_grid)
+            else:
+                return type(self)(
+                    super().isel(
+                        indexers=indexers or None,
+                        drop=drop,
+                        missing_dims=missing_dims,
+                    ),
+                    uxgrid=self.uxgrid,
+                )
+
+        return super().isel(
+            indexers=indexers or None,
+            drop=drop,
+            missing_dims=missing_dims,
+        )
 
     def __getattribute__(self, name):
         """Intercept accessor method calls to return Ux-aware accessors."""

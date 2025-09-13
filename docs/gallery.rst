@@ -1,8 +1,6 @@
 .. currentmodule:: uxarray
 
-.. _examples:
-
-.. math::
+.. _gallery:
 
 Gallery
 =======

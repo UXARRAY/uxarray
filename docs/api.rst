@@ -176,8 +176,16 @@ Constructors
    UxDataArray.from_xarray
    UxDataArray.from_healpix
 
+Selection & Indexing
+~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.isel
+
 Grid Accessor
-~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -200,12 +208,20 @@ Constructors
    UxDataset.from_healpix
 
 Grid Accessor
-~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
 
    UxDataset.uxgrid
+
+Selection & Indexing
+~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset.isel
 
 
 Conversion Methods
