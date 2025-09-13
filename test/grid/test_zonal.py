@@ -97,13 +97,10 @@ def test_mismatched_dims():
 class TestConservativeZonalMean:
     """Test conservative zonal mean functionality."""
 
-    gridfile_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30.ug"
-    datafile_vortex_ne30 = current_path / "meshfiles" / "ugrid" / "outCSne30" / "outCSne30_vortex.nc"
-
-    def test_conservative_zonal_mean_basic(self):
+    def test_conservative_zonal_mean_basic(self, gridpath, datasetpath):
         """Test basic conservative zonal mean with bands."""
-        grid_path = self.gridfile_ne30
-        data_path = self.datafile_vortex_ne30
+        grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+        data_path = datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
         uxds = ux.open_dataset(grid_path, data_path)
 
         # Test with explicit bands
@@ -114,10 +111,10 @@ class TestConservativeZonalMean:
         assert result.shape == (len(bands) - 1,)
         assert np.all(np.isfinite(result.values))
 
-    def test_conservative_full_sphere_conservation(self):
+    def test_conservative_full_sphere_conservation(self, gridpath, datasetpath):
         """Test that single band covering entire sphere conserves global mean."""
-        grid_path = self.gridfile_ne30
-        data_path = self.datafile_vortex_ne30
+        grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+        data_path = datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
         uxds = ux.open_dataset(grid_path, data_path)
 
         # Single band covering entire sphere
@@ -130,10 +127,10 @@ class TestConservativeZonalMean:
         assert result.shape == (1,)
         assert result.values[0] == pytest.approx(global_mean.values, rel=0.01)
 
-    def test_conservative_vs_nonconservative_comparison(self):
+    def test_conservative_vs_nonconservative_comparison(self, gridpath, datasetpath):
         """Compare conservative and non-conservative methods."""
-        grid_path = self.gridfile_ne30
-        data_path = self.datafile_vortex_ne30
+        grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+        data_path = datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
         uxds = ux.open_dataset(grid_path, data_path)
 
         # Non-conservative at band centers
