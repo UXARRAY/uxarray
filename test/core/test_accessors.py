@@ -166,7 +166,7 @@ def test_resample_with_cftime(gridpath):
     uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug")))
 
     # Test that quarterly resampling works with cftime
-    quarterly = uxds.resample(time="Q").mean()
+    quarterly = uxds.resample(time="QE").mean()
     assert hasattr(quarterly, "uxgrid"), "uxgrid not preserved with cftime resampling"
     assert "time" in quarterly.dims, "time dimension missing after cftime resample"
     assert quarterly.dims["time"] < uxds.dims["time"], "time dimension not reduced with cftime"
