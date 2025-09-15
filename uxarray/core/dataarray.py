@@ -589,7 +589,11 @@ class UxDataArray(xr.DataArray):
     zonal_average = zonal_mean
 
     def azimuthal_mean(
-        self, center_coord, outer_radius: int | float, radius_step: int | float
+        self,
+        center_coord,
+        outer_radius: int | float,
+        radius_step: int | float,
+        return_hit_counts: bool = False,
     ):
         """Compute averages along circles of constant great-circle distance from a point.
 
@@ -597,25 +601,26 @@ class UxDataArray(xr.DataArray):
         ----------
         center_coord: tuple, list, ndarray
             Longitude and latitude of the center of the bounding circle
-
         outer_radius: scalar, int, float
             The maximum radius, in great-circle degrees, at which the azimuthal mean will be computed.
-
         radius_step: scalar, int, float
             Means will be computed at intervals of `radius_step` on the interval [0, outer_radius]
+        return_hit_counts: bool, false
+            Indicates whether to return the number of hits at each radius
 
         Returns
         -------
-        UxDataset
-            Contains two data variables, azimuthal means with a new 'radius' dimension and corresponding coordinates.
-            Name will be original_name + '_azimuthal_mean' or 'azimuthal_mean' if unnamed and 'hit_count', which indicates the number of faces included in the
-            calculation at each radius.
+        azimuthal_mean: xr.DataArray
+            Contains a variable with a dimension 'radius' corresponding to the azimuthal average.
+        hit_counts: xr.DataArray
+            The number of hits at each radius
+
 
         Examples
         --------
         # Range from 0° to 5° at 0.5° intervals, around the central point lon,lat=10,50
         >>> az = uxds["var"].azimuthal_mean((10, 50), 5.0, 0.5)
-        >>> az["var_azimuthal_mean"].plot.line(title="Azimuthal Mean")
+        >>> az["var_azimuthal_mean"].plot(title="Azimuthal Mean")
 
         Notes
         -----
@@ -623,7 +628,6 @@ class UxDataArray(xr.DataArray):
         using bounding circles - for radii = [r1, r2, r3, ...] faces whose centers lie at distance d,
         r2 < d <= r3 are included in calculations for r3.
         """
-        from uxarray.core.dataset import UxDataset
         from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
         if not self._face_centered():
@@ -678,9 +682,8 @@ class UxDataArray(xr.DataArray):
             data=hit_count, dims="radius", coords={"radius": radii_deg}
         )
 
-        uxda = UxDataArray(
+        uxda = xr.DataArray(
             means,
-            uxgrid=self.uxgrid,
             dims=dims,
             coords={"radius": radii_deg},
             name=self.name + "_azimuthal_mean"
@@ -694,9 +697,10 @@ class UxDataArray(xr.DataArray):
             },
         )
 
-        uxds = UxDataset({uxda.name: uxda, "hit_count": hit_count})
-
-        return uxds
+        if return_hit_counts:
+            return uxda, hit_count
+        else:
+            return uxda
 
     azimuthal_average = azimuthal_mean
 
