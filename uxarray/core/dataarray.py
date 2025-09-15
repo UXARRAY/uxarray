@@ -578,28 +578,27 @@ class UxDataArray(xr.DataArray):
                     "Invalid value for 'lat' provided. Must be a scalar, tuple (min_lat, max_lat, step), or array-like."
                 )
 
-            # Filter out conservative-specific kwargs
-            filtered_kwargs = {
-                k: v for k, v in kwargs.items() if k not in ["mode", "bands"]
-            }
             res = _compute_non_conservative_zonal_mean(
-                uxda=self, latitudes=latitudes, **filtered_kwargs
+                uxda=self, latitudes=latitudes, **kwargs
             )
 
             dims = list(self.dims)
             dims[face_axis] = "latitudes"
 
-            uxda = UxDataArray(
+            warnings.warn(
+                "zonal_mean returns an xarray.DataArray (no grid topology). Returning UxDataArray is deprecated and will be removed.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return xr.DataArray(
                 res,
-                uxgrid=self.uxgrid,
                 dims=dims,
                 coords={"latitudes": latitudes},
                 name=self.name + "_zonal_mean"
                 if self.name is not None
                 else "zonal_mean",
-                attrs={"zonal_mean": True, "scheme": "non-conservative"},
+                attrs={"zonal_mean": True, "conservative": False},
             )
-            return uxda
 
         else:
             # Conservative zonal averaging
@@ -624,9 +623,13 @@ class UxDataArray(xr.DataArray):
             dims = list(self.dims)
             dims[face_axis] = "latitudes"
 
-            uxda = UxDataArray(
+            warnings.warn(
+                "zonal_mean returns an xarray.DataArray (no grid topology). Returning UxDataArray is deprecated and will be removed.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return xr.DataArray(
                 res,
-                uxgrid=self.uxgrid,
                 dims=dims,
                 coords={"latitudes": centers},
                 name=self.name + "_zonal_mean"
@@ -634,11 +637,10 @@ class UxDataArray(xr.DataArray):
                 else "zonal_mean",
                 attrs={
                     "zonal_mean": True,
-                    "scheme": "conservative",
+                    "conservative": True,
                     "lat_band_edges": edges,
                 },
             )
-            return uxda
 
     def zonal_average(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
         """Alias of zonal_mean; prefer `zonal_mean` for primary API."""
