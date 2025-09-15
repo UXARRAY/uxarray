@@ -87,8 +87,22 @@ def _validate_indexers(indexers, indexers_kwargs, func_name, ignore_grid):
 
     from uxarray.constants import GRID_DIMS
 
+    # Used to filter out slices containing all Nones (causes subscription errors, i.e., var[0])
+    _is_full_none_slice = (
+        lambda v: isinstance(v, slice)
+        and v.start is None
+        and v.stop is None
+        and v.step is None
+    )
+
     indexers = either_dict_or_kwargs(indexers, indexers_kwargs, func_name)
-    grid_dims = set(GRID_DIMS).intersection(indexers)
+
+    # Only count a grid dim if its indexer is NOT a no-op full slice
+    grid_dims = {
+        dim
+        for dim in GRID_DIMS
+        if dim in indexers and not _is_full_none_slice(indexers[dim])
+    }
 
     if not ignore_grid and len(grid_dims) > 1:
         raise ValueError(
