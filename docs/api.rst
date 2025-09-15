@@ -458,8 +458,7 @@ Azimuthal
 
 Azimuthal aggregations apply an aggregation (i.e. averaging) along circles of constant great-circle distance from a specified point on the sphere.
 
-Azimuthal Average
-~~~~~~~~~~~~~~~~~~
+
 .. autosummary::
    :toctree: generated/
 
