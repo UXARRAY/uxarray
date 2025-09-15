@@ -619,8 +619,10 @@ class UxDataArray(xr.DataArray):
         Examples
         --------
         # Range from 0° to 5° at 0.5° intervals, around the central point lon,lat=10,50
-        >>> az = uxds["var"].azimuthal_mean((10, 50), 5.0, 0.5)
-        >>> az["var_azimuthal_mean"].plot(title="Azimuthal Mean")
+        >>> az = uxds["var"].azimuthal_mean(
+        ...     center_coord=(10, 50), outer_radius=5.0, radius_step=0.5
+        ... )
+        >>> az.plot(title="Azimuthal Mean")
 
         Notes
         -----
@@ -634,6 +636,9 @@ class UxDataArray(xr.DataArray):
             raise ValueError(
                 "Azimuthal mean computations are currently only supported for face-centered data variables."
             )
+
+        if outer_radius <= 0:
+            raise ValueError("Radius must be a positive scalar.")
 
         kdtree = self.uxgrid._get_scipy_kd_tree()
 
