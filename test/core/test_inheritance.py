@@ -211,3 +211,14 @@ class TestDatasetSelection:
 
         assert ds_t_multi.uxgrid == ds.uxgrid
         assert ds_t_multi.sizes['time'] == 2
+
+    def test_subscription(self, ds):
+
+        # index time dimension
+        res_t = ds['fc'][0]
+
+        assert isinstance(res_t, ux.UxDataArray)
+
+        # index grid dimension
+        res_f = ds['fc'][:, 0]
+        assert isinstance(res_f, ux.UxDataArray)
