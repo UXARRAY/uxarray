@@ -16,7 +16,7 @@ def ds():
 
     uxds["fc"] = uxds["fc"].assign_coords(face_id=("n_face", np.arange(uxgrid.n_face)))
     uxds["nc"] = uxds["nc"].assign_coords(node_id=("n_node", np.arange(uxgrid.n_node)))
-    uxds["t"] = uxds["t"].assign_coords(time_id=("time", np.arange(uxds.dims["time"])))
+    uxds["t"] = uxds["t"].assign_coords(time_id=("time", np.arange(uxds.sizes["time"])))
 
     return uxds
 
@@ -109,7 +109,7 @@ class TestInheritedMethods:
         assert hasattr(grouped, 'uxgrid')
 
     def test_assign_coords(self, ds):
-        n = ds.dims['n_face']
+        n = ds.sizes['n_face']
         new_coord = xr.DataArray(np.arange(n) * 10, dims=['n_face'])
         out = ds.assign_coords(scaled_id=new_coord)
         assert isinstance(out, ux.UxDataset)
@@ -121,7 +121,7 @@ class TestInheritedMethods:
         out = ds.expand_dims({'member': 1})
         assert isinstance(out, ux.UxDataset)
         assert hasattr(out, 'uxgrid') and out.uxgrid is ds.uxgrid
-        assert 'member' in out.dims and out.dims['member'] == 1
+        assert 'member' in out.dims and out.sizes['member'] == 1
         assert 'member' in out['t'].dims and out['t'].sizes['member'] == 1
 
     def test_method_chaining(self, ds):
@@ -147,7 +147,7 @@ class TestInheritedMethods:
         assert unstacked['fc'].shape == ds_fc['fc'].shape
 
     def test_sortby(self, ds):
-        n = ds.dims['n_face']
+        n = ds.sizes['n_face']
         ds_fc = ds[['fc']].assign_coords(reverse_id=('n_face', np.arange(n)[::-1]))
         out = ds_fc.sortby('reverse_id')
         assert isinstance(out, ux.UxDataset)
