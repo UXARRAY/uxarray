@@ -138,7 +138,7 @@ def test_resample_reduces_time_dimension(gridpath):
     uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug")))
 
     # Test monthly resampling reduces from 365 days to 12 months
-    monthly = uxds.resample(time="1M").mean()
+    monthly = uxds.resample(time="1ME").mean()
     assert "time" in monthly.dims, "time dimension missing after resample"
     assert monthly.dims["time"] < uxds.dims["time"], "time dimension not reduced"
     assert monthly.dims["time"] <= 12, "monthly resampling should give 12 or fewer time points"
