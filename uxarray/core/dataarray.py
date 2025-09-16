@@ -512,6 +512,10 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
+    # TODO =====
+
+    # =====
+
     def zonal_mean(self, lat=(-90, 90, 10), **kwargs):
         """Compute averages along lines of constant latitude.
 
