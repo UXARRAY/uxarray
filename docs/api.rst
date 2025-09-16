@@ -453,6 +453,17 @@ on each face.
    UxDataArray.topological_all
    UxDataArray.topological_any
 
+Azimuthal
+~~~~~~~~~
+
+Azimuthal aggregations apply an aggregation (i.e. averaging) along circles of constant great-circle distance from a specified point on the sphere.
+
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.azimuthal_mean
+
 Zonal Average
 ~~~~~~~~~~~~~
 .. autosummary::
