@@ -824,3 +824,9 @@ def test_sphere_radius_mpas_ocean(gridpath):
     # Test invalid radius
     with pytest.raises(ValueError, match="Sphere radius must be positive"):
         grid.sphere_radius = -1.0
+
+
+def test_set_lon_range_attrs(gridpath):
+    grid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
+    assert "standard_name" in grid.node_lon.attrs
+    assert grid.node_lon.name == "node_lon"
