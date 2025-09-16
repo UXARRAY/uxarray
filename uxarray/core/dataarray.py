@@ -643,20 +643,8 @@ class UxDataArray(xr.DataArray):
             )
 
     def zonal_average(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
-        """Zonal average convenience returning an object with the plotting accessor.
-
-        Returns a UxDataArray for compatibility with plotting tests while delegating
-        computation to zonal_mean.
-        """
-        da = self.zonal_mean(lat=lat, conservative=conservative, **kwargs)
-        return UxDataArray(
-            da.data,
-            uxgrid=self.uxgrid,
-            dims=list(da.dims),
-            coords=da.coords,
-            name=da.name,
-            attrs=da.attrs,
-        )
+        """Alias of zonal_mean; prefer `zonal_mean` for primary API."""
+        return self.zonal_mean(lat=lat, conservative=conservative, **kwargs)
 
     def weighted_mean(self, weights=None):
         """Computes a weighted mean.
