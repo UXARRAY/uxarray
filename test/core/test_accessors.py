@@ -138,10 +138,10 @@ def test_resample_reduces_time_dimension(gridpath):
     uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug")))
 
     # Test monthly resampling reduces from 365 days to 12 months
-    monthly = uxds.resample(time="1M").mean()
+    monthly = uxds.resample(time="1ME").mean()
     assert "time" in monthly.dims, "time dimension missing after resample"
-    assert monthly.dims["time"] < uxds.dims["time"], "time dimension not reduced"
-    assert monthly.dims["time"] <= 12, "monthly resampling should give 12 or fewer time points"
+    assert monthly.sizes["time"] < uxds.sizes["time"], "time dimension not reduced"
+    assert monthly.sizes["time"] <= 12, "monthly resampling should give 12 or fewer time points"
 
 
 def test_resample_with_cftime(gridpath):
@@ -166,10 +166,10 @@ def test_resample_with_cftime(gridpath):
     uxds = ux.UxDataset(ds, uxgrid=ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug")))
 
     # Test that quarterly resampling works with cftime
-    quarterly = uxds.resample(time="Q").mean()
+    quarterly = uxds.resample(time="QE").mean()
     assert hasattr(quarterly, "uxgrid"), "uxgrid not preserved with cftime resampling"
     assert "time" in quarterly.dims, "time dimension missing after cftime resample"
-    assert quarterly.dims["time"] < uxds.dims["time"], "time dimension not reduced with cftime"
+    assert quarterly.sizes["time"] < uxds.sizes["time"], "time dimension not reduced with cftime"
 
 
 def test_rolling_preserves_uxgrid(gridpath):
@@ -237,7 +237,7 @@ def test_coarsen_preserves_uxgrid(gridpath):
 
     # Test that coarsen reduces dimension correctly
     assert len(da_result.time) == 8, "coarsen by 3 should reduce 24 points to 8"
-    assert ds_result.dims["time"] == 8, "coarsen should reduce time dimension"
+    assert ds_result.sizes["time"] == 8, "coarsen should reduce time dimension"
 
 
 def test_weighted_preserves_uxgrid(gridpath, datasetpath):
@@ -251,7 +251,7 @@ def test_weighted_preserves_uxgrid(gridpath, datasetpath):
         gridpath("ugrid", "outCSne30", "outCSne30.ug"),
         datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc")
     )
-    n_face = uxds_base.dims["n_face"]
+    n_face = uxds_base.sizes["n_face"]
 
     # Create data with time and face dimensions
     temp_data = np.random.rand(10, n_face)
