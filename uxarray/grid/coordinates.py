@@ -692,11 +692,14 @@ def _construct_edge_centroids(node_x, node_y, node_z, edge_node_conn):
 
 def _set_desired_longitude_range(uxgrid):
     """Sets the longitude range to [-180, 180] for all longitude variables."""
-
-    for lon_name in ["node_lon", "edge_lon", "face_lon"]:
-        if lon_name in uxgrid._ds:
-            if uxgrid._ds[lon_name].max() > 180:
-                uxgrid._ds[lon_name] = (uxgrid._ds[lon_name] + 180) % 360 - 180
+    with xr.set_options(keep_attrs=True):
+        for lon_name in ["node_lon", "edge_lon", "face_lon"]:
+            if lon_name in uxgrid._ds:
+                if uxgrid._ds[lon_name].max() > 180:
+                    da = uxgrid._ds[lon_name]
+                    wrapped = (uxgrid._ds[lon_name] + 180) % 360 - 180
+                    wrapped.name = da.name
+                    uxgrid._ds[lon_name] = wrapped
 
 
 def prepare_points(points, normalize):
