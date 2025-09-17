@@ -40,9 +40,14 @@ class DataArrayReduceAccessor:
     def topological(
         self,
         func: Callable[..., Any],
+        dim: Dims = None,
+        *,
         destination: Literal["node", "edge", "face"],
+        keep_attrs: bool | None = None,
+        keepdims: bool = False,
         **kwargs: Any,
     ):
+        """Reduces this data array along its spatial dimension (and any other provided ones) by utilizing"""
         pass
 
     def azimuthal(
@@ -53,8 +58,12 @@ class DataArrayReduceAccessor:
         outer_radius: int | float,
         radius_step: int | float,
         return_hit_counts: bool = False,
-    ):  #
+        keep_attrs: bool | None = None,
+        keepdims: bool = False,
+    ):
+        """Reduces this data array ..."""
         pass
 
     def neighborhood(self, func: Callable[..., Any], *, r: int | float):
+        """Reduces this data array ..."""
         pass
