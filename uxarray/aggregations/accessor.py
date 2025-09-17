@@ -13,7 +13,7 @@ class DataArrayAggregateAccessor:
         self.ux_obj = ux_obj
 
     def __repr__(self) -> str:
-        prefix = f"<{type(self.ux_obj).__name__}.remap>\n"
+        prefix = f"<{type(self.ux_obj).__name__}.agg>\n"
         return (
             prefix
             + "Supported methods:\n"
@@ -38,12 +38,34 @@ class DataArrayAggregateAccessor:
         """Aggregates this data array along its spatial dimension (and any other provided ones) by indexing
         connectivity arrays and applying one or more operations.
 
+
+        Parameters
+        ----------
+        func : Callable[..., Any]
+            todo
+        dim : Dims
+            todo
+        destination: Literal["node", "edge", "face"]
+            todo
+        keep_attrs: bool | None
+            todo
+        keepdims: bool
+            todo
+
+
+        Returns
+        -------
+        topological_agg: UxDataArray
+            todo
+
+
         """
         pass
 
     def azimuthal(
         self,
         func: Callable[..., Any] = np.mean,
+        dim: Dims = None,
         *,
         center_coord: Tuple[float, float],  # TODO: type
         outer_radius: int | float,
@@ -61,3 +83,6 @@ class DataArrayAggregateAccessor:
         """Aggregates this data array along its spatial dimension (and any other provided ones) by collecting a
         neighborhood or elements and applying one or more operations."""
         pass
+
+    # uxds['t2m'].agg.azimuthal(func=np.mean, )
+    # uxds['t2m'].agg.topological()
