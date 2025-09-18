@@ -50,36 +50,3 @@ def test_to_xarray_ugrid(gridpath):
     reloaded_grid._ds.close()
     del reloaded_grid
     os.remove("scrip_ugrid_csne8.nc")
-
-def test_standardized_dtype_and_fill(gridpath):
-    """Test to see if Mesh2_Face_Nodes uses the expected integer datatype
-    and expected fill value as set in constants.py."""
-    ug_filename1 = gridpath("ugrid", "outCSne30", "outCSne30.ug")
-    ug_filename2 = gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug")
-    ug_filename3 = gridpath("ugrid", "ov_RLL10deg_CSne4", "ov_RLL10deg_CSne4.ug")
-
-    ux_grid1 = ux.open_grid(ug_filename1)
-    ux_grid2 = ux.open_grid(ug_filename2)
-    ux_grid3 = ux.open_grid(ug_filename3)
-
-    # Check for correct dtype and fill value
-    grids_with_fill = [ux_grid2]
-    for grid in grids_with_fill:
-        assert grid.face_node_connectivity.dtype == INT_DTYPE
-        assert grid.face_node_connectivity._FillValue == INT_FILL_VALUE
-        assert INT_FILL_VALUE in grid.face_node_connectivity.values
-
-    grids_without_fill = [ux_grid1, ux_grid3]
-    for grid in grids_without_fill:
-        assert grid.face_node_connectivity.dtype == INT_DTYPE
-        assert grid.face_node_connectivity._FillValue == INT_FILL_VALUE
-
-def test_standardized_dtype_and_fill_dask(gridpath):
-    """Test to see if Mesh2_Face_Nodes uses the expected integer datatype
-    and expected fill value as set in constants.py with dask chunking."""
-    ug_filename = gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug")
-    ux_grid = ux.open_grid(ug_filename)
-
-    assert ux_grid.face_node_connectivity.dtype == INT_DTYPE
-    assert ux_grid.face_node_connectivity._FillValue == INT_FILL_VALUE
-    assert INT_FILL_VALUE in ux_grid.face_node_connectivity.values
