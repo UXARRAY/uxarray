@@ -1483,10 +1483,30 @@ class Grid:
         from uxarray.conventions.descriptors import FACE_AREAS_ATTRS, FACE_AREAS_DIMS
 
         if "face_areas" not in self._ds:
-            face_areas, self._face_jacobian = self.compute_face_areas()
-            self._ds["face_areas"] = xr.DataArray(
-                data=face_areas, dims=FACE_AREAS_DIMS, attrs=FACE_AREAS_ATTRS
-            )
+            # Check if this is a HEALPix grid
+            if self._ds.attrs.get("source_grid_spec") == "HEALPix":
+                # For HEALPix grids, return theoretical equal areas
+                # HEALPix is designed to have exactly equal area pixels
+                npix = self.n_face
+                theoretical_area = 4.0 * np.pi / npix
+                face_areas = np.full(npix, theoretical_area)
+
+                # HEALPix-specific attributes
+                healpix_attrs = {
+                    **FACE_AREAS_ATTRS,
+                    "long_name": "HEALPix equal area per face",
+                    "comment": "Theoretical equal areas enforced for HEALPix grids",
+                }
+
+                self._ds["face_areas"] = xr.DataArray(
+                    data=face_areas, dims=FACE_AREAS_DIMS, attrs=healpix_attrs
+                )
+            else:
+                # For other grids, use calculated areas
+                face_areas, self._face_jacobian = self.compute_face_areas()
+                self._ds["face_areas"] = xr.DataArray(
+                    data=face_areas, dims=FACE_AREAS_DIMS, attrs=FACE_AREAS_ATTRS
+                )
         return self._ds["face_areas"]
 
     face_areas = face_areas.setter(make_setter("face_areas"))
