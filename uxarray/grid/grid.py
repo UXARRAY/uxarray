@@ -1984,10 +1984,6 @@ class Grid:
         pixel definitions and geometric representation. For HEALPix grids, use the
         ``face_areas`` property instead, which ensures mathematical correctness by using
         theoretical equal areas.
-
-        See Also
-        --------
-        face_areas : Property that handles special cases like HEALPix grids
         """
         # if self._face_areas is None: # this allows for using the cached result,
         # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
