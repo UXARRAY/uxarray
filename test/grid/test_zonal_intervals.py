@@ -296,24 +296,29 @@ def test_process_overlapped_intervals_antimeridian():
         }
     )
 
-    # Expected results
+    # Expected results for antimeridian case
     expected_overlap_contributions = {
-        0: 110.0,  # 10 + 100
-        1: 50.0,
-        2: 200.0,
-        3: 50.0
+        0: 105.0,
+        1: 25.0,
+        2: 175.0,
+        3: 45.0
     }
 
     # Process intervals
     overlap_contributions, total_length = _process_overlapped_intervals(df)
 
-    # Assertions
-    assert abs(total_length - 360.0) < 1e-10
+    # Assert total length
+    assert abs(total_length - 350.0) < 1e-10, \
+        f"Expected total length 350.0, got {total_length}"
 
     # Check each contribution matches expected value
     for face_idx, expected_value in expected_overlap_contributions.items():
         assert abs(overlap_contributions[face_idx] - expected_value) < 1e-10, \
             f"Mismatch for face_index {face_idx}: expected {expected_value}, got {overlap_contributions[face_idx]}"
+
+    # Verify all expected face indices are present
+    assert set(overlap_contributions.keys()) == set(expected_overlap_contributions.keys()), \
+        "Mismatch in face indices"
 
 
 def test_get_zonal_face_interval_pole():

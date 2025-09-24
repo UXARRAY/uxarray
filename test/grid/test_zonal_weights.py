@@ -87,10 +87,16 @@ def test_get_zonal_faces_weight_at_constLat_regular():
               [0.3 * np.pi, 0.0], [0.3 * np.pi, 0.25 * np.pi]]
     face_1 = [[0.4 * np.pi, 0.3 * np.pi], [0.4 * np.pi, 0.0],
               [0.5 * np.pi, 0.0], [0.5 * np.pi, 0.3 * np.pi]]
+    face_2 = [[0.5 * np.pi, 0.25 * np.pi], [0.5 * np.pi, 0.0], [np.pi, 0.0],
+              [np.pi, 0.25 * np.pi]]
+    face_3 = [[1.2 * np.pi, 0.25 * np.pi], [1.2 * np.pi, 0.0],
+              [1.6 * np.pi, -0.01 * np.pi], [1.6 * np.pi, 0.25 * np.pi]]
 
     # Convert the face vertices to xyz coordinates
     face_0 = [_lonlat_rad_to_xyz(*v) for v in face_0]
     face_1 = [_lonlat_rad_to_xyz(*v) for v in face_1]
+    face_2 = [_lonlat_rad_to_xyz(*v) for v in face_2]
+    face_3 = [_lonlat_rad_to_xyz(*v) for v in face_3]
 
     face_0_edge_nodes = np.array([[face_0[0], face_0[1]],
                                   [face_0[1], face_0[2]],
@@ -100,26 +106,44 @@ def test_get_zonal_faces_weight_at_constLat_regular():
                                   [face_1[1], face_1[2]],
                                   [face_1[2], face_1[3]],
                                   [face_1[3], face_1[0]]])
+    face_2_edge_nodes = np.array([[face_2[0], face_2[1]],
+                                  [face_2[1], face_2[2]],
+                                  [face_2[2], face_2[3]],
+                                  [face_2[3], face_2[0]]])
+    face_3_edge_nodes = np.array([[face_3[0], face_3[1]],
+                                  [face_3[1], face_3[2]],
+                                  [face_3[2], face_3[3]],
+                                  [face_3[3], face_3[0]]])
 
     face_0_latlon_bound = np.array([[0.0, 0.25 * np.pi],
                                     [1.7 * np.pi, 0.3 * np.pi]])
-    face_1_latlon_bound = np.array([[0.0, 0.3 * np.pi],
+    face_1_latlon_bound = np.array([[0, 0.3 * np.pi],
                                     [0.4 * np.pi, 0.5 * np.pi]])
+    face_2_latlon_bound = np.array([[0.0, 0.25 * np.pi],
+                                    [0.5 * np.pi, np.pi]])
+    face_3_latlon_bound = np.array([[-0.01 * np.pi, 0.25 * np.pi],
+                                    [1.2 * np.pi, 1.6 * np.pi]])
 
-    latlon_bounds = np.array([face_0_latlon_bound, face_1_latlon_bound])
+    latlon_bounds = np.array([
+        face_0_latlon_bound, face_1_latlon_bound, face_2_latlon_bound,
+        face_3_latlon_bound
+    ])
 
-    face_edges_cart = np.array([face_0_edge_nodes, face_1_edge_nodes])
+    face_edges_cart = np.array([
+        face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes,
+        face_3_edge_nodes
+    ])
 
     constLat_cart = np.sin(0.1 * np.pi)
 
     weights = _zonal_face_weights(face_edges_cart,
                                   latlon_bounds,
-                                  np.array([4, 4]),
+                                  np.array([4, 4, 4, 4]),
                                   z=constLat_cart)
 
-    expected_weights = np.array([0.9, 0.1])
+    expected_weights = np.array([0.375, 0.0625, 0.3125, 0.25])
 
-    nt.assert_array_almost_equal(weights, expected_weights, decimal=3)
+    nt.assert_array_almost_equal(weights, expected_weights)
 
 
 def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
@@ -407,41 +431,43 @@ def test_get_zonal_faces_weight_at_constLat_latlonface():
 
 
 def test_compare_zonal_weights(gridpath):
-    """Test that the new and old zonal weight functions produce the same results."""
-    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    """Compares the existing weights calculation (get_non_conservative_zonal_face_weights_at_const_lat_overlap) to
+    the faster implementation (get_non_conservative_zonal_face_weights_at_const_lat)"""
+    gridfiles = [gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+                 gridpath("scrip", "outCSne8", "outCSne8.nc"),
+                 gridpath("ugrid", "geoflow-small", "grid.nc"),]
 
-    # Get face edge nodes in Cartesian coordinates
-    face_edge_nodes_xyz = _get_cartesian_face_edge_nodes_array(
-        uxgrid.face_node_connectivity.values,
-        uxgrid.node_x.values,
-        uxgrid.node_y.values,
-        uxgrid.node_z.values,
-        uxgrid.n_max_face_nodes
-    )
+    lat = (-90, 90, 10)
+    latitudes = np.arange(lat[0], lat[1] + lat[2], lat[2])
 
-    n_nodes_per_face = uxgrid.n_nodes_per_face.values
+    for gridfile in gridfiles:
+        uxgrid = ux.open_grid(gridfile)
+        n_nodes_per_face = uxgrid.n_nodes_per_face.values
+        face_edge_nodes_xyz = _get_cartesian_face_edge_nodes_array(
+                uxgrid.face_node_connectivity.values,
+                uxgrid.n_face,
+                uxgrid.n_max_face_edges,
+                uxgrid.node_x.values,
+                uxgrid.node_y.values,
+                uxgrid.node_z.values,
+            )
+        bounds = uxgrid.bounds.values
 
-    # Test at multiple latitudes
-    latitudes = [-60, -30, 0, 30, 60]
+        for i, lat in enumerate(latitudes):
+            face_indices = uxgrid.get_faces_at_constant_latitude(lat)
+            z = np.sin(np.deg2rad(lat))
 
-    for i, lat in enumerate(latitudes):
-        face_indices = uxgrid.get_faces_at_constant_latitude(lat)
-        z = np.sin(np.deg2rad(lat))
+            face_edge_nodes_xyz_candidate = face_edge_nodes_xyz[face_indices, :, :, :]
+            n_nodes_per_face_candidate = n_nodes_per_face[face_indices]
+            bounds_candidate = bounds[face_indices]
 
-        face_edge_nodes_xyz_candidate = face_edge_nodes_xyz[face_indices, :, :, :]
-        n_nodes_per_face_candidate = n_nodes_per_face[face_indices]
-        bounds_candidate = uxgrid.bounds.values[face_indices]
+            new_weights = _zonal_face_weights(face_edge_nodes_xyz_candidate,
+                                              bounds_candidate,
+                                              n_nodes_per_face_candidate,
+                                              z)
 
-        new_weights = _zonal_face_weights(face_edge_nodes_xyz_candidate,
-                                          bounds_candidate,
-                                          n_nodes_per_face_candidate,
-                                          z)
+            existing_weights = _zonal_face_weights_robust(
+                face_edge_nodes_xyz_candidate, z, bounds_candidate
+            )["weight"].to_numpy()
 
-        existing_weights = _zonal_face_weights_robust(
-            face_edge_nodes_xyz_candidate, z, bounds_candidate
-        )["weight"].to_numpy()
-
-        abs_diff = np.abs(new_weights - existing_weights)
-
-        # For each latitude, make sure the absolute difference is below our error tolerance
-        assert abs_diff.max() < ERROR_TOLERANCE
+            nt.assert_allclose(new_weights, existing_weights, atol=ERROR_TOLERANCE)

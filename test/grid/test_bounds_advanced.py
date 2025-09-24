@@ -61,6 +61,58 @@ def _get_lonlat_rad_face_edge_nodes_testcase_helper_latlon_bounds_gca(face_nodes
     return lonlat_coordinates
 
 
+def _get_cartesian_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(face_nodes_ind, face_edges_ind,
+                                                                          edge_nodes_grid, node_x, node_y, node_z):
+    """Construct an array to hold the edge Cartesian coordinates connectivity for a face in a grid."""
+    mask = face_edges_ind != INT_FILL_VALUE
+    valid_edges = face_edges_ind[mask]
+    face_edges = edge_nodes_grid[valid_edges]
+
+    face_edges[0] = [face_nodes_ind[0], face_nodes_ind[1]]
+
+    for idx in range(1, len(face_edges)):
+        if face_edges[idx][0] != face_edges[idx - 1][1]:
+            face_edges[idx] = face_edges[idx][::-1]
+
+    cartesian_coordinates = np.array(
+        [
+            [[node_x[node], node_y[node], node_z[node]] for node in edge]
+            for edge in face_edges
+        ]
+    )
+
+    return cartesian_coordinates
+
+
+def _get_lonlat_rad_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(face_nodes_ind, face_edges_ind,
+                                                                           edge_nodes_grid, node_lon, node_lat):
+    """Construct an array to hold the edge lat lon in radian connectivity for a face in a grid."""
+    mask = face_edges_ind != INT_FILL_VALUE
+    valid_edges = face_edges_ind[mask]
+    face_edges = edge_nodes_grid[valid_edges]
+
+    face_edges[0] = [face_nodes_ind[0], face_nodes_ind[1]]
+
+    for idx in range(1, len(face_edges)):
+        if face_edges[idx][0] != face_edges[idx - 1][1]:
+            face_edges[idx] = face_edges[idx][::-1]
+
+    lonlat_coordinates = np.array(
+        [
+            [
+                [
+                    np.mod(np.deg2rad(node_lon[node]), 2 * np.pi),
+                    np.deg2rad(node_lat[node]),
+                ]
+                for node in edge
+            ]
+            for edge in face_edges
+        ]
+    )
+
+    return lonlat_coordinates
+
+
 def test_populate_bounds_antimeridian_latlon_bounds_gca():
     vertices_lonlat = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
     vertices_lonlat = np.array(vertices_lonlat)
