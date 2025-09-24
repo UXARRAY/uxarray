@@ -1479,6 +1479,11 @@ class Grid:
         -------
         face_areas: :py:class:`xr.DataArray`
             An array of shape (:py:attr:`~uxarray.Grid.n_face`,)
+
+        Notes
+        -----
+        For HEALPix grids, this property returns theoretical equal areas to preserve
+        the equal-area property. For other grid types, areas are computed geometrically.
         """
         from uxarray.conventions.descriptors import FACE_AREAS_ATTRS, FACE_AREAS_DIMS
 
