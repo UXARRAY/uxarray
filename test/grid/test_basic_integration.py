@@ -7,23 +7,22 @@ from uxarray.constants import ERROR_TOLERANCE
 
 
 def test_single_dim(gridpath):
-    """Test single dimension integration."""
-    uxds = ux.open_dataset(gridpath("ugrid", "outCSne30", "outCSne30.ug"), gridpath("ugrid", "outCSne30", "outCSne30_vortex.nc"))
+    """Integral with 1D data mapped to each face."""
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    test_data = np.ones(uxgrid.n_face)
+    dims = {"n_face": uxgrid.n_face}
+    uxda = ux.UxDataArray(data=test_data, dims=dims, uxgrid=uxgrid, name='var2')
+    integral = uxda.integrate()
+    assert integral.ndim == len(dims) - 1
+    nt.assert_almost_equal(integral, 4 * np.pi)
 
-    # Test single dimension integration
-    result = uxds['psi'].integrate()
-
-    # Should return a scalar
-    assert result.ndim == 0
-    assert isinstance(result.values.item(), (int, float, np.number))
 
 def test_multi_dim(gridpath):
-    """Test multi-dimensional integration."""
-    uxds = ux.open_dataset(gridpath("ugrid", "outCSne30", "outCSne30.ug"), gridpath("ugrid", "outCSne30", "outCSne30_vortex.nc"))
-
-    # Test multi-dimensional integration
-    result = uxds['psi'].integrate()
-
-    # Should handle multiple dimensions appropriately
-    assert result is not None
-    assert isinstance(result.values.item(), (int, float, np.number))
+    """Integral with 3D data mapped to each face."""
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    test_data = np.ones((5, 5, uxgrid.n_face))
+    dims = {"a": 5, "b": 5, "n_face": uxgrid.n_face}
+    uxda = ux.UxDataArray(data=test_data, dims=dims, uxgrid=uxgrid, name='var2')
+    integral = uxda.integrate()
+    assert integral.ndim == len(dims) - 1
+    nt.assert_almost_equal(integral, np.ones((5, 5)) * 4 * np.pi)

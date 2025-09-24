@@ -61,34 +61,6 @@ def _get_lonlat_rad_face_edge_nodes_testcase_helper_latlon_bounds_gca(face_nodes
     return lonlat_coordinates
 
 
-def test_populate_bounds_normal_latlon_bounds_gca():
-    vertices_lonlat = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
-    vertices_lonlat = np.array(vertices_lonlat)
-
-    vertices_rad = np.radians(vertices_lonlat)
-    vertices_cart = np.vstack([_lonlat_rad_to_xyz(vertices_rad[:, 0], vertices_rad[:, 1])]).T
-    lat_max = max(np.deg2rad(60.0),
-                  np.asin(extreme_gca_z(np.array([vertices_cart[0], vertices_cart[3]]), extreme_type="max")))
-    lat_min = min(np.deg2rad(10.0),
-                  np.asin(extreme_gca_z(np.array([vertices_cart[1], vertices_cart[2]]), extreme_type="min")))
-    lon_min = np.deg2rad(10.0)
-    lon_max = np.deg2rad(50.0)
-    grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
-    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes_testcase_helper_latlon_bounds_gca(
-        grid.face_node_connectivity.values[0],
-        grid.face_edge_connectivity.values[0],
-        grid.edge_node_connectivity.values, grid.node_x.values,
-        grid.node_y.values, grid.node_z.values)
-    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes_testcase_helper_latlon_bounds_gca(
-        grid.face_node_connectivity.values[0],
-        grid.face_edge_connectivity.values[0],
-        grid.edge_node_connectivity.values, grid.node_lon.values,
-        grid.node_lat.values)
-    expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
-    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
-    np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
-
-
 def test_populate_bounds_antimeridian_latlon_bounds_gca():
     vertices_lonlat = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
     vertices_lonlat = np.array(vertices_lonlat)
@@ -212,3 +184,218 @@ def test_populate_bounds_pole_inside_latlon_bounds_gca():
     expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
     bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat)
     np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+
+
+def test_populate_bounds_node_on_pole_latlon_bounds_gca_list():
+    vertices_lonlat = [[10.0, 90.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+    vertices_lonlat = np.array(vertices_lonlat)
+
+    lat_max = np.deg2rad(90.0)
+    lat_min = np.deg2rad(10.0)
+    lon_min = np.deg2rad(10.0)
+    lon_max = np.deg2rad(50.0)
+    grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(
+        grid.face_node_connectivity.values[0],
+        grid.face_edge_connectivity.values[0],
+        grid.edge_node_connectivity.values, grid.node_x.values,
+        grid.node_y.values, grid.node_z.values)
+    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(
+        grid.face_node_connectivity.values[0],
+        grid.face_edge_connectivity.values[0],
+        grid.edge_node_connectivity.values, grid.node_lon.values,
+        grid.node_lat.values)
+    expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                    is_GCA_list=[True, False, True, False])
+    np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+
+def test_populate_bounds_node_on_pole_latlon_bounds_latlonface():
+    vertices_lonlat = [[10.0, 90.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+    vertices_lonlat = np.array(vertices_lonlat)
+
+    lat_max = np.deg2rad(90.0)
+    lat_min = np.deg2rad(10.0)
+    lon_min = np.deg2rad(10.0)
+    lon_max = np.deg2rad(50.0)
+    grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(
+        grid.face_node_connectivity.values[0],
+        grid.face_edge_connectivity.values[0],
+        grid.edge_node_connectivity.values, grid.node_x.values,
+        grid.node_y.values, grid.node_z.values)
+    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(
+        grid.face_node_connectivity.values[0],
+        grid.face_edge_connectivity.values[0],
+        grid.edge_node_connectivity.values, grid.node_lon.values,
+        grid.node_lat.values)
+    expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                    is_latlonface=True)
+    np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+
+def test_populate_bounds_edge_over_pole_latlon_bounds_gca_list():
+    vertices_lonlat = [[10.0, 80.0], [170.0, 80.0], [170.0, 60.0], [10.0, 60.0]]
+    vertices_lonlat = np.array(vertices_lonlat)
+
+    lat_max = np.deg2rad(90.0)
+    lat_min = np.deg2rad(60.0)
+    lon_min = np.deg2rad(10.0)
+    lon_max = np.deg2rad(170.0)
+    grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(
+        grid.face_node_connectivity.values[0],
+        grid.face_edge_connectivity.values[0],
+        grid.edge_node_connectivity.values, grid.node_x.values,
+        grid.node_y.values, grid.node_z.values)
+    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(
+        grid.face_node_connectivity.values[0],
+        grid.face_edge_connectivity.values[0],
+        grid.edge_node_connectivity.values, grid.node_lon.values,
+        grid.node_lat.values)
+    expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                    is_GCA_list=[True, False, True, False])
+    np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+
+def test_populate_bounds_edge_over_pole_latlon_bounds_latlonface():
+    vertices_lonlat = [[10.0, 80.0], [170.0, 80.0], [170.0, 60.0], [10.0, 60.0]]
+    vertices_lonlat = np.array(vertices_lonlat)
+
+    lat_max = np.deg2rad(90.0)
+    lat_min = np.deg2rad(60.0)
+    lon_min = np.deg2rad(10.0)
+    lon_max = np.deg2rad(170.0)
+    grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(
+        grid.face_node_connectivity.values[0],
+        grid.face_edge_connectivity.values[0],
+        grid.edge_node_connectivity.values, grid.node_x.values,
+        grid.node_y.values, grid.node_z.values)
+    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(
+        grid.face_node_connectivity.values[0],
+        grid.face_edge_connectivity.values[0],
+        grid.edge_node_connectivity.values, grid.node_lon.values,
+        grid.node_lat.values)
+    expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                    is_latlonface=True)
+    np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+
+def test_populate_bounds_pole_inside_latlon_bounds_gca_list():
+    vertices_lonlat = [[10.0, 80.0], [100.0, 80.0], [190.0, 80.0], [280.0, 80.0]]
+    vertices_lonlat = np.array(vertices_lonlat)
+
+    lat_max = np.deg2rad(90.0)
+    lat_min = np.deg2rad(80.0)
+    lon_min = np.deg2rad(0.0)
+    lon_max = np.deg2rad(360.0)
+    grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(
+        grid.face_node_connectivity.values[0],
+        grid.face_edge_connectivity.values[0],
+        grid.edge_node_connectivity.values, grid.node_x.values,
+        grid.node_y.values, grid.node_z.values)
+    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(
+        grid.face_node_connectivity.values[0],
+        grid.face_edge_connectivity.values[0],
+        grid.edge_node_connectivity.values, grid.node_lon.values,
+        grid.node_lat.values)
+    expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                    is_GCA_list=[True, True, True, True])
+    np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+
+def test_populate_bounds_pole_inside_latlon_bounds_latlonface():
+    vertices_lonlat = [[10.0, 80.0], [100.0, 80.0], [190.0, 80.0], [280.0, 80.0]]
+    vertices_lonlat = np.array(vertices_lonlat)
+
+    lat_max = np.deg2rad(90.0)
+    lat_min = np.deg2rad(80.0)
+    lon_min = np.deg2rad(0.0)
+    lon_max = np.deg2rad(360.0)
+    grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(
+        grid.face_node_connectivity.values[0],
+        grid.face_edge_connectivity.values[0],
+        grid.edge_node_connectivity.values, grid.node_x.values,
+        grid.node_y.values, grid.node_z.values)
+    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes_testcase_helper_latlon_bounds_gca_list(
+        grid.face_node_connectivity.values[0],
+        grid.face_edge_connectivity.values[0],
+        grid.edge_node_connectivity.values, grid.node_lon.values,
+        grid.node_lat.values)
+    expected_bounds = np.array([[lat_min, lat_max], [lon_min, lon_max]])
+    bounds = _construct_face_bounds(face_edges_connectivity_cartesian, face_edges_connectivity_lonlat,
+                                    is_latlonface=True)
+    np.testing.assert_allclose(bounds, expected_bounds, atol=ERROR_TOLERANCE)
+
+from uxarray.grid.bounds import _populate_face_bounds
+
+
+def test_populate_bounds_GCA_mix_latlon_bounds_mix():
+    face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+    face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
+    face_3 = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
+    face_4 = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
+
+    faces = [face_1, face_2, face_3, face_4]
+
+    expected_bounds = [[[0.17453293, 1.07370494], [0.17453293, 0.87266463]],
+                       [[0.17453293, 1.10714872], [6.10865238, 0.87266463]],
+                       [[1.04719755, 1.57079633], [3.66519143, 0.52359878]],
+                       [[1.04719755, 1.57079633], [0., 6.28318531]]]
+
+    grid = ux.Grid.from_face_vertices(faces, latlon=True)
+    face_bounds = grid.bounds.values
+    for i in range(len(faces)):
+        np.testing.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
+
+
+def test_populate_bounds_LatlonFace_mix_latlon_bounds_mix():
+    face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+    face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
+    face_3 = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
+    face_4 = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
+
+    faces = [face_1, face_2, face_3, face_4]
+
+    expected_bounds = [[[np.deg2rad(10.0), np.deg2rad(60.0)], [np.deg2rad(10.0), np.deg2rad(50.0)]],
+                       [[np.deg2rad(10.0), np.deg2rad(60.0)], [np.deg2rad(350.0), np.deg2rad(50.0)]],
+                       [[np.deg2rad(60.0), np.pi / 2], [np.deg2rad(210.0), np.deg2rad(30.0)]],
+                       [[np.deg2rad(60.0), np.pi / 2], [0., 2 * np.pi]]]
+
+    grid = ux.Grid.from_face_vertices(faces, latlon=True)
+    bounds_xarray = _populate_face_bounds(grid, is_latlonface=True, return_array=True)
+    face_bounds = bounds_xarray.values
+    for i in range(len(faces)):
+        np.testing.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)
+
+
+def test_populate_bounds_GCAList_mix_latlon_bounds_mix():
+    face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+    face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
+    face_3 = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
+    face_4 = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
+
+    faces = [face_1, face_2, face_3, face_4]
+
+    expected_bounds = [[[np.deg2rad(10.0), np.deg2rad(60.0)], [np.deg2rad(10.0), np.deg2rad(50.0)]],
+                       [[np.deg2rad(10.0), np.deg2rad(60.0)], [np.deg2rad(350.0), np.deg2rad(50.0)]],
+                       [[np.deg2rad(60.0), np.pi / 2], [np.deg2rad(210.0), np.deg2rad(30.0)]],
+                       [[np.deg2rad(60.0), np.pi / 2], [0., 2 * np.pi]]]
+
+    grid = ux.Grid.from_face_vertices(faces, latlon=True)
+    bounds_xarray = _populate_face_bounds(grid, is_face_GCA_list=np.array([[True, False, True, False],
+                                                                      [True, False, True, False],
+                                                                      [True, False, True, False],
+                                                                      [True, False, True, False]]), return_array=True)
+    face_bounds = bounds_xarray.values
+    for i in range(len(faces)):
+        np.testing.assert_allclose(face_bounds[i], expected_bounds[i], atol=ERROR_TOLERANCE)

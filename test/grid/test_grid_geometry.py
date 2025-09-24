@@ -108,3 +108,110 @@ def test_cache_and_override_geodataframe(gridpath):
 
     # gdf_f should be the same as gdf_c (cached)
     assert gdf_f is gdf_c
+
+
+
+def test_face_at_antimeridian():
+    """Test the function `point_in_face`, where the face crosses the antimeridian"""
+
+    # Generate a face crossing the antimeridian
+    vertices_lonlat = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
+    vertices_lonlat = np.array(vertices_lonlat)
+    point = np.array(_lonlat_rad_to_xyz(np.deg2rad(25), np.deg2rad(30)))
+
+    # Create the grid and face edges
+    grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+    faces_edges_cartesian = _get_cartesian_face_edge_nodes_array(
+        grid.face_node_connectivity.values,
+        grid.n_face,
+        grid.n_max_face_edges,
+        grid.node_x.values,
+        grid.node_y.values,
+        grid.node_z.values,
+    )
+
+    assert _face_contains_point(faces_edges_cartesian[0], point)
+
+
+def test_face_at_pole():
+    """Test the function `point_in_face`, when the face is at the North Pole"""
+
+    # Generate a face that is at a pole
+    vertices_lonlat = [[10.0, 90.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+    vertices_lonlat = np.array(vertices_lonlat)
+
+    point = np.array(_lonlat_rad_to_xyz(np.deg2rad(25), np.deg2rad(30)))
+
+    # Create the grid and face edges
+    grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+    faces_edges_cartesian = _get_cartesian_face_edge_nodes_array(
+        grid.face_node_connectivity.values,
+        grid.n_face,
+        grid.n_max_face_edges,
+        grid.node_x.values,
+        grid.node_y.values,
+        grid.node_z.values,
+    )
+
+    assert _face_contains_point(faces_edges_cartesian[0], point)
+
+
+def test_face_normal_face():
+    """Test the function `point_in_face`, where the face is a normal face, not crossing the antimeridian or the
+    poles"""
+
+    # Generate a normal face that is not crossing the antimeridian or the poles
+    vertices_lonlat = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+    vertices_lonlat = np.array(vertices_lonlat)
+    point = np.array(_lonlat_rad_to_xyz(np.deg2rad(25), np.deg2rad(30)))
+
+    # Create the grid and face edges
+    grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
+    faces_edges_cartesian = _get_cartesian_face_edge_nodes_array(
+        grid.face_node_connectivity.values,
+        grid.n_face,
+        grid.n_max_face_edges,
+        grid.node_x.values,
+        grid.node_y.values,
+        grid.node_z.values,
+    )
+
+    assert _face_contains_point(faces_edges_cartesian[0], point)
+
+
+def test_haversine_distance_creation():
+    """Test the haversine distance function"""
+    # Test points
+    lon1, lat1 = 0.0, 0.0  # Point 1: (0°, 0°)
+    lon2, lat2 = 90.0, 0.0  # Point 2: (90°, 0°)
+
+    # Convert to radians
+    lon1_rad, lat1_rad = np.deg2rad(lon1), np.deg2rad(lat1)
+    lon2_rad, lat2_rad = np.deg2rad(lon2), np.deg2rad(lat2)
+
+    # Calculate haversine distance
+    distance = haversine_distance(lon1_rad, lat1_rad, lon2_rad, lat2_rad)
+
+    # Expected distance is 1/4 of Earth circumference (π/2 radians)
+    expected_distance = np.pi / 2
+
+    np.testing.assert_allclose(distance, expected_distance, atol=ERROR_TOLERANCE)
+
+from uxarray.constants import ERROR_TOLERANCE
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array
+from uxarray.grid.point_in_face import _face_contains_point
+from uxarray.grid.geometry import haversine_distance
+
+
+
+def test_engine_geodataframe(gridpath):
+    uxgrid = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
+    for engine in ["geopandas", "spatialpandas"]:
+        gdf = uxgrid.to_geodataframe(engine=engine)
+
+
+def test_periodic_elements_geodataframe(gridpath):
+    uxgrid = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
+    for periodic_elements in ["ignore", "exclude", "split"]:
+        gdf = uxgrid.to_geodataframe(periodic_elements=periodic_elements)

@@ -7,12 +7,6 @@ import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 
 
-def test_grid_validate(gridpath):
-    """Test to check the validate function."""
-    grid_mpas = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
-    assert grid_mpas.validate()
-
-
 def test_grid_with_holes(gridpath):
     """Test _holes_in_mesh function."""
     grid_without_holes = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
@@ -60,20 +54,6 @@ def test_grid_init_verts():
 
     # validate the grid
     assert grid_verts.validate()
-
-
-def test_grid_properties(gridpath):
-    """Test to check the grid properties."""
-    grid_mpas = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
-
-    # Test n_face
-    assert grid_mpas.n_face == 2562
-
-    # Test n_node
-    assert grid_mpas.n_node == 1281
-
-    # Test n_edge
-    assert grid_mpas.n_edge == 3840
 
 
 def test_read_scrip(gridpath):
@@ -132,3 +112,24 @@ def test_class_methods_from_dataset(gridpath):
     # SCRIP
     xrds = xr.open_dataset(gridpath("scrip", "outCSne8", "outCSne8.nc"))
     uxgrid = ux.Grid.from_dataset(xrds)
+
+
+def test_dual_mesh_mpas(gridpath):
+    """Test dual mesh creation for MPAS grids."""
+    grid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"), use_dual=False)
+    mpas_dual = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"), use_dual=True)
+
+    dual = grid.get_dual()
+
+    assert dual.n_face == mpas_dual.n_face
+    assert dual.n_node == mpas_dual.n_node
+    assert dual.n_max_face_nodes == mpas_dual.n_max_face_nodes
+
+    nt.assert_equal(dual.face_node_connectivity.values, mpas_dual.face_node_connectivity.values)
+
+
+def test_dual_duplicate(gridpath):
+    """Test dual mesh creation with duplicate grids."""
+    dataset = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), gridpath("ugrid", "geoflow-small", "grid.nc"))
+    with pytest.raises(RuntimeError):
+        dataset.get_dual()

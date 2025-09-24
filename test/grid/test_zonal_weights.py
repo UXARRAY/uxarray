@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.testing as nt
+import pandas as pd
 import pytest
 
 import uxarray as ux
@@ -9,116 +10,438 @@ from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
 
 
-def test_zonal_weights_basic():
-    """Test basic zonal weight functionality."""
-    # Create simple grid
-    vertices = [
-        [0.0, 90.0],
-        [0.0, 0.0],
-        [90.0, 0.0]
-    ]
+def test_get_zonal_faces_weight_at_constLat_equator():
+    face_0 = [[1.7 * np.pi, 0.25 * np.pi], [1.7 * np.pi, 0.0],
+              [0.3 * np.pi, 0.0], [0.3 * np.pi, 0.25 * np.pi]]
+    face_1 = [[0.3 * np.pi, 0.0], [0.3 * np.pi, -0.25 * np.pi],
+              [0.6 * np.pi, -0.25 * np.pi], [0.6 * np.pi, 0.0]]
+    face_2 = [[0.3 * np.pi, 0.25 * np.pi], [0.3 * np.pi, 0.0], [np.pi, 0.0],
+              [np.pi, 0.25 * np.pi]]
+    face_3 = [[0.7 * np.pi, 0.0], [0.7 * np.pi, -0.25 * np.pi],
+              [np.pi, -0.25 * np.pi], [np.pi, 0.0]]
 
-    uxgrid = ux.Grid.from_face_vertices(vertices, latlon=True)
+    # Convert the face vertices to xyz coordinates
+    face_0 = [_lonlat_rad_to_xyz(*v) for v in face_0]
+    face_1 = [_lonlat_rad_to_xyz(*v) for v in face_1]
+    face_2 = [_lonlat_rad_to_xyz(*v) for v in face_2]
+    face_3 = [_lonlat_rad_to_xyz(*v) for v in face_3]
 
-    # Should be able to create grid successfully
-    assert uxgrid.n_face == 1
-    assert uxgrid.n_node == 3
+    face_0_edge_nodes = np.array([[face_0[0], face_0[1]],
+                                  [face_0[1], face_0[2]],
+                                  [face_0[2], face_0[3]],
+                                  [face_0[3], face_0[0]]])
+    face_1_edge_nodes = np.array([[face_1[0], face_1[1]],
+                                  [face_1[1], face_1[2]],
+                                  [face_1[2], face_1[3]],
+                                  [face_1[3], face_1[0]]])
+    face_2_edge_nodes = np.array([[face_2[0], face_2[1]],
+                                  [face_2[1], face_2[2]],
+                                  [face_2[2], face_2[3]],
+                                  [face_2[3], face_2[0]]])
+    face_3_edge_nodes = np.array([[face_3[0], face_3[1]],
+                                  [face_3[1], face_3[2]],
+                                  [face_3[2], face_3[3]],
+                                  [face_3[3], face_3[0]]])
 
-def test_zonal_weights_grid_properties():
-    """Test zonal weight grid properties."""
-    # Create grid with multiple faces
-    face_vertices = [
-        [[0, 0], [1, 0], [0.5, 1]],    # Triangle 1
-        [[1, 0], [2, 0], [1.5, 1]]     # Triangle 2
-    ]
+    face_0_latlon_bound = np.array([[0.0, 0.25 * np.pi],
+                                    [1.7 * np.pi, 0.3 * np.pi]])
+    face_1_latlon_bound = np.array([[-0.25 * np.pi, 0.0],
+                                    [0.3 * np.pi, 0.6 * np.pi]])
+    face_2_latlon_bound = np.array([[0.0, 0.25 * np.pi],
+                                    [0.3 * np.pi, np.pi]])
+    face_3_latlon_bound = np.array([[-0.25 * np.pi, 0.0],
+                                    [0.7 * np.pi, np.pi]])
 
-    uxgrid = ux.Grid.from_face_vertices(face_vertices, latlon=True)
+    latlon_bounds = np.array([
+        face_0_latlon_bound, face_1_latlon_bound, face_2_latlon_bound,
+        face_3_latlon_bound
+    ])
 
-    # Should have multiple faces
-    assert uxgrid.n_face == 2
-    assert uxgrid.n_node > 0
+    face_edges_cart = np.array([
+        face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes,
+        face_3_edge_nodes
+    ])
 
-def test_zonal_weights_coordinate_conversion():
-    """Test coordinate conversion for zonal weights."""
-    # Test coordinate conversion
-    lon_deg = 45.0
-    lat_deg = 30.0
+    constLat_cart = 0.0
 
-    # Convert to radians
-    lon_rad = np.radians(lon_deg)
-    lat_rad = np.radians(lat_deg)
+    weights = _zonal_face_weights(face_edges_cart,
+                                  latlon_bounds,
+                                  np.array([4, 4, 4, 4]),
+                                  z=constLat_cart,
+                                  check_equator=True)
 
-    # Convert to Cartesian
-    x, y, z = _lonlat_rad_to_xyz(lon_rad, lat_rad)
+    expected_weights = np.array([0.46153, 0.11538, 0.30769, 0.11538])
 
-    # Should be valid Cartesian coordinates
-    magnitude = np.sqrt(x**2 + y**2 + z**2)
-    nt.assert_allclose(magnitude, 1.0, atol=ERROR_TOLERANCE)
+    nt.assert_array_almost_equal(weights, expected_weights, decimal=3)
 
-def test_zonal_weights_face_creation():
-    """Test face creation for zonal weights."""
-    # Create face with specific coordinates
-    vertices_lonlat = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
-    vertices_cart = np.array([_lonlat_rad_to_xyz(*np.radians(v)) for v in vertices_lonlat])
+    # A error will be raise if we don't set is_latlonface=True since the face_2 will be concave if
+    # It's edges are all GCA
+    with pytest.raises(ValueError):
+        _zonal_face_weights_robust(np.array([
+            face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
+        ]), np.deg2rad(20), latlon_bounds)
 
-    # Should have valid Cartesian coordinates
-    assert vertices_cart.shape == (4, 3)
 
-    # All points should be on unit sphere
-    magnitudes = np.sqrt(np.sum(vertices_cart**2, axis=1))
-    nt.assert_allclose(magnitudes, 1.0, atol=ERROR_TOLERANCE)
+def test_get_zonal_faces_weight_at_constLat_regular():
+    face_0 = [[1.7 * np.pi, 0.25 * np.pi], [1.7 * np.pi, 0.0],
+              [0.3 * np.pi, 0.0], [0.3 * np.pi, 0.25 * np.pi]]
+    face_1 = [[0.4 * np.pi, 0.3 * np.pi], [0.4 * np.pi, 0.0],
+              [0.5 * np.pi, 0.0], [0.5 * np.pi, 0.3 * np.pi]]
 
-def test_zonal_weights_latitude_conversion():
-    """Test latitude conversion for zonal weights."""
-    # Test latitude conversion
-    lat_deg = 35.0
-    lat_rad = np.radians(lat_deg)
-    latitude_cart = np.sin(lat_rad)
+    # Convert the face vertices to xyz coordinates
+    face_0 = [_lonlat_rad_to_xyz(*v) for v in face_0]
+    face_1 = [_lonlat_rad_to_xyz(*v) for v in face_1]
 
-    # Should be valid Cartesian latitude
-    assert -1.0 <= latitude_cart <= 1.0
+    face_0_edge_nodes = np.array([[face_0[0], face_0[1]],
+                                  [face_0[1], face_0[2]],
+                                  [face_0[2], face_0[3]],
+                                  [face_0[3], face_0[0]]])
+    face_1_edge_nodes = np.array([[face_1[0], face_1[1]],
+                                  [face_1[1], face_1[2]],
+                                  [face_1[2], face_1[3]],
+                                  [face_1[3], face_1[0]]])
+
+    face_0_latlon_bound = np.array([[0.0, 0.25 * np.pi],
+                                    [1.7 * np.pi, 0.3 * np.pi]])
+    face_1_latlon_bound = np.array([[0.0, 0.3 * np.pi],
+                                    [0.4 * np.pi, 0.5 * np.pi]])
+
+    latlon_bounds = np.array([face_0_latlon_bound, face_1_latlon_bound])
+
+    face_edges_cart = np.array([face_0_edge_nodes, face_1_edge_nodes])
+
+    constLat_cart = np.sin(0.1 * np.pi)
+
+    weights = _zonal_face_weights(face_edges_cart,
+                                  latlon_bounds,
+                                  np.array([4, 4]),
+                                  z=constLat_cart)
+
+    expected_weights = np.array([0.9, 0.1])
+
+    nt.assert_array_almost_equal(weights, expected_weights, decimal=3)
+
+
+def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
+    # The face is touching the pole, so the weight should be 1.0 since there's only 1 face
+    face_edges_cart = np.array([[
+        [[-5.22644277e-02, -5.22644277e-02, -9.97264689e-01],
+         [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
+        [[-5.23359562e-02, -6.40930613e-18, -9.98629535e-01],
+         [6.12323400e-17, 0.00000000e+00, -1.00000000e+00]],
+        [[6.12323400e-17, 0.00000000e+00, -1.00000000e+00],
+         [3.20465306e-18, -5.23359562e-02, -9.98629535e-01]],
+        [[3.20465306e-18, -5.23359562e-02, -9.98629535e-01],
+         [-5.22644277e-02, -5.22644277e-02, -9.97264689e-01]]
+    ]])
+
+    # Corrected face_bounds
+    face_bounds = np.array([
+        [-1.57079633, -1.4968158],
+        [3.14159265, 0.]
+    ])
+    constLat_cart = -1
+
+    weights = _zonal_face_weights(face_edges_cart,
+                                  np.array([face_bounds]),
+                                  np.array([4]),
+                                  z=constLat_cart)
+
+    expected_weights = np.array([1.0])
+
+    nt.assert_array_equal(weights, expected_weights)
+
+
+def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
+    # There will be 4 faces touching the pole, so the weight should be 0.25 for each face
+    face_edges_cart = np.array([
+        [
+            [[5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [3.20465306e-18, -5.23359562e-02, 9.98629535e-01]],
+            [[3.20465306e-18, -5.23359562e-02, 9.98629535e-01], [5.22644277e-02, -5.22644277e-02, 9.97264689e-01]]
+        ],
+        [
+            [[3.20465306e-18, -5.23359562e-02, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [-5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[-5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [-5.22644277e-02, -5.22644277e-02, 9.97264689e-01]],
+            [[-5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [3.20465306e-18, -5.23359562e-02, 9.98629535e-01]]
+        ],
+        [
+            [[-5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [-5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[-5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [3.20465306e-18, 5.23359562e-02, 9.98629535e-01]],
+            [[3.20465306e-18, 5.23359562e-02, 9.98629535e-01], [-5.22644277e-02, -5.22644277e-02, 9.97264689e-01]]
+        ],
+        [
+            [[3.20465306e-18, 5.23359562e-02, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [5.22644277e-02, 5.22644277e-02, 9.97264689e-01]],
+            [[5.22644277e-02, 5.22644277e-02, 9.97264689e-01], [3.20465306e-18, 5.23359562e-02, 9.98629535e-01]]
+        ]
+    ])
+
+    constLat_cart = 1
+
+    weights = _zonal_face_weights(face_edges_cart,
+                                  np.array([[[1.4968158, 1.57079633],
+                                           [3.14159265, 0.]],
+                                          [[1.4968158, 1.57079633],
+                                           [4.71238898, 3.14159265]],
+                                          [[1.4968158, 1.57079633],
+                                           [0., 3.14159265]],
+                                          [[1.4968158, 1.57079633],
+                                           [1.57079633, 4.71238898]]]),
+                                  np.array([4, 4, 4, 4]),
+                                  z=constLat_cart)
+
+    expected_weights = np.array([0.25, 0.25, 0.25, 0.25])
+
+    nt.assert_array_equal(weights, expected_weights)
+
+
+def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
+    # The face is touching the pole, so the weight should be 1.0 since there's only 1 face
+    face_edges_cart = np.array([[
+        [[-5.22644277e-02, -5.22644277e-02, -9.97264689e-01],
+         [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
+        [[-5.23359562e-02, -6.40930613e-18, -9.98629535e-01],
+         [6.12323400e-17, 0.00000000e+00, -1.00000000e+00]],
+        [[6.12323400e-17, 0.00000000e+00, -1.00000000e+00],
+         [3.20465306e-18, -5.23359562e-02, -9.98629535e-01]],
+        [[3.20465306e-18, -5.23359562e-02, -9.98629535e-01],
+         [-5.22644277e-02, -5.22644277e-02, -9.97264689e-01]]
+    ]])
+
+    # Corrected face_bounds
+    face_bounds = np.array([
+        [-1.57079633, -1.4968158],
+        [3.14159265, 0.]
+    ])
+    constLat_cart = -1
+
+    weights = _zonal_face_weights(face_edges_cart,
+                                  np.array([face_bounds]),
+                                  np.array([4]),
+                                  z=constLat_cart)
+
+    expected_weights = np.array([1.0])
+
+    nt.assert_array_equal(weights, expected_weights)
+
+
+def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
+    # There will be 4 faces touching the pole, so the weight should be 0.25 for each face
+    face_edges_cart = np.array([
+        [
+            [[5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [3.20465306e-18, -5.23359562e-02, 9.98629535e-01]],
+            [[3.20465306e-18, -5.23359562e-02, 9.98629535e-01], [5.22644277e-02, -5.22644277e-02, 9.97264689e-01]]
+        ],
+        [
+            [[3.20465306e-18, -5.23359562e-02, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [-5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[-5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [-5.22644277e-02, -5.22644277e-02, 9.97264689e-01]],
+            [[-5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [3.20465306e-18, -5.23359562e-02, 9.98629535e-01]]
+        ],
+        [
+            [[-5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [-5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[-5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [3.20465306e-18, 5.23359562e-02, 9.98629535e-01]],
+            [[3.20465306e-18, 5.23359562e-02, 9.98629535e-01], [-5.22644277e-02, -5.22644277e-02, 9.97264689e-01]]
+        ],
+        [
+            [[3.20465306e-18, 5.23359562e-02, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [5.22644277e-02, 5.22644277e-02, 9.97264689e-01]],
+            [[5.22644277e-02, 5.22644277e-02, 9.97264689e-01], [3.20465306e-18, 5.23359562e-02, 9.98629535e-01]]
+        ]
+    ])
+
+    constLat_cart = 1
+
+    weights = _zonal_face_weights(face_edges_cart,
+                                  np.array([[[1.4968158, 1.57079633],
+                                           [3.14159265, 0.]],
+                                          [[1.4968158, 1.57079633],
+                                           [4.71238898, 3.14159265]],
+                                          [[1.4968158, 1.57079633],
+                                           [0., 3.14159265]],
+                                          [[1.4968158, 1.57079633],
+                                           [1.57079633, 4.71238898]]]),
+                                  np.array([4, 4, 4, 4]),
+                                  z=constLat_cart)
+
+    expected_weights = np.array([0.25, 0.25, 0.25, 0.25])
+
+    nt.assert_array_equal(weights, expected_weights)
+
+
+def test_get_zonal_faces_weight_at_constLat_on_pole_one_face():
+    # The face is touching the pole, so the weight should be 1.0 since there's only 1 face
+    face_edges_cart = np.array([[
+        [[-5.22644277e-02, -5.22644277e-02, -9.97264689e-01],
+         [-5.23359562e-02, -6.40930613e-18, -9.98629535e-01]],
+        [[-5.23359562e-02, -6.40930613e-18, -9.98629535e-01],
+         [6.12323400e-17, 0.00000000e+00, -1.00000000e+00]],
+        [[6.12323400e-17, 0.00000000e+00, -1.00000000e+00],
+         [3.20465306e-18, -5.23359562e-02, -9.98629535e-01]],
+        [[3.20465306e-18, -5.23359562e-02, -9.98629535e-01],
+         [-5.22644277e-02, -5.22644277e-02, -9.97264689e-01]]
+    ]])
+
+    face_bounds = np.array([
+        [-1.57079633, -1.4968158],
+        [3.14159265, 0.]
+    ])
+    constLat_cart = -1
+
+    weights = _zonal_face_weights(face_edges_cart,
+                                  np.array([face_bounds]),
+                                  np.array([4]),
+                                  z=constLat_cart)
+
+    expected_weights = np.array([1.0])
+
+    nt.assert_array_equal(weights, expected_weights)
+
+
+def test_get_zonal_faces_weight_at_constLat_on_pole_faces():
+    # There will be 4 faces touching the pole, so the weight should be 0.25 for each face
+    face_edges_cart = np.array([
+        [
+            [[5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [3.20465306e-18, -5.23359562e-02, 9.98629535e-01]],
+            [[3.20465306e-18, -5.23359562e-02, 9.98629535e-01], [5.22644277e-02, -5.22644277e-02, 9.97264689e-01]]
+        ],
+        [
+            [[3.20465306e-18, -5.23359562e-02, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [-5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[-5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [-5.22644277e-02, -5.22644277e-02, 9.97264689e-01]],
+            [[-5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [3.20465306e-18, -5.23359562e-02, 9.98629535e-01]]
+        ],
+        [
+            [[-5.22644277e-02, -5.22644277e-02, 9.97264689e-01], [-5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[-5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [3.20465306e-18, 5.23359562e-02, 9.98629535e-01]],
+            [[3.20465306e-18, 5.23359562e-02, 9.98629535e-01], [-5.22644277e-02, -5.22644277e-02, 9.97264689e-01]]
+        ],
+        [
+            [[3.20465306e-18, 5.23359562e-02, 9.98629535e-01], [6.12323400e-17, 0.00000000e+00, 1.00000000e+00]],
+            [[6.12323400e-17, 0.00000000e+00, 1.00000000e+00], [5.23359562e-02, 0.00000000e+00, 9.98629535e-01]],
+            [[5.23359562e-02, 0.00000000e+00, 9.98629535e-01], [5.22644277e-02, 5.22644277e-02, 9.97264689e-01]],
+            [[5.22644277e-02, 5.22644277e-02, 9.97264689e-01], [3.20465306e-18, 5.23359562e-02, 9.98629535e-01]]
+        ]
+    ])
+
+    constLat_cart = 1
+
+    weights = _zonal_face_weights(face_edges_cart,
+                                  np.array([[[1.4968158, 1.57079633],
+                                           [3.14159265, 0.]],
+                                          [[1.4968158, 1.57079633],
+                                           [4.71238898, 3.14159265]],
+                                          [[1.4968158, 1.57079633],
+                                           [0., 3.14159265]],
+                                          [[1.4968158, 1.57079633],
+                                           [1.57079633, 4.71238898]]]),
+                                  np.array([4, 4, 4, 4]),
+                                  z=constLat_cart)
+
+    expected_weights = np.array([0.25, 0.25, 0.25, 0.25])
+
+    nt.assert_array_equal(weights, expected_weights)
+
+
+def test_get_zonal_faces_weight_at_constLat_latlonface():
+    face_0 = [[np.deg2rad(350), np.deg2rad(40)], [np.deg2rad(350), np.deg2rad(20)],
+              [np.deg2rad(10), np.deg2rad(20)], [np.deg2rad(10), np.deg2rad(40)]]
+    face_1 = [[np.deg2rad(5), np.deg2rad(20)], [np.deg2rad(5), np.deg2rad(10)],
+              [np.deg2rad(25), np.deg2rad(10)], [np.deg2rad(25), np.deg2rad(20)]]
+    face_2 = [[np.deg2rad(30), np.deg2rad(40)], [np.deg2rad(30), np.deg2rad(20)],
+              [np.deg2rad(40), np.deg2rad(20)], [np.deg2rad(40), np.deg2rad(40)]]
+
+    # Convert the face vertices to xyz coordinates
+    face_0 = [_lonlat_rad_to_xyz(*v) for v in face_0]
+    face_1 = [_lonlat_rad_to_xyz(*v) for v in face_1]
+    face_2 = [_lonlat_rad_to_xyz(*v) for v in face_2]
+
+    face_0_edge_nodes = np.array([[face_0[0], face_0[1]],
+                                  [face_0[1], face_0[2]],
+                                  [face_0[2], face_0[3]],
+                                  [face_0[3], face_0[0]]])
+    face_1_edge_nodes = np.array([[face_1[0], face_1[1]],
+                                  [face_1[1], face_1[2]],
+                                  [face_1[2], face_1[3]],
+                                  [face_1[3], face_1[0]]])
+    face_2_edge_nodes = np.array([[face_2[0], face_2[1]],
+                                  [face_2[1], face_2[2]],
+                                  [face_2[2], face_2[3]],
+                                  [face_2[3], face_2[0]]])
+
+    face_0_latlon_bound = np.array([[np.deg2rad(20), np.deg2rad(40)],
+                                    [np.deg2rad(350), np.deg2rad(10)]])
+    face_1_latlon_bound = np.array([[np.deg2rad(10), np.deg2rad(20)],
+                                    [np.deg2rad(5), np.deg2rad(25)]])
+    face_2_latlon_bound = np.array([[np.deg2rad(20), np.deg2rad(40)],
+                                    [np.deg2rad(30), np.deg2rad(40)]])
+
+    latlon_bounds = np.array([
+        face_0_latlon_bound, face_1_latlon_bound, face_2_latlon_bound
+    ])
+
+    sum = 17.5 + 17.5 + 10
+    expected_weight_df = pd.DataFrame({
+        "face_index": [0, 1, 2],
+        "weight": [17.5 / sum, 17.5 / sum, 10 / sum]
+    })
+
+    # Assert the results is the same to the 3 decimal places
+    weight_df = _zonal_face_weights_robust(np.array([
+        face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
+    ]), np.sin(np.deg2rad(20)), latlon_bounds, is_latlonface=True)
+
+    nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
+
 
 def test_compare_zonal_weights(gridpath):
-    """Compares the existing weights calculation (get_non_conservative_zonal_face_weights_at_const_lat_overlap) to
-    the faster implementation (get_non_conservative_zonal_face_weights_at_const_lat)"""
-    gridfiles = [gridpath("ugrid", "outCSne30", "outCSne30.ug"),
-                 gridpath("scrip", "outCSne8", "outCSne8.nc"),
-                 gridpath("ugrid", "geoflow-small", "grid.nc"),]
+    """Test that the new and old zonal weight functions produce the same results."""
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
 
-    lat = (-90, 90, 10)
-    latitudes = np.arange(lat[0], lat[1] + lat[2], lat[2])
+    # Get face edge nodes in Cartesian coordinates
+    face_edge_nodes_xyz = _get_cartesian_face_edge_nodes_array(
+        uxgrid.face_node_connectivity.values,
+        uxgrid.node_x.values,
+        uxgrid.node_y.values,
+        uxgrid.node_z.values,
+        uxgrid.n_max_face_nodes
+    )
 
-    for gridfile in gridfiles:
-        uxgrid = ux.open_grid(gridfile)
-        n_nodes_per_face = uxgrid.n_nodes_per_face.values
-        face_edge_nodes_xyz =  _get_cartesian_face_edge_nodes_array(
-                uxgrid.face_node_connectivity.values,
-                uxgrid.n_face,
-                uxgrid.n_max_face_edges,
-                uxgrid.node_x.values,
-                uxgrid.node_y.values,
-                uxgrid.node_z.values,
-            )
-        bounds = uxgrid.bounds.values
+    n_nodes_per_face = uxgrid.n_nodes_per_face.values
 
-        for i, lat in enumerate(latitudes):
-            face_indices = uxgrid.get_faces_at_constant_latitude(lat)
-            z = np.sin(np.deg2rad(lat))
+    # Test at multiple latitudes
+    latitudes = [-60, -30, 0, 30, 60]
 
-            face_edge_nodes_xyz_candidate = face_edge_nodes_xyz[face_indices, :, :, :]
-            n_nodes_per_face_candidate = n_nodes_per_face[face_indices]
-            bounds_candidate = bounds[face_indices]
+    for i, lat in enumerate(latitudes):
+        face_indices = uxgrid.get_faces_at_constant_latitude(lat)
+        z = np.sin(np.deg2rad(lat))
 
-            new_weights = _zonal_face_weights(face_edge_nodes_xyz_candidate,
-                                              bounds_candidate,
-                                              n_nodes_per_face_candidate,
-                                              z)
+        face_edge_nodes_xyz_candidate = face_edge_nodes_xyz[face_indices, :, :, :]
+        n_nodes_per_face_candidate = n_nodes_per_face[face_indices]
+        bounds_candidate = uxgrid.bounds.values[face_indices]
 
-            existing_weights = _zonal_face_weights_robust(
-                face_edge_nodes_xyz_candidate, z, bounds_candidate
-            )["weight"].to_numpy()
+        new_weights = _zonal_face_weights(face_edge_nodes_xyz_candidate,
+                                          bounds_candidate,
+                                          n_nodes_per_face_candidate,
+                                          z)
 
-            abs_diff = np.abs(new_weights - existing_weights)
+        existing_weights = _zonal_face_weights_robust(
+            face_edge_nodes_xyz_candidate, z, bounds_candidate
+        )["weight"].to_numpy()
 
-            # For each latitude, make sure the aboslute difference is below our error tollerance
-            assert abs_diff.max() < ERROR_TOLERANCE
+        abs_diff = np.abs(new_weights - existing_weights)
+
+        # For each latitude, make sure the absolute difference is below our error tolerance
+        assert abs_diff.max() < ERROR_TOLERANCE

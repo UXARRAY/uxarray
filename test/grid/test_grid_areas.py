@@ -67,3 +67,28 @@ class TestFaceAreas:
         verts_grid = ux.open_grid(faces_verts_ndarray, latlon=True)
         face_verts_areas = verts_grid.face_areas
         nt.assert_almost_equal(face_verts_areas.sum(), mesh_constants['FACE_VERTS_AREA'], decimal=3)
+
+
+def test_latlon_bounds_populate_bounds_GCA_mix():
+    """Test bounds population with mixed GCA faces."""
+    face_1 = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
+    face_2 = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
+    face_3 = [[210.0, 80.0], [350.0, 60.0], [10.0, 60.0], [30.0, 80.0]]
+    face_4 = [[200.0, 80.0], [350.0, 60.0], [10.0, 60.0], [40.0, 80.0]]
+
+    faces = [face_1, face_2, face_3, face_4]
+
+    expected_bounds = [[[0.17453293, 1.07370494], [0.17453293, 0.87266463]],
+                       [[0.17453293, 1.10714872], [6.10865238, 0.87266463]],
+                       [[1.04719755, 1.57079633], [3.66519143, 0.52359878]],
+                       [[1.04719755, 1.57079633], [0., 6.28318531]]]
+
+    grid = ux.Grid.from_face_vertices(faces, latlon=True)
+    bounds_xarray = grid.bounds
+    nt.assert_allclose(bounds_xarray.values, expected_bounds, atol=ERROR_TOLERANCE)
+
+
+def test_latlon_bounds_populate_bounds_MPAS(gridpath):
+    """Test bounds population with MPAS grid."""
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
+    bounds_xarray = uxgrid.bounds
