@@ -183,3 +183,49 @@ def _populate_healpix_boundaries(ds):
         dims=ugrid.FACE_NODE_CONNECTIVITY_DIMS,
         attrs=ugrid.FACE_NODE_CONNECTIVITY_ATTRS,
     )
+
+
+def compute_healpix_face_areas(grid_ds):
+    """
+    Compute theoretical equal face areas for HEALPix grids.
+
+    HEALPix grids are designed to have exactly equal area pixels by construction.
+    This function returns the theoretical equal areas rather than computing them
+    geometrically, which preserves the fundamental equal-area property.
+
+    Parameters
+    ----------
+    grid_ds : xr.Dataset
+        A dataset representing a HEALPix grid with 'n_face' dimension.
+
+    Returns
+    -------
+    xr.DataArray
+        An array of theoretical equal face areas with shape (n_face,).
+
+    Notes
+    -----
+    For HEALPix grids, all pixels have exactly the same area by design:
+    area_per_pixel = 4π / n_pixels
+
+    This approach ensures mathematical correctness for area-weighted calculations
+    such as global averaging and zonal means, avoiding systematic errors that
+    can arise from geometric integration of Great Circle Arc boundaries.
+    """
+    from uxarray.conventions.descriptors import FACE_AREAS_ATTRS, FACE_AREAS_DIMS
+
+    # Get number of faces
+    n_face = grid_ds.sizes["n_face"]
+
+    # Compute theoretical equal area per pixel
+    theoretical_area = 4.0 * np.pi / n_face
+    face_areas = np.full(n_face, theoretical_area)
+
+    # HEALPix-specific attributes
+    healpix_attrs = {
+        **FACE_AREAS_ATTRS,
+        "long_name": "HEALPix equal area per face",
+        "comment": "Theoretical equal areas enforced for HEALPix grids",
+    }
+
+    return xr.DataArray(data=face_areas, dims=FACE_AREAS_DIMS, attrs=healpix_attrs)

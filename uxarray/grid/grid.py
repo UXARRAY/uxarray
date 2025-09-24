@@ -1485,22 +1485,10 @@ class Grid:
         if "face_areas" not in self._ds:
             # Check if this is a HEALPix grid
             if self._ds.attrs.get("source_grid_spec") == "HEALPix":
-                # For HEALPix grids, return theoretical equal areas
-                # HEALPix is designed to have exactly equal area pixels
-                npix = self.n_face
-                theoretical_area = 4.0 * np.pi / npix
-                face_areas = np.full(npix, theoretical_area)
+                # For HEALPix grids, use theoretical equal areas
+                from uxarray.io._healpix import compute_healpix_face_areas
 
-                # HEALPix-specific attributes
-                healpix_attrs = {
-                    **FACE_AREAS_ATTRS,
-                    "long_name": "HEALPix equal area per face",
-                    "comment": "Theoretical equal areas enforced for HEALPix grids",
-                }
-
-                self._ds["face_areas"] = xr.DataArray(
-                    data=face_areas, dims=FACE_AREAS_DIMS, attrs=healpix_attrs
-                )
+                self._ds["face_areas"] = compute_healpix_face_areas(self._ds)
             else:
                 # For other grids, use calculated areas
                 face_areas, self._face_jacobian = self.compute_face_areas()
@@ -1988,6 +1976,18 @@ class Grid:
         >>> grid.face_areas
         array([0.00211174, 0.00211221, 0.00210723, ..., 0.00210723, 0.00211221,
             0.00211174])
+
+        Notes
+        -----
+        This method performs geometric integration to compute face areas. For HEALPix grids,
+        this may not preserve the equal-area property due to differences between algorithmic
+        pixel definitions and geometric representation. For HEALPix grids, use the
+        ``face_areas`` property instead, which ensures mathematical correctness by using
+        theoretical equal areas.
+
+        See Also
+        --------
+        face_areas : Property that handles special cases like HEALPix grids
         """
         # if self._face_areas is None: # this allows for using the cached result,
         # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
