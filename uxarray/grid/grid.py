@@ -1962,7 +1962,7 @@ class Grid:
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
 
-        .. deprecated:: 2025.01.0
+        .. deprecated:: 2025.10.0
             Use the `face_areas` property instead for better performance and caching.
             This method will be removed in a future version.
 
