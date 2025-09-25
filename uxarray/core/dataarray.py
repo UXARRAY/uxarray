@@ -484,9 +484,14 @@ class UxDataArray(xr.DataArray):
         >>> integral = uxds["psi"].integrate()
         """
         if self.values.shape[-1] == self.uxgrid.n_face:
-            face_areas, face_jacobian = self.uxgrid.compute_face_areas(
-                quadrature_rule, order
-            )
+            # For default parameters, use cached face_areas property for better performance
+            if quadrature_rule == "triangular" and order == 4:
+                face_areas = self.uxgrid.face_areas.values
+            else:
+                # For non-default parameters, compute directly
+                face_areas, face_jacobian = self.uxgrid._compute_face_areas(
+                    quadrature_rule, order
+                )
 
             # perform dot product between face areas and last dimension of data
             integral = np.einsum("i,...i", face_areas, self.values)

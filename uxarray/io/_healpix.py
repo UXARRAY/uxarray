@@ -185,7 +185,7 @@ def _populate_healpix_boundaries(ds):
     )
 
 
-def compute_healpix_face_areas(grid_ds):
+def _compute_healpix_face_areas(grid_ds):
     """
     Compute theoretical equal face areas for HEALPix grids.
 
