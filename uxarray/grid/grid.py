@@ -1939,19 +1939,7 @@ class Grid:
         Sum of area of all the faces in the mesh : float
         """
 
-        # For default parameters, use cached face_areas property for better performance
-        if (
-            quadrature_rule == "triangular"
-            and order == 4
-            and not latitude_adjusted_area
-        ):
-            return np.sum(self.face_areas.values)
-        else:
-            # For non-default parameters, compute directly
-            face_areas, face_jacobian = self._compute_face_areas(
-                quadrature_rule, order, latitude_adjusted_area=latitude_adjusted_area
-            )
-            return np.sum(face_areas)
+        return np.sum(self.face_areas.values)
 
     def compute_face_areas(
         self,
