@@ -148,7 +148,6 @@ Methods
    Grid.copy
    Grid.chunk
    Grid.validate
-   Grid.compute_face_areas
    Grid.calculate_total_face_area
    Grid.normalize_cartesian_coordinates
    Grid.construct_face_centers
@@ -452,6 +451,17 @@ on each face.
    UxDataArray.topological_prod
    UxDataArray.topological_all
    UxDataArray.topological_any
+
+Azimuthal
+~~~~~~~~~
+
+Azimuthal aggregations apply an aggregation (i.e. averaging) along circles of constant great-circle distance from a specified point on the sphere.
+
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.azimuthal_mean
 
 Zonal Average
 ~~~~~~~~~~~~~

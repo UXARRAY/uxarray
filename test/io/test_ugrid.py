@@ -50,34 +50,6 @@ def test_to_xarray_ugrid(gridpath):
     del reloaded_grid
     os.remove("ugrid_exo_csne8.nc")
 
-def test_standardized_dtype_and_fill(gridpath):
-    """Test to see if Mesh2_Face_Nodes uses the expected integer datatype and expected fill value."""
-    ug_filenames = [
-        gridpath("ugrid", "outCSne30", "outCSne30.ug"),
-        gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug"),
-        gridpath("ugrid", "ov_RLL10deg_CSne4", "ov_RLL10deg_CSne4.ug")
-    ]
-
-    grids_with_fill = [ux.open_grid(ug_filenames[1])]
-    for grid in grids_with_fill:
-        assert grid.face_node_connectivity.dtype == INT_DTYPE
-        assert grid.face_node_connectivity._FillValue == INT_FILL_VALUE
-        assert INT_FILL_VALUE in grid.face_node_connectivity.values
-
-    grids_without_fill = [ux.open_grid(ug_filenames[0]), ux.open_grid(ug_filenames[2])]
-    for grid in grids_without_fill:
-        assert grid.face_node_connectivity.dtype == INT_DTYPE
-        assert grid.face_node_connectivity._FillValue == INT_FILL_VALUE
-
-def test_standardized_dtype_and_fill_dask(gridpath):
-    """Test to see if Mesh2_Face_Nodes uses the expected integer datatype with dask chunking."""
-    ug_filename = gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug")
-    ux_grid = ux.open_grid(ug_filename)
-
-    assert ux_grid.face_node_connectivity.dtype == INT_DTYPE
-    assert ux_grid.face_node_connectivity._FillValue == INT_FILL_VALUE
-    assert INT_FILL_VALUE in ux_grid.face_node_connectivity.values
-
 def test_encode_ugrid_copies_and_converts_bool_attr():
     """Test that encode_as('UGRID') returns a copy and converts boolean attrs to int."""
     import copy

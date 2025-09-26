@@ -487,9 +487,7 @@ class UxDataArray(xr.DataArray):
         >>> integral = uxds["psi"].integrate()
         """
         if self.values.shape[-1] == self.uxgrid.n_face:
-            face_areas, face_jacobian = self.uxgrid.compute_face_areas(
-                quadrature_rule, order
-            )
+            face_areas = self.uxgrid.face_areas.values
 
             # perform dot product between face areas and last dimension of data
             integral = np.einsum("i,...i", face_areas, self.values)
@@ -645,6 +643,127 @@ class UxDataArray(xr.DataArray):
     def zonal_average(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
         """Alias of zonal_mean; prefer `zonal_mean` for primary API."""
         return self.zonal_mean(lat=lat, conservative=conservative, **kwargs)
+
+    def azimuthal_mean(
+        self,
+        center_coord,
+        outer_radius: int | float,
+        radius_step: int | float,
+        return_hit_counts: bool = False,
+    ):
+        """Compute averages along circles of constant great-circle distance from a point.
+
+        Parameters
+        ----------
+        center_coord: tuple, list, ndarray
+            Longitude and latitude of the center of the bounding circle
+        outer_radius: scalar, int, float
+            The maximum radius, in great-circle degrees, at which the azimuthal mean will be computed.
+        radius_step: scalar, int, float
+            Means will be computed at intervals of `radius_step` on the interval [0, outer_radius]
+        return_hit_counts: bool, false
+            Indicates whether to return the number of hits at each radius
+
+        Returns
+        -------
+        azimuthal_mean: xr.DataArray
+            Contains a variable with a dimension 'radius' corresponding to the azimuthal average.
+        hit_counts: xr.DataArray
+            The number of hits at each radius
+
+
+        Examples
+        --------
+        # Range from 0° to 5° at 0.5° intervals, around the central point lon,lat=10,50
+        >>> az = uxds["var"].azimuthal_mean(
+        ...     center_coord=(10, 50), outer_radius=5.0, radius_step=0.5
+        ... )
+        >>> az.plot(title="Azimuthal Mean")
+
+        Notes
+        -----
+        Only supported for face-centered data variables. Candidate faces are determined
+        using bounding circles - for radii = [r1, r2, r3, ...] faces whose centers lie at distance d,
+        r2 < d <= r3 are included in calculations for r3.
+        """
+        from uxarray.grid.coordinates import _lonlat_rad_to_xyz
+
+        if not self._face_centered():
+            raise ValueError(
+                "Azimuthal mean computations are currently only supported for face-centered data variables."
+            )
+
+        if outer_radius <= 0:
+            raise ValueError("Radius must be a positive scalar.")
+
+        kdtree = self.uxgrid._get_scipy_kd_tree()
+
+        lon_deg, lat_deg = map(float, np.asarray(center_coord))
+        center_xyz = np.array(
+            _lonlat_rad_to_xyz(np.deg2rad(lon_deg), np.deg2rad(lat_deg))
+        )
+
+        radii_deg = np.arange(0.0, outer_radius + radius_step, radius_step, dtype=float)
+        radii_rad = np.deg2rad(radii_deg)
+        chord_radii = 2.0 * np.sin(radii_rad / 2.0)
+
+        faces_processed = np.array([], dtype=np.int_)
+        means = np.full(
+            (radii_deg.size, *self.to_xarray().isel(drop=True, n_face=0).shape), np.nan
+        )
+        hit_count = np.zeros_like(radii_deg, dtype=np.int_)
+
+        for ii, r_chord in enumerate(chord_radii):
+            # indices of faces within the bounding circle for this radius
+            within = np.array(
+                kdtree.query_ball_point(center_xyz, r_chord), dtype=np.int_
+            )
+            if within.size:
+                within.sort()
+
+            # include only the new ring: r_(i-1) < d <= r_i
+            faces_in_bin = np.setdiff1d(within, faces_processed, assume_unique=True)
+            hit_count[ii] = faces_in_bin.size
+
+            if hit_count[ii] == 0:
+                continue
+
+            faces_processed = within  # cumulative set for next iteration
+
+            tpose = self.isel(n_face=faces_in_bin).transpose(..., "n_face")
+            means[ii, ...] = tpose.weighted_mean().data
+
+        # swap the leading 'radius' axis into the former n_face position
+        face_axis = self.dims.index("n_face")
+        dims = list(self.dims)
+        dims[face_axis] = "radius"
+        means = np.moveaxis(means, 0, face_axis)
+
+        hit_count = xr.DataArray(
+            data=hit_count, dims="radius", coords={"radius": radii_deg}
+        )
+
+        uxda = xr.DataArray(
+            means,
+            dims=dims,
+            coords={"radius": radii_deg},
+            name=self.name + "_azimuthal_mean"
+            if self.name is not None
+            else "azimuthal_mean",
+            attrs={
+                "azimuthal_mean": True,
+                "center_lon": lon_deg,
+                "center_lat": lat_deg,
+                "radius_units": "degrees",
+            },
+        )
+
+        if return_hit_counts:
+            return uxda, hit_count
+        else:
+            return uxda
+
+    azimuthal_average = azimuthal_mean
 
     def weighted_mean(self, weights=None):
         """Computes a weighted mean.

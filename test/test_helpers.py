@@ -60,7 +60,7 @@ def test_calculate_face_area(mesh_constants):
         fill_value=-1,
     )
 
-    area, _ = grid.compute_face_areas()
+    area, _ = grid._compute_face_areas()
     nt.assert_almost_equal(area, mesh_constants['TRI_AREA'], decimal=5)
 
 def test_quadrature():
