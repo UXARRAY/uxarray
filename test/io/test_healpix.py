@@ -95,6 +95,106 @@ def test_invalid_cells():
     with pytest.raises(ValueError):
         uxda = ux.UxDataset.from_healpix(xrda)
 
+@pytest.mark.parametrize("resolution_level", [0, 2])  # Test lowest and a mid-level
+def test_healpix_equal_area_property(resolution_level):
+    """Test that all HEALPix faces have equal area as per the HEALPix specification.
+
+    HEALPix (Hierarchical Equal Area isoLatitude Pixelization) is designed so that
+    all pixels/faces have exactly the same spherical area.
+    """
+    # Create HEALPix grid with boundaries for area calculation
+    uxgrid = ux.Grid.from_healpix(resolution_level, pixels_only=False)
+
+    # Calculate face areas and expected theoretical area
+    face_areas = uxgrid.face_areas.values
+    nside = hp.order2nside(resolution_level)
+    npix = hp.nside2npix(nside)
+    expected_area_per_pixel = 4 * np.pi / npix
+
+    # All face areas should be equal to the theoretical value
+    # Use a more reasonable tolerance for numerical computations
+    np.testing.assert_allclose(
+        face_areas,
+        expected_area_per_pixel,
+        rtol=1e-12,  # Relaxed from 1e-14 for numerical stability
+        atol=1e-15,  # Added absolute tolerance
+        err_msg=f"HEALPix faces do not have equal areas at resolution {resolution_level}"
+    )
+
+    # Verify total surface area equals 4π
+    total_area = np.sum(face_areas)
+    expected_total_area = 4 * np.pi
+    np.testing.assert_allclose(
+        total_area,
+        expected_total_area,
+        rtol=1e-12,  # Relaxed from 1e-14
+        atol=1e-15,  # Added absolute tolerance
+        err_msg=f"Total HEALPix surface area incorrect at resolution {resolution_level}"
+    )
+
+
+def test_healpix_face_areas_consistency():
+    """Test that HEALPix face areas are consistent across different resolution levels."""
+    resolution_levels = [0, 1]  # Just test basic functionality
+
+    for resolution_level in resolution_levels:
+        uxgrid = ux.Grid.from_healpix(resolution_level, pixels_only=False)
+        face_areas = uxgrid.face_areas.values
+
+        # All faces should have identical areas
+        area_std = np.std(face_areas)
+        area_mean = np.mean(face_areas)
+
+        # Avoid division by zero
+        if area_mean == 0:
+            pytest.fail(f"Mean face area is zero at resolution {resolution_level}")
+
+        relative_std = area_std / area_mean
+
+        # Relative standard deviation should be essentially zero (numerical precision)
+        # Relaxed tolerance for numerical stability
+        assert relative_std < 1e-12, (
+            f"Face areas not equal at resolution {resolution_level}: "
+            f"relative_std={relative_std:.2e}"
+        )
+
+        # Check that face areas match theoretical calculation
+        nside = hp.order2nside(resolution_level)
+        npix = hp.nside2npix(nside)
+        theoretical_area = 4 * np.pi / npix
+
+        # Use consistent tolerance with the parametrized test
+        np.testing.assert_allclose(
+            face_areas,
+            theoretical_area,
+            rtol=1e-12,
+            atol=1e-15,
+            err_msg=f"Face areas incorrect at resolution {resolution_level}"
+        )
+
+
+@pytest.mark.parametrize("resolution_level", [0, 1])  # Just test the scaling relationship
+def test_healpix_area_scaling(resolution_level):
+    """Test that face areas scale correctly with resolution level."""
+    # Create grids at consecutive resolution levels
+    uxgrid_current = ux.Grid.from_healpix(resolution_level, pixels_only=False)
+    uxgrid_next = ux.Grid.from_healpix(resolution_level + 1, pixels_only=False)
+
+    area_current = uxgrid_current.face_areas.values[0]  # All areas are equal
+    area_next = uxgrid_next.face_areas.values[0]
+
+    # Each resolution level increases npix by factor of 4, so area decreases by factor of 4
+    expected_ratio = 4.0
+    actual_ratio = area_current / area_next
+
+    np.testing.assert_allclose(
+        actual_ratio,
+        expected_ratio,
+        rtol=1e-12,
+        err_msg=f"Area scaling incorrect between resolution {resolution_level} and {resolution_level + 1}"
+    )
+
+
 def test_healpix_round_trip_consistency(tmp_path):
     """Test round-trip serialization of HEALPix grid through UGRID and Exodus formats.
 
