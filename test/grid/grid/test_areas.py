@@ -33,7 +33,7 @@ def test_face_areas_calculate_total_face_area_triangle(mesh_constants):
 def test_face_areas_compute_face_areas_geoflow_small(gridpath):
     """Checks if the GeoFlow Small can generate a face areas output."""
     grid_geoflow = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
-    grid_geoflow.compute_face_areas()
+    grid_geoflow._compute_face_areas()
 
 
 class TestFaceAreas:
