@@ -107,6 +107,9 @@ def open_grid(
 
     else:
         # Attempt to use Xarray directly for remaining input types
+        # Force netCDF4 engine for .nc files to avoid scipy reader issues
+        if isinstance(grid_filename_or_obj, (str, os.PathLike)) and str(grid_filename_or_obj).endswith('.nc'):
+            kwargs.setdefault('engine', 'netcdf4')
         grid_ds = xr.open_dataset(grid_filename_or_obj, chunks=grid_chunks, **kwargs)
         grid = Grid.from_dataset(grid_ds, use_dual=use_dual)
 
