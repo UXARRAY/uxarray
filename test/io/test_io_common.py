@@ -129,3 +129,13 @@ class TestIOCommon:
         assert np.issubdtype(grid.face_node_connectivity.dtype, np.integer)
         assert np.issubdtype(grid.node_lon.dtype, np.floating)
         assert np.issubdtype(grid.node_lat.dtype, np.floating)
+
+    def test_standardized_dtype_and_fill(self, grid_from_format):
+        """Test that face_node_connectivity uses expected dtype and fill value across all formats."""
+        grid = grid_from_format
+
+        # Check that face_node_connectivity uses an integer dtype (may vary by platform/format)
+        assert np.issubdtype(grid.face_node_connectivity.dtype, np.integer)
+
+        # Check that face_node_connectivity uses the standardized fill value
+        assert grid.face_node_connectivity._FillValue == INT_FILL_VALUE

@@ -52,10 +52,3 @@ def test_mixed_exodus(gridpath):
     del ugrid_load_saved, exodus_load_saved
     os.remove("test_ugrid.nc")
     os.remove("test_exo.exo")
-
-def test_standardized_dtype_and_fill(gridpath):
-    """Test to see if Mesh2_Face_Nodes uses the expected integer datatype and expected fill value as set in constants.py."""
-    uxgrid = ux.open_grid(gridpath("exodus", "mixed", "mixed.exo"))
-
-    assert uxgrid.face_node_connectivity.dtype == INT_DTYPE
-    assert uxgrid.face_node_connectivity._FillValue == INT_FILL_VALUE
