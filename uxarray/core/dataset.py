@@ -14,7 +14,7 @@ from xarray.core.utils import UncachedAccessor
 
 import uxarray
 from uxarray.core.dataarray import UxDataArray
-from uxarray.core.utils import _map_dims_to_ugrid
+from uxarray.core.utils import _map_dims_to_ugrid, _open_dataset_with_fallback
 from uxarray.formatting_html import dataset_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
@@ -326,7 +326,7 @@ class UxDataset(xr.Dataset):
         """
 
         if not isinstance(ds, xr.Dataset):
-            ds = xr.open_dataset(ds, **kwargs)
+            ds = _open_dataset_with_fallback(ds, **kwargs)
 
         if face_dim not in ds.dims:
             raise ValueError(
