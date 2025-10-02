@@ -111,6 +111,63 @@ class TestConservativeZonalMean:
         assert result.shape == (len(bands) - 1,)
         assert np.all(np.isfinite(result.values))
 
+    def test_conservative_float_step_size(self, gridpath, datasetpath):
+        """Test conservative zonal mean with float step sizes."""
+        grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+        data_path = datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
+        uxds = ux.open_dataset(grid_path, data_path)
+
+        # Test with float step size (5.5 degrees)
+        result = uxds["psi"].zonal_mean(lat=(-90, 90, 0.05), conservative=True)
+
+        # Should get valid results
+        assert len(result) > 0
+        assert np.all(np.isfinite(result.values))
+
+        # Test with reasonable float step size (no warning)
+        result = uxds["psi"].zonal_mean(lat=(-90, 90, 5.5), conservative=True)
+        expected_n_bands = int(np.ceil(180 / 5.5))
+        assert result.shape[0] == expected_n_bands
+        assert np.all(np.isfinite(result.values))
+
+    def test_conservative_near_pole(self, gridpath, datasetpath):
+        """Test conservative zonal mean with bands near the poles."""
+        grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+        data_path = datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
+        uxds = ux.open_dataset(grid_path, data_path)
+
+        # Test near north pole with float step
+        bands_north = np.array([85.0, 87.5, 90.0])
+        result_north = uxds["psi"].zonal_mean(lat=bands_north, conservative=True)
+        assert result_north.shape == (2,)
+        assert np.all(np.isfinite(result_north.values))
+
+        # Test near south pole with float step
+        bands_south = np.array([-90.0, -87.5, -85.0])
+        result_south = uxds["psi"].zonal_mean(lat=bands_south, conservative=True)
+        assert result_south.shape == (2,)
+        assert np.all(np.isfinite(result_south.values))
+
+        # Test spanning pole with non-integer step
+        bands_span = np.array([88.5, 89.25, 90.0])
+        result_span = uxds["psi"].zonal_mean(lat=bands_span, conservative=True)
+        assert result_span.shape == (2,)
+        assert np.all(np.isfinite(result_span.values))
+
+    def test_conservative_step_size_validation(self, gridpath, datasetpath):
+        """Test that step size validation works correctly."""
+        grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+        data_path = datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
+        uxds = ux.open_dataset(grid_path, data_path)
+
+        # Test negative step size
+        with pytest.raises(ValueError, match="Step size must be positive"):
+            uxds["psi"].zonal_mean(lat=(-90, 90, -10), conservative=True)
+
+        # Test zero step size
+        with pytest.raises(ValueError, match="Step size must be positive"):
+            uxds["psi"].zonal_mean(lat=(-90, 90, 0), conservative=True)
+
     def test_conservative_full_sphere_conservation(self, gridpath, datasetpath):
         """Test that single band covering entire sphere conserves global mean."""
         grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")

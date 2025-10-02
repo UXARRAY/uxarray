@@ -565,7 +565,11 @@ class UxDataArray(xr.DataArray):
         if not conservative:
             # Non-conservative (traditional) zonal averaging
             if isinstance(lat, tuple):
-                latitudes = np.arange(lat[0], lat[1] + lat[2], lat[2])
+                start, end, step = lat
+                if step <= 0:
+                    raise ValueError("Step size must be positive.")
+                num_points = int(round((end - start) / step)) + 1
+                latitudes = np.linspace(start, end, num_points)
                 latitudes = np.clip(latitudes, -90, 90)
             elif isinstance(lat, (float, int)):
                 latitudes = [lat]
@@ -601,7 +605,13 @@ class UxDataArray(xr.DataArray):
         else:
             # Conservative zonal averaging
             if isinstance(lat, tuple):
-                edges = np.arange(lat[0], lat[1] + lat[2], lat[2])
+                start, end, step = lat
+                if step <= 0:
+                    raise ValueError(
+                        "Step size must be positive for conservative averaging."
+                    )
+                num_points = int(round((end - start) / step)) + 1
+                edges = np.linspace(start, end, num_points)
                 edges = np.clip(edges, -90, 90)
             elif isinstance(lat, (list, np.ndarray)):
                 edges = np.asarray(lat, dtype=float)
