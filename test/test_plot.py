@@ -76,17 +76,19 @@ def test_dataarray_methods(gridpath, datasetpath):
     # plot.scatter() is an xarray method
     assert hasattr(uxds.plot, 'scatter')
 
+import hvplot.xarray  # registers .hvplot accessor
+
 def test_line(gridpath):
     mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
     uxds = ux.open_dataset(mesh_path, mesh_path)
-    _plot_line = uxds['bottomDepth'].zonal_average().plot.line()
+    _plot_line = uxds['bottomDepth'].zonal_average().hvplot.line()
     assert isinstance(_plot_line, hv.Curve)
 
 def test_scatter(gridpath):
     mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
     uxds = ux.open_dataset(mesh_path, mesh_path)
-    _plot_line = uxds['bottomDepth'].zonal_average().plot.scatter()
-    assert isinstance(_plot_line, hv.Scatter)
+    _plot_scatter = uxds['bottomDepth'].zonal_average().hvplot.scatter()
+    assert isinstance(_plot_scatter, hv.Scatter)
 
 
 
