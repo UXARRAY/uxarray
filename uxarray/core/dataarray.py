@@ -568,6 +568,11 @@ class UxDataArray(xr.DataArray):
                 start, end, step = lat
                 if step <= 0:
                     raise ValueError("Step size must be positive.")
+                if step < 0.1:
+                    warnings.warn(
+                        f"Very small step size ({step}°) may lead to performance issues...",
+                        UserWarning, stacklevel=2
+                    )
                 num_points = int(round((end - start) / step)) + 1
                 latitudes = np.linspace(start, end, num_points)
                 latitudes = np.clip(latitudes, -90, 90)
@@ -609,6 +614,11 @@ class UxDataArray(xr.DataArray):
                 if step <= 0:
                     raise ValueError(
                         "Step size must be positive for conservative averaging."
+                    )
+                if step < 0.1:
+                    warnings.warn(
+                        f"Very small step size ({step}°) may lead to performance issues...",
+                        UserWarning, stacklevel=2
                     )
                 num_points = int(round((end - start) / step)) + 1
                 edges = np.linspace(start, end, num_points)
