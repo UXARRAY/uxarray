@@ -35,9 +35,7 @@ def _open_dataset_with_fallback(filename_or_obj, chunks=None, **kwargs):
         # If it fails, use the "netcdf4" engine as backup
         # Extract engine from kwargs to prevent duplicate parameter error
         engine = kwargs.pop("engine", "netcdf4")
-        return xr.open_dataset(
-            filename_or_obj, engine=engine, chunks=chunks, **kwargs
-        )
+        return xr.open_dataset(filename_or_obj, engine=engine, chunks=chunks, **kwargs)
 
 
 def _map_dims_to_ugrid(
