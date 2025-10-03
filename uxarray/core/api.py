@@ -7,7 +7,11 @@ from warnings import warn
 import numpy as np
 
 from uxarray.core.dataset import UxDataset
-from uxarray.core.utils import _map_dims_to_ugrid, match_chunks_to_ugrid
+from uxarray.core.utils import (
+    _map_dims_to_ugrid,
+    _open_dataset_with_fallback,
+    match_chunks_to_ugrid,
+)
 from uxarray.grid import Grid
 
 if TYPE_CHECKING:
@@ -107,6 +111,11 @@ def open_grid(
 
     else:
         # Attempt to use Xarray directly for remaining input types
+        # Force netCDF4 engine for .nc files to avoid scipy reader issues
+        if isinstance(grid_filename_or_obj, (str, os.PathLike)) and str(
+            grid_filename_or_obj
+        ).endswith(".nc"):
+            kwargs.setdefault("engine", "netcdf4")
         grid_ds = xr.open_dataset(grid_filename_or_obj, chunks=grid_chunks, **kwargs)
         grid = Grid.from_dataset(grid_ds, use_dual=use_dual)
 
@@ -173,8 +182,6 @@ def open_dataset(
     >>> import uxarray as ux
     >>> ux_ds = ux.open_dataset("grid_file.nc", "data_file.nc")
     """
-    import xarray as xr
-
     if grid_kwargs is None:
         grid_kwargs = {}
 
@@ -184,7 +191,7 @@ def open_dataset(
     )
 
     # Load the data as a Xarray Dataset
-    ds = xr.open_dataset(filename_or_obj, chunks=corrected_chunks, **kwargs)
+    ds = _open_dataset_with_fallback(filename_or_obj, chunks=corrected_chunks, **kwargs)
 
     # Map original dimensions to the UGRID conventions
     ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)

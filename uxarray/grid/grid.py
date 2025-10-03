@@ -18,6 +18,9 @@ from xarray.core.utils import UncachedAccessor
 
 from uxarray.constants import INT_FILL_VALUE
 from uxarray.conventions import ugrid
+
+# Import the utility function for opening datasets with fallback
+from uxarray.core.utils import _open_dataset_with_fallback
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.formatting_html import grid_repr
 from uxarray.grid.area import get_all_face_area_from_coords
@@ -348,7 +351,7 @@ class Grid:
             grid_ds, source_dims_dict = _read_geodataframe(filename)
 
         elif backend == "xarray":
-            dataset = xr.open_dataset(filename, **kwargs)
+            dataset = _open_dataset_with_fallback(filename, **kwargs)
             return cls.from_dataset(dataset)
 
         else:

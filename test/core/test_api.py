@@ -2,6 +2,11 @@ import numpy.testing as nt
 import uxarray as ux
 import numpy as np
 import pytest
+import tempfile
+import xarray as xr
+from unittest.mock import patch
+from uxarray.core.utils import _open_dataset_with_fallback
+import os
 
 def test_open_geoflow_dataset(gridpath, datasetpath):
     """Loads a single dataset with its grid topology file using uxarray's
@@ -111,4 +116,46 @@ def test_open_dataset_grid_kwargs(gridpath, datasetpath):
             gridpath("ugrid", "outCSne30", "outCSne30.ug"),
             datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc"),
             grid_kwargs={"drop_variables": "Mesh2_face_nodes"}
-        )
+                )
+
+
+def test_open_dataset_with_fallback():
+    """Test that the fallback mechanism works when the default engine fails."""
+
+    tmp_path = ""
+    ds = None
+    ds_fallback = None
+    try:
+        # Create a simple test dataset
+        with tempfile.NamedTemporaryFile(suffix='.nc', delete=False) as tmp:
+            data = xr.Dataset({'temp': (['x', 'y'], np.random.rand(5, 5))})
+            data.to_netcdf(tmp.name)
+            tmp_path = tmp.name
+
+        # Test normal case
+        ds = _open_dataset_with_fallback(tmp_path)
+        assert isinstance(ds, xr.Dataset)
+        assert 'temp' in ds.data_vars
+
+        # Test fallback mechanism with mocked failure
+        original_open = xr.open_dataset
+        call_count = 0
+        def mock_open_dataset(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1 and 'engine' not in kwargs:
+                raise Exception("Simulated engine failure")
+            return original_open(*args, **kwargs)
+
+        with patch('uxarray.core.utils.xr.open_dataset', side_effect=mock_open_dataset):
+            ds_fallback = _open_dataset_with_fallback(tmp_path)
+            assert isinstance(ds_fallback, xr.Dataset)
+            assert call_count == 2  # First failed, second succeeded
+
+    finally:
+        if ds is not None:
+            ds.close()
+        if ds_fallback is not None:
+            ds_fallback.close()
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
