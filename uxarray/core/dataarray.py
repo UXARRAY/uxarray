@@ -571,7 +571,8 @@ class UxDataArray(xr.DataArray):
                 if step < 0.1:
                     warnings.warn(
                         f"Very small step size ({step}°) may lead to performance issues...",
-                        UserWarning, stacklevel=2
+                        UserWarning,
+                        stacklevel=2,
                     )
                 num_points = int(round((end - start) / step)) + 1
                 latitudes = np.linspace(start, end, num_points)
@@ -618,7 +619,8 @@ class UxDataArray(xr.DataArray):
                 if step < 0.1:
                     warnings.warn(
                         f"Very small step size ({step}°) may lead to performance issues...",
-                        UserWarning, stacklevel=2
+                        UserWarning,
+                        stacklevel=2,
                     )
                 num_points = int(round((end - start) / step)) + 1
                 edges = np.linspace(start, end, num_points)
