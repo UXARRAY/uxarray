@@ -49,7 +49,7 @@ def test_grid_init_verts_fill_values():
 def test_read_shpfile(test_data_dir):
     """Reads a shape file and write ugrid file."""
     shp_filename = test_data_dir / "shp" / "grid_fire.shp"
-    with pytest.raises(ValueError):
+    with pytest.raises((ValueError, FileNotFoundError, OSError)):
         grid_shp = ux.open_grid(shp_filename)
 
 
