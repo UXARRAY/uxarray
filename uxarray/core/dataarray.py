@@ -19,6 +19,7 @@ from uxarray.core.gradient import (
     _calculate_edge_node_difference,
     _compute_gradient,
 )
+from uxarray.core.vector_calculus import _calculate_divergence
 from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.core.zonal import _compute_non_conservative_zonal_mean
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
@@ -1265,6 +1266,81 @@ class UxDataArray(xr.DataArray):
             attrs={"gradient": True},
             coords=self.coords,
         )
+
+    def divergence(self, other: "UxDataArray", **kwargs) -> "UxDataArray":
+        """
+        Computes the divergence of the vector field defined by this UxDataArray and other.
+
+        Parameters
+        ----------
+        other : UxDataArray
+            The second component of the vector field. This UxDataArray represents the first component.
+        **kwargs
+            Additional keyword arguments (reserved for future use).
+
+        Returns
+        -------
+        divergence : UxDataArray
+            UxDataArray containing the divergence of the vector field.
+
+        Notes
+        -----
+        The divergence is computed using the finite volume method. For a vector field V = (u, v),
+        where u and v are the components represented by this UxDataArray and other respectively,
+        the divergence is calculated as div(V) = ∂u/∂x + ∂v/∂y.
+
+        The implementation uses edge-centered gradients and face-centered divergence calculation
+        following the discrete divergence theorem.
+
+        Example
+        -------
+        >>> u_component = uxds["u_wind"]  # First component of vector field
+        >>> v_component = uxds["v_wind"]  # Second component of vector field
+        >>> div_field = u_component.divergence(v_component)
+        """
+        from uxarray import UxDataArray
+
+        if not isinstance(other, UxDataArray):
+            raise TypeError("other must be a UxDataArray")
+
+        if self.uxgrid != other.uxgrid:
+            raise ValueError("Both UxDataArrays must have the same grid")
+
+        if self.dims != other.dims:
+            raise ValueError("Both UxDataArrays must have the same dimensions")
+
+        if self.ndim > 1:
+            raise ValueError(
+                "Divergence currently requires 1D face-centered data. Consider "
+                "reducing the dimension by selecting data across leading dimensions (e.g., `.isel(time=0)`, "
+                "`.sel(lev=500)`, or `.mean('time')`)."
+            )
+
+        if not (self._face_centered() and other._face_centered()):
+            raise ValueError(
+                "Computing the divergence is only supported for face-centered data variables."
+            )
+
+        # Compute gradients of both components
+        u_grad_zonal, u_grad_meridional = _compute_gradient(self)
+        v_grad_zonal, v_grad_meridional = _compute_gradient(other)
+
+        # For divergence: div(V) = ∂u/∂x + ∂v/∂y
+        # In spherical coordinates: div(V) = (1/cos(lat)) * ∂u/∂lon + ∂v/∂lat
+        # We use the zonal gradient (∂/∂lon) of u and meridional gradient (∂/∂lat) of v
+        divergence_values = u_grad_zonal.values + v_grad_meridional.values
+
+        # Create the divergence UxDataArray
+        divergence_da = UxDataArray(
+            data=divergence_values,
+            name="divergence",
+            dims=self.dims,
+            uxgrid=self.uxgrid,
+            attrs={"divergence": True, "units": "1/s" if "units" not in kwargs else kwargs["units"]},
+            coords=self.coords,
+        )
+
+        return divergence_da
 
     def difference(self, destination: Optional[str] = "edge"):
         """Computes the absolute difference of a data variable.
