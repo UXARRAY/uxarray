@@ -103,8 +103,8 @@ def calculate_face_area(
             )
             # Check if z-coordinates are approximately equal
             if np.isclose(node1[2], node2[2], atol=ERROR_TOLERANCE):
-                if node1[2] == 0:
-                    # check if z-coordinates are 0 - Equator
+                # Check if z-coordinates are approximately 0 - Equator
+                if np.abs(node1[2]) < ERROR_TOLERANCE:
                     continue
 
                 # Check if the edge passes through a pole
@@ -117,14 +117,21 @@ def calculate_face_area(
                 # Convert Cartesian coordinates to longitude
                 lon1 = np.arctan2(node1[1], node1[0])
                 lon2 = np.arctan2(node2[1], node2[0])
-                # Calculate the longitude difference in radians
+
+                # Calculate the longitude difference in radians, handling wraparound
                 lon_diff = lon2 - lon1
+                # Normalize longitude difference to [-π, π]
+                while lon_diff > np.pi:
+                    lon_diff -= 2 * np.pi
+                while lon_diff < -np.pi:
+                    lon_diff += 2 * np.pi
+
                 # Skip the edge if it spans more than 180 degrees of longitude
                 if abs(lon_diff) > np.pi:
                     continue
-                else:
-                    # Calculate the correction term
-                    correction = area_correction(node1, node2)
+
+                # Calculate the correction term
+                correction = area_correction(node1, node2)
 
                 # Check if the longitude is increasing in the northern hemisphere or decreasing in the southern hemisphere
                 if (z_sign > 0 and lon_diff > 0) or (z_sign < 0 and lon_diff < 0):
