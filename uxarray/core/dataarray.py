@@ -20,7 +20,10 @@ from uxarray.core.gradient import (
     _compute_gradient,
 )
 from uxarray.core.utils import _map_dims_to_ugrid
-from uxarray.core.zonal import _compute_non_conservative_zonal_mean
+from uxarray.core.zonal import (
+    _compute_conservative_zonal_mean_bands,
+    _compute_non_conservative_zonal_mean,
+)
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
 from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
@@ -510,16 +513,20 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def zonal_mean(self, lat=(-90, 90, 10), **kwargs):
-        """Compute averages along lines of constant latitude.
+    def zonal_mean(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
+        """Compute non-conservative or conservative averages along lines of constant latitude or latitude bands.
 
         Parameters
         ----------
         lat : tuple, float, or array-like, default=(-90, 90, 10)
-            Latitude values in degrees. Can be specified as:
-            - tuple (start, end, step): Computes means at intervals of `step` in range [start, end]
-            - float: Computes mean for a single latitude
-            - array-like: Computes means for each specified latitude
+            Latitude specification:
+            - tuple (start, end, step): For non-conservative, computes means at intervals of `step`.
+              For conservative, creates band edges via np.arange(start, end+step, step).
+            - float: Single latitude for non-conservative averaging
+            - array-like: For non-conservative, latitudes to sample. For conservative, band edges.
+        conservative : bool, default=False
+            If True, performs conservative (area-weighted) zonal averaging over latitude bands.
+            If False, performs traditional (non-conservative) averaging at latitude lines.
 
         Returns
         -------
@@ -529,62 +536,125 @@ class UxDataArray(xr.DataArray):
 
         Examples
         --------
-        # All latitudes from -90° to 90° at 10° intervals
+        # Non-conservative averaging from -90° to 90° at 10° intervals by default
         >>> uxds["var"].zonal_mean()
 
-        # Single latitude at 30°
+        # Single latitude (non-conservative) over 30° latitude
         >>> uxds["var"].zonal_mean(lat=30.0)
 
-        # Range from -60° to 60° at 10° intervals
-        >>> uxds["var"].zonal_mean(lat=(-60, 60, 10))
+        # Conservative averaging over latitude bands
+        >>> uxds["var"].zonal_mean(lat=(-60, 60, 10), conservative=True)
+
+        # Conservative with explicit band edges
+        >>> uxds["var"].zonal_mean(lat=[-90, -30, 0, 30, 90], conservative=True)
 
         Notes
         -----
-        Only supported for face-centered data variables. Candidate faces are determined
-        using spherical bounding boxes - faces whose bounds contain the target latitude
-        are included in calculations.
+        Only supported for face-centered data variables.
+
+        Conservative averaging preserves integral quantities and is recommended for
+        physical analysis. Non-conservative averaging samples at latitude lines.
         """
         if not self._face_centered():
             raise ValueError(
                 "Zonal mean computations are currently only supported for face-centered data variables."
             )
 
-        if isinstance(lat, tuple):
-            # zonal mean over a range of latitudes
-            latitudes = np.arange(lat[0], lat[1] + lat[2], lat[2])
-            latitudes = np.clip(latitudes, -90, 90)
-        elif isinstance(lat, (float, int)):
-            # zonal mean over a single latitude
-            latitudes = [lat]
-        elif isinstance(lat, (list, np.ndarray)):
-            # zonal mean over an array of arbitrary latitudes
-            latitudes = np.asarray(lat)
-        else:
-            raise ValueError(
-                "Invalid value for 'lat' provided. Must either be a single scalar value, tuple (min_lat, max_lat, step), or array-like."
+        face_axis = self.dims.index("n_face")
+
+        if not conservative:
+            # Non-conservative (traditional) zonal averaging
+            if isinstance(lat, tuple):
+                start, end, step = lat
+                if step <= 0:
+                    raise ValueError("Step size must be positive.")
+                if step < 0.1:
+                    warnings.warn(
+                        f"Very small step size ({step}°) may lead to performance issues...",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                num_points = int(round((end - start) / step)) + 1
+                latitudes = np.linspace(start, end, num_points)
+                latitudes = np.clip(latitudes, -90, 90)
+            elif isinstance(lat, (float, int)):
+                latitudes = [lat]
+            elif isinstance(lat, (list, np.ndarray)):
+                latitudes = np.asarray(lat)
+            else:
+                raise ValueError(
+                    "Invalid value for 'lat' provided. Must be a scalar, tuple (min_lat, max_lat, step), or array-like."
+                )
+
+            res = _compute_non_conservative_zonal_mean(
+                uxda=self, latitudes=latitudes, **kwargs
             )
 
-        res = _compute_non_conservative_zonal_mean(
-            uxda=self, latitudes=latitudes, **kwargs
-        )
+            dims = list(self.dims)
+            dims[face_axis] = "latitudes"
 
-        face_axis = self.dims.index("n_face")
-        dims = list(self.dims)
-        dims[face_axis] = "latitudes"
+            return xr.DataArray(
+                res,
+                dims=dims,
+                coords={"latitudes": latitudes},
+                name=self.name + "_zonal_mean"
+                if self.name is not None
+                else "zonal_mean",
+                attrs={"zonal_mean": True, "conservative": False},
+            )
 
-        uxda = UxDataArray(
-            res,
-            uxgrid=self.uxgrid,
-            dims=dims,
-            coords={"latitudes": latitudes},
-            name=self.name + "_zonal_mean" if self.name is not None else "zonal_mean",
-            attrs={"zonal_mean": True},
-        )
+        else:
+            # Conservative zonal averaging
+            if isinstance(lat, tuple):
+                start, end, step = lat
+                if step <= 0:
+                    raise ValueError(
+                        "Step size must be positive for conservative averaging."
+                    )
+                if step < 0.1:
+                    warnings.warn(
+                        f"Very small step size ({step}°) may lead to performance issues...",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                num_points = int(round((end - start) / step)) + 1
+                edges = np.linspace(start, end, num_points)
+                edges = np.clip(edges, -90, 90)
+            elif isinstance(lat, (list, np.ndarray)):
+                edges = np.asarray(lat, dtype=float)
+            else:
+                raise ValueError(
+                    "For conservative averaging, 'lat' must be a tuple (start, end, step) or array-like band edges."
+                )
 
-        return uxda
+            if edges.ndim != 1 or edges.size < 2:
+                raise ValueError("Band edges must be 1D with at least two values")
 
-    # Alias for 'zonal_mean', since this name is also commonly used.
-    zonal_average = zonal_mean
+            res = _compute_conservative_zonal_mean_bands(self, edges)
+
+            # Use band centers as coordinate values
+            centers = 0.5 * (edges[:-1] + edges[1:])
+
+            dims = list(self.dims)
+            dims[face_axis] = "latitudes"
+
+            return xr.DataArray(
+                res,
+                dims=dims,
+                coords={"latitudes": centers},
+                name=self.name + "_zonal_mean"
+                if self.name is not None
+                else "zonal_mean",
+                attrs={
+                    "zonal_mean": True,
+                    "conservative": True,
+                    "lat_band_edges": edges,
+                },
+            )
+
+    def zonal_average(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
+        """Alias of zonal_mean; prefer `zonal_mean` for primary API."""
+        return self.zonal_mean(lat=lat, conservative=conservative, **kwargs)
 
     def azimuthal_mean(
         self,
