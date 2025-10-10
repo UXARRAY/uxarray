@@ -593,11 +593,6 @@ class UxDataArray(xr.DataArray):
             dims = list(self.dims)
             dims[face_axis] = "latitudes"
 
-            warnings.warn(
-                "zonal_mean returns an xarray.DataArray (no grid topology). Returning UxDataArray is deprecated and will be removed.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
             return xr.DataArray(
                 res,
                 dims=dims,
@@ -643,11 +638,6 @@ class UxDataArray(xr.DataArray):
             dims = list(self.dims)
             dims[face_axis] = "latitudes"
 
-            warnings.warn(
-                "zonal_mean returns an xarray.DataArray (no grid topology). Returning UxDataArray is deprecated and will be removed.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
             return xr.DataArray(
                 res,
                 dims=dims,
