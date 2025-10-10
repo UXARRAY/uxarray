@@ -19,7 +19,6 @@ from uxarray.core.gradient import (
     _calculate_edge_node_difference,
     _compute_gradient,
 )
-from uxarray.core.vector_calculus import _calculate_divergence
 from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.core.zonal import (
     _compute_conservative_zonal_mean_bands,
@@ -1392,13 +1391,16 @@ class UxDataArray(xr.DataArray):
             )
 
         # Compute gradients of both components
-        u_grad_zonal, u_grad_meridional = _compute_gradient(self)
-        v_grad_zonal, v_grad_meridional = _compute_gradient(other)
+        u_gradient = self.gradient()
+        v_gradient = other.gradient()
 
         # For divergence: div(V) = ∂u/∂x + ∂v/∂y
         # In spherical coordinates: div(V) = (1/cos(lat)) * ∂u/∂lon + ∂v/∂lat
         # We use the zonal gradient (∂/∂lon) of u and meridional gradient (∂/∂lat) of v
-        divergence_values = u_grad_zonal.values + v_grad_meridional.values
+        divergence_values = (
+            u_gradient["zonal_gradient"].values
+            + v_gradient["meridional_gradient"].values
+        )
 
         # Create the divergence UxDataArray
         divergence_da = UxDataArray(
@@ -1406,7 +1408,10 @@ class UxDataArray(xr.DataArray):
             name="divergence",
             dims=self.dims,
             uxgrid=self.uxgrid,
-            attrs={"divergence": True, "units": "1/s" if "units" not in kwargs else kwargs["units"]},
+            attrs={
+                "divergence": True,
+                "units": "1/s" if "units" not in kwargs else kwargs["units"],
+            },
             coords=self.coords,
         )
 
