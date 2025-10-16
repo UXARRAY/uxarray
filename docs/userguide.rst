@@ -70,6 +70,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Gradients <user-guide/gradients.ipynb>`_
  Compute the gradient of a data variable
 
+`Curl <user-guide/curl.ipynb>`_
+ Compute the curl of a vector field
+
 `Tree Structures <user-guide/tree_structures.ipynb>`_
  Data structures for nearest neighbor queries
 
@@ -118,6 +121,7 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/topological-aggregations.ipynb
    user-guide/weighted_mean.ipynb
    user-guide/gradients.ipynb
+   user-guide/curl.ipynb
    user-guide/tree_structures.ipynb
    user-guide/area_calc.ipynb
    user-guide/dual-mesh.ipynb
