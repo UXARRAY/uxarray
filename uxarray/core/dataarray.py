@@ -1410,7 +1410,9 @@ class UxDataArray(xr.DataArray):
             dims=self.dims,
             attrs={
                 "long_name": f"Curl of ({self.name}, {other.name})",
-                "units": "1/s" if "units" not in self.attrs else f"({self.attrs.get('units', '1')})/m",
+                "units": "1/s"
+                if "units" not in self.attrs
+                else f"({self.attrs.get('units', '1')})/m",
                 "description": "Curl of vector field computed as ∂v/∂x - ∂u/∂y",
             },
             uxgrid=self.uxgrid,
