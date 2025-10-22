@@ -1397,23 +1397,22 @@ class UxDataArray(xr.DataArray):
         # For divergence: div(V) = ∂u/∂x + ∂v/∂y
         # In spherical coordinates: div(V) = (1/cos(lat)) * ∂u/∂lon + ∂v/∂lat
         # We use the zonal gradient (∂/∂lon) of u and meridional gradient (∂/∂lat) of v
-        divergence_values = (
-            u_gradient["zonal_gradient"].values
-            + v_gradient["meridional_gradient"].values
-        )
+        u = u_gradient["zonal_gradient"]
+        v = v_gradient["meridional_gradient"]
 
-        # Create the divergence UxDataArray
-        divergence_da = UxDataArray(
-            data=divergence_values,
-            name="divergence",
-            dims=self.dims,
-            uxgrid=self.uxgrid,
-            attrs={
+        # Align DataArrays to ensure coords/dims match, then perform xarray-aware addition
+        u, v = xr.align(u, v)
+        divergence = u + v
+        divergence.name = "divergence"
+        divergence.attrs.update(
+            {
                 "divergence": True,
                 "units": "1/s" if "units" not in kwargs else kwargs["units"],
-            },
-            coords=self.coords,
+            }
         )
+
+        # Wrap result as a UxDataArray while preserving uxgrid and coords
+        divergence_da = UxDataArray(divergence, uxgrid=self.uxgrid)
 
         return divergence_da
 
