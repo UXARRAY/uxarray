@@ -3,12 +3,15 @@
 ============
 Why UXarray?
 ============
-UXarray aims to address the geoscience community need for tools that enable standard
-data analysis techniques to operate directly on unstructured grids. It extends upon
-and inherits from the commonly used Xarray Python package to provide a powerful and
-familiar interface for working with unstructured grids in Python. UXarray provides
-Xarray styled functions to better read in and use unstructured grid datasets that
-follow standard conventions, including UGRID, MPAS, SCRIP, ICON, HEALPix, and Exodus formats.
+UXarray aims to address the geoscience community's need for tools that enable foundational
+data analysis techniques to operate directly on unstructured grids. It extends upon and
+inherits from the commonly used Xarray Python package to provide a powerful and familiar
+interface for working with unstructured grids in Python. UXarray provides Xarray-styled
+functions to better read in and use unstructured grid datasets from the most common model
+outputs, including MPAS, CAM-SE, ICON, ESMF, GEOS, and HEALPix, which follow the commonly
+used formats such as UGRID, SCRIP, and Exodus. Furthermore, UXarray provides basic support
+for generating unstructured grid topology from structured grid or point-cloud inputs to
+enable model intercomparison workflows.
 
 
 Unstructured Grids
