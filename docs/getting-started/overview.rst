@@ -30,8 +30,8 @@ grid format, meaning that we encode all supported unstructured grid formats in t
 UGRID conventions at the data loading step.
 
 Specifically, our core functionality is built around horizontally Unstructured Grids as
-defined by the 2D Flexible Mesh Topology in the UGRID conventions, which can contain
-a mix of triangles, quadrilaterals, or other geometric faces. This type of Unstructured
+defined by the 2D Flexible Mesh Topology in the UGRID conventions, which can contain a
+mix of triangles, quadrilaterals, or other geometric faces. These types of Unstructured
 Grids may have structured vertical levels.
 
 
