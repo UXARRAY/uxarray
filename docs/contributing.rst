@@ -53,9 +53,10 @@ However, this guide might still be missing case-specific details; please do
 not hesitate to reach out to us to consult any such cases.
 
 .. note::
-    Much of the information in this guide has been co-opted from the
-    `GeoCAT <https://geocat.ucar.edu/pages/contributing.html>`_ project and
-    `Project Pythia <https://projectpythia.org/contributing.html>`_.
+    Much of the information in this guide has been co-opted from `Project
+    Pythia <https://projectpythia.org/contributing>`_ and the
+    `GeoCAT-comp <https://geocat-comp.readthedocs.io/en/stable/contrib.html>`_
+    project.
 
 1.3. Project-specific Resources
 -------------------------------
