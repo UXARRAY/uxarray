@@ -231,6 +231,9 @@ nb_execution_excludepatterns = [
     "parallel-load-ux-with-dask.ipynb",
 ]
 
+# add links to ignore during link checking
+linkcheck_ignore = [r"https://gmao.gsfc.nasa.gov/gmaoftp/*"]
+
 
 # custom scripts for making a gallery of examples notebooks
 def update_gallery(app: Sphinx):

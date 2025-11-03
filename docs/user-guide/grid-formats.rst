@@ -148,7 +148,7 @@ Alfred Wegener Institute, Helmholtz Centre for Polar and Marine Research (AWI), 
 
 References
 ----------
-* https://fesom2.readthedocs.io/en/latest/index.html#
+* https://fesom2.readthedocs.io/
 
 HEALPix
 =======
