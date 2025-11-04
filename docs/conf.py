@@ -71,12 +71,6 @@ suppress_warnings = [
 # jupyter_execute_notebooks = "off"
 # nb_execution_mode = "off"
 
-# Disable notebook execution on Read the Docs to avoid missing kernel errors
-on_rtd = os.environ.get("READTHEDOCS") == "True"
-if on_rtd:
-    jupyter_execute_notebooks = "off"
-    nb_execution_mode = "off"
-    nbsphinx_execute = "never"
 
 extlinks = {
     "issue": ("https://github.com/uxarray/uxarray/issues/%s", "GH"),

@@ -67,7 +67,7 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Weighted Mean <user-guide/weighted_mean.ipynb>`_
  Compute the weighted average
 
-`Vector Calculations <user-guide/vector_calculations.ipynb>`_
+`Vector Calculations <user-guide/vector_calculus.ipynb>`_
  Compute vector field operations such as gradients, curl, and divergence
 
 `Tree Structures <user-guide/tree_structures.ipynb>`_
