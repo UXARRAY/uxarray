@@ -520,10 +520,10 @@ class UxDataArray(xr.DataArray):
         ----------
         lat : tuple, float, or array-like, default=(-90, 90, 10)
             Latitude specification:
-            - tuple (start, end, step): For non-conservative, computes means at intervals of `step`.
-              For conservative, creates band edges via np.arange(start, end+step, step).
-            - float: Single latitude for non-conservative averaging
-            - array-like: For non-conservative, latitudes to sample. For conservative, band edges.
+                - tuple (start, end, step): For non-conservative, computes means at intervals of `step`.
+                For conservative, creates band edges via np.arange(start, end+step, step).
+                - float: Single latitude for non-conservative averaging
+                - array-like: For non-conservative, latitudes to sample. For conservative, band edges.
         conservative : bool, default=False
             If True, performs conservative (area-weighted) zonal averaging over latitude bands.
             If False, performs traditional (non-conservative) averaging at latitude lines.
