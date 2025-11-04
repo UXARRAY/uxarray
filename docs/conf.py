@@ -232,7 +232,12 @@ nb_execution_excludepatterns = [
 ]
 
 # add links to ignore during link checking
-linkcheck_ignore = [r"https://gmao.gsfc.nasa.gov/gmaoftp/*"]
+linkcheck_ignore = [
+    r"https://gmao.gsfc.nasa.gov/gmaoftp/*",
+    r"https://docs.xarray.dev/*",
+    r"https://seatstandards.org/*",
+    # More URLs as needed
+]
 
 
 # custom scripts for making a gallery of examples notebooks
