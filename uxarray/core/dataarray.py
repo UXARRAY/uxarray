@@ -520,10 +520,10 @@ class UxDataArray(xr.DataArray):
         ----------
         lat : tuple, float, or array-like, default=(-90, 90, 10)
             Latitude specification:
-            - tuple (start, end, step): For non-conservative, computes means at intervals of `step`.
-              For conservative, creates band edges via np.arange(start, end+step, step).
-            - float: Single latitude for non-conservative averaging
-            - array-like: For non-conservative, latitudes to sample. For conservative, band edges.
+                - tuple (start, end, step): For non-conservative, computes means at intervals of `step`.
+                For conservative, creates band edges via np.arange(start, end+step, step).
+                - float: Single latitude for non-conservative averaging
+                - array-like: For non-conservative, latitudes to sample. For conservative, band edges.
         conservative : bool, default=False
             If True, performs conservative (area-weighted) zonal averaging over latitude bands.
             If False, performs traditional (non-conservative) averaging at latitude lines.
@@ -1336,6 +1336,89 @@ class UxDataArray(xr.DataArray):
             coords=self.coords,
         )
 
+    def curl(self, other: "UxDataArray", **kwargs) -> "UxDataArray":
+        """
+        Computes the curl of a vector field.
+
+        Parameters
+        ----------
+        other : UxDataArray
+            The second component of the vector field. This UxDataArray should
+            represent the meridional (v) component, while self represents the
+            zonal (u) component.
+        **kwargs : dict
+            Additional keyword arguments (currently unused, reserved for future extensions).
+
+        Returns
+        -------
+        curl : UxDataArray
+            The curl of the vector field (u, v), computed as:
+            curl = ∂v/∂x - ∂u/∂y
+
+        Notes
+        -----
+        The curl is computed using the existing gradient infrastructure.
+        For a 2D vector field V = (u, v), the curl is a scalar field representing
+        the rotation or circulation density at each point.
+
+        The curl is computed by:
+        1. Computing the gradient of the u-component: ∇u = (∂u/∂x, ∂u/∂y)
+        2. Computing the gradient of the v-component: ∇v = (∂v/∂x, ∂v/∂y)
+        3. Extracting the relevant components: ∂v/∂x and ∂u/∂y
+        4. Computing: curl = ∂v/∂x - ∂u/∂y
+
+        Requirements:
+        - Both components must be UxDataArray objects
+        - Both must be defined on the same grid
+        - Both must be 1-dimensional (use .isel() for multi-dimensional data)
+        - Data must be face-centered
+
+        Example
+        -------
+        >>> u_component = uxds["u_wind"]
+        >>> v_component = uxds["v_wind"]
+        >>> curl_field = u_component.curl(v_component)
+        """
+        # Input validation
+        if not isinstance(other, UxDataArray):
+            raise TypeError("other must be a UxDataArray")
+
+        if self.uxgrid != other.uxgrid:
+            raise ValueError("Both vector components must be on the same grid")
+
+        if self.dims != other.dims:
+            raise ValueError("Both vector components must have the same dimensions")
+
+        if len(self.dims) != 1:
+            raise ValueError(
+                "Curl computation currently only supports 1-dimensional data. "
+                "Use .isel() to select a single time slice or level."
+            )
+
+        # Compute gradients of both components
+        grad_u_zonal, grad_u_meridional = _compute_gradient(self)
+        grad_v_zonal, grad_v_meridional = _compute_gradient(other)
+
+        # Compute curl = ∂v/∂x - ∂u/∂y
+        curl_values = grad_v_zonal.values - grad_u_meridional.values
+
+        # Create the result UxDataArray
+        curl_da = UxDataArray(
+            curl_values,
+            dims=self.dims,
+            attrs={
+                "long_name": f"Curl of ({self.name}, {other.name})",
+                "units": "1/s"
+                if "units" not in self.attrs
+                else f"({self.attrs.get('units', '1')})/m",
+                "description": "Curl of vector field computed as ∂v/∂x - ∂u/∂y",
+            },
+            uxgrid=self.uxgrid,
+            name=f"curl_{self.name}_{other.name}",
+        )
+
+        return curl_da
+
     def divergence(self, other: "UxDataArray", **kwargs) -> "UxDataArray":
         """
         Computes the divergence of the vector field defined by this UxDataArray and other.
@@ -1367,8 +1450,6 @@ class UxDataArray(xr.DataArray):
         >>> v_component = uxds["v_wind"]  # Second component of vector field
         >>> div_field = u_component.divergence(v_component)
         """
-        from uxarray import UxDataArray
-
         if not isinstance(other, UxDataArray):
             raise TypeError("other must be a UxDataArray")
 
@@ -1395,7 +1476,6 @@ class UxDataArray(xr.DataArray):
         v_gradient = other.gradient()
 
         # For divergence: div(V) = ∂u/∂x + ∂v/∂y
-        # In spherical coordinates: div(V) = (1/cos(lat)) * ∂u/∂lon + ∂v/∂lat
         # We use the zonal gradient (∂/∂lon) of u and meridional gradient (∂/∂lat) of v
         u = u_gradient["zonal_gradient"]
         v = v_gradient["meridional_gradient"]
