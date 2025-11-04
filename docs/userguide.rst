@@ -67,11 +67,8 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Weighted Mean <user-guide/weighted_mean.ipynb>`_
  Compute the weighted average
 
-`Gradients <user-guide/gradients.ipynb>`_
- Compute the gradient of a data variable
-
-`Divergence <user-guide/divergence.ipynb>`_
- Compute the divergence of a vector field
+`Vector Calculations <user-guide/vector_calculus.ipynb>`_
+ Compute vector field operations such as gradients, curl, and divergence
 
 `Tree Structures <user-guide/tree_structures.ipynb>`_
  Data structures for nearest neighbor queries
@@ -120,8 +117,7 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/remapping.ipynb
    user-guide/topological-aggregations.ipynb
    user-guide/weighted_mean.ipynb
-   user-guide/gradients.ipynb
-   user-guide/divergence.ipynb
+   user-guide/vector_calculus.ipynb
    user-guide/tree_structures.ipynb
    user-guide/area_calc.ipynb
    user-guide/dual-mesh.ipynb
