@@ -235,6 +235,7 @@ nb_execution_excludepatterns = [
 linkcheck_ignore = [
     r"https://gmao.gsfc.nasa.gov/gmaoftp/*",
     r"https://docs.xarray.dev/*",
+    r"https://seatstandards.org/*",
     # More URLs as needed
 ]
 
