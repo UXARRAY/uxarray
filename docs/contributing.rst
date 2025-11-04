@@ -623,8 +623,8 @@ file so that its documentation page is automatically generated.
     needed. However, it would be a great practice to provide usage examples in the
     same PR, especially for demonstrating the use of complex UXarray functions.
 
-The UXarray documentation houses ``examples/<example-name>.ipynb`` files (paths
-relative from the root directory) to provide `Usage Examples <examples.rst>`_ to be
+The UXarray documentation houses ``docs/examples/<example-name>.ipynb`` files (paths
+relative from the root directory) to provide `Usage Examples <gallery.rst>`_ to be
 automatically generated. If you prefer to provide usage examples for the work you
 have put together, please be sure to put your notebook(s) under this same directory.
 
