@@ -93,3 +93,20 @@ def test_geodataframe_caching(gridpath, datasetpath):
 
     # override will recompute the grid
     assert gdf_start is not gdf_end
+
+def test_isel_invalid_dim(gridpath):
+    """Tests that isel raises a ValueError with a helpful message when an
+    invalid dimension is provided."""
+    uxds = ux.open_dataset(
+        gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+    )
+
+    # create a UxDataArray with an extra dimension
+    data = np.random.rand(2, uxds.uxgrid.n_face)
+    uxda = UxDataArray(data, dims=["time", "n_face"], uxgrid=uxds.uxgrid)
+
+    with pytest.raises(ValueError, match="Dimensions {\'invalid_dim\'} do not exist. Available dimensions: \('time', 'n_face'\)"):
+        uxda.isel(invalid_dim=0)
+
+    with pytest.raises(ValueError, match="Dimensions {\'level\'} do not exist. Available dimensions: \('time', 'n_face'\)"):
+        uxda.isel(level=0)
