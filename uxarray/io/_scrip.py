@@ -1,3 +1,5 @@
+from typing import Dict, Tuple
+
 import numpy as np
 import polars as pl
 import xarray as xr
@@ -270,3 +272,166 @@ def grid_center_lat_lon(ds):
     center_lon[center_lon < 0] += 360
 
     return center_lat, center_lon
+
+
+def _detect_multigrid(ds: xr.Dataset) -> Tuple[str, Dict[str, Dict[str, str]]]:
+    """Detect whether a dataset follows single-grid or multi-grid SCRIP format.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset to inspect.
+
+    Returns
+    -------
+    tuple
+        A tuple of (format_type, grids_dict). ``format_type`` is either
+        ``\"single_scrip\"`` or ``\"multi_scrip\"``. ``grids_dict`` maps grid
+        names to their variable metadata when multi-grid files are detected.
+    """
+
+    # Quick exit for canonical single-grid SCRIP files
+    if {"grid_corner_lat", "grid_corner_lon"}.issubset(set(ds.variables)):
+        return "single_scrip", {"grid": {}}
+
+    # Collect candidate grids from dimension names
+    grids: Dict[str, Dict[str, str]] = {}
+    for dim_name in ds.dims:
+        if dim_name.startswith("nc_"):
+            grids.setdefault(dim_name[3:], {})["cell_dim"] = dim_name
+        elif dim_name.startswith("nv_"):
+            grids.setdefault(dim_name[3:], {})["corner_dim"] = dim_name
+
+    corner_lat_suffixes = {"cla", "corner_lat", "cornlat"}
+    corner_lon_suffixes = {"clo", "corner_lon", "cornlon"}
+    center_lat_suffixes = {"center_lat", "cenlat", "gclat", "clat"}
+    center_lon_suffixes = {"center_lon", "cenlon", "gclon", "clon"}
+
+    # Parse OASIS-style <grid>.<var> names
+    for var_name in ds.data_vars:
+        if "." not in var_name:
+            continue
+        grid_name, suffix = var_name.split(".", 1)
+        info = grids.setdefault(grid_name, {})
+        suffix_lower = suffix.lower()
+
+        if suffix_lower in corner_lat_suffixes:
+            info["corner_lat"] = var_name
+            if "cell_dim" not in info or "corner_dim" not in info:
+                dims = ds[var_name].dims
+                if len(dims) >= 2:
+                    info.setdefault("cell_dim", dims[0])
+                    info.setdefault("corner_dim", dims[1])
+        elif suffix_lower in corner_lon_suffixes:
+            info["corner_lon"] = var_name
+            if "cell_dim" not in info or "corner_dim" not in info:
+                dims = ds[var_name].dims
+                if len(dims) >= 2:
+                    info.setdefault("cell_dim", dims[0])
+                    info.setdefault("corner_dim", dims[1])
+        elif suffix_lower in center_lat_suffixes:
+            info["center_lat"] = var_name
+        elif suffix_lower in center_lon_suffixes:
+            info["center_lon"] = var_name
+
+    # Keep only grids that have the required corner variables
+    parsed_grids = {
+        name: meta
+        for name, meta in grids.items()
+        if "corner_lat" in meta and "corner_lon" in meta
+    }
+
+    if parsed_grids:
+        return "multi_scrip", parsed_grids
+
+    return "single_scrip", {}
+
+
+def _extract_single_grid(
+    ds: xr.Dataset, grid_name: str, metadata: Dict[str, str]
+) -> xr.Dataset:
+    """Extract a single grid from a multi-grid SCRIP dataset.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The source multi-grid dataset.
+    grid_name : str
+        Name of the grid to extract.
+    metadata : dict
+        Mapping that describes the variable and dimension names for the grid.
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset encoded in standard SCRIP single-grid format.
+    """
+
+    if "corner_lat" not in metadata or "corner_lon" not in metadata:
+        raise ValueError(f"Grid '{grid_name}' is missing corner variables.")
+
+    corner_lat = ds[metadata["corner_lat"]]
+    corner_lon = ds[metadata["corner_lon"]]
+
+    dims = corner_lat.dims
+    if len(dims) < 2:
+        raise ValueError(f"Corner variable for grid '{grid_name}' must be at least 2D.")
+
+    cell_dim = metadata.get("cell_dim", dims[0])
+    corner_dim = metadata.get("corner_dim", dims[1])
+
+    rename_dims = {}
+    if cell_dim != "grid_size":
+        rename_dims[cell_dim] = "grid_size"
+    if corner_dim != "grid_corners":
+        rename_dims[corner_dim] = "grid_corners"
+
+    grid_corner_lat = corner_lat.rename(rename_dims).copy()
+    grid_corner_lon = corner_lon.rename(rename_dims).copy()
+
+    result = xr.Dataset()
+    result["grid_corner_lat"] = grid_corner_lat
+    result["grid_corner_lon"] = grid_corner_lon
+
+    n_cells = grid_corner_lat.sizes["grid_size"]
+
+    # Center coordinates: use supplied variables if available, otherwise compute
+    center_lat = metadata.get("center_lat")
+    center_lon = metadata.get("center_lon")
+
+    computed_lat_lon = None
+
+    if center_lat and center_lat in ds:
+        center_lat_da = ds[center_lat].rename({cell_dim: "grid_size"}).copy()
+    else:
+        if computed_lat_lon is None:
+            computed_lat_lon = grid_center_lat_lon(result)
+        center_lat_da = xr.DataArray(computed_lat_lon[0], dims=["grid_size"])
+
+    if center_lon and center_lon in ds:
+        center_lon_da = ds[center_lon].rename({cell_dim: "grid_size"}).copy()
+    else:
+        if computed_lat_lon is None:
+            computed_lat_lon = grid_center_lat_lon(result)
+        center_lon_da = xr.DataArray(computed_lat_lon[1], dims=["grid_size"])
+
+    result["grid_center_lat"] = center_lat_da
+    result["grid_center_lon"] = center_lon_da
+
+    # Provide minimal auxiliary variables required by the reader
+    result["grid_imask"] = xr.DataArray(
+        np.ones(n_cells, dtype=np.int32), dims=["grid_size"]
+    )
+    result["grid_dims"] = xr.DataArray(
+        np.array([n_cells], dtype=np.int32), dims=["grid_rank"]
+    )
+
+    # Provide a placeholder grid area to satisfy downstream checks
+    result["grid_area"] = xr.DataArray(
+        np.ones(n_cells, dtype=np.float64), dims=["grid_size"]
+    )
+
+    result.attrs.update(ds.attrs)
+    result.attrs["grid_name"] = grid_name
+
+    return result

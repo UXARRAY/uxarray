@@ -1,11 +1,13 @@
 import os
 import xarray as xr
 import warnings
+import numpy as np
 import numpy.testing as nt
 import pytest
 
 import uxarray as ux
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.io._scrip import _detect_multigrid
 
 
 def test_read_ugrid(gridpath, mesh_constants):
@@ -50,3 +52,35 @@ def test_to_xarray_ugrid(gridpath):
     reloaded_grid._ds.close()
     del reloaded_grid
     os.remove("scrip_ugrid_csne8.nc")
+
+
+def test_oasis_multigrid_format_detection():
+    """Detect OASIS-style multi-grid naming."""
+    ds = xr.Dataset()
+    ds["ocn.cla"] = xr.DataArray(np.random.rand(100, 4), dims=["nc_ocn", "nv_ocn"])
+    ds["ocn.clo"] = xr.DataArray(np.random.rand(100, 4), dims=["nc_ocn", "nv_ocn"])
+    ds["atm.cla"] = xr.DataArray(np.random.rand(200, 4), dims=["nc_atm", "nv_atm"])
+    ds["atm.clo"] = xr.DataArray(np.random.rand(200, 4), dims=["nc_atm", "nv_atm"])
+
+    format_type, grids = _detect_multigrid(ds)
+    assert format_type == "multi_scrip"
+    assert set(grids.keys()) == {"ocn", "atm"}
+
+
+def test_open_multigrid_with_masks(gridpath):
+    """Load OASIS multi-grids with masks applied."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+    mask_file = gridpath("scrip", "oasis", "masks.nc")
+
+    grids = ux.open_multigrid(grid_file, mask_filename=mask_file)
+    assert grids["ocn"].n_face == 8
+    assert grids["atm"].n_face == 20
+
+    ocean_only = ux.open_multigrid(
+        grid_file, gridnames=["ocn"], mask_filename=mask_file
+    )
+    assert set(ocean_only.keys()) == {"ocn"}
+    assert ocean_only["ocn"].n_face == 8
+
+    grid_names = ux.list_grid_names(grid_file)
+    assert set(grid_names) == {"ocn", "atm"}

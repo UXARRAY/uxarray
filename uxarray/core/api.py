@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from warnings import warn
 
 import numpy as np
@@ -13,9 +14,18 @@ from uxarray.core.utils import (
     match_chunks_to_ugrid,
 )
 from uxarray.grid import Grid
+from uxarray.io._scrip import _detect_multigrid, _extract_single_grid, _read_scrip
 
 if TYPE_CHECKING:
     from xarray import Dataset
+
+__all__ = [
+    "open_grid",
+    "open_multigrid",
+    "list_grid_names",
+    "open_dataset",
+    "open_mfdataset",
+]
 
 
 def open_grid(
@@ -121,6 +131,160 @@ def open_grid(
         return grid, chunks
     else:
         return grid
+
+
+def open_multigrid(
+    grid_filename_or_obj: Union[str, Path, "Dataset"],
+    gridnames: Optional[List[str]] = None,
+    mask_filename: Optional[Union[str, Path, "Dataset"]] = None,
+    **kwargs: Dict[str, Any],
+) -> Dict[str, Grid]:
+    """Open a multi-grid SCRIP file and construct ``Grid`` objects.
+
+    Parameters
+    ----------
+    grid_filename_or_obj : str, Path or xr.Dataset
+        Path to the multi-grid SCRIP file or an already opened dataset.
+    gridnames : list of str, optional
+        Specific grid names to load. If ``None``, all grids are loaded.
+    mask_filename : str, Path or xr.Dataset, optional
+        Optional path to a mask file containing ``<grid>.msk`` variables.
+        Cells with mask value 1 are retained, 0 are discarded.
+    **kwargs : dict, optional
+        Extra keyword arguments forwarded to :func:`xarray.open_dataset`
+        when opening ``grid_filename_or_obj``.
+
+    Returns
+    -------
+    dict[str, Grid]
+        Dictionary mapping grid names to ``Grid`` objects.
+    """
+    import xarray as xr
+
+    grid_ds_opened = False
+    if isinstance(grid_filename_or_obj, xr.Dataset):
+        grid_ds = grid_filename_or_obj
+    else:
+        grid_ds = xr.open_dataset(grid_filename_or_obj, **kwargs)
+        grid_ds_opened = True
+
+    mask_ds = None
+    mask_ds_opened = False
+    if mask_filename is not None:
+        if isinstance(mask_filename, xr.Dataset):
+            mask_ds = mask_filename
+        else:
+            mask_ds = xr.open_dataset(mask_filename)
+            mask_ds_opened = True
+
+    try:
+        format_type, grids_dict = _detect_multigrid(grid_ds)
+
+        if format_type == "single_scrip":
+            if gridnames is not None and "grid" not in gridnames:
+                raise ValueError(
+                    f"Requested grids {gridnames} not found. "
+                    "This file contains a single grid named 'grid'."
+                )
+            grid_ds_ugrid, source_dims_dict = _read_scrip(grid_ds)
+            return {
+                "grid": Grid(
+                    grid_ds_ugrid,
+                    source_grid_spec="Scrip",
+                    source_dims_dict=source_dims_dict,
+                )
+            }
+
+        if not grids_dict:
+            raise ValueError(f"No grids detected in file: {grid_filename_or_obj}")
+
+        available_grids = list(grids_dict.keys())
+
+        if gridnames is None:
+            grids_to_load = available_grids
+        else:
+            if isinstance(gridnames, str):
+                requested = [gridnames]
+            else:
+                requested = list(gridnames)
+
+            grids_to_load = []
+            for name in requested:
+                if name not in grids_dict:
+                    raise ValueError(
+                        f"Grid '{name}' not found. Available grids: {available_grids}"
+                    )
+                grids_to_load.append(name)
+
+        loaded_grids: Dict[str, Grid] = {}
+        for grid_name in grids_to_load:
+            scrip_ds = _extract_single_grid(grid_ds, grid_name, grids_dict[grid_name])
+            grid_ds_ugrid, source_dims_dict = _read_scrip(scrip_ds)
+
+            grid = Grid(
+                grid_ds_ugrid,
+                source_grid_spec="Scrip",
+                source_dims_dict=source_dims_dict,
+            )
+
+            if mask_ds is not None:
+                mask_var = f"{grid_name}.msk"
+                if mask_var in mask_ds:
+                    mask_values = np.asarray(mask_ds[mask_var].values)
+                    active_indices = np.where(mask_values == 1)[0]
+                    grid = grid.isel(n_face=active_indices)
+                else:
+                    warn(
+                        f"Mask variable '{mask_var}' not found in mask file; "
+                        f"grid '{grid_name}' will be returned without masking."
+                    )
+
+            loaded_grids[grid_name] = grid
+
+        return loaded_grids
+    finally:
+        if grid_ds_opened:
+            grid_ds.close()
+        if mask_ds is not None and mask_ds_opened:
+            mask_ds.close()
+
+
+def list_grid_names(
+    grid_filename_or_obj: Union[str, Path, "Dataset"], **kwargs: Dict[str, Any]
+) -> List[str]:
+    """List all grid names available within a grid file.
+
+    Parameters
+    ----------
+    grid_filename_or_obj : str, Path or xr.Dataset
+        Path to the grid file or an already opened dataset.
+    **kwargs : dict, optional
+        Additional keyword arguments forwarded to :func:`xarray.open_dataset`.
+
+    Returns
+    -------
+    list[str]
+        ``['grid']`` for single-grid files or the detected grid names for
+        multi-grid files.
+    """
+    import xarray as xr
+
+    grid_ds_opened = False
+    if isinstance(grid_filename_or_obj, xr.Dataset):
+        grid_ds = grid_filename_or_obj
+    else:
+        grid_ds = xr.open_dataset(grid_filename_or_obj, **kwargs)
+        grid_ds_opened = True
+
+    try:
+        format_type, grids_dict = _detect_multigrid(grid_ds)
+        names = list(grids_dict.keys())
+        if format_type == "single_scrip":
+            return names or ["grid"]
+        return names
+    finally:
+        if grid_ds_opened:
+            grid_ds.close()
 
 
 def open_dataset(
