@@ -5,7 +5,6 @@ import pytest
 import tempfile
 import xarray as xr
 from pathlib import Path
-from unittest import TestCase
 from unittest.mock import patch
 from uxarray.core.utils import _open_dataset_with_fallback
 import os
@@ -165,158 +164,58 @@ def test_open_dataset_with_fallback():
             os.unlink(tmp_path)
 
 
-class TestListGridNames(TestCase):
-    """Tests for ``ux.list_grid_names``."""
+def test_list_grid_names_multigrid(gridpath):
+    """List grids from an OASIS-style multi-grid file."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+    grid_names = ux.list_grid_names(grid_file)
 
-    def test_list_multigrid_oasis(self):
-        """List grids from an OASIS-style multi-grid file."""
-        with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as tmp:
-            ds = xr.Dataset()
-            ds["ocn.cla"] = xr.DataArray(
-                np.random.rand(100, 4), dims=["nc_ocn", "nv_ocn"]
-            )
-            ds["ocn.clo"] = xr.DataArray(
-                np.random.rand(100, 4), dims=["nc_ocn", "nv_ocn"]
-            )
-            ds["atm.cla"] = xr.DataArray(
-                np.random.rand(200, 4), dims=["nc_atm", "nv_atm"]
-            )
-            ds["atm.clo"] = xr.DataArray(
-                np.random.rand(200, 4), dims=["nc_atm", "nv_atm"]
-            )
-            ds.to_netcdf(tmp.name)
-
-        try:
-            grid_names = ux.list_grid_names(tmp.name)
-            self.assertIsInstance(grid_names, list)
-            self.assertEqual(set(grid_names), {"ocn", "atm"})
-        finally:
-            os.unlink(tmp.name)
-
-    def test_list_single_grid(self):
-        """List grids from a standard single-grid SCRIP file."""
-        grid_path = TEST_MESHFILES / "scrip" / "outCSne8" / "outCSne8.nc"
-        grid_names = ux.list_grid_names(grid_path)
-
-        self.assertIsInstance(grid_names, list)
-        self.assertEqual(grid_names, ["grid"])
+    assert isinstance(grid_names, list)
+    assert set(grid_names) == {"ocn", "atm"}
 
 
-class TestOpenMultigrid(TestCase):
-    """Tests for ``ux.open_multigrid``."""
+def test_list_grid_names_single_scrip():
+    """List grids from a standard single-grid SCRIP file."""
+    grid_path = TEST_MESHFILES / "scrip" / "outCSne8" / "outCSne8.nc"
+    grid_names = ux.list_grid_names(grid_path)
 
-    def test_open_all_grids(self):
-        """Open all grids from a multi-grid file."""
-        with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as tmp:
-            ds = xr.Dataset()
-            n_cells_ocn, n_cells_atm = 50, 100
-            ds.coords["nc_ocn"] = np.arange(n_cells_ocn)
-            ds.coords["nv_ocn"] = np.arange(4)
-            ds.coords["nc_atm"] = np.arange(n_cells_atm)
-            ds.coords["nv_atm"] = np.arange(4)
+    assert isinstance(grid_names, list)
+    assert grid_names == ["grid"]
 
-            ds["ocn.cla"] = xr.DataArray(
-                np.random.uniform(-90, 90, (n_cells_ocn, 4)),
-                dims=["nc_ocn", "nv_ocn"],
-            )
-            ds["ocn.clo"] = xr.DataArray(
-                np.random.uniform(0, 360, (n_cells_ocn, 4)),
-                dims=["nc_ocn", "nv_ocn"],
-            )
-            ds["atm.cla"] = xr.DataArray(
-                np.random.uniform(-90, 90, (n_cells_atm, 4)),
-                dims=["nc_atm", "nv_atm"],
-            )
-            ds["atm.clo"] = xr.DataArray(
-                np.random.uniform(0, 360, (n_cells_atm, 4)),
-                dims=["nc_atm", "nv_atm"],
-            )
-            ds.to_netcdf(tmp.name)
 
-        try:
-            grids = ux.open_multigrid(tmp.name)
-            self.assertIsInstance(grids, dict)
-            self.assertEqual(len(grids), 2)
-            self.assertIn("ocn", grids)
-            self.assertIn("atm", grids)
-            self.assertEqual(grids["ocn"].n_face, n_cells_ocn)
-            self.assertEqual(grids["atm"].n_face, n_cells_atm)
-        finally:
-            os.unlink(tmp.name)
+def test_open_multigrid_all_grids(gridpath):
+    """Open all grids from a multi-grid file."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+    grids = ux.open_multigrid(grid_file)
 
-    def test_open_specific_grids(self):
-        """Open a subset of grids from a multi-grid file."""
-        with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as tmp:
-            ds = xr.Dataset()
-            for grid_name, n_cells in [("ocn", 50), ("atm", 100), ("ice", 75)]:
-                ds.coords[f"nc_{grid_name}"] = np.arange(n_cells)
-                ds.coords[f"nv_{grid_name}"] = np.arange(4)
-                ds[f"{grid_name}.cla"] = xr.DataArray(
-                    np.random.uniform(-90, 90, (n_cells, 4)),
-                    dims=[f"nc_{grid_name}", f"nv_{grid_name}"],
-                )
-                ds[f"{grid_name}.clo"] = xr.DataArray(
-                    np.random.uniform(0, 360, (n_cells, 4)),
-                    dims=[f"nc_{grid_name}", f"nv_{grid_name}"],
-                )
-            ds.to_netcdf(tmp.name)
+    assert isinstance(grids, dict)
+    assert set(grids.keys()) == {"ocn", "atm"}
+    assert grids["ocn"].n_face == 12
+    assert grids["atm"].n_face == 20
 
-        try:
-            grids = ux.open_multigrid(tmp.name, gridnames=["ocn", "ice"])
-            self.assertEqual(len(grids), 2)
-            self.assertIn("ocn", grids)
-            self.assertIn("ice", grids)
-            self.assertNotIn("atm", grids)
-        finally:
-            os.unlink(tmp.name)
 
-    def test_open_with_masks(self):
-        """Open grids with a companion mask file."""
-        with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as grid_tmp, tempfile.NamedTemporaryFile(
-            suffix=".nc", delete=False
-        ) as mask_tmp:
-            grid_ds = xr.Dataset()
-            n_cells = 100
-            grid_ds.coords["nc_ocn"] = np.arange(n_cells)
-            grid_ds.coords["nv_ocn"] = np.arange(4)
-            grid_ds["ocn.cla"] = xr.DataArray(
-                np.random.uniform(-90, 90, (n_cells, 4)),
-                dims=["nc_ocn", "nv_ocn"],
-            )
-            grid_ds["ocn.clo"] = xr.DataArray(
-                np.random.uniform(0, 360, (n_cells, 4)),
-                dims=["nc_ocn", "nv_ocn"],
-            )
-            grid_ds.to_netcdf(grid_tmp.name)
+def test_open_multigrid_specific_grids(gridpath):
+    """Open a subset of grids from a multi-grid file."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+    grids = ux.open_multigrid(grid_file, gridnames=["ocn"])
 
-            mask_ds = xr.Dataset()
-            mask = np.ones(n_cells, dtype=int)
-            mask[80:] = 0
-            mask_ds["ocn.msk"] = xr.DataArray(mask, dims=["nc_ocn"])
-            mask_ds.to_netcdf(mask_tmp.name)
+    assert set(grids.keys()) == {"ocn"}
+    assert grids["ocn"].n_face == 12
 
-        try:
-            grids = ux.open_multigrid(grid_tmp.name, mask_filename=mask_tmp.name)
-            self.assertEqual(grids["ocn"].n_face, 80)
-        finally:
-            os.unlink(grid_tmp.name)
-            os.unlink(mask_tmp.name)
 
-    def test_open_nonexistent_grid_error(self):
-        """Requesting a missing grid should raise."""
-        with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as tmp:
-            ds = xr.Dataset()
-            ds["ocn.cla"] = xr.DataArray(
-                np.random.rand(50, 4), dims=["nc_ocn", "nv_ocn"]
-            )
-            ds["ocn.clo"] = xr.DataArray(
-                np.random.rand(50, 4), dims=["nc_ocn", "nv_ocn"]
-            )
-            ds.to_netcdf(tmp.name)
+def test_open_multigrid_with_masks(gridpath):
+    """Open grids with a companion mask file."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+    mask_file = gridpath("scrip", "oasis", "masks.nc")
 
-        try:
-            with self.assertRaises(ValueError) as context:
-                ux.open_multigrid(tmp.name, gridnames=["land"])
-            self.assertIn("Grid 'land' not found", str(context.exception))
-        finally:
-            os.unlink(tmp.name)
+    grids = ux.open_multigrid(grid_file, mask_filename=mask_file)
+
+    assert grids["ocn"].n_face == 8
+    assert grids["atm"].n_face == 20
+
+
+def test_open_multigrid_missing_grid_error(gridpath):
+    """Requesting a missing grid should raise."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+
+    with pytest.raises(ValueError, match="Grid 'land' not found"):
+        ux.open_multigrid(grid_file, gridnames=["land"])
