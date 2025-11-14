@@ -268,6 +268,10 @@ def grid_center_lat_lon(ds):
     center_lon = np.rad2deg(np.arctan2(y, x))
     center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))
 
+    # Convert to ndarray before applying boolean mask to avoid xarray indexing
+    center_lon = np.asarray(center_lon)
+    center_lat = np.asarray(center_lat)
+
     # Make negative lons positive
     center_lon[center_lon < 0] += 360
 
