@@ -14,7 +14,13 @@ from uxarray.core.utils import (
     match_chunks_to_ugrid,
 )
 from uxarray.grid import Grid
-from uxarray.io._scrip import _detect_multigrid, _extract_single_grid, _read_scrip
+from uxarray.io._scrip import (
+    _detect_multigrid,
+    _extract_single_grid,
+    _read_scrip,
+    _resolve_cell_dims,
+    _stack_cell_dims,
+)
 
 if TYPE_CHECKING:
     from xarray import Dataset
@@ -218,7 +224,8 @@ def open_multigrid(
 
         loaded_grids: Dict[str, Grid] = {}
         for grid_name in grids_to_load:
-            scrip_ds = _extract_single_grid(grid_ds, grid_name, grids_dict[grid_name])
+            metadata = grids_dict[grid_name]
+            scrip_ds = _extract_single_grid(grid_ds, grid_name, metadata)
             grid_ds_ugrid, source_dims_dict = _read_scrip(scrip_ds)
 
             grid = Grid(
@@ -230,8 +237,11 @@ def open_multigrid(
             if mask_ds is not None:
                 mask_var = f"{grid_name}.msk"
                 if mask_var in mask_ds:
-                    mask_values = np.asarray(mask_ds[mask_var].values)
-                    active_indices = np.where(mask_values == 1)[0]
+                    mask_da = mask_ds[mask_var]
+                    mask_cell_dims = _resolve_cell_dims(metadata, mask_da.dims)
+                    mask_flat = _stack_cell_dims(mask_da, mask_cell_dims, "grid_size")
+                    mask_values = np.asarray(mask_flat.values)
+                    active_indices = np.flatnonzero(mask_values == 1)
                     grid = grid.isel(n_face=active_indices)
                 else:
                     warn(

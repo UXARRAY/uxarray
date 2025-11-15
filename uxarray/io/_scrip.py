@@ -1,4 +1,4 @@
-from typing import Dict, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import polars as pl
@@ -278,7 +278,7 @@ def grid_center_lat_lon(ds):
     return center_lat, center_lon
 
 
-def _detect_multigrid(ds: xr.Dataset) -> Tuple[str, Dict[str, Dict[str, str]]]:
+def _detect_multigrid(ds: xr.Dataset) -> Tuple[str, Dict[str, Dict[str, Any]]]:
     """Detect whether a dataset follows single-grid or multi-grid SCRIP format.
 
     Parameters
@@ -299,10 +299,12 @@ def _detect_multigrid(ds: xr.Dataset) -> Tuple[str, Dict[str, Dict[str, str]]]:
         return "single_scrip", {"grid": {}}
 
     # Collect candidate grids from dimension names
-    grids: Dict[str, Dict[str, str]] = {}
+    grids: Dict[str, Dict[str, Any]] = {}
     for dim_name in ds.dims:
         if dim_name.startswith("nc_"):
-            grids.setdefault(dim_name[3:], {})["cell_dim"] = dim_name
+            info = grids.setdefault(dim_name[3:], {})
+            info.setdefault("cell_dims", []).append(dim_name)
+            info.setdefault("cell_dim", dim_name)
         elif dim_name.startswith("nv_"):
             grids.setdefault(dim_name[3:], {})["corner_dim"] = dim_name
 
@@ -321,18 +323,18 @@ def _detect_multigrid(ds: xr.Dataset) -> Tuple[str, Dict[str, Dict[str, str]]]:
 
         if suffix_lower in corner_lat_suffixes:
             info["corner_lat"] = var_name
-            if "cell_dim" not in info or "corner_dim" not in info:
-                dims = ds[var_name].dims
-                if len(dims) >= 2:
-                    info.setdefault("cell_dim", dims[0])
-                    info.setdefault("corner_dim", dims[1])
+            dims = ds[var_name].dims
+            if len(dims) >= 2:
+                info.setdefault("cell_dims", list(dims[:-1]))
+                info.setdefault("cell_dim", dims[0])
+                info.setdefault("corner_dim", dims[-1])
         elif suffix_lower in corner_lon_suffixes:
             info["corner_lon"] = var_name
-            if "cell_dim" not in info or "corner_dim" not in info:
-                dims = ds[var_name].dims
-                if len(dims) >= 2:
-                    info.setdefault("cell_dim", dims[0])
-                    info.setdefault("corner_dim", dims[1])
+            dims = ds[var_name].dims
+            if len(dims) >= 2:
+                info.setdefault("cell_dims", list(dims[:-1]))
+                info.setdefault("cell_dim", dims[0])
+                info.setdefault("corner_dim", dims[-1])
         elif suffix_lower in center_lat_suffixes:
             info["center_lat"] = var_name
         elif suffix_lower in center_lon_suffixes:
@@ -351,8 +353,63 @@ def _detect_multigrid(ds: xr.Dataset) -> Tuple[str, Dict[str, Dict[str, str]]]:
     return "single_scrip", {}
 
 
+def _resolve_cell_dims(
+    metadata: Dict[str, Any],
+    data_dims: Sequence[str],
+    corner_dim: Optional[str] = None,
+) -> List[str]:
+    """Determine which dimensions describe cells for a grid variable."""
+
+    dims_from_meta = metadata.get("cell_dims")
+    cell_dims: List[str] = []
+    if isinstance(dims_from_meta, (list, tuple)):
+        cell_dims = [dim for dim in dims_from_meta if dim in data_dims]
+    elif "cell_dim" in metadata and metadata["cell_dim"] in data_dims:
+        cell_dims = [metadata["cell_dim"]]
+    if not cell_dims:
+        cell_dims = [dim for dim in data_dims]
+
+    if corner_dim is not None:
+        cell_dims = [dim for dim in cell_dims if dim != corner_dim]
+
+    if not cell_dims:
+        cell_dims = [dim for dim in data_dims if dim != corner_dim]
+
+    if not cell_dims:
+        raise ValueError("Unable to determine cell dimensions for grid variable.")
+
+    return cell_dims
+
+
+def _stack_cell_dims(
+    data_array: xr.DataArray, cell_dims: Sequence[str], new_dim: str
+) -> xr.DataArray:
+    """Stack one or more cell dimensions into a single new dimension."""
+
+    dims_in_array = [dim for dim in cell_dims if dim in data_array.dims]
+    if not dims_in_array:
+        if new_dim in data_array.dims:
+            return data_array
+        raise ValueError(
+            f"Unable to stack dimensions {cell_dims}; none are present in {data_array.dims}"
+        )
+
+    if len(dims_in_array) == 1:
+        dim = dims_in_array[0]
+        if dim == new_dim:
+            return data_array
+        return data_array.rename({dim: new_dim})
+
+    stacked = data_array.stack({new_dim: dims_in_array})
+    # Remove MultiIndex so grid_size behaves like a standard dimension
+    stacked = stacked.reset_index(new_dim, drop=True)
+    # Ensure the new dimension is the leading axis for consistency
+    remaining_dims = [dim for dim in stacked.dims if dim != new_dim]
+    return stacked.transpose(new_dim, *remaining_dims)
+
+
 def _extract_single_grid(
-    ds: xr.Dataset, grid_name: str, metadata: Dict[str, str]
+    ds: xr.Dataset, grid_name: str, metadata: Dict[str, Any]
 ) -> xr.Dataset:
     """Extract a single grid from a multi-grid SCRIP dataset.
 
@@ -377,21 +434,22 @@ def _extract_single_grid(
     corner_lat = ds[metadata["corner_lat"]]
     corner_lon = ds[metadata["corner_lon"]]
 
-    dims = corner_lat.dims
+    dims = list(corner_lat.dims)
     if len(dims) < 2:
         raise ValueError(f"Corner variable for grid '{grid_name}' must be at least 2D.")
 
-    cell_dim = metadata.get("cell_dim", dims[0])
-    corner_dim = metadata.get("corner_dim", dims[1])
+    corner_dim = metadata.get("corner_dim", dims[-1])
+    cell_dims = _resolve_cell_dims(metadata, dims, corner_dim)
 
-    rename_dims = {}
-    if cell_dim != "grid_size":
-        rename_dims[cell_dim] = "grid_size"
+    grid_corner_lat = _stack_cell_dims(corner_lat, cell_dims, "grid_size")
+    grid_corner_lon = _stack_cell_dims(corner_lon, cell_dims, "grid_size")
+
     if corner_dim != "grid_corners":
-        rename_dims[corner_dim] = "grid_corners"
+        grid_corner_lat = grid_corner_lat.rename({corner_dim: "grid_corners"})
+        grid_corner_lon = grid_corner_lon.rename({corner_dim: "grid_corners"})
 
-    grid_corner_lat = corner_lat.rename(rename_dims).copy()
-    grid_corner_lon = corner_lon.rename(rename_dims).copy()
+    grid_corner_lat = grid_corner_lat.copy()
+    grid_corner_lon = grid_corner_lon.copy()
 
     result = xr.Dataset()
     result["grid_corner_lat"] = grid_corner_lat
@@ -406,14 +464,22 @@ def _extract_single_grid(
     computed_lat_lon = None
 
     if center_lat and center_lat in ds:
-        center_lat_da = ds[center_lat].rename({cell_dim: "grid_size"}).copy()
+        center_lat_da = _stack_cell_dims(
+            ds[center_lat],
+            _resolve_cell_dims(metadata, ds[center_lat].dims),
+            "grid_size",
+        ).copy()
     else:
         if computed_lat_lon is None:
             computed_lat_lon = grid_center_lat_lon(result)
         center_lat_da = xr.DataArray(computed_lat_lon[0], dims=["grid_size"])
 
     if center_lon and center_lon in ds:
-        center_lon_da = ds[center_lon].rename({cell_dim: "grid_size"}).copy()
+        center_lon_da = _stack_cell_dims(
+            ds[center_lon],
+            _resolve_cell_dims(metadata, ds[center_lon].dims),
+            "grid_size",
+        ).copy()
     else:
         if computed_lat_lon is None:
             computed_lat_lon = grid_center_lat_lon(result)
