@@ -518,8 +518,8 @@ class UxDataArray(xr.DataArray):
 
         A zonal mean in UXarray operates differently depending on the ``conservative`` flag:
 
-        - **Non-conservative**: Calculates the mean by sampling face values at specific latitude lines and weighting each face by the length of its intersection with that latitude.
-        - **Conservative**: Averages over latitude bands between adjacent lines and weights by the native face areas, preserving global integrals by construction.
+        - **Non-conservative**: Calculates the mean by sampling face values at specific latitude lines and weighting each contribution by the length of the line where each face intersects that latitude.
+        - **Conservative**: Preserves integral quantities by calculating the mean by sampling face values within latitude bands and weighting contributions by their area overlap with latitude bands.
 
         Parameters
         ----------
@@ -531,7 +531,7 @@ class UxDataArray(xr.DataArray):
                 - array-like: For non-conservative, latitudes to sample. For conservative, band edges.
         conservative : bool, default=False
             If True, performs conservative (area-weighted) zonal averaging over latitude bands.
-            If False, performs traditional (non-conservative) averaging at latitude lines.
+            If False, performs non-conservative (intersection-weighted) averaging at latitude lines.
 
         Returns
         -------
