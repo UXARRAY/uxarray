@@ -514,7 +514,12 @@ class UxDataArray(xr.DataArray):
         return uxda
 
     def zonal_mean(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
-        """Compute non-conservative or conservative averages along lines of constant latitude or latitude bands.
+        """Compute non-conservative or conservative averages of a face-centered variable along lines of constant latitude or latitude bands.
+
+        A zonal mean in UXarray operates differently depending on the ``conservative`` flag:
+
+        - **Non-conservative**: Calculates the mean by sampling face values at specific latitude lines and weighting each face by the length of its intersection with that latitude.
+        - **Conservative**: Averages over latitude bands between adjacent lines and weights by the native face areas, preserving global integrals by construction.
 
         Parameters
         ----------
