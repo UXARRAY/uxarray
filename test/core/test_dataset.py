@@ -67,3 +67,35 @@ def test_get_dual(gridpath, datasetpath):
 
     assert isinstance(dual, UxDataset)
     assert len(uxds.data_vars) == len(dual.data_vars)
+
+
+def _load_sel_subset(gridpath, datasetpath):
+    grid_file = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+    data_file = datasetpath("ugrid", "outCSne30", "outCSne30_sel_timeseries.nc")
+    uxds = ux.open_dataset(grid_file, data_file)
+    base_time = np.datetime64("2018-04-28T00:00:00")
+    offsets = np.arange(uxds.sizes["time"], dtype="timedelta64[h]")
+    uxds = uxds.assign_coords(time=(base_time + offsets).astype("datetime64[ns]"))
+    return uxds
+
+
+def test_sel_time_slice(gridpath, datasetpath):
+    uxds = _load_sel_subset(gridpath, datasetpath)
+
+    times = uxds["time"].values
+    sliced = uxds.sel(time=slice(times[0], times[2]))
+
+    assert sliced.dims["time"] == 3
+    np.testing.assert_array_equal(sliced["time"].values, times[:3])
+
+
+def test_sel_method_forwarded(gridpath, datasetpath):
+    uxds = _load_sel_subset(gridpath, datasetpath)
+
+    target = np.datetime64("2018-04-28T02:20:00")
+    nearest = uxds.sel(time=target, method="nearest")
+
+    np.testing.assert_array_equal(
+        nearest["time"].values,
+        np.array(uxds["time"].values[2], dtype="datetime64[ns]"),
+    )
