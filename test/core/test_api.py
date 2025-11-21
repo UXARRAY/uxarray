@@ -41,7 +41,7 @@ def test_open_mf_dataset(gridpath, test_data_dir, mesh_constants):
     uxarray's open_dataset call."""
 
     grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
-    dsfiles_mf_ne30 = str(test_data_dir) + "/ugrid/outCSne30/outCSne30_*.nc"
+    dsfiles_mf_ne30 = str(test_data_dir) + "/ugrid/outCSne30/outCSne30_v*.nc"
     uxds_mf_ne30 = ux.open_mfdataset(grid_path, dsfiles_mf_ne30)
 
     nt.assert_equal(uxds_mf_ne30.uxgrid.node_lon.size, mesh_constants['NNODES_outCSne30'])
