@@ -25,11 +25,13 @@ conda list
 # if available install from scientific-python nightly wheels
 # constrain numpy to <=2.3 until numba supports newer versions
 python -m pip install \
+    'numpy<=2.3'
+
+python -m pip install \
     -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
     --no-deps \
     --pre \
     --upgrade \
-    'numpy<=2.3' \
     pandas \
     scikit-learn \
     scipy \
