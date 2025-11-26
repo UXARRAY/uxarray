@@ -8,7 +8,7 @@ conda remove -y --force \
     datashader \
     distributed \
     holoviews \
-    numpy \
+    numpy<2.3 \
     pandas \
     scikit-learn \
     scipy \
