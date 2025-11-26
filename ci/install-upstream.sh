@@ -36,7 +36,7 @@ python -m pip install \
     xarray
 
 # install all remaining packages with --no-deps to avoid dependency conflicts
-# (dask/distributed versions may drift, geopandas incompatible with pandas nightly internals)
+# (dask/distributed versions may drift, geopandas uses stable release for pandas nightly compatibility)
 python -m pip install \
     --no-deps \
     --upgrade \
@@ -48,4 +48,4 @@ python -m pip install \
     git+https://github.com/holoviz/holoviews.git \
     git+https://github.com/shapely/shapely.git \
     git+https://github.com/holoviz/spatialpandas.git \
-    'geopandas>=1.0.0'  # stable release to avoid pandas nightly internals incompatibility
+    'geopandas>=1.0.0'
