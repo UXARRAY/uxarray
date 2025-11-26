@@ -23,12 +23,13 @@ pip uninstall -y \
 conda list
 
 # if available install from scientific-python nightly wheels
+# constrain numpy to <=2.3 until numba supports newer versions
 python -m pip install \
     -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
     --no-deps \
     --pre \
     --upgrade \
-    numpy<=2.3 \
+    'numpy<=2.3' \
     pandas \
     scikit-learn \
     scipy \
@@ -47,4 +48,4 @@ python -m pip install \
     git+https://github.com/holoviz/holoviews.git \
     git+https://github.com/shapely/shapely.git \
     git+https://github.com/holoviz/spatialpandas.git \
-    'geopandas>=1.0.0'
+    'geopandas>=1.0.0'  # stable release to avoid pandas nightly internals incompatibility
