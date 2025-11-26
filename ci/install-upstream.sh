@@ -8,7 +8,7 @@ conda remove -y --force \
     datashader \
     distributed \
     holoviews \
-    numpy<2.3 \
+    numpy \
     pandas \
     scikit-learn \
     scipy \
@@ -28,7 +28,7 @@ python -m pip install \
     --no-deps \
     --pre \
     --upgrade \
-    numpy \
+    numpy<=2.3 \
     pandas \
     scikit-learn \
     scipy \
