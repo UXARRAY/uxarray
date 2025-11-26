@@ -28,13 +28,16 @@ python -m pip install \
     pandas \
     scikit-learn \
     scipy \
-    geopandas \
     xarray
 # install dask and distributed first with --no-deps to avoid version conflicts
 python -m pip install \
     --no-deps \
     git+https://github.com/dask/dask.git \
     git+https://github.com/dask/distributed.git
+
+# install geopandas from stable release (incompatible with pandas nightly from git)
+python -m pip install \
+    geopandas==1.1.1
 
 # install rest from source
 python -m pip install \
