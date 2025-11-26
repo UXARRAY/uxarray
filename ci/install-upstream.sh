@@ -35,9 +35,10 @@ python -m pip install \
     git+https://github.com/dask/dask.git \
     git+https://github.com/dask/distributed.git
 
-# install geopandas from stable release (incompatible with pandas nightly from git)
+# install geopandas from stable release (compatible with pandas nightly)
 python -m pip install \
-    geopandas==1.1.1
+    'pandas>=2.0.0' \
+    'geopandas>=1.0.0'
 
 # install rest from source
 python -m pip install \
