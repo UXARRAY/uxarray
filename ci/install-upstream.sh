@@ -25,7 +25,6 @@ python -m pip install \
     --pre \
     --upgrade \
     numpy \
-    pandas \
     scikit-learn \
     scipy \
     xarray
