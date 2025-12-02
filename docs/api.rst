@@ -241,6 +241,7 @@ Grid
    Grid.to_geodataframe
    Grid.to_polycollection
    Grid.to_linecollection
+   Grid.plot_edges
    Grid.to_xarray
 
 UxDataArray
