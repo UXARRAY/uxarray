@@ -22,7 +22,7 @@ jobs:
       CONDA_ENV_FILE: ci/environment.yml
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -55,7 +55,7 @@ jobs:
           asv compare --split ${{ github.event.pull_request.base.sha }} ${GITHUB_SHA} > asv_compare_results.txt
         working-directory: ${{ env.ASV_DIR }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: asv-benchmark-results-${{ runner.os }}

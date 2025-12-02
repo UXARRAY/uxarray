@@ -514,19 +514,24 @@ class UxDataArray(xr.DataArray):
         return uxda
 
     def zonal_mean(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
-        """Compute non-conservative or conservative averages along lines of constant latitude or latitude bands.
+        """Compute non-conservative or conservative averages of a face-centered variable along lines of constant latitude or latitude bands.
+
+        A zonal mean in UXarray operates differently depending on the ``conservative`` flag:
+
+        - **Non-conservative**: Calculates the mean by sampling face values at specific latitude lines and weighting each contribution by the length of the line where each face intersects that latitude.
+        - **Conservative**: Preserves integral quantities by calculating the mean by sampling face values within latitude bands and weighting contributions by their area overlap with latitude bands.
 
         Parameters
         ----------
         lat : tuple, float, or array-like, default=(-90, 90, 10)
             Latitude specification:
-            - tuple (start, end, step): For non-conservative, computes means at intervals of `step`.
-              For conservative, creates band edges via np.arange(start, end+step, step).
-            - float: Single latitude for non-conservative averaging
-            - array-like: For non-conservative, latitudes to sample. For conservative, band edges.
+                - tuple (start, end, step): For non-conservative, computes means at intervals of `step`.
+                For conservative, creates band edges via np.arange(start, end+step, step).
+                - float: Single latitude for non-conservative averaging
+                - array-like: For non-conservative, latitudes to sample. For conservative, band edges.
         conservative : bool, default=False
             If True, performs conservative (area-weighted) zonal averaging over latitude bands.
-            If False, performs traditional (non-conservative) averaging at latitude lines.
+            If False, performs non-conservative (intersection-weighted) averaging at latitude lines.
 
         Returns
         -------
@@ -1336,6 +1341,89 @@ class UxDataArray(xr.DataArray):
             coords=self.coords,
         )
 
+    def curl(self, other: "UxDataArray", **kwargs) -> "UxDataArray":
+        """
+        Computes the curl of a vector field.
+
+        Parameters
+        ----------
+        other : UxDataArray
+            The second component of the vector field. This UxDataArray should
+            represent the meridional (v) component, while self represents the
+            zonal (u) component.
+        **kwargs : dict
+            Additional keyword arguments (currently unused, reserved for future extensions).
+
+        Returns
+        -------
+        curl : UxDataArray
+            The curl of the vector field (u, v), computed as:
+            curl = ∂v/∂x - ∂u/∂y
+
+        Notes
+        -----
+        The curl is computed using the existing gradient infrastructure.
+        For a 2D vector field V = (u, v), the curl is a scalar field representing
+        the rotation or circulation density at each point.
+
+        The curl is computed by:
+        1. Computing the gradient of the u-component: ∇u = (∂u/∂x, ∂u/∂y)
+        2. Computing the gradient of the v-component: ∇v = (∂v/∂x, ∂v/∂y)
+        3. Extracting the relevant components: ∂v/∂x and ∂u/∂y
+        4. Computing: curl = ∂v/∂x - ∂u/∂y
+
+        Requirements:
+        - Both components must be UxDataArray objects
+        - Both must be defined on the same grid
+        - Both must be 1-dimensional (use .isel() for multi-dimensional data)
+        - Data must be face-centered
+
+        Example
+        -------
+        >>> u_component = uxds["u_wind"]
+        >>> v_component = uxds["v_wind"]
+        >>> curl_field = u_component.curl(v_component)
+        """
+        # Input validation
+        if not isinstance(other, UxDataArray):
+            raise TypeError("other must be a UxDataArray")
+
+        if self.uxgrid != other.uxgrid:
+            raise ValueError("Both vector components must be on the same grid")
+
+        if self.dims != other.dims:
+            raise ValueError("Both vector components must have the same dimensions")
+
+        if len(self.dims) != 1:
+            raise ValueError(
+                "Curl computation currently only supports 1-dimensional data. "
+                "Use .isel() to select a single time slice or level."
+            )
+
+        # Compute gradients of both components
+        grad_u_zonal, grad_u_meridional = _compute_gradient(self)
+        grad_v_zonal, grad_v_meridional = _compute_gradient(other)
+
+        # Compute curl = ∂v/∂x - ∂u/∂y
+        curl_values = grad_v_zonal.values - grad_u_meridional.values
+
+        # Create the result UxDataArray
+        curl_da = UxDataArray(
+            curl_values,
+            dims=self.dims,
+            attrs={
+                "long_name": f"Curl of ({self.name}, {other.name})",
+                "units": "1/s"
+                if "units" not in self.attrs
+                else f"({self.attrs.get('units', '1')})/m",
+                "description": "Curl of vector field computed as ∂v/∂x - ∂u/∂y",
+            },
+            uxgrid=self.uxgrid,
+            name=f"curl_{self.name}_{other.name}",
+        )
+
+        return curl_da
+
     def divergence(self, other: "UxDataArray", **kwargs) -> "UxDataArray":
         """
         Computes the divergence of the vector field defined by this UxDataArray and other.
@@ -1367,8 +1455,6 @@ class UxDataArray(xr.DataArray):
         >>> v_component = uxds["v_wind"]  # Second component of vector field
         >>> div_field = u_component.divergence(v_component)
         """
-        from uxarray import UxDataArray
-
         if not isinstance(other, UxDataArray):
             raise TypeError("other must be a UxDataArray")
 
@@ -1395,7 +1481,6 @@ class UxDataArray(xr.DataArray):
         v_gradient = other.gradient()
 
         # For divergence: div(V) = ∂u/∂x + ∂v/∂y
-        # In spherical coordinates: div(V) = (1/cos(lat)) * ∂u/∂lon + ∂v/∂lat
         # We use the zonal gradient (∂/∂lon) of u and meridional gradient (∂/∂lat) of v
         u = u_gradient["zonal_gradient"]
         v = v_gradient["meridional_gradient"]
@@ -1572,44 +1657,57 @@ class UxDataArray(xr.DataArray):
             indexers, indexers_kwargs, "isel", ignore_grid
         )
 
-        # Grid Branch
-        if not ignore_grid:
-            if len(grid_dims) == 1:
-                # pop off the one grid‐dim indexer
-                grid_dim = grid_dims.pop()
-                grid_indexer = indexers.pop(grid_dim)
+        try:
+            # Grid Branch
+            if not ignore_grid:
+                if len(grid_dims) == 1:
+                    # pop off the one grid‐dim indexer
+                    grid_dim = grid_dims.pop()
+                    grid_indexer = indexers.pop(grid_dim)
 
-                sliced_grid = self.uxgrid.isel(
-                    **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
-                )
-
-                da = self._slice_from_grid(sliced_grid)
-
-                # if there are any remaining indexers, apply them
-                if indexers:
-                    xarr = super(UxDataArray, da).isel(
-                        indexers=indexers, drop=drop, missing_dims=missing_dims
+                    sliced_grid = self.uxgrid.isel(
+                        **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
                     )
-                    # re‐wrap so the grid sticks around
-                    return type(self)(xarr, uxgrid=sliced_grid)
 
-                # no other dims, return the grid‐sliced da
-                return da
+                    da = self._slice_from_grid(sliced_grid)
+
+                    # if there are any remaining indexers, apply them
+                    if indexers:
+                        xarr = super(UxDataArray, da).isel(
+                            indexers=indexers, drop=drop, missing_dims=missing_dims
+                        )
+                        # re‐wrap so the grid sticks around
+                        return type(self)(xarr, uxgrid=sliced_grid)
+
+                    # no other dims, return the grid‐sliced da
+                    return da
+                else:
+                    return type(self)(
+                        super().isel(
+                            indexers=indexers or None,
+                            drop=drop,
+                            missing_dims=missing_dims,
+                        ),
+                        uxgrid=self.uxgrid,
+                    )
+
+            return super().isel(
+                indexers=indexers or None,
+                drop=drop,
+                missing_dims=missing_dims,
+            )
+        except ValueError as e:
+            if "Dimensions" in str(e) and "do not exist" in str(e):
+                # The error message from xarray is quite good, but we can add to it.
+                # e.g. "Dimensions {'level'} do not exist. Expected one of ('n_face', 'time', 'lev')"
+                # Let's just append the available dimensions.
+                original_error_msg = str(e)
+                raise ValueError(
+                    f"{original_error_msg}. Available dimensions: {self.dims}"
+                ) from e
             else:
-                return type(self)(
-                    super().isel(
-                        indexers=indexers or None,
-                        drop=drop,
-                        missing_dims=missing_dims,
-                    ),
-                    uxgrid=self.uxgrid,
-                )
-
-        return super().isel(
-            indexers=indexers or None,
-            drop=drop,
-            missing_dims=missing_dims,
-        )
+                # re-raise other ValueErrors
+                raise e
 
     @classmethod
     def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
