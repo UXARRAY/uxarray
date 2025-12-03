@@ -308,6 +308,31 @@ def _detect_multigrid(ds: xr.Dataset) -> Tuple[str, Dict[str, Dict[str, Any]]]:
         elif dim_name.startswith("nv_"):
             grids.setdefault(dim_name[3:], {})["corner_dim"] = dim_name
 
+    def _infer_corner_dim_from_dims(dims: Sequence[str]) -> Optional[str]:
+        for dim in dims:
+            dim_lower = dim.lower()
+            if dim_lower.startswith(("nv", "nvertex", "corner", "corn", "crn")):
+                return dim
+        return dims[-1] if dims else None
+
+    def _update_grid_dim_metadata(info: Dict[str, Any], dims: Sequence[str]) -> None:
+        if not dims:
+            return
+
+        corner_dim = info.get("corner_dim")
+        inferred_corner_dim = _infer_corner_dim_from_dims(dims)
+        if corner_dim is None or corner_dim not in dims:
+            corner_dim = inferred_corner_dim
+        if corner_dim is not None:
+            info["corner_dim"] = corner_dim
+
+        cell_dims = [dim for dim in dims if dim != corner_dim]
+        if not cell_dims:
+            cell_dims = list(dims)
+
+        info["cell_dims"] = list(cell_dims)
+        info["cell_dim"] = cell_dims[0]
+
     corner_lat_suffixes = {"cla", "corner_lat", "cornlat"}
     corner_lon_suffixes = {"clo", "corner_lon", "cornlon"}
     center_lat_suffixes = {"center_lat", "cenlat", "gclat", "clat"}
@@ -325,16 +350,12 @@ def _detect_multigrid(ds: xr.Dataset) -> Tuple[str, Dict[str, Dict[str, Any]]]:
             info["corner_lat"] = var_name
             dims = ds[var_name].dims
             if len(dims) >= 2:
-                info.setdefault("cell_dims", list(dims[:-1]))
-                info.setdefault("cell_dim", dims[0])
-                info.setdefault("corner_dim", dims[-1])
+                _update_grid_dim_metadata(info, dims)
         elif suffix_lower in corner_lon_suffixes:
             info["corner_lon"] = var_name
             dims = ds[var_name].dims
             if len(dims) >= 2:
-                info.setdefault("cell_dims", list(dims[:-1]))
-                info.setdefault("cell_dim", dims[0])
-                info.setdefault("corner_dim", dims[-1])
+                _update_grid_dim_metadata(info, dims)
         elif suffix_lower in center_lat_suffixes:
             info["center_lat"] = var_name
         elif suffix_lower in center_lon_suffixes:
