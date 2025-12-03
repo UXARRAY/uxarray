@@ -690,7 +690,13 @@ class UxDataset(xr.Dataset):
         self, indexers=None, method=None, tolerance=None, drop=False, **indexers_kwargs
     ):
         return UxDataset(
-            self.to_xarray().sel(indexers, tolerance, drop, **indexers_kwargs),
+            self.to_xarray().sel(
+                indexers=indexers,
+                method=method,
+                tolerance=tolerance,
+                drop=drop,
+                **indexers_kwargs,
+            ),
             uxgrid=self.uxgrid,
         )
 

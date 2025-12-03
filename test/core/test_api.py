@@ -39,17 +39,21 @@ def test_open_dataset(gridpath, datasetpath, mesh_constants):
     nt.assert_equal(len(uxds_var2_ne30.uxgrid._ds.data_vars), mesh_constants['DATAVARS_outCSne30'])
     nt.assert_equal(uxds_var2_ne30.source_datasets, str(data_path))
 
-def test_open_mf_dataset(gridpath, test_data_dir, mesh_constants):
+def test_open_mf_dataset(gridpath, datasetpath, mesh_constants):
     """Loads multiple datasets with their grid topology file using
     uxarray's open_dataset call."""
 
     grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
-    dsfiles_mf_ne30 = str(test_data_dir) + "/ugrid/outCSne30/outCSne30_*.nc"
+    dsfiles_mf_ne30 = datasetpath(
+        "ugrid",
+        "outCSne30",
+        ["outCSne30_var2.nc", "outCSne30_vortex.nc"],
+    )
     uxds_mf_ne30 = ux.open_mfdataset(grid_path, dsfiles_mf_ne30)
 
     nt.assert_equal(uxds_mf_ne30.uxgrid.node_lon.size, mesh_constants['NNODES_outCSne30'])
     nt.assert_equal(len(uxds_mf_ne30.uxgrid._ds.data_vars), mesh_constants['DATAVARS_outCSne30'])
-    nt.assert_equal(uxds_mf_ne30.source_datasets, dsfiles_mf_ne30)
+    nt.assert_equal(uxds_mf_ne30.source_datasets, str(dsfiles_mf_ne30))
 
 def test_open_grid(gridpath, mesh_constants):
     """Loads only a grid topology file using uxarray's open_grid call."""

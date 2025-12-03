@@ -514,7 +514,12 @@ class UxDataArray(xr.DataArray):
         return uxda
 
     def zonal_mean(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
-        """Compute non-conservative or conservative averages along lines of constant latitude or latitude bands.
+        """Compute non-conservative or conservative averages of a face-centered variable along lines of constant latitude or latitude bands.
+
+        A zonal mean in UXarray operates differently depending on the ``conservative`` flag:
+
+        - **Non-conservative**: Calculates the mean by sampling face values at specific latitude lines and weighting each contribution by the length of the line where each face intersects that latitude.
+        - **Conservative**: Preserves integral quantities by calculating the mean by sampling face values within latitude bands and weighting contributions by their area overlap with latitude bands.
 
         Parameters
         ----------
@@ -526,7 +531,7 @@ class UxDataArray(xr.DataArray):
                 - array-like: For non-conservative, latitudes to sample. For conservative, band edges.
         conservative : bool, default=False
             If True, performs conservative (area-weighted) zonal averaging over latitude bands.
-            If False, performs traditional (non-conservative) averaging at latitude lines.
+            If False, performs non-conservative (intersection-weighted) averaging at latitude lines.
 
         Returns
         -------
@@ -1652,44 +1657,57 @@ class UxDataArray(xr.DataArray):
             indexers, indexers_kwargs, "isel", ignore_grid
         )
 
-        # Grid Branch
-        if not ignore_grid:
-            if len(grid_dims) == 1:
-                # pop off the one grid‐dim indexer
-                grid_dim = grid_dims.pop()
-                grid_indexer = indexers.pop(grid_dim)
+        try:
+            # Grid Branch
+            if not ignore_grid:
+                if len(grid_dims) == 1:
+                    # pop off the one grid‐dim indexer
+                    grid_dim = grid_dims.pop()
+                    grid_indexer = indexers.pop(grid_dim)
 
-                sliced_grid = self.uxgrid.isel(
-                    **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
-                )
-
-                da = self._slice_from_grid(sliced_grid)
-
-                # if there are any remaining indexers, apply them
-                if indexers:
-                    xarr = super(UxDataArray, da).isel(
-                        indexers=indexers, drop=drop, missing_dims=missing_dims
+                    sliced_grid = self.uxgrid.isel(
+                        **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
                     )
-                    # re‐wrap so the grid sticks around
-                    return type(self)(xarr, uxgrid=sliced_grid)
 
-                # no other dims, return the grid‐sliced da
-                return da
+                    da = self._slice_from_grid(sliced_grid)
+
+                    # if there are any remaining indexers, apply them
+                    if indexers:
+                        xarr = super(UxDataArray, da).isel(
+                            indexers=indexers, drop=drop, missing_dims=missing_dims
+                        )
+                        # re‐wrap so the grid sticks around
+                        return type(self)(xarr, uxgrid=sliced_grid)
+
+                    # no other dims, return the grid‐sliced da
+                    return da
+                else:
+                    return type(self)(
+                        super().isel(
+                            indexers=indexers or None,
+                            drop=drop,
+                            missing_dims=missing_dims,
+                        ),
+                        uxgrid=self.uxgrid,
+                    )
+
+            return super().isel(
+                indexers=indexers or None,
+                drop=drop,
+                missing_dims=missing_dims,
+            )
+        except ValueError as e:
+            if "Dimensions" in str(e) and "do not exist" in str(e):
+                # The error message from xarray is quite good, but we can add to it.
+                # e.g. "Dimensions {'level'} do not exist. Expected one of ('n_face', 'time', 'lev')"
+                # Let's just append the available dimensions.
+                original_error_msg = str(e)
+                raise ValueError(
+                    f"{original_error_msg}. Available dimensions: {self.dims}"
+                ) from e
             else:
-                return type(self)(
-                    super().isel(
-                        indexers=indexers or None,
-                        drop=drop,
-                        missing_dims=missing_dims,
-                    ),
-                    uxgrid=self.uxgrid,
-                )
-
-        return super().isel(
-            indexers=indexers or None,
-            drop=drop,
-            missing_dims=missing_dims,
-        )
+                # re-raise other ValueErrors
+                raise e
 
     @classmethod
     def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
