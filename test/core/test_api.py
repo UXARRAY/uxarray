@@ -217,6 +217,17 @@ def test_open_multigrid_with_masks(gridpath):
     assert grids["atm"].n_face == 20
 
 
+def test_open_multigrid_mask_zero_faces(gridpath):
+    """Applying masks that deactivate an entire grid should not fail."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+    mask_file = gridpath("scrip", "oasis", "masks_no_atm.nc")
+
+    grids = ux.open_multigrid(grid_file, mask_filename=mask_file)
+
+    assert grids["ocn"].n_face == 8
+    assert grids["atm"].n_face == 0
+
+
 def test_open_multigrid_missing_grid_error(gridpath):
     """Requesting a missing grid should raise."""
     grid_file = gridpath("scrip", "oasis", "grids.nc")
