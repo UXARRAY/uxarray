@@ -757,4 +757,4 @@ def points_atleast_2d_xyz(points):
             "Points are neither Cartesian (shape N x 3) nor Spherical (shape N x 2)."
         )
 
-    return points_xyz
+    return np.ascontiguousarray(points_xyz)
