@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
@@ -366,14 +366,14 @@ class UxDataArrayPlotAccessor:
 
     def polygons(
         self,
-        periodic_elements: Optional[str] = "exclude",
-        backend: Optional[str] = None,
-        engine: Optional[str] = "spatialpandas",
-        rasterize: Optional[bool] = True,
-        dynamic: Optional[bool] = False,
+        periodic_elements: str | None = "exclude",
+        backend: str | None = None,
+        engine: str | None = "spatialpandas",
+        rasterize: bool | None = True,
+        dynamic: bool | None = False,
         projection=None,
-        xlabel: Optional[str] = "Longitude",
-        ylabel: Optional[str] = "Latitude",
+        xlabel: str | None = "Longitude",
+        ylabel: str | None = "Latitude",
         *args,
         **kwargs,
     ):
