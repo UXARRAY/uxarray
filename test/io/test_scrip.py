@@ -84,3 +84,37 @@ def test_open_multigrid_with_masks(gridpath):
 
     grid_names = ux.list_grid_names(grid_file)
     assert set(grid_names) == {"ocn", "atm"}
+
+
+def test_open_multigrid_mask_active_value_default(gridpath):
+    """Default mask semantics keep value==1 active for both grids."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+    mask_file = gridpath("scrip", "oasis", "masks_no_atm.nc")
+
+    grids = ux.open_multigrid(grid_file, mask_filename=mask_file)
+
+    with xr.open_dataset(mask_file) as mask_ds:
+        expected_ocn = int(mask_ds["ocn.msk"].values.sum())
+        expected_atm = int(mask_ds["atm.msk"].values.sum())
+
+    assert grids["ocn"].n_face == expected_ocn
+    assert grids["atm"].n_face == expected_atm
+
+
+def test_open_multigrid_mask_active_value_per_grid_override(gridpath):
+    """Per-grid override supports masks with different active values."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+    mask_file = gridpath("scrip", "oasis", "masks_no_atm.nc")
+
+    grids = ux.open_multigrid(
+        grid_file,
+        mask_filename=mask_file,
+        mask_active_value={"atm": 0, "ocn": 1},
+    )
+
+    with xr.open_dataset(mask_file) as mask_ds:
+        expected_ocn = int(mask_ds["ocn.msk"].values.sum())
+        expected_atm = int((mask_ds["atm.msk"].values == 0).sum())
+
+    assert grids["ocn"].n_face == expected_ocn
+    assert grids["atm"].n_face == expected_atm

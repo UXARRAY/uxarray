@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Mapping,
+    Optional,
+    Sequence,
+    TypeAlias,
+    Union,
+)
 from warnings import warn
 
 import numpy as np
@@ -139,12 +148,17 @@ def open_grid(
         return grid
 
 
+MaskValue: TypeAlias = Any | Sequence[Any]
+MaskActiveValue: TypeAlias = MaskValue | Mapping[str, MaskValue] | None
+
+
 def open_multigrid(
-    grid_filename_or_obj: Union[str, Path, "Dataset"],
-    gridnames: Optional[List[str]] = None,
-    mask_filename: Optional[Union[str, Path, "Dataset"]] = None,
-    **kwargs: Dict[str, Any],
-) -> Dict[str, Grid]:
+    grid_filename_or_obj: str | Path | "Dataset",
+    gridnames: list[str] | None = None,
+    mask_filename: str | Path | "Dataset" | None = None,
+    mask_active_value: MaskActiveValue = 1,
+    **kwargs: dict[str, Any],
+) -> dict[str, Grid]:
     """Open a multi-grid SCRIP file and construct ``Grid`` objects.
 
     Parameters
@@ -155,7 +169,12 @@ def open_multigrid(
         Specific grid names to load. If ``None``, all grids are loaded.
     mask_filename : str, Path or xr.Dataset, optional
         Optional path to a mask file containing ``<grid>.msk`` variables.
-        Cells with mask value 1 are retained, 0 are discarded.
+        Defaults to retaining cells where mask value equals 1.
+    mask_active_value : scalar, sequence or mapping[str, scalar/sequence], optional
+        Mask value(s) treated as active. Provide a scalar or sequence to apply to
+        all grids, or a dict keyed by grid name for per-grid overrides. When a
+        mapping is provided and a grid name is not found, the fallback is the
+        mapping's ``"_default"``/``"default"`` entry if present, otherwise 1.
     **kwargs : dict, optional
         Extra keyword arguments forwarded to :func:`xarray.open_dataset`
         when opening ``grid_filename_or_obj``.
@@ -184,6 +203,48 @@ def open_multigrid(
             mask_ds_opened = True
 
     try:
+        active_value_map: Mapping[str, MaskValue] | None = (
+            mask_active_value if isinstance(mask_active_value, Mapping) else None
+        )
+        default_active_value: MaskValue = (
+            active_value_map.get("_default", active_value_map.get("default", 1))
+            if active_value_map is not None
+            else (mask_active_value if mask_active_value is not None else 1)
+        )
+        if default_active_value is None:
+            default_active_value = 1
+
+        active_value_cache: dict[str, np.ndarray] = {}
+
+        def _normalize_active_values(value: MaskValue | None) -> np.ndarray:
+            """Normalize mask active values to a 1D numpy array."""
+            if value is None:
+                value = default_active_value
+
+            if isinstance(value, (str, bytes)) or not np.iterable(value):
+                return np.asarray([value])
+
+            return np.asarray(list(value)).ravel()
+
+        def _active_mask_values_for_grid(grid_name: str) -> np.ndarray:
+            """Return the active mask value(s) for a grid as a 1D array."""
+            cached = active_value_cache.get(grid_name)
+            if cached is not None:
+                return cached
+
+            if active_value_map is not None:
+                value = active_value_map.get(grid_name, default_active_value)
+            else:
+                value = (
+                    mask_active_value
+                    if mask_active_value is not None
+                    else default_active_value
+                )
+
+            active_values = _normalize_active_values(value)
+            active_value_cache[grid_name] = active_values
+            return active_values
+
         format_type, grids_dict = _detect_multigrid(grid_ds)
 
         if format_type == "single_scrip":
@@ -222,7 +283,7 @@ def open_multigrid(
                     )
                 grids_to_load.append(name)
 
-        loaded_grids: Dict[str, Grid] = {}
+        loaded_grids: dict[str, Grid] = {}
         for grid_name in grids_to_load:
             metadata = grids_dict[grid_name]
             scrip_ds = _extract_single_grid(grid_ds, grid_name, metadata)
@@ -241,7 +302,9 @@ def open_multigrid(
                     mask_cell_dims = _resolve_cell_dims(metadata, mask_da.dims)
                     mask_flat = _stack_cell_dims(mask_da, mask_cell_dims, "grid_size")
                     mask_values = np.asarray(mask_flat.values)
-                    active_indices = np.flatnonzero(mask_values == 1)
+                    active_values = _active_mask_values_for_grid(grid_name)
+                    active_mask = np.isin(mask_values, active_values)
+                    active_indices = np.flatnonzero(active_mask)
                     grid = grid.isel(n_face=active_indices)
                 else:
                     warn(
@@ -260,8 +323,8 @@ def open_multigrid(
 
 
 def list_grid_names(
-    grid_filename_or_obj: Union[str, Path, "Dataset"], **kwargs: Dict[str, Any]
-) -> List[str]:
+    grid_filename_or_obj: str | Path | "Dataset", **kwargs: dict[str, Any]
+) -> list[str]:
     """List all grid names available within a grid file.
 
     Parameters
@@ -302,9 +365,9 @@ def open_dataset(
     filename_or_obj: str | os.PathLike[Any],
     chunks=None,
     chunk_grid: bool = True,
-    use_dual: Optional[bool] = False,
-    grid_kwargs: Optional[Dict[str, Any]] = None,
-    **kwargs: Dict[str, Any],
+    use_dual: bool | None = False,
+    grid_kwargs: dict[str, Any] | None = None,
+    **kwargs: dict[str, Any],
 ) -> UxDataset:
     """Wraps ``xarray.open_dataset()`` for loading in a dataset paired with a grid file.
 
