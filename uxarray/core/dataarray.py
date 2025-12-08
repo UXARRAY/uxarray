@@ -375,7 +375,7 @@ class UxDataArray(xr.DataArray):
             _RasterAxAttrs,
         )
 
-        _ensure_dimensions(self)
+        data = _ensure_dimensions(self)
 
         if not isinstance(ax, GeoAxes):
             raise TypeError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
@@ -405,7 +405,7 @@ class UxDataArray(xr.DataArray):
             pixel_mapping = np.asarray(pixel_mapping, dtype=INT_DTYPE)
 
         raster, pixel_mapping_np = _nearest_neighbor_resample(
-            self,
+            data,
             ax,
             pixel_ratio=pixel_ratio,
             pixel_mapping=pixel_mapping,

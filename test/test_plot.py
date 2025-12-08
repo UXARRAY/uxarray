@@ -108,6 +108,22 @@ def test_to_raster(gridpath):
     assert isinstance(raster, np.ndarray)
 
 
+def test_to_raster_with_extra_dims(gridpath):
+    fig, ax = plt.subplots(
+        subplot_kw={'projection': ccrs.Robinson()},
+        constrained_layout=True,
+        figsize=(10, 5),
+    )
+
+    mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+
+    da = uxds['bottomDepth'].expand_dims(time=[0])
+    raster = da.isel(time=slice(0, 1)).to_raster(ax=ax)
+
+    assert isinstance(raster, np.ndarray)
+
+
 
 def test_to_raster_reuse_mapping(gridpath, tmpdir):
 
