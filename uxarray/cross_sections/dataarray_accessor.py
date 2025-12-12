@@ -136,9 +136,24 @@ class UxDataArrayCrossSectionAccessor:
         # index along the arc
         coords[new_dim] = np.arange(steps)
 
+        # Grids might come with either coords "lat"/"lon" or "clat"/"clon". Find the right
+        # keys for setting the new coords along the cross section to avoid naming conflics.
+        lat_key_cands = [key for key in coords.keys() if "lat" in key]
+        lon_key_cands = [key for key in coords.keys() if "lon" in key]
+
+        if len(lat_key_cands) == 0:
+            lat_key = "lat"
+        else:
+            lat_key = lat_key_cands[0]
+
+        if len(lon_key_cands) == 0:
+            lon_key = "lon"
+        else:
+            lon_key = lon_key_cands[0]
+
         # attach lat/lon vectors
-        coords["lat"] = (new_dim, points_latlon[:, 1])
-        coords["lon"] = (new_dim, points_latlon[:, 0])
+        coords[lat_key] = (new_dim, points_latlon[:, 1])
+        coords[lon_key] = (new_dim, points_latlon[:, 0])
 
         return xr.DataArray(
             data,
