@@ -2378,6 +2378,55 @@ class Grid:
 
         return copy.deepcopy(line_collection)
 
+    def plot_edges(
+        self,
+        ax: Optional["cartopy.mpl.geoaxes.GeoAxes"] | None,  # noqa: F821
+        **plot_kwargs,
+    ):
+        """
+        Plot the edges of the grid on a Cartopy map.
+
+        Parameters
+        ----------
+        ax : cartopy.mpl.geoaxes.GeoAxes or None
+            The axes on which to plot. If None, a new global map with PlatteCarree projection is used.
+        **plot_kwargs : dict
+            Additional keyword arguments passed to ``ax.plot`` (e.g., line style,
+            color, linewidth).
+
+        Returns
+        -------
+        list of matplotlib.lines.Line2D
+        """
+
+        import cartopy.crs as ccrs
+        import matplotlib.pyplot as plt
+
+        if ax is None:
+            ax = plt.axes(projection=ccrs.PlateCarree())
+
+        vx, vy, vz = ax.projection.transform_points(
+            ccrs.PlateCarree(), self.node_lon, self.node_lat
+        ).T
+
+        extent = ax.get_extent()
+        vmask = (
+            (vx >= extent[0])
+            * (vx <= extent[1])
+            * (vy >= extent[2])
+            * (vy <= extent[3])
+        )
+        emask = np.any(vmask[self.edge_node_connectivity], axis=-1)
+        edge_node_local = self.edge_node_connectivity.values[emask, :].T
+
+        return ax.plot(
+            self.node_lon.values[edge_node_local],
+            self.node_lat.values[edge_node_local],
+            transform=ccrs.Geodetic(),
+            label=self.source_grid_spec,
+            **plot_kwargs,
+        )
+
     def get_dual(self, check_duplicate_nodes: bool = False):
         """Compute the dual for a grid, which constructs a new grid centered
         around the nodes, where the nodes of the primal become the face centers
