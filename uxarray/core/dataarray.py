@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from html import escape
-from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping
 from warnings import warn
 
 import numpy as np
@@ -164,12 +164,12 @@ class UxDataArray(xr.DataArray):
 
     def to_geodataframe(
         self,
-        periodic_elements: Optional[str] = "exclude",
+        periodic_elements: str | None = "exclude",
         projection=None,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        engine: Optional[str] = "spatialpandas",
-        exclude_antimeridian: Optional[bool] = None,
+        cache: bool | None = True,
+        override: bool | None = False,
+        engine: str | None = "spatialpandas",
+        exclude_antimeridian: bool | None = None,
         **kwargs,
     ):
         """Constructs a ``GeoDataFrame`` consisting of polygons representing
@@ -462,7 +462,7 @@ class UxDataArray(xr.DataArray):
         return xr.DataArray(self)
 
     def integrate(
-        self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
+        self, quadrature_rule: str | None = "triangular", order: int | None = 4
     ) -> UxDataArray:
         """Computes the integral of a data variable.
 
@@ -1501,7 +1501,7 @@ class UxDataArray(xr.DataArray):
 
         return divergence_da
 
-    def difference(self, destination: Optional[str] = "edge"):
+    def difference(self, destination: str | None = "edge"):
         """Computes the absolute difference of a data variable.
 
         The difference for a face-centered data variable can be computed on each edge using the ``edge_face_connectivity``,

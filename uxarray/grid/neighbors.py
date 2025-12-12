@@ -1,5 +1,3 @@
-from typing import Optional, Union
-
 import numpy as np
 import xarray as xr
 from numba import njit
@@ -40,9 +38,9 @@ class KDTree:
     def __init__(
         self,
         grid,
-        coordinates: Optional[str] = "face centers",
-        coordinate_system: Optional[str] = "cartesian",
-        distance_metric: Optional[str] = "minkowski",
+        coordinates: str | None = "face centers",
+        coordinate_system: str | None = "cartesian",
+        distance_metric: str | None = "minkowski",
         reconstruct: bool = False,
     ):
         # Set up references
@@ -203,13 +201,13 @@ class KDTree:
 
     def query(
         self,
-        coords: Union[np.ndarray, list, tuple],
-        k: Optional[int] = 1,
-        return_distance: Optional[bool] = True,
-        in_radians: Optional[bool] = False,
-        dualtree: Optional[bool] = False,
-        breadth_first: Optional[bool] = False,
-        sort_results: Optional[bool] = True,
+        coords: np.ndarray | list | tuple,
+        k: int | None = 1,
+        return_distance: bool | None = True,
+        in_radians: bool | None = False,
+        dualtree: bool | None = False,
+        breadth_first: bool | None = False,
+        sort_results: bool | None = True,
     ):
         """Queries the tree for the ``k`` nearest neighbors.
 
@@ -289,12 +287,12 @@ class KDTree:
 
     def query_radius(
         self,
-        coords: Union[np.ndarray, list, tuple],
-        r: Optional[int] = 1.0,
-        return_distance: Optional[bool] = False,
-        in_radians: Optional[bool] = False,
-        count_only: Optional[bool] = False,
-        sort_results: Optional[bool] = False,
+        coords: np.ndarray | list | tuple,
+        r: int | None = 1.0,
+        return_distance: bool | None = False,
+        in_radians: bool | None = False,
+        count_only: bool | None = False,
+        sort_results: bool | None = False,
     ):
         """Queries the tree for all neighbors within a radius ``r``.
 
@@ -432,9 +430,9 @@ class BallTree:
     def __init__(
         self,
         grid,
-        coordinates: Optional[str] = "face centers",
-        coordinate_system: Optional[str] = "spherical",
-        distance_metric: Optional[str] = "haversine",
+        coordinates: str | None = "face centers",
+        coordinate_system: str | None = "spherical",
+        distance_metric: str | None = "haversine",
         reconstruct: bool = False,
     ):
         # maintain a reference to the source grid
@@ -589,13 +587,13 @@ class BallTree:
 
     def query(
         self,
-        coords: Union[np.ndarray, list, tuple],
-        k: Optional[int] = 1,
-        in_radians: Optional[bool] = False,
-        return_distance: Optional[bool] = True,
-        dualtree: Optional[bool] = False,
-        breadth_first: Optional[bool] = False,
-        sort_results: Optional[bool] = True,
+        coords: np.ndarray | list | tuple,
+        k: int | None = 1,
+        in_radians: bool | None = False,
+        return_distance: bool | None = True,
+        dualtree: bool | None = False,
+        breadth_first: bool | None = False,
+        sort_results: bool | None = True,
     ):
         """Queries the tree for the ``k`` nearest neighbors.
 
@@ -674,12 +672,12 @@ class BallTree:
 
     def query_radius(
         self,
-        coords: Union[np.ndarray, list, tuple],
-        r: Optional[int] = 1.0,
-        in_radians: Optional[bool] = False,
-        return_distance: Optional[bool] = False,
-        count_only: Optional[bool] = False,
-        sort_results: Optional[bool] = False,
+        coords: np.ndarray | list | tuple,
+        r: int | None = 1.0,
+        in_radians: bool | None = False,
+        return_distance: bool | None = False,
+        count_only: bool | None = False,
+        sort_results: bool | None = False,
     ):
         """Queries the tree for all neighbors within a radius ``r``.
 
@@ -894,9 +892,9 @@ class SpatialHash:
 
     def query(
         self,
-        coords: Union[np.ndarray, list, tuple],
-        in_radians: Optional[bool] = False,
-        tol: Optional[float] = 1e-6,
+        coords: np.ndarray | list | tuple,
+        in_radians: bool | None = False,
+        tol: float | None = 1e-6,
     ):
         """Queries the hash table.
 

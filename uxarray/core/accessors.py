@@ -5,7 +5,7 @@ These classes wrap xarray's groupby/resample/etc objects and ensure that
 operations return UxDataArray/UxDataset objects with preserved uxgrid.
 """
 
-from typing import Any, Set
+from typing import Any
 
 import xarray as xr
 
@@ -148,7 +148,7 @@ class BaseAccessor:
         cls._preserve_methods.discard(method_name)
 
     @classmethod
-    def set_preserve_methods(cls, methods: Set[str]):
+    def set_preserve_methods(cls, methods: set[str]):
         """Set the complete list of methods that preserve uxgrid."""
         cls._preserve_methods = set(methods)
 

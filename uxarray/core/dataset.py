@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from html import escape
-from typing import IO, Any, Mapping, Optional, Union
+from typing import IO, Any, Mapping
 from warnings import warn
 
 import numpy as np
@@ -75,7 +75,7 @@ class UxDataset(xr.Dataset):
         self,
         *args,
         uxgrid: Grid = None,
-        source_datasets: Optional[str] = None,
+        source_datasets: str | None = None,
         **kwargs,
     ):
         self._uxgrid = None
@@ -301,7 +301,7 @@ class UxDataset(xr.Dataset):
     @classmethod
     def from_healpix(
         cls,
-        ds: Union[str, os.PathLike, xr.Dataset],
+        ds: str | os.PathLike | xr.Dataset,
         pixels_only: bool = True,
         face_dim: str = "cell",
         **kwargs,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numba import njit, prange
@@ -130,7 +130,7 @@ def _batch_point_in_face(
     node_x: np.ndarray,
     node_y: np.ndarray,
     node_z: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Parallel entry-point: for each point, test all candidate faces in batch.
 
@@ -177,7 +177,7 @@ def _batch_point_in_face(
 
 def _point_in_face_query(
     source_grid: Grid, points: ArrayLike
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Find grid faces that contain given Cartesian point(s) on the unit sphere.
 
