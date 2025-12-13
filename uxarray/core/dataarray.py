@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from html import escape
-from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, Optional, Sequence
 from warnings import warn
 
 import numpy as np
@@ -512,6 +512,40 @@ class UxDataArray(xr.DataArray):
         )
 
         return uxda
+
+    def cumulative_integrate(
+        self,
+        coord: Hashable | Sequence[Hashable] | None = None,
+        datetime_unit: Optional[str] = None,
+    ) -> "UxDataArray":
+        """
+        Integrate cumulatively along the given coordinate using the trapezoidal rule.
+
+        Mirrors :py:meth:`xarray.DataArray.cumulative_integrate` while preserving
+        ``uxgrid`` on the result.
+
+        Parameters
+        ----------
+        coord : Hashable or sequence of Hashable
+            Coordinate(s) used for the integration. This must be provided.
+        datetime_unit : str, optional
+            Unit to use when integrating over datetime coordinates.
+
+        Returns
+        -------
+        UxDataArray
+            The cumulative integral along the specified coordinate.
+        """
+        if coord is None:
+            raise ValueError(
+                "Coordinate ('coord') must be specified for cumulative_integrate."
+            )
+
+        integrated = super().cumulative_integrate(
+            coord=coord, datetime_unit=datetime_unit
+        )
+
+        return UxDataArray(integrated, uxgrid=self.uxgrid)
 
     def zonal_mean(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
         """Compute non-conservative or conservative averages of a face-centered variable along lines of constant latitude or latitude bands.
