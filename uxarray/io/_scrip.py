@@ -241,12 +241,12 @@ def grid_center_lat_lon(ds):
 
     Returns
     -------
-    center_lon : :class:`numpy.ndarray`
-        The calculated center longitudes of the grid box based on the corner
-        points
-    center_lat : :class:`numpy.ndarray`
+    center_lat : array-like
         The calculated center latitudes of the grid box based on the corner
-        points
+        points. Preserves chunking when inputs are backed by Dask arrays.
+    center_lon : array-like
+        The calculated center longitudes of the grid box based on the corner
+        points. Preserves chunking when inputs are backed by Dask arrays.
     """
 
     # Calculate and create grid center lat/lon
@@ -268,14 +268,10 @@ def grid_center_lat_lon(ds):
     center_lon = np.rad2deg(np.arctan2(y, x))
     center_lat = np.rad2deg(np.arctan2(z, np.sqrt(x**2 + y**2)))
 
-    # Convert to ndarray before applying boolean mask to avoid xarray indexing
-    center_lon = np.asarray(center_lon)
-    center_lat = np.asarray(center_lat)
+    # Normalize negative longitudes without forcing eager computation
+    center_lon = center_lon.where(center_lon >= 0, center_lon + 360)
 
-    # Make negative lons positive
-    center_lon[center_lon < 0] += 360
-
-    return center_lat, center_lon
+    return center_lat.data, center_lon.data
 
 
 def _detect_multigrid(ds: xr.Dataset) -> Tuple[str, Dict[str, Dict[str, Any]]]:
