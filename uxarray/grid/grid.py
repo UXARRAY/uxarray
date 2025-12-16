@@ -1,14 +1,7 @@
 import copy
 import os
 from html import escape
-from typing import (
-    List,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Union,
-)
+from typing import Sequence
 from warnings import warn
 
 import numpy as np
@@ -159,10 +152,10 @@ class Grid:
     def __init__(
         self,
         grid_ds: xr.Dataset,
-        source_grid_spec: Optional[str] = None,
-        source_dims_dict: Optional[dict] = None,
+        source_grid_spec: str | None = None,
+        source_dims_dict: dict | None = None,
         is_subset: bool = False,
-        inverse_indices: Optional[xr.Dataset] = None,
+        inverse_indices: xr.Dataset | None = None,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if source_grid_spec != "HEALPix":
@@ -244,7 +237,7 @@ class Grid:
     cross_section = UncachedAccessor(GridCrossSectionAccessor)
 
     @classmethod
-    def from_dataset(cls, dataset, use_dual: Optional[bool] = False, **kwargs):
+    def from_dataset(cls, dataset, use_dual: bool | None = False, **kwargs):
         """Constructs a ``Grid`` object from a dataset.
 
         Parameters
@@ -315,7 +308,7 @@ class Grid:
     def from_file(
         cls,
         filename: str,
-        backend: Optional[str] = "geopandas",
+        backend: str | None = "geopandas",
         **kwargs,
     ):
         """Constructs a ``Grid`` object from a using the read_file method with
@@ -430,9 +423,9 @@ class Grid:
         node_lon: np.ndarray,
         node_lat: np.ndarray,
         face_node_connectivity: np.ndarray,
-        fill_value: Optional = None,
-        start_index: Optional[int] = 0,
-        dims_dict: Optional[dict] = None,
+        fill_value: int | float | None = None,
+        start_index: int | None = 0,
+        dims_dict: dict | None = None,
         **kwargs,
     ):
         """Constructs a ``Grid`` object from user-defined topology variables
@@ -450,11 +443,11 @@ class Grid:
             Latitude of node coordinates
         face_node_connectivity : np.ndarray
             Face node connectivity, mapping each face to the nodes that surround them
-        fill_value: Optional
+        fill_value: int | float | None
             Value used for padding connectivity variables when the maximum number of elements in a row is less than the maximum.
-        start_index: Optional, default=0
+        start_index: int | None, default=0
             Start index (typically 0 or 1)
-        dims_dict : Optional, dict
+        dims_dict : dict | None
             Dictionary of dimension names mapped to the ugrid conventions (i.e. {"nVertices": "n_node})
         **kwargs :
 
@@ -483,7 +476,7 @@ class Grid:
 
     @classmethod
     def from_structured(
-        cls, ds: xr.Dataset = None, lon=None, lat=None, tol: Optional[float] = 1e-10
+        cls, ds: xr.Dataset = None, lon=None, lat=None, tol: float | None = 1e-10
     ):
         """
         Converts a structured ``xarray.Dataset`` or longitude and latitude coordinates into an unstructured ``uxarray.Grid``.
@@ -530,8 +523,8 @@ class Grid:
     @classmethod
     def from_face_vertices(
         cls,
-        face_vertices: Union[list, tuple, np.ndarray],
-        latlon: Optional[bool] = True,
+        face_vertices: list | tuple | np.ndarray,
+        latlon: bool | None = True,
     ):
         """Constructs a ``Grid`` object from user-defined face vertices.
 
@@ -1719,9 +1712,9 @@ class Grid:
 
     def get_ball_tree(
         self,
-        coordinates: Optional[str] = "face centers",
-        coordinate_system: Optional[str] = "spherical",
-        distance_metric: Optional[str] = "haversine",
+        coordinates: str | None = "face centers",
+        coordinate_system: str | None = "spherical",
+        distance_metric: str | None = "haversine",
         reconstruct: bool = False,
     ):
         """Get the BallTree data structure of this Grid that allows for nearest
@@ -1768,7 +1761,7 @@ class Grid:
         return self._ball_tree
 
     def _get_scipy_kd_tree(
-        self, coordinates: Optional[str] = "face", reconstruct: bool = False
+        self, coordinates: str | None = "face", reconstruct: bool = False
     ):
         """
         Build or retrieve a KDTree for efficient nearest-neighbor searches on grid points.
@@ -1821,9 +1814,9 @@ class Grid:
 
     def get_kd_tree(
         self,
-        coordinates: Optional[str] = "face centers",
-        coordinate_system: Optional[str] = "cartesian",
-        distance_metric: Optional[str] = "minkowski",
+        coordinates: str | None = "face centers",
+        coordinate_system: str | None = "cartesian",
+        distance_metric: str | None = "minkowski",
         reconstruct: bool = False,
     ):
         """Get the KDTree data structure of this Grid that allows for nearest
@@ -1921,9 +1914,9 @@ class Grid:
 
     def calculate_total_face_area(
         self,
-        quadrature_rule: Optional[str] = "triangular",
-        order: Optional[int] = 4,
-        latitude_adjusted_area: Optional[bool] = False,
+        quadrature_rule: str | None = "triangular",
+        order: int | None = 4,
+        latitude_adjusted_area: bool | None = False,
     ) -> float:
         """Function to calculate the total surface area of all the faces in a
         mesh.
@@ -1946,9 +1939,9 @@ class Grid:
 
     def compute_face_areas(
         self,
-        quadrature_rule: Optional[str] = "triangular",
-        order: Optional[int] = 4,
-        latitude_adjusted_area: Optional[bool] = False,
+        quadrature_rule: str | None = "triangular",
+        order: int | None = 4,
+        latitude_adjusted_area: bool | None = False,
     ):
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
@@ -1990,9 +1983,9 @@ class Grid:
 
     def _compute_face_areas(
         self,
-        quadrature_rule: Optional[str] = "triangular",
-        order: Optional[int] = 4,
-        latitude_adjusted_area: Optional[bool] = False,
+        quadrature_rule: str | None = "triangular",
+        order: int | None = 4,
+        latitude_adjusted_area: bool | None = False,
     ):
         """Internal face areas calculation function for grid class, calculates area of
         all faces in the grid.
@@ -2117,7 +2110,7 @@ class Grid:
 
         self._ds.attrs["sphere_radius"] = radius
 
-    def to_xarray(self, grid_format: Optional[str] = "ugrid"):
+    def to_xarray(self, grid_format: str | None = "ugrid"):
         """Returns an ``xarray.Dataset`` with the variables stored under the
         ``Grid`` encoded in a specific grid format.
 
@@ -2163,14 +2156,14 @@ class Grid:
 
     def to_geodataframe(
         self,
-        periodic_elements: Optional[str] = "exclude",
+        periodic_elements: str | None = "exclude",
         projection=None,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        engine: Optional[str] = "spatialpandas",
-        exclude_antimeridian: Optional[bool] = None,
-        return_non_nan_polygon_indices: Optional[bool] = False,
-        exclude_nan_polygons: Optional[bool] = True,
+        cache: bool | None = True,
+        override: bool | None = False,
+        engine: str | None = "spatialpandas",
+        exclude_antimeridian: bool | None = None,
+        return_non_nan_polygon_indices: bool | None = False,
+        exclude_nan_polygons: bool | None = True,
         **kwargs,
     ):
         """Constructs a ``GeoDataFrame`` consisting of polygons representing
@@ -2405,9 +2398,7 @@ class Grid:
 
         return dual
 
-    def isel(
-        self, inverse_indices: Union[List[str], Set[str], bool] = False, **dim_kwargs
-    ):
+    def isel(self, inverse_indices: list[str] | set[str] | bool = False, **dim_kwargs):
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
 
@@ -2418,7 +2409,7 @@ class Grid:
 
         Parameters
         ----------
-        inverse_indices : Union[List[str], Set[str], bool], default=False
+        inverse_indices : list[str] | set[str] | bool, default=False
             Indicates whether to store the original grids indices. Passing `True` stores the original face indices,
             other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         **dims_kwargs: kwargs
@@ -2584,12 +2575,12 @@ class Grid:
         faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
         return faces
 
-    def get_faces_between_longitudes(self, lons: Tuple[float, float]):
+    def get_faces_between_longitudes(self, lons: tuple[float, float]):
         """Identifies the indices of faces that are strictly between two lines of constant longitude.
 
         Parameters
         ----------
-        lons: Tuple[float, float]
+        lons: tuple[float, float]
             A tuple of longitudes that define that minimum and maximum longitude.
 
         Returns
@@ -2600,12 +2591,12 @@ class Grid:
         """
         return faces_within_lon_bounds(lons, self.face_bounds_lon.values)
 
-    def get_faces_between_latitudes(self, lats: Tuple[float, float]):
+    def get_faces_between_latitudes(self, lats: tuple[float, float]):
         """Identifies the indices of faces that are strictly between two lines of constant latitude.
 
         Parameters
         ----------
-        lats: Tuple[float, float
+        lats: tuple[float, float]
             A tuple of latitudes that define that minimum and maximum latitudes.
 
         Returns
@@ -2620,7 +2611,7 @@ class Grid:
         self,
         points: Sequence[float] | np.ndarray,
         return_counts: bool = True,
-    ) -> Tuple[np.ndarray, np.ndarray] | List[List[int]]:
+    ) -> tuple[np.ndarray, np.ndarray] | list[list[int]]:
         """
         Identify which grid faces contain the given point(s).
 
@@ -2646,7 +2637,7 @@ class Grid:
               Number of valid face indices in each row of `face_indices`.
 
         If `return_counts=False`:
-          List[List[int]]
+          list[list[int]]
               Python list of length `N`, where each element is the list of face
               indices for that point (no padding, in natural order).
 
@@ -2692,7 +2683,7 @@ class Grid:
 
         # Return a list of lists if counts are not desired
         if not return_counts:
-            output: List[List[int]] = []
+            output: list[list[int]] = []
             for i, c in enumerate(counts):
                 output.append(face_indices[i, :c].tolist())
             return output
