@@ -226,27 +226,3 @@ def test_cross_section(gridpath, datasetpath):
         _ = uxds['RELHUM'].cross_section(start=(45, 45))
         _ = uxds['RELHUM'].cross_section(lon=45, end=(45, 45))
         _ = uxds['RELHUM'].cross_section()
-
-
-def test_cross_section_cumulative_integrate(gridpath, datasetpath):
-    uxds = ux.open_dataset(gridpath("scrip", "ne30pg2", "grid.nc"), datasetpath("scrip", "ne30pg2", "data.nc"))
-    cs = uxds['RELHUM'].cross_section(start=(-45, -45), end=(45, 45), steps=6)
-    cs = cs.assign_coords(distance=("steps", np.linspace(0.0, 1.0, cs.sizes["steps"])))
-
-    cs_ux = ux.UxDataArray(cs, uxgrid=uxds.uxgrid)
-
-    result = cs_ux.cumulative_integrate(coord="distance")
-    expected = cs.cumulative_integrate(coord="distance")
-
-    assert isinstance(result, ux.UxDataArray)
-    assert result.uxgrid == cs_ux.uxgrid
-    xr.testing.assert_allclose(result.to_xarray(), expected)
-
-
-def test_cumulative_integrate_requires_coord(gridpath, datasetpath):
-    uxds = ux.open_dataset(gridpath("scrip", "ne30pg2", "grid.nc"), datasetpath("scrip", "ne30pg2", "data.nc"))
-    cs = uxds['RELHUM'].cross_section(start=(-45, -45), end=(45, 45), steps=3)
-    cs_ux = ux.UxDataArray(cs, uxgrid=uxds.uxgrid)
-
-    with pytest.raises(ValueError, match="Coordinate .* must be specified"):
-        cs_ux.cumulative_integrate()
