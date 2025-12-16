@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Optional, Set, Tuple, Union
-
 import numpy as np
 
 
@@ -28,9 +26,9 @@ class DataArraySubsetAccessor:
 
     def bounding_box(
         self,
-        lon_bounds: Union[Tuple, List, np.ndarray],
-        lat_bounds: Union[Tuple, List, np.ndarray],
-        inverse_indices: Union[List[str], Set[str], bool] = False,
+        lon_bounds: tuple | list | np.ndarray,
+        lat_bounds: tuple | list | np.ndarray,
+        inverse_indices: list[str] | set[str] | bool = False,
     ):
         """Subsets an unstructured grid between two latitude and longitude
         points which form a bounding box.
@@ -50,10 +48,10 @@ class DataArraySubsetAccessor:
             face centers, or edge centers lie within the bounds.
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
-        inverse_indices : Union[List[str], Set[str], bool], optional
+        inverse_indices : list[str] | set[str] | bool, optional
             Controls storage of original grid indices. Options:
             - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - list/set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
         """
         grid = self.uxda.uxgrid.subset.bounding_box(
@@ -64,10 +62,10 @@ class DataArraySubsetAccessor:
 
     def bounding_circle(
         self,
-        center_coord: Union[Tuple, List, np.ndarray],
-        r: Union[float, int],
-        element: Optional[str] = "face centers",
-        inverse_indices: Union[List[str], Set[str], bool] = False,
+        center_coord: tuple | list | np.ndarray,
+        r: float | int,
+        element: str | None = "face centers",
+        inverse_indices: list[str] | set[str] | bool = False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning all elements within some
@@ -81,10 +79,10 @@ class DataArraySubsetAccessor:
             Radius of bounding circle (in degrees)
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
-        inverse_indices : Union[List[str], Set[str], bool], optional
+        inverse_indices : list[str] | set[str] | bool, optional
             Controls storage of original grid indices. Options:
             - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - list/set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
         """
         grid = self.uxda.uxgrid.subset.bounding_circle(
@@ -94,10 +92,10 @@ class DataArraySubsetAccessor:
 
     def nearest_neighbor(
         self,
-        center_coord: Union[Tuple, List, np.ndarray],
+        center_coord: tuple | list | np.ndarray,
         k: int,
-        element: Optional[str] = "face centers",
-        inverse_indices: Union[List[str], Set[str], bool] = False,
+        element: str | None = "face centers",
+        inverse_indices: list[str] | set[str] | bool = False,
         **kwargs,
     ):
         """Subsets an unstructured grid by returning the ``k`` closest
@@ -111,10 +109,10 @@ class DataArraySubsetAccessor:
             Number of neighbors to query
         element: str
             Element for use with `coords` comparison, one of `nodes`, `face centers`, or `edge centers`
-        inverse_indices : Union[List[str], Set[str], bool], optional
+        inverse_indices : list[str] | set[str] | bool, optional
             Controls storage of original grid indices. Options:
             - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - list/set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
         """
 
@@ -127,7 +125,7 @@ class DataArraySubsetAccessor:
     def constant_latitude(
         self,
         lat: float,
-        inverse_indices: Union[List[str], Set[str], bool] = False,
+        inverse_indices: list[str] | set[str] | bool = False,
     ):
         """Extracts a subset of the data array across a line of constant-latitude.
 
@@ -136,10 +134,10 @@ class DataArraySubsetAccessor:
         lat : float
             The latitude at which to extract the subset, in degrees.
             Must be between -90.0 and 90.0
-        inverse_indices : Union[List[str], Set[str], bool], optional
+        inverse_indices : list[str] | set[str] | bool, optional
             Controls storage of original grid indices. Options:
             - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - list/set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
 
         Returns
@@ -179,7 +177,7 @@ class DataArraySubsetAccessor:
     def constant_longitude(
         self,
         lon: float,
-        inverse_indices: Union[List[str], Set[str], bool] = False,
+        inverse_indices: list[str] | set[str] | bool = False,
     ):
         """Extracts a subset of the data array across a line of constant-longitude.
 
@@ -188,10 +186,10 @@ class DataArraySubsetAccessor:
         lon : float
             The longitude at which to extract the subset, in degrees.
             Must be between -180.0 and 180.0
-        inverse_indices : Union[List[str], Set[str], bool], optional
+        inverse_indices : list[str] | set[str] | bool, optional
             Controls storage of original grid indices. Options:
             - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - list/set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
 
         Returns
@@ -233,21 +231,21 @@ class DataArraySubsetAccessor:
 
     def constant_latitude_interval(
         self,
-        lats: Tuple[float, float],
-        inverse_indices: Union[List[str], Set[str], bool] = False,
+        lats: tuple[float, float],
+        inverse_indices: list[str] | set[str] | bool = False,
     ):
         """Extracts a subset of data by selecting all faces that
         are within a specified latitude interval.
 
         Parameters
         ----------
-        lats : Tuple[float, float]
+        lats : tuple[float, float]
             The latitude interval (min_lat, max_lat) at which to extract the subset,
             in degrees. Values must be between -90.0 and 90.0
-        inverse_indices : Union[List[str], Set[str], bool], optional
+        inverse_indices : list[str] | set[str] | bool, optional
             Controls storage of original grid indices. Options:
             - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - list/set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
 
         Returns
@@ -274,20 +272,20 @@ class DataArraySubsetAccessor:
 
     def constant_longitude_interval(
         self,
-        lons: Tuple[float, float],
-        inverse_indices: Union[List[str], Set[str], bool] = False,
+        lons: tuple[float, float],
+        inverse_indices: list[str] | set[str] | bool = False,
     ):
         """Extracts a subset of data by selecting all faces that are within a specified longitude interval.
 
         Parameters
         ----------
-        lons : Tuple[float, float]
+        lons : tuple[float, float]
             The longitude interval (min_lon, max_lon) at which to extract the subset,
             in degrees. Values must be between -180.0 and 180.0
-        inverse_indices : Union[List[str], Set[str], bool], optional
+        inverse_indices : list[str] | set[str] | bool, optional
             Controls storage of original grid indices. Options:
             - True: Stores original face indices
-            - List/Set of strings: Stores specified index types (valid values: "face", "edge", "node")
+            - list/set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
 
         Returns

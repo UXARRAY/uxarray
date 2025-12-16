@@ -1,5 +1,4 @@
 from copy import deepcopy
-from typing import Set
 
 import numpy as np
 
@@ -142,7 +141,7 @@ def _get_remap_dims(ds):
     ValueError
         If no spatial dimensions are detected in the dataset.
     """
-    dims_to_remap: Set[str] = set()
+    dims_to_remap: set[str] = set()
     for da in ds.data_vars.values():
         dims_to_remap |= set(da.dims) & SPATIAL_DIMS
 
