@@ -11,17 +11,17 @@ def _icon_to_ugrid_dims(in_ds):
     # Coordinate-driven mappings
     if "vlat" in in_ds:
         source_dims_dict[in_ds["vlat"].dims[0]] = ugrid.NODE_DIM
-    elif "vlon" in in_ds:
+    if "vlon" in in_ds:
         source_dims_dict[in_ds["vlon"].dims[0]] = ugrid.NODE_DIM
 
     if "elat" in in_ds:
         source_dims_dict[in_ds["elat"].dims[0]] = ugrid.EDGE_DIM
-    elif "elon" in in_ds:
+    if "elon" in in_ds:
         source_dims_dict[in_ds["elon"].dims[0]] = ugrid.EDGE_DIM
 
     if "clat" in in_ds:
         source_dims_dict[in_ds["clat"].dims[0]] = ugrid.FACE_DIM
-    elif "clon" in in_ds:
+    if "clon" in in_ds:
         source_dims_dict[in_ds["clon"].dims[0]] = ugrid.FACE_DIM
 
     # Connectivity-driven mappings
