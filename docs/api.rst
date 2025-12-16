@@ -18,6 +18,7 @@ Top Level Functions
 
    open_grid
    open_dataset
+   open_multigrid
    open_mfdataset
    concat
 

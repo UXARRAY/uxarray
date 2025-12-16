@@ -1,5 +1,4 @@
 import math
-from typing import Union
 
 import numpy as np
 import xarray as xr
@@ -12,8 +11,8 @@ from uxarray.grid.utils import _small_angle_of_2_vectors
 
 @njit(cache=True)
 def _lonlat_rad_to_xyz(
-    lon: Union[np.ndarray, float],
-    lat: Union[np.ndarray, float],
+    lon: np.ndarray | float,
+    lat: np.ndarray | float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Converts Spherical latitude and longitude coordinates into Cartesian x,
     y, z coordinates."""
@@ -26,9 +25,9 @@ def _lonlat_rad_to_xyz(
 
 @njit(cache=True)
 def _xyz_to_lonlat_rad_no_norm(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    z: np.ndarray | float,
 ):
     """Converts a Cartesian x,y,z coordinates into Spherical latitude and
     longitude without normalization, decorated with Numba.
@@ -93,9 +92,9 @@ def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
 
 
 def _xyz_to_lonlat_rad(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    z: np.ndarray | float,
     normalize: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Converts Cartesian x, y, z coordinates in Spherical longitude and
@@ -103,20 +102,20 @@ def _xyz_to_lonlat_rad(
 
     Parameters
     ----------
-    x : Union[np.ndarray, float]
+    x : np.ndarray | float
         Cartesian x coordinates
-    y: Union[np.ndarray, float]
+    y: np.ndarray | float
         Cartesiain y coordinates
-    z: Union[np.ndarray, float]
+    z: np.ndarray | float
         Cartesian z coordinates
     normalize: bool
         Flag to select whether to normalize the coordinates
 
     Returns
     -------
-    lon : Union[np.ndarray, float]
+    lon : np.ndarray | float
         Longitude in radians
-    lat: Union[np.ndarray, float]
+    lat: np.ndarray | float
         Latitude in radians
     """
 
@@ -142,9 +141,9 @@ def _xyz_to_lonlat_rad(
 
 
 def _xyz_to_lonlat_deg(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    z: np.ndarray | float,
     normalize: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Converts Cartesian x, y, z coordinates in Spherical latitude and
@@ -152,20 +151,20 @@ def _xyz_to_lonlat_deg(
 
     Parameters
     ----------
-    x : Union[np.ndarray, float]
+    x : np.ndarray | float
         Cartesian x coordinates
-    y: Union[np.ndarray, float]
+    y: np.ndarray | float
         Cartesiain y coordinates
-    z: Union[np.ndarray, float]
+    z: np.ndarray | float
         Cartesian z coordinates
     normalize: bool
         Flag to select whether to normalize the coordinates
 
     Returns
     -------
-    lon : Union[np.ndarray, float]
+    lon : np.ndarray | float
         Longitude in degrees
-    lat: Union[np.ndarray, float]
+    lat: np.ndarray | float
         Latitude in degrees
     """
     lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z, normalize=normalize)
@@ -178,9 +177,9 @@ def _xyz_to_lonlat_deg(
 
 
 def _normalize_xyz(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    z: np.ndarray | float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Normalizes a set of Cartesian coordinates."""
     denom = np.linalg.norm(
@@ -695,8 +694,10 @@ def _set_desired_longitude_range(uxgrid):
     with xr.set_options(keep_attrs=True):
         for lon_name in ["node_lon", "edge_lon", "face_lon"]:
             if lon_name in uxgrid._ds:
-                if uxgrid._ds[lon_name].max() > 180:
-                    da = uxgrid._ds[lon_name]
+                da = uxgrid._ds[lon_name]
+                if da.size == 0:
+                    continue
+                if da.max() > 180:
                     wrapped = (uxgrid._ds[lon_name] + 180) % 360 - 180
                     wrapped.name = da.name
                     uxgrid._ds[lon_name] = wrapped
