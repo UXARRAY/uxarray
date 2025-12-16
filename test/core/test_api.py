@@ -4,9 +4,12 @@ import numpy as np
 import pytest
 import tempfile
 import xarray as xr
+from pathlib import Path
 from unittest.mock import patch
 from uxarray.core.utils import _open_dataset_with_fallback
 import os
+
+TEST_MESHFILES = Path(__file__).resolve().parent.parent / "meshfiles"
 
 def test_open_geoflow_dataset(gridpath, datasetpath):
     """Loads a single dataset with its grid topology file using uxarray's
@@ -163,3 +166,71 @@ def test_open_dataset_with_fallback():
             ds_fallback.close()
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
+
+
+def test_list_grid_names_multigrid(gridpath):
+    """List grids from an OASIS-style multi-grid file."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+    grid_names = ux.list_grid_names(grid_file)
+
+    assert isinstance(grid_names, list)
+    assert set(grid_names) == {"ocn", "atm"}
+
+
+def test_list_grid_names_single_scrip():
+    """List grids from a standard single-grid SCRIP file."""
+    grid_path = TEST_MESHFILES / "scrip" / "outCSne8" / "outCSne8.nc"
+    grid_names = ux.list_grid_names(grid_path)
+
+    assert isinstance(grid_names, list)
+    assert grid_names == ["grid"]
+
+
+def test_open_multigrid_all_grids(gridpath):
+    """Open all grids from a multi-grid file."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+    grids = ux.open_multigrid(grid_file)
+
+    assert isinstance(grids, dict)
+    assert set(grids.keys()) == {"ocn", "atm"}
+    assert grids["ocn"].n_face == 12
+    assert grids["atm"].n_face == 20
+
+
+def test_open_multigrid_specific_grids(gridpath):
+    """Open a subset of grids from a multi-grid file."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+    grids = ux.open_multigrid(grid_file, gridnames=["ocn"])
+
+    assert set(grids.keys()) == {"ocn"}
+    assert grids["ocn"].n_face == 12
+
+
+def test_open_multigrid_with_masks(gridpath):
+    """Open grids with a companion mask file."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+    mask_file = gridpath("scrip", "oasis", "masks.nc")
+
+    grids = ux.open_multigrid(grid_file, mask_filename=mask_file)
+
+    assert grids["ocn"].n_face == 8
+    assert grids["atm"].n_face == 20
+
+
+def test_open_multigrid_mask_zero_faces(gridpath):
+    """Applying masks that deactivate an entire grid should not fail."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+    mask_file = gridpath("scrip", "oasis", "masks_no_atm.nc")
+
+    grids = ux.open_multigrid(grid_file, mask_filename=mask_file)
+
+    assert grids["ocn"].n_face == 8
+    assert grids["atm"].n_face == 0
+
+
+def test_open_multigrid_missing_grid_error(gridpath):
+    """Requesting a missing grid should raise."""
+    grid_file = gridpath("scrip", "oasis", "grids.nc")
+
+    with pytest.raises(ValueError, match="Grid 'land' not found"):
+        ux.open_multigrid(grid_file, gridnames=["land"])
