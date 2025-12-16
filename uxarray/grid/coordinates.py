@@ -695,8 +695,10 @@ def _set_desired_longitude_range(uxgrid):
         for lon_name in ["node_lon", "edge_lon", "face_lon"]:
             if lon_name in uxgrid._ds:
                 da = uxgrid._ds[lon_name]
+                if da.size == 0:
+                    continue
                 if da.max() > 180:
-                    wrapped = (da + 180) % 360 - 180
+                    wrapped = (uxgrid._ds[lon_name] + 180) % 360 - 180
                     wrapped.name = da.name
                     uxgrid._ds[lon_name] = wrapped
 
