@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Sequence
 
 import numpy as np
 import polars as pl
@@ -274,7 +274,7 @@ def grid_center_lat_lon(ds):
     return center_lat.data, center_lon.data
 
 
-def _detect_multigrid(ds: xr.Dataset) -> Tuple[str, Dict[str, Dict[str, Any]]]:
+def _detect_multigrid(ds: xr.Dataset) -> tuple[str, dict[str, dict[str, Any]]]:
     """Detect whether a dataset follows single-grid or multi-grid SCRIP format.
 
     Parameters
@@ -295,7 +295,7 @@ def _detect_multigrid(ds: xr.Dataset) -> Tuple[str, Dict[str, Dict[str, Any]]]:
         return "single_scrip", {"grid": {}}
 
     # Collect candidate grids from dimension names
-    grids: Dict[str, Dict[str, Any]] = {}
+    grids: dict[str, dict[str, Any]] = {}
     for dim_name in ds.dims:
         if dim_name.startswith("nc_"):
             info = grids.setdefault(dim_name[3:], {})
@@ -304,14 +304,14 @@ def _detect_multigrid(ds: xr.Dataset) -> Tuple[str, Dict[str, Dict[str, Any]]]:
         elif dim_name.startswith("nv_"):
             grids.setdefault(dim_name[3:], {})["corner_dim"] = dim_name
 
-    def _infer_corner_dim_from_dims(dims: Sequence[str]) -> Optional[str]:
+    def _infer_corner_dim_from_dims(dims: Sequence[str]) -> str | None:
         for dim in dims:
             dim_lower = dim.lower()
             if dim_lower.startswith(("nv", "nvertex", "corner", "corn", "crn")):
                 return dim
         return dims[-1] if dims else None
 
-    def _update_grid_dim_metadata(info: Dict[str, Any], dims: Sequence[str]) -> None:
+    def _update_grid_dim_metadata(info: dict[str, Any], dims: Sequence[str]) -> None:
         if not dims:
             return
 
@@ -371,14 +371,14 @@ def _detect_multigrid(ds: xr.Dataset) -> Tuple[str, Dict[str, Dict[str, Any]]]:
 
 
 def _resolve_cell_dims(
-    metadata: Dict[str, Any],
+    metadata: dict[str, Any],
     data_dims: Sequence[str],
-    corner_dim: Optional[str] = None,
-) -> List[str]:
+    corner_dim: str | None = None,
+) -> list[str]:
     """Determine which dimensions describe cells for a grid variable."""
 
     dims_from_meta = metadata.get("cell_dims")
-    cell_dims: List[str] = []
+    cell_dims: list[str] = []
     if isinstance(dims_from_meta, (list, tuple)):
         cell_dims = [dim for dim in dims_from_meta if dim in data_dims]
     elif "cell_dim" in metadata and metadata["cell_dim"] in data_dims:
@@ -426,7 +426,7 @@ def _stack_cell_dims(
 
 
 def _extract_single_grid(
-    ds: xr.Dataset, grid_name: str, metadata: Dict[str, Any]
+    ds: xr.Dataset, grid_name: str, metadata: dict[str, Any]
 ) -> xr.Dataset:
     """Extract a single grid from a multi-grid SCRIP dataset.
 
