@@ -2,16 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Mapping,
-    Optional,
-    Sequence,
-    TypeAlias,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Mapping, Sequence, TypeAlias
 from warnings import warn
 
 import numpy as np
@@ -46,8 +37,8 @@ __all__ = [
 def open_grid(
     grid_filename_or_obj: str | os.PathLike[Any] | dict | Dataset,
     chunks=None,
-    use_dual: Optional[bool] = False,
-    **kwargs: Dict[str, Any],
+    use_dual: bool | None = False,
+    **kwargs: dict[str, Any],
 ):
     """Constructs and returns a ``Grid`` from a grid file.
 
@@ -436,12 +427,12 @@ def open_dataset(
 
 def open_mfdataset(
     grid_filename_or_obj: str | os.PathLike[Any] | dict | Dataset,
-    paths: Union[str, os.PathLike],
+    paths: str | os.PathLike,
     chunks=None,
     chunk_grid: bool = True,
-    use_dual: Optional[bool] = False,
-    grid_kwargs: Optional[Dict[str, Any]] = None,
-    **kwargs: Dict[str, Any],
+    use_dual: bool | None = False,
+    grid_kwargs: dict[str, Any] | None = None,
+    **kwargs: dict[str, Any],
 ) -> UxDataset:
     """Wraps ``xarray.open_dataset()`` to support reading in a grid and
     multiple data files together.
