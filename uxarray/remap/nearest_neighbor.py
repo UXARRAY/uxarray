@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING
 
 import xarray as xr
 
@@ -105,7 +105,7 @@ def _nearest_neighbor_remap(
     dims_to_remap = _get_remap_dims(ds)
 
     # Build Nearest Neighbor Index Arrays
-    indices_map: Dict[str, np.ndarray] = {
+    indices_map: dict[str, np.ndarray] = {
         src_dim: _nearest_neighbor_query(
             ds.uxgrid, destination_grid, src_dim, destination_dim
         )

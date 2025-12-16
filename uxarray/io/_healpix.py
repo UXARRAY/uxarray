@@ -1,4 +1,4 @@
-from typing import Any, Tuple
+from typing import Any
 
 import healpix as hp
 import numpy as np
@@ -44,7 +44,7 @@ def get_zoom_from_cells(cells):
 
 def pix2corner_ang(
     nside: int, ipix: Any, nest: bool = False, lonlat: bool = False
-) -> Tuple[Any, Any, Any, Any]:
+) -> tuple[Any, Any, Any, Any]:
     """
     Computes the corner coordinates for one or more HEALPix pixels.
 
