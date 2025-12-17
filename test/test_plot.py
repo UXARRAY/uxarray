@@ -119,7 +119,7 @@ def test_to_raster_with_extra_dims(gridpath):
     uxds = ux.open_dataset(mesh_path, mesh_path)
 
     da = uxds['bottomDepth'].expand_dims(time=[0])
-    raster = da.isel(time=slice(0, 1)).to_raster(ax=ax)
+    raster = da.to_raster(ax=ax)
 
     assert isinstance(raster, np.ndarray)
 
