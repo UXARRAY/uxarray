@@ -380,8 +380,30 @@ class UxDataArray(xr.DataArray):
         if not isinstance(ax, GeoAxes):
             raise TypeError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
 
-        auto_extent_applied = False
-        if pixel_mapping is None:
+        pixel_ratio_set = pixel_ratio is not None
+        if not pixel_ratio_set:
+            pixel_ratio = 1.0
+        if pixel_mapping is not None:
+            input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
+            if isinstance(pixel_mapping, xr.DataArray):
+                pixel_ratio_input = pixel_ratio
+                pixel_ratio = pixel_mapping.attrs["pixel_ratio"]
+                if pixel_ratio_set and pixel_ratio_input != pixel_ratio:
+                    warn(
+                        "Pixel ratio mismatch: "
+                        f"{pixel_ratio_input} passed but {pixel_ratio} in pixel_mapping. "
+                        "Using the pixel_mapping attribute.",
+                        stacklevel=2,
+                    )
+                input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
+                pm_ax_attrs = _RasterAxAttrs.from_xr_attrs(pixel_mapping.attrs)
+                if input_ax_attrs != pm_ax_attrs:
+                    raise ValueError(
+                        "Pixel mapping incompatible with ax. "
+                        + input_ax_attrs._value_comparison_message(pm_ax_attrs)
+                    )
+            pixel_mapping = np.asarray(pixel_mapping, dtype=INT_DTYPE)
+        else:
             xlim, ylim = ax.get_xlim(), ax.get_ylim()
             if np.allclose(xlim, (0.0, 1.0)) and np.allclose(ylim, (0.0, 1.0)):
                 try:
@@ -404,39 +426,14 @@ class UxDataArray(xr.DataArray):
                         (lon_min, lon_max, lat_min, lat_max),
                         crs=ccrs.PlateCarree(),
                     )
-                    auto_extent_applied = True
-                except Exception:
-                    pass
-
-        pixel_ratio_set = pixel_ratio is not None
-        if not pixel_ratio_set:
-            pixel_ratio = 1.0
-        input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
-        if pixel_mapping is not None:
-            if isinstance(pixel_mapping, xr.DataArray):
-                pixel_ratio_input = pixel_ratio
-                pixel_ratio = pixel_mapping.attrs["pixel_ratio"]
-                if pixel_ratio_set and pixel_ratio_input != pixel_ratio:
                     warn(
-                        "Pixel ratio mismatch: "
-                        f"{pixel_ratio_input} passed but {pixel_ratio} in pixel_mapping. "
-                        "Using the pixel_mapping attribute.",
+                        "Axes extent was default; auto-setting from grid lon/lat bounds for rasterization. "
+                        "Set the extent explicitly to control this.",
                         stacklevel=2,
                     )
-                input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
-                pm_ax_attrs = _RasterAxAttrs.from_xr_attrs(pixel_mapping.attrs)
-                if input_ax_attrs != pm_ax_attrs:
-                    raise ValueError(
-                        "Pixel mapping incompatible with ax. "
-                        + input_ax_attrs._value_comparison_message(pm_ax_attrs)
-                    )
-            pixel_mapping = np.asarray(pixel_mapping, dtype=INT_DTYPE)
-        elif auto_extent_applied:
-            warn(
-                "Axes extent was default; auto-setting from grid lon/lat bounds for rasterization. "
-                "Set the extent explicitly to control this.",
-                stacklevel=2,
-            )
+                except Exception:
+                    pass
+            input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
 
         raster, pixel_mapping_np = _nearest_neighbor_resample(
             data,
