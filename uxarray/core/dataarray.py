@@ -380,6 +380,24 @@ class UxDataArray(xr.DataArray):
         if not isinstance(ax, GeoAxes):
             raise TypeError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
 
+        auto_extent_applied = False
+        if pixel_mapping is None:
+            xlim, ylim = ax.get_xlim(), ax.get_ylim()
+            if np.allclose(xlim, (0.0, 1.0)) and np.allclose(ylim, (0.0, 1.0)):
+                try:
+                    import cartopy.crs as ccrs
+
+                    lon = self.uxgrid.node_lon.values
+                    lat = self.uxgrid.node_lat.values
+                    lon_min, lon_max = float(np.nanmin(lon)), float(np.nanmax(lon))
+                    lat_min, lat_max = float(np.nanmin(lat)), float(np.nanmax(lat))
+                    ax.set_extent(
+                        (lon_min, lon_max, lat_min, lat_max), crs=ccrs.PlateCarree()
+                    )
+                    auto_extent_applied = True
+                except Exception:
+                    pass
+
         pixel_ratio_set = pixel_ratio is not None
         if not pixel_ratio_set:
             pixel_ratio = 1.0
@@ -403,6 +421,12 @@ class UxDataArray(xr.DataArray):
                         + input_ax_attrs._value_comparison_message(pm_ax_attrs)
                     )
             pixel_mapping = np.asarray(pixel_mapping, dtype=INT_DTYPE)
+        elif auto_extent_applied:
+            warn(
+                "Axes extent was default; auto-setting from grid lon/lat bounds for rasterization. "
+                "Set the extent explicitly to control this.",
+                stacklevel=2,
+            )
 
         raster, pixel_mapping_np = _nearest_neighbor_resample(
             data,
