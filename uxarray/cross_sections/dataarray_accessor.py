@@ -132,7 +132,11 @@ class UxDataArrayCrossSectionAccessor:
         data = np.moveaxis(filled, -1, dim_axis)
 
         # Build coords dict: keep everything except 'n_face'
-        coords = {d: self.uxda.coords[d] for d in self.uxda.coords if d != "n_face"}
+        coords = {
+            name: self.uxda.coords[name]
+            for name in self.uxda.coords
+            if name != "n_face" and "n_face" not in self.uxda.coords[name].dims
+        }
         # index along the arc
         coords[new_dim] = np.arange(steps)
 
