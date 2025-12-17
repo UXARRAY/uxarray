@@ -428,7 +428,8 @@ class UxDataArray(xr.DataArray):
                     )
                     warn(
                         "Axes extent was default; auto-setting from grid lon/lat bounds for rasterization. "
-                        "Set the extent explicitly to control this.",
+                        "Set the extent explicitly to control this, e.g. via ax.set_global(), "
+                        "ax.set_extent(...), or ax.set_xlim(...) + ax.set_ylim(...).",
                         stacklevel=2,
                     )
                 except Exception:
