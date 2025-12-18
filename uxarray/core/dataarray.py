@@ -404,8 +404,23 @@ class UxDataArray(xr.DataArray):
                     )
             pixel_mapping = np.asarray(pixel_mapping, dtype=INT_DTYPE)
         else:
-            xlim, ylim = ax.get_xlim(), ax.get_ylim()
-            if np.allclose(xlim, (0.0, 1.0)) and np.allclose(ylim, (0.0, 1.0)):
+
+            def _is_default_extent() -> bool:
+                # Default extents can be (0, 1) or projection limits while autoscale stays on.
+                if not ax.get_autoscale_on():
+                    return False
+                try:
+                    import cartopy.crs as ccrs
+
+                    extent = ax.get_extent(ccrs.PlateCarree())
+                except Exception:
+                    xlim, ylim = ax.get_xlim(), ax.get_ylim()
+                    return np.allclose(xlim, (0.0, 1.0)) and np.allclose(
+                        ylim, (0.0, 1.0)
+                    )
+                return np.allclose(extent, (-180.0, 180.0, -90.0, 90.0), atol=1.0)
+
+            if _is_default_extent():
                 try:
                     import cartopy.crs as ccrs
 
