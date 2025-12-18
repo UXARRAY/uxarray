@@ -424,19 +424,10 @@ class UxDataArray(xr.DataArray):
                 try:
                     import cartopy.crs as ccrs
 
-                    lon_min = self.uxgrid.node_lon.min(skipna=True)
-                    lon_max = self.uxgrid.node_lon.max(skipna=True)
-                    lat_min = self.uxgrid.node_lat.min(skipna=True)
-                    lat_max = self.uxgrid.node_lat.max(skipna=True)
-
-                    lon_min, lon_max = (
-                        float(lon_min.to_numpy().item()),
-                        float(lon_max.to_numpy().item()),
-                    )
-                    lat_min, lat_max = (
-                        float(lat_min.to_numpy().item()),
-                        float(lat_max.to_numpy().item()),
-                    )
+                    lon_min = float(self.uxgrid.node_lon.min(skipna=True).values)
+                    lon_max = float(self.uxgrid.node_lon.max(skipna=True).values)
+                    lat_min = float(self.uxgrid.node_lat.min(skipna=True).values)
+                    lat_max = float(self.uxgrid.node_lat.max(skipna=True).values)
                     ax.set_extent(
                         (lon_min, lon_max, lat_min, lat_max),
                         crs=ccrs.PlateCarree(),
