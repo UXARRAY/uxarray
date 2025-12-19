@@ -406,37 +406,21 @@ class UxDataArray(xr.DataArray):
         else:
 
             def _is_default_extent() -> bool:
-                # Default extents can be (0, 1) or projection limits while autoscale stays on.
+                # Default extents are indicated by xlim/ylim being (0, 1)
+                # when autoscale is still on (no extent has been explicitly set)
                 if not ax.get_autoscale_on():
                     return False
-                try:
-                    import cartopy.crs as ccrs
-
-                    extent = ax.get_extent(ccrs.PlateCarree())
-                except Exception:
-                    xlim, ylim = ax.get_xlim(), ax.get_ylim()
-                    return np.allclose(xlim, (0.0, 1.0)) and np.allclose(
-                        ylim, (0.0, 1.0)
-                    )
-                return np.allclose(extent, (-180.0, 180.0, -90.0, 90.0), atol=1.0)
+                xlim, ylim = ax.get_xlim(), ax.get_ylim()
+                return np.allclose(xlim, (0.0, 1.0)) and np.allclose(ylim, (0.0, 1.0))
 
             if _is_default_extent():
                 try:
                     import cartopy.crs as ccrs
 
-                    lon_min = self.uxgrid.node_lon.min(skipna=True)
-                    lon_max = self.uxgrid.node_lon.max(skipna=True)
-                    lat_min = self.uxgrid.node_lat.min(skipna=True)
-                    lat_max = self.uxgrid.node_lat.max(skipna=True)
-
-                    lon_min, lon_max = (
-                        float(lon_min.to_numpy().item()),
-                        float(lon_max.to_numpy().item()),
-                    )
-                    lat_min, lat_max = (
-                        float(lat_min.to_numpy().item()),
-                        float(lat_max.to_numpy().item()),
-                    )
+                    lon_min = float(self.uxgrid.node_lon.min(skipna=True).values)
+                    lon_max = float(self.uxgrid.node_lon.max(skipna=True).values)
+                    lat_min = float(self.uxgrid.node_lat.min(skipna=True).values)
+                    lat_max = float(self.uxgrid.node_lat.max(skipna=True).values)
                     ax.set_extent(
                         (lon_min, lon_max, lat_min, lat_max),
                         crs=ccrs.PlateCarree(),
@@ -447,8 +431,11 @@ class UxDataArray(xr.DataArray):
                         "ax.set_extent(...), or ax.set_xlim(...) + ax.set_ylim(...).",
                         stacklevel=2,
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    warn(
+                        f"Failed to auto-set extent from grid bounds: {e}",
+                        stacklevel=2,
+                    )
             input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
 
         raster, pixel_mapping_np = _nearest_neighbor_resample(
