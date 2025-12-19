@@ -103,7 +103,25 @@ def test_to_raster(gridpath):
     mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
     uxds = ux.open_dataset(mesh_path, mesh_path)
 
-    raster = uxds['bottomDepth'].to_raster(ax=ax)
+    with pytest.warns(UserWarning, match=r"Axes extent was default"):
+        raster = uxds['bottomDepth'].to_raster(ax=ax)
+
+    assert isinstance(raster, np.ndarray)
+
+
+def test_to_raster_with_extra_dims(gridpath):
+    fig, ax = plt.subplots(
+        subplot_kw={'projection': ccrs.Robinson()},
+        constrained_layout=True,
+        figsize=(10, 5),
+    )
+
+    mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+
+    da = uxds['bottomDepth'].expand_dims(time=[0])
+    with pytest.warns(UserWarning, match=r"Axes extent was default"):
+        raster = da.to_raster(ax=ax)
 
     assert isinstance(raster, np.ndarray)
 
@@ -121,9 +139,10 @@ def test_to_raster_reuse_mapping(gridpath, tmpdir):
     uxds = ux.open_dataset(mesh_path, mesh_path)
 
     # Returning
-    raster1, pixel_mapping = uxds['bottomDepth'].to_raster(
-        ax=ax, pixel_ratio=0.5, return_pixel_mapping=True
-    )
+    with pytest.warns(UserWarning, match=r"Axes extent was default"):
+        raster1, pixel_mapping = uxds['bottomDepth'].to_raster(
+            ax=ax, pixel_ratio=0.5, return_pixel_mapping=True
+        )
     assert isinstance(raster1, np.ndarray)
     assert isinstance(pixel_mapping, xr.DataArray)
 

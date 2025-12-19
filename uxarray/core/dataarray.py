@@ -375,7 +375,7 @@ class UxDataArray(xr.DataArray):
             _RasterAxAttrs,
         )
 
-        _ensure_dimensions(self)
+        data = _ensure_dimensions(self)
 
         if not isinstance(ax, GeoAxes):
             raise TypeError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
@@ -383,8 +383,8 @@ class UxDataArray(xr.DataArray):
         pixel_ratio_set = pixel_ratio is not None
         if not pixel_ratio_set:
             pixel_ratio = 1.0
-        input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
         if pixel_mapping is not None:
+            input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
             if isinstance(pixel_mapping, xr.DataArray):
                 pixel_ratio_input = pixel_ratio
                 pixel_ratio = pixel_mapping.attrs["pixel_ratio"]
@@ -403,9 +403,43 @@ class UxDataArray(xr.DataArray):
                         + input_ax_attrs._value_comparison_message(pm_ax_attrs)
                     )
             pixel_mapping = np.asarray(pixel_mapping, dtype=INT_DTYPE)
+        else:
+
+            def _is_default_extent() -> bool:
+                # Default extents are indicated by xlim/ylim being (0, 1)
+                # when autoscale is still on (no extent has been explicitly set)
+                if not ax.get_autoscale_on():
+                    return False
+                xlim, ylim = ax.get_xlim(), ax.get_ylim()
+                return np.allclose(xlim, (0.0, 1.0)) and np.allclose(ylim, (0.0, 1.0))
+
+            if _is_default_extent():
+                try:
+                    import cartopy.crs as ccrs
+
+                    lon_min = float(self.uxgrid.node_lon.min(skipna=True).values)
+                    lon_max = float(self.uxgrid.node_lon.max(skipna=True).values)
+                    lat_min = float(self.uxgrid.node_lat.min(skipna=True).values)
+                    lat_max = float(self.uxgrid.node_lat.max(skipna=True).values)
+                    ax.set_extent(
+                        (lon_min, lon_max, lat_min, lat_max),
+                        crs=ccrs.PlateCarree(),
+                    )
+                    warn(
+                        "Axes extent was default; auto-setting from grid lon/lat bounds for rasterization. "
+                        "Set the extent explicitly to control this, e.g. via ax.set_global(), "
+                        "ax.set_extent(...), or ax.set_xlim(...) + ax.set_ylim(...).",
+                        stacklevel=2,
+                    )
+                except Exception as e:
+                    warn(
+                        f"Failed to auto-set extent from grid bounds: {e}",
+                        stacklevel=2,
+                    )
+            input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
 
         raster, pixel_mapping_np = _nearest_neighbor_resample(
-            self,
+            data,
             ax,
             pixel_ratio=pixel_ratio,
             pixel_mapping=pixel_mapping,
