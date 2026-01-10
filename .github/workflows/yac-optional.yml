@@ -57,7 +57,6 @@ jobs:
             make \
             openmpi-bin \
             pkg-config
-
       - name: Verify MPI tools
         run: |
           which mpirun
@@ -66,12 +65,10 @@ jobs:
           mpirun --version
           mpicc --version
           mpif90 --version
-
       - name: Install Python build dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install cython mpi4py wheel
-
       - name: Build and install YAXT
         run: |
           set -euxo pipefail
@@ -87,10 +84,13 @@ jobs:
           fi
           mkdir -p yaxt/build
           cd yaxt/build
-          ../configure --prefix="${YAC_PREFIX}" CC="${MPICC}" FC="${MPIF90}"
+          ../configure \
+            --prefix="${YAC_PREFIX}" \
+            --without-regard-for-quality \
+            CC="${MPICC}" \
+            FC="${MPIF90}"
           make -j2
           make install
-
       - name: Build and install YAC
         run: |
           set -euxo pipefail
@@ -109,30 +109,27 @@ jobs:
             --with-yaxt-root="${YAC_PREFIX}" \
             --with-netcdf-root="${CONDA_PREFIX}" \
             --with-fyaml-root=/usr \
+            --without-regard-for-quality \
             --enable-python-bindings \
             CC="${MPICC}" \
             FC="${MPIF90}"
           make -j2
           make install
-
       - name: Configure YAC runtime paths
         run: |
           set -euxo pipefail
           PY_VER="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
           echo "LD_LIBRARY_PATH=${YAC_PREFIX}/lib:${LD_LIBRARY_PATH:-}" >> "${GITHUB_ENV}"
           echo "PYTHONPATH=${YAC_PREFIX}/lib/python${PY_VER}/site-packages:${YAC_PREFIX}/lib/python${PY_VER}/dist-packages:${PYTHONPATH:-}" >> "${GITHUB_ENV}"
-
       - name: Verify YAC Python bindings
         run: |
           python - <<'PY'
           import yac
           print("YAC version:", getattr(yac, "__version__", "unknown"))
           PY
-
       - name: Install uxarray
         run: |
           python -m pip install . --no-deps
-
       - name: Run tests (uxarray with YAC)
         run: |
           python -m pytest test/test_remap_yac.py
