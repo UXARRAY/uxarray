@@ -1,0 +1,135 @@
+name: YAC Optional CI
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/yac-optional.yml"
+      - "uxarray/remap/**"
+      - "test/test_remap_yac.py"
+  workflow_dispatch:
+
+jobs:
+  yac-optional:
+    name: YAC v3.9.3 (Ubuntu)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      YAC_VERSION: v3.9.3
+      YAXT_VERSION: v0.11.5
+      MPIEXEC: /usr/bin/mpirun
+      MPIRUN: /usr/bin/mpirun
+      MPICC: /usr/bin/mpicc
+      MPIFC: /usr/bin/mpif90
+      MPIF90: /usr/bin/mpif90
+      OMPI_ALLOW_RUN_AS_ROOT: 1
+      OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ github.token }}
+
+      - name: conda_setup
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: uxarray_build
+          channel-priority: strict
+          python-version: "3.11"
+          channels: conda-forge
+          environment-file: ci/environment.yml
+          miniforge-variant: Miniforge3
+          miniforge-version: latest
+
+      - name: Install build dependencies (apt)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            autoconf \
+            automake \
+            gawk \
+            gfortran \
+            libfyaml-dev \
+            libnetcdf-dev \
+            libopenmpi-dev \
+            libtool \
+            make \
+            openmpi-bin \
+            pkg-config
+      - name: Verify MPI tools
+        run: |
+          which mpirun
+          which mpicc
+          which mpif90
+          mpirun --version
+          mpicc --version
+          mpif90 --version
+      - name: Install Python build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cython mpi4py wheel
+      - name: Build and install YAXT
+        run: |
+          set -euxo pipefail
+          YAC_PREFIX="${GITHUB_WORKSPACE}/yac_prefix"
+          echo "YAC_PREFIX=${YAC_PREFIX}" >> "${GITHUB_ENV}"
+          git clone --depth 1 --branch "${YAXT_VERSION}" https://gitlab.dkrz.de/dkrz-sw/yaxt.git
+          if [ ! -x yaxt/configure ]; then
+            if [ -x yaxt/autogen.sh ]; then
+              (cd yaxt && ./autogen.sh)
+            else
+              (cd yaxt && autoreconf -i)
+            fi
+          fi
+          mkdir -p yaxt/build
+          cd yaxt/build
+          ../configure \
+            --prefix="${YAC_PREFIX}" \
+            --without-regard-for-quality \
+            CC="${MPICC}" \
+            FC="${MPIF90}"
+          make -j2
+          make install
+      - name: Build and install YAC
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 --branch "${YAC_VERSION}" https://gitlab.dkrz.de/dkrz-sw/yac.git
+          if [ ! -x yac/configure ]; then
+            if [ -x yac/autogen.sh ]; then
+              (cd yac && ./autogen.sh)
+            else
+              (cd yac && autoreconf -i)
+            fi
+          fi
+          mkdir -p yac/build
+          cd yac/build
+          ../configure \
+            --prefix="${YAC_PREFIX}" \
+            --with-yaxt-root="${YAC_PREFIX}" \
+            --with-netcdf-root="${CONDA_PREFIX}" \
+            --with-fyaml-root=/usr \
+            --without-regard-for-quality \
+            --enable-python-bindings \
+            CC="${MPICC}" \
+            FC="${MPIF90}"
+          make -j2
+          make install
+      - name: Configure YAC runtime paths
+        run: |
+          set -euxo pipefail
+          PY_VER="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+          echo "LD_LIBRARY_PATH=${YAC_PREFIX}/lib:${LD_LIBRARY_PATH:-}" >> "${GITHUB_ENV}"
+          echo "PYTHONPATH=${YAC_PREFIX}/lib/python${PY_VER}/site-packages:${YAC_PREFIX}/lib/python${PY_VER}/dist-packages:${PYTHONPATH:-}" >> "${GITHUB_ENV}"
+      - name: Verify YAC Python bindings
+        run: |
+          python - <<'PY'
+          import yac
+          print("YAC version:", getattr(yac, "__version__", "unknown"))
+          PY
+      - name: Install uxarray
+        run: |
+          python -m pip install . --no-deps
+      - name: Run tests (uxarray with YAC)
+        run: |
+          python -m pytest test/test_remap_yac.py
