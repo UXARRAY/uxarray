@@ -18,6 +18,8 @@ jobs:
     env:
       YAC_VERSION: v3.9.3
       YAXT_VERSION: v0.11.5
+      OMPI_ALLOW_RUN_AS_ROOT: 1
+      OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
     steps:
       - name: checkout
         uses: actions/checkout@v4
