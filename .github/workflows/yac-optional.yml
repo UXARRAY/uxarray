@@ -18,6 +18,11 @@ jobs:
     env:
       YAC_VERSION: v3.9.3
       YAXT_VERSION: v0.11.5
+      MPIEXEC: /usr/bin/mpirun
+      MPIRUN: /usr/bin/mpirun
+      MPICC: /usr/bin/mpicc
+      MPIFC: /usr/bin/mpif90
+      MPIF90: /usr/bin/mpif90
       OMPI_ALLOW_RUN_AS_ROOT: 1
       OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
     steps:
@@ -53,6 +58,15 @@ jobs:
             openmpi-bin \
             pkg-config
 
+      - name: Verify MPI tools
+        run: |
+          which mpirun
+          which mpicc
+          which mpif90
+          mpirun --version
+          mpicc --version
+          mpif90 --version
+
       - name: Install Python build dependencies
         run: |
           python -m pip install --upgrade pip
@@ -73,7 +87,7 @@ jobs:
           fi
           mkdir -p yaxt/build
           cd yaxt/build
-          ../configure --prefix="${YAC_PREFIX}" CC=mpicc FC=mpif90
+          ../configure --prefix="${YAC_PREFIX}" CC="${MPICC}" FC="${MPIF90}"
           make -j2
           make install
 
@@ -96,8 +110,8 @@ jobs:
             --with-netcdf-root="${CONDA_PREFIX}" \
             --with-fyaml-root=/usr \
             --enable-python-bindings \
-            CC=mpicc \
-            FC=mpif90
+            CC="${MPICC}" \
+            FC="${MPIF90}"
           make -j2
           make install
 
