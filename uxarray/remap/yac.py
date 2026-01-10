@@ -7,7 +7,6 @@ from uuid import uuid4
 import numpy as np
 
 import uxarray.core.dataarray
-
 from uxarray.remap.utils import (
     LABEL_TO_COORD,
     _assert_dimension,
@@ -44,8 +43,12 @@ def _get_lon_lat(grid, dim_kind: str) -> tuple[np.ndarray, np.ndarray]:
             lon = getattr(grid, f"{prefix}_lon", None)
             lat = getattr(grid, f"{prefix}_lat", None)
             if lon is not None and lat is not None:
-                return np.asarray(lon, dtype=np.float64), np.asarray(lat, dtype=np.float64)
-        raise AttributeError("Grid has neither node_lon/node_lat nor vertex_lon/vertex_lat")
+                return np.asarray(lon, dtype=np.float64), np.asarray(
+                    lat, dtype=np.float64
+                )
+        raise AttributeError(
+            "Grid has neither node_lon/node_lat nor vertex_lon/vertex_lat"
+        )
     if dim_kind == "edge":
         lon = getattr(grid, "edge_lon", None)
         lat = getattr(grid, "edge_lat", None)
@@ -212,12 +215,8 @@ class _YacRemapper:
         self._tgt_grid = yac.CloudGrid(
             self._tgt_grid_name, np.deg2rad(tgt_lon), np.deg2rad(tgt_lat)
         )
-        src_points = self._src_grid.def_points(
-            np.deg2rad(src_lon), np.deg2rad(src_lat)
-        )
-        tgt_points = self._tgt_grid.def_points(
-            np.deg2rad(tgt_lon), np.deg2rad(tgt_lat)
-        )
+        src_points = self._src_grid.def_points(np.deg2rad(src_lon), np.deg2rad(src_lat))
+        tgt_points = self._tgt_grid.def_points(np.deg2rad(tgt_lon), np.deg2rad(tgt_lat))
         return src_points, tgt_points
 
     def remap(self, values: np.ndarray) -> np.ndarray:

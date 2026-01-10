@@ -63,7 +63,11 @@ jobs:
           echo "YAC_PREFIX=${YAC_PREFIX}" >> "${GITHUB_ENV}"
           git clone --depth 1 --branch "${YAXT_VERSION}" https://gitlab.dkrz.de/dkrz-sw/yaxt.git
           if [ ! -x yaxt/configure ]; then
-            (cd yaxt && ./autogen.sh)
+            if [ -x yaxt/autogen.sh ]; then
+              (cd yaxt && ./autogen.sh)
+            else
+              (cd yaxt && autoreconf -i)
+            fi
           fi
           mkdir -p yaxt/build
           cd yaxt/build
@@ -76,7 +80,11 @@ jobs:
           set -euxo pipefail
           git clone --depth 1 --branch "${YAC_VERSION}" https://gitlab.dkrz.de/dkrz-sw/yac.git
           if [ ! -x yac/configure ]; then
-            (cd yac && ./autogen.sh)
+            if [ -x yac/autogen.sh ]; then
+              (cd yac && ./autogen.sh)
+            else
+              (cd yac && autoreconf -i)
+            fi
           fi
           mkdir -p yac/build
           cd yac/build
