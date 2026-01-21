@@ -3,6 +3,41 @@ import xarray as xr
 from uxarray.io.utils import _get_source_dims_dict, _parse_grid_type
 
 
+def _open_dataset_with_fallback(filename_or_obj, chunks=None, **kwargs):
+    """Internal utility function to open datasets with fallback to netcdf4 engine.
+
+    Attempts to use Xarray's default read engine first, which may be "h5netcdf"
+    or "scipy" after v2025.09.0. If that fails (typically for h5-incompatible files),
+    falls back to using the "netcdf4" engine.
+
+    Parameters
+    ----------
+    filename_or_obj : str, Path, file-like or DataStore
+        Strings and Path objects are interpreted as a path to a netCDF file
+        or an OpenDAP URL and opened with python-netCDF4, unless the filename
+        ends with .gz, in which case the file is gunzipped and opened with
+        scipy.io.netcdf (only netCDF3 supported).
+    chunks : int, dict, 'auto' or None, optional
+        If chunks is provided, it is used to load the new dataset into dask
+        arrays.
+    **kwargs
+        Additional keyword arguments passed to xr.open_dataset
+
+    Returns
+    -------
+    xr.Dataset
+        The opened dataset
+    """
+    try:
+        # Try opening with xarray's default read engine
+        return xr.open_dataset(filename_or_obj, chunks=chunks, **kwargs)
+    except Exception:
+        # If it fails, use the "netcdf4" engine as backup
+        # Extract engine from kwargs to prevent duplicate parameter error
+        engine = kwargs.pop("engine", "netcdf4")
+        return xr.open_dataset(filename_or_obj, engine=engine, chunks=chunks, **kwargs)
+
+
 def _map_dims_to_ugrid(
     ds,
     _source_dims_dict,
@@ -69,7 +104,7 @@ def match_chunks_to_ugrid(grid_filename_or_obj, chunks):
         # No need to rename
         return chunks
 
-    ds = xr.open_dataset(grid_filename_or_obj, chunks=chunks)
+    ds = _open_dataset_with_fallback(grid_filename_or_obj, chunks=chunks)
     grid_spec, _, _ = _parse_grid_type(ds)
 
     source_dims_dict = _get_source_dims_dict(ds, grid_spec)
@@ -80,3 +115,33 @@ def match_chunks_to_ugrid(grid_filename_or_obj, chunks):
             chunks[original_grid_dim] = chunks[ugrid_grid_dim]
 
     return chunks
+
+
+def _validate_indexers(indexers, indexers_kwargs, func_name, ignore_grid):
+    from xarray.core.utils import either_dict_or_kwargs
+
+    from uxarray.constants import GRID_DIMS
+
+    # Used to filter out slices containing all Nones (causes subscription errors, i.e., var[0])
+    _is_full_none_slice = (
+        lambda v: isinstance(v, slice)
+        and v.start is None
+        and v.stop is None
+        and v.step is None
+    )
+
+    indexers = either_dict_or_kwargs(indexers, indexers_kwargs, func_name)
+
+    # Only count a grid dim if its indexer is NOT a no-op full slice
+    grid_dims = {
+        dim
+        for dim in GRID_DIMS
+        if dim in indexers and not _is_full_none_slice(indexers[dim])
+    }
+
+    if not ignore_grid and len(grid_dims) > 1:
+        raise ValueError(
+            f"Only one grid dimension can be sliced at a time; got {sorted(grid_dims)}."
+        )
+
+    return indexers, grid_dims

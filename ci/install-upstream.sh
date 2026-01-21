@@ -23,20 +23,27 @@ pip uninstall -y \
 conda list
 
 # if available install from scientific-python nightly wheels
+# constrain numpy to <2.4 until numba supports newer versions
+# use stable pandas (not nightly) due to geopandas incompatibility with pandas nightly internals
+# (see: https://github.com/UXARRAY/uxarray/issues/1414)
+python -m pip install \
+    'numpy<2.4' \
+    'pandas>=2.0.0'
+
 python -m pip install \
     -i https://pypi.anaconda.org/scientific-python-nightly-wheels/simple \
     --no-deps \
     --pre \
     --upgrade \
-    numpy \
-    pandas \
     scikit-learn \
     scipy \
-    geopandas \
     xarray
 
-# install rest from source
+# install all remaining packages with --no-deps to avoid dependency conflicts
+# (dask/distributed versions may drift, geopandas uses stable release for pandas nightly compatibility)
 python -m pip install \
+    --no-deps \
+    --upgrade \
     git+https://github.com/gadomski/antimeridian.git \
     git+https://github.com/SciTools/cartopy.git \
     git+https://github.com/holoviz/datashader.git \
@@ -44,4 +51,5 @@ python -m pip install \
     git+https://github.com/dask/distributed.git \
     git+https://github.com/holoviz/holoviews.git \
     git+https://github.com/shapely/shapely.git \
-    git+https://github.com/holoviz/spatialpandas.git
+    git+https://github.com/holoviz/spatialpandas.git \
+    'geopandas>=1.0.0'

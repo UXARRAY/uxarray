@@ -148,7 +148,7 @@ Alfred Wegener Institute, Helmholtz Centre for Polar and Marine Research (AWI), 
 
 References
 ----------
-* https://fesom2.readthedocs.io/en/latest/index.html#
+* https://fesom2.readthedocs.io/
 
 HEALPix
 =======
@@ -162,7 +162,7 @@ References
 ----------
 * https://easy.gems.dkrz.de/Processing/healpix/index.html#hierarchical-healpix-output
 * https://healpix.sourceforge.io/
-* https://healpix.jpl.nasa.gov/
+* https://irsa.ipac.caltech.edu/healpix/
 * https://iopscience.iop.org/article/10.1086/427976
 
 Parsed Variables

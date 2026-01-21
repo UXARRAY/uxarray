@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
@@ -19,9 +19,17 @@ from uxarray.plot.utils import backend as plotting_backend
 
 
 class GridPlotAccessor:
-    """Plotting accessor for ``Grid``.
+    """Plotting accessor for :class:`Grid`.
 
-    Accessed through `Grid.plot()` or `Grid.plot.specific_routine()`
+    You can call :func:`Grid.plot`
+    which plots the edges, or you can specify a routine.
+    For example:
+
+    - :func:`Grid.plot.edges`
+    - :func:`Grid.plot.nodes`
+    - :func:`Grid.plot.face_centers`
+
+    See examples in :doc:`/user-guide/plotting`.
     """
 
     _uxgrid: Grid
@@ -311,10 +319,19 @@ class GridPlotAccessor:
 
 
 class UxDataArrayPlotAccessor:
-    """Plotting Accessor for ``UxDataArray``.
+    """Plotting Accessor for :class:`UxDataArray`.
 
-    Accessed through `UxDataArray.plot()` or
-    `UxDataArray.plot.specific_routine()`
+    You can call :func:`UxDataArray.plot`
+    which auto-selects polygons for face-centered data
+    or points for node- and edge-centered data,
+    or you can specify a routine:
+
+    - :func:`UxDataArray.plot.polygons`
+    - :func:`UxDataArray.plot.points`
+    - :func:`UxDataArray.plot.line`
+    - :func:`UxDataArray.plot.scatter`
+
+    See examples in :doc:`/user-guide/plotting`.
     """
 
     _uxda: UxDataArray
@@ -349,14 +366,14 @@ class UxDataArrayPlotAccessor:
 
     def polygons(
         self,
-        periodic_elements: Optional[str] = "exclude",
-        backend: Optional[str] = None,
-        engine: Optional[str] = "spatialpandas",
-        rasterize: Optional[bool] = True,
-        dynamic: Optional[bool] = False,
+        periodic_elements: str | None = "exclude",
+        backend: str | None = None,
+        engine: str | None = "spatialpandas",
+        rasterize: bool | None = True,
+        dynamic: bool | None = False,
         projection=None,
-        xlabel: Optional[str] = "Longitude",
-        ylabel: Optional[str] = "Latitude",
+        xlabel: str | None = "Longitude",
+        ylabel: str | None = "Latitude",
         *args,
         **kwargs,
     ):
@@ -496,7 +513,7 @@ class UxDataArrayPlotAccessor:
 
 
 class UxDatasetPlotAccessor:
-    """Plotting accessor for ``UxDataset``."""
+    """Plotting accessor for :class:`UxDataset`."""
 
     _uxds: UxDataset
     __slots__ = ("_uxds",)

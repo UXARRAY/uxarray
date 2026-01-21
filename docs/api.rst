@@ -18,6 +18,7 @@ Top Level Functions
 
    open_grid
    open_dataset
+   open_multigrid
    open_mfdataset
    concat
 
@@ -148,10 +149,11 @@ Methods
    Grid.copy
    Grid.chunk
    Grid.validate
-   Grid.compute_face_areas
    Grid.calculate_total_face_area
    Grid.normalize_cartesian_coordinates
    Grid.construct_face_centers
+   Grid.get_ball_tree
+   Grid.get_kd_tree
    Grid.get_spatial_hash
    Grid.get_faces_containing_point
 
@@ -176,8 +178,16 @@ Constructors
    UxDataArray.from_xarray
    UxDataArray.from_healpix
 
+Selection & Indexing
+~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.isel
+
 Grid Accessor
-~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
@@ -200,12 +210,20 @@ Constructors
    UxDataset.from_healpix
 
 Grid Accessor
-~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
 
    UxDataset.uxgrid
+
+Selection & Indexing
+~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset.isel
 
 
 Conversion Methods
@@ -436,6 +454,17 @@ on each face.
    UxDataArray.topological_prod
    UxDataArray.topological_all
    UxDataArray.topological_any
+
+Azimuthal
+~~~~~~~~~
+
+Azimuthal aggregations apply an aggregation (i.e. averaging) along circles of constant great-circle distance from a specified point on the sphere.
+
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.azimuthal_mean
 
 Zonal Average
 ~~~~~~~~~~~~~

@@ -1,5 +1,12 @@
 from .constants import INT_DTYPE, INT_FILL_VALUE
-from .core.api import concat, open_dataset, open_grid, open_mfdataset
+from .core.api import (
+    concat,
+    list_grid_names,
+    open_dataset,
+    open_grid,
+    open_mfdataset,
+    open_multigrid,
+)
 from .core.dataarray import UxDataArray
 from .core.dataset import UxDataset
 from .grid import Grid
@@ -20,6 +27,8 @@ __all__ = (
     "open_grid",
     "open_dataset",
     "open_mfdataset",
+    "open_multigrid",
+    "list_grid_names",
     "concat",
     "UxDataset",
     "UxDataArray",

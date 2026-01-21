@@ -102,7 +102,6 @@ def dot_fma(v1, v2):
     ----------
     S. Graillat, Ph. Langlois, and N. Louvet. "Accurate dot products with FMA." Presented at RNC 7, 2007, Nancy, France.
     DALI-LP2A Laboratory, University of Perpignan, France.
-    [Poster](https://www-pequan.lip6.fr/~graillat/papers/posterRNC7.pdf)
     """
     if len(v1) != len(v2):
         raise ValueError("Input vectors must be of the same length")

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from html import escape
-from typing import TYPE_CHECKING, Any, Callable, Hashable, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Callable, Hashable, Literal, Mapping
 from warnings import warn
 
 import numpy as np
@@ -17,11 +17,14 @@ from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.gradient import (
     _calculate_edge_face_difference,
     _calculate_edge_node_difference,
-    _calculate_grad_on_edge_from_faces,
+    _compute_gradient,
 )
 from uxarray.constants import GRID_DIMS
 from uxarray.core.utils import _map_dims_to_ugrid
-from uxarray.core.zonal import _compute_non_conservative_zonal_mean
+from uxarray.core.zonal import (
+    _compute_conservative_zonal_mean_bands,
+    _compute_non_conservative_zonal_mean,
+)
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
 from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
@@ -33,8 +36,6 @@ from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
 
 if TYPE_CHECKING:
-    import numpy as np
-
     from uxarray.core.dataset import UxDataset
 
 
@@ -60,6 +61,22 @@ class UxDataArray(xr.DataArray):
     -----
     See `xarray.DataArray <https://docs.xarray.dev/en/stable/generated/xarray.DataArray.html>`__
     for further information about DataArrays.
+
+    Grid-Aware Accessor Methods
+    ---------------------------
+    The following methods return specialized accessors that preserve grid information:
+
+    - ``groupby``: Groups data by dimension/coordinate
+    - ``groupby_bins``: Groups data by bins
+    - ``resample``: Resamples timeseries data
+    - ``rolling``: Rolling window operations
+    - ``coarsen``: Coarsens data by integer factors
+    - ``weighted``: Weighted operations
+    - ``rolling_exp``: Exponentially weighted rolling (requires numbagg)
+    - ``cumulative``: Cumulative operations
+
+    All these methods work identically to xarray but maintain the uxgrid attribute
+    throughout operations.
     """
 
     # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
@@ -148,12 +165,12 @@ class UxDataArray(xr.DataArray):
 
     def to_geodataframe(
         self,
-        periodic_elements: Optional[str] = "exclude",
+        periodic_elements: str | None = "exclude",
         projection=None,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        engine: Optional[str] = "spatialpandas",
-        exclude_antimeridian: Optional[bool] = None,
+        cache: bool | None = True,
+        override: bool | None = False,
+        engine: str | None = "spatialpandas",
+        exclude_antimeridian: bool | None = None,
         **kwargs,
     ):
         """Constructs a ``GeoDataFrame`` consisting of polygons representing
@@ -283,36 +300,62 @@ class UxDataArray(xr.DataArray):
 
         return poly_collection
 
-    def to_raster(self, ax: GeoAxes):
+    def to_raster(
+        self,
+        ax: GeoAxes,
+        *,
+        pixel_ratio: float | None = None,
+        pixel_mapping: xr.DataArray | np.ndarray | None = None,
+        return_pixel_mapping: bool = False,
+    ):
         """
         Rasterizes a data variable stored on the faces of an unstructured grid onto the pixels of the provided Cartopy GeoAxes.
 
         Parameters
         ----------
         ax : GeoAxes
-            A Cartopy GeoAxes onto which the data will be rasterized. Each pixel in this axes will be sampled
-            against the unstructured grid’s face geometry.
+            A Cartopy :class:`~cartopy.mpl.geoaxes.GeoAxes` onto which the data will be rasterized.
+            Each pixel in this axes will be sampled against the unstructured grid's face geometry.
+        pixel_ratio : float, default=1.0
+            A scaling factor to adjust the resolution of the rasterization.
+            A value greater than 1 increases the resolution (sharpens the image),
+            while a value less than 1 will result in a coarser rasterization.
+            The resolution also depends on what the figure's DPI setting is
+            prior to calling :meth:`to_raster`.
+            You can control DPI with the ``dpi`` keyword argument when creating the figure,
+            or by using :meth:`~matplotlib.figure.Figure.set_dpi` after creation.
+        pixel_mapping : xr.DataArray or array-like, optional
+            Precomputed mapping from pixels within the Cartopy GeoAxes boundary
+            to grid face indices (1-dimensional).
+        return_pixel_mapping : bool, default=False
+            If ``True``, the pixel mapping will be returned in addition to the raster,
+            and then you can pass it via the `pixel_mapping` parameter for future rasterizations
+            using the same or equivalent :attr:`uxgrid` and `ax`.
+            Note that this is also specific to the pixel ratio setting.
 
         Returns
         -------
         raster : numpy.ndarray, shape (ny, nx)
             Array of resampled data values corresponding to each pixel.
-
+        pixel_mapping : xr.DataArray, shape (n,)
+            If ``return_pixel_mapping=True``, the computed pixel mapping is returned
+            so that you can reuse it.
+            Axes and pixel ratio info are included as attributes.
 
         Notes
         -----
         - This method currently employs a nearest-neighbor resampling approach. For every pixel in the GeoAxes,
-          it finds the face of the unstructured grid that contains the pixel’s geographic coordinate and colors
-          that pixel with the face’s data value.
-        - If a pixel does not intersect any face (i.e., lies outside the grid domain), it will be left empty (transparent).
+          it finds the face of the unstructured grid that contains the pixel's geographic coordinate and colors
+          that pixel with the face's data value.
+        - If a pixel does not intersect any face (i.e., lies outside the grid domain),
+          it will be left empty (transparent).
 
-
-        Example
-        -------
+        Examples
+        --------
         >>> import cartopy.crs as ccrs
         >>> import matplotlib.pyplot as plt
 
-        Create a GeoAxes with a Robinson projection and global extent
+        Create a :class:`~cartopy.mpl.geoaxes.GeoAxes` with a Robinson projection and global extent
 
         >>> fig, ax = plt.subplots(subplot_kw={"projection": ccrs.Robinson()})
         >>> ax.set_global()
@@ -321,23 +364,104 @@ class UxDataArray(xr.DataArray):
 
         >>> raster = uxds["psi"].to_raster(ax=ax)
 
-        Use Imshow to visualuze the raster
+        Use :meth:`~cartopy.mpl.geoaxes.GeoAxes.imshow` to visualize the raster
 
         >>> ax.imshow(raster, origin="lower", extent=ax.get_xlim() + ax.get_ylim())
 
-
         """
+        from uxarray.constants import INT_DTYPE
         from uxarray.plot.matplotlib import (
             _ensure_dimensions,
             _nearest_neighbor_resample,
+            _RasterAxAttrs,
         )
 
-        _ensure_dimensions(self)
+        data = _ensure_dimensions(self)
 
         if not isinstance(ax, GeoAxes):
-            raise ValueError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
+            raise TypeError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
 
-        return _nearest_neighbor_resample(self, ax)
+        pixel_ratio_set = pixel_ratio is not None
+        if not pixel_ratio_set:
+            pixel_ratio = 1.0
+        if pixel_mapping is not None:
+            input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
+            if isinstance(pixel_mapping, xr.DataArray):
+                pixel_ratio_input = pixel_ratio
+                pixel_ratio = pixel_mapping.attrs["pixel_ratio"]
+                if pixel_ratio_set and pixel_ratio_input != pixel_ratio:
+                    warn(
+                        "Pixel ratio mismatch: "
+                        f"{pixel_ratio_input} passed but {pixel_ratio} in pixel_mapping. "
+                        "Using the pixel_mapping attribute.",
+                        stacklevel=2,
+                    )
+                input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
+                pm_ax_attrs = _RasterAxAttrs.from_xr_attrs(pixel_mapping.attrs)
+                if input_ax_attrs != pm_ax_attrs:
+                    raise ValueError(
+                        "Pixel mapping incompatible with ax. "
+                        + input_ax_attrs._value_comparison_message(pm_ax_attrs)
+                    )
+            pixel_mapping = np.asarray(pixel_mapping, dtype=INT_DTYPE)
+        else:
+
+            def _is_default_extent() -> bool:
+                # Default extents are indicated by xlim/ylim being (0, 1)
+                # when autoscale is still on (no extent has been explicitly set)
+                if not ax.get_autoscale_on():
+                    return False
+                xlim, ylim = ax.get_xlim(), ax.get_ylim()
+                return np.allclose(xlim, (0.0, 1.0)) and np.allclose(ylim, (0.0, 1.0))
+
+            if _is_default_extent():
+                try:
+                    import cartopy.crs as ccrs
+
+                    lon_min = float(self.uxgrid.node_lon.min(skipna=True).values)
+                    lon_max = float(self.uxgrid.node_lon.max(skipna=True).values)
+                    lat_min = float(self.uxgrid.node_lat.min(skipna=True).values)
+                    lat_max = float(self.uxgrid.node_lat.max(skipna=True).values)
+                    ax.set_extent(
+                        (lon_min, lon_max, lat_min, lat_max),
+                        crs=ccrs.PlateCarree(),
+                    )
+                    warn(
+                        "Axes extent was default; auto-setting from grid lon/lat bounds for rasterization. "
+                        "Set the extent explicitly to control this, e.g. via ax.set_global(), "
+                        "ax.set_extent(...), or ax.set_xlim(...) + ax.set_ylim(...).",
+                        stacklevel=2,
+                    )
+                except Exception as e:
+                    warn(
+                        f"Failed to auto-set extent from grid bounds: {e}",
+                        stacklevel=2,
+                    )
+            input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
+
+        raster, pixel_mapping_np = _nearest_neighbor_resample(
+            data,
+            ax,
+            pixel_ratio=pixel_ratio,
+            pixel_mapping=pixel_mapping,
+        )
+        if return_pixel_mapping:
+            pixel_mapping_da = xr.DataArray(
+                pixel_mapping_np,
+                name="pixel_mapping",
+                dims=("n_pixel",),
+                attrs={
+                    "long_name": "pixel_mapping",
+                    "description": (
+                        "Mapping from raster pixels within a Cartopy GeoAxes "
+                        "to nearest grid face index."
+                    ),
+                    **input_ax_attrs.to_xr_attrs(),
+                },
+            )
+            return raster, pixel_mapping_da
+        else:
+            return raster
 
     def to_dataset(
         self,
@@ -373,7 +497,7 @@ class UxDataArray(xr.DataArray):
         return xr.DataArray(self)
 
     def integrate(
-        self, quadrature_rule: Optional[str] = "triangular", order: Optional[int] = 4
+        self, quadrature_rule: str | None = "triangular", order: int | None = 4
     ) -> UxDataArray:
         """Computes the integral of a data variable.
 
@@ -398,9 +522,7 @@ class UxDataArray(xr.DataArray):
         >>> integral = uxds["psi"].integrate()
         """
         if self.values.shape[-1] == self.uxgrid.n_face:
-            face_areas, face_jacobian = self.uxgrid.compute_face_areas(
-                quadrature_rule, order
-            )
+            face_areas = self.uxgrid.face_areas.values
 
             # perform dot product between face areas and last dimension of data
             integral = np.einsum("i,...i", face_areas, self.values)
@@ -426,16 +548,25 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-    def zonal_mean(self, lat=(-90, 90, 10), **kwargs):
-        """Compute averages along lines of constant latitude.
+    def zonal_mean(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
+        """Compute non-conservative or conservative averages of a face-centered variable along lines of constant latitude or latitude bands.
+
+        A zonal mean in UXarray operates differently depending on the ``conservative`` flag:
+
+        - **Non-conservative**: Calculates the mean by sampling face values at specific latitude lines and weighting each contribution by the length of the line where each face intersects that latitude.
+        - **Conservative**: Preserves integral quantities by calculating the mean by sampling face values within latitude bands and weighting contributions by their area overlap with latitude bands.
 
         Parameters
         ----------
         lat : tuple, float, or array-like, default=(-90, 90, 10)
-            Latitude values in degrees. Can be specified as:
-            - tuple (start, end, step): Computes means at intervals of `step` in range [start, end]
-            - float: Computes mean for a single latitude
-            - array-like: Computes means for each specified latitude
+            Latitude specification:
+                - tuple (start, end, step): For non-conservative, computes means at intervals of `step`.
+                For conservative, creates band edges via np.arange(start, end+step, step).
+                - float: Single latitude for non-conservative averaging
+                - array-like: For non-conservative, latitudes to sample. For conservative, band edges.
+        conservative : bool, default=False
+            If True, performs conservative (area-weighted) zonal averaging over latitude bands.
+            If False, performs non-conservative (intersection-weighted) averaging at latitude lines.
 
         Returns
         -------
@@ -445,62 +576,246 @@ class UxDataArray(xr.DataArray):
 
         Examples
         --------
-        # All latitudes from -90° to 90° at 10° intervals
+        # Non-conservative averaging from -90° to 90° at 10° intervals by default
         >>> uxds["var"].zonal_mean()
 
-        # Single latitude at 30°
+        # Single latitude (non-conservative) over 30° latitude
         >>> uxds["var"].zonal_mean(lat=30.0)
 
-        # Range from -60° to 60° at 10° intervals
-        >>> uxds["var"].zonal_mean(lat=(-60, 60, 10))
+        # Conservative averaging over latitude bands
+        >>> uxds["var"].zonal_mean(lat=(-60, 60, 10), conservative=True)
+
+        # Conservative with explicit band edges
+        >>> uxds["var"].zonal_mean(lat=[-90, -30, 0, 30, 90], conservative=True)
 
         Notes
         -----
-        Only supported for face-centered data variables. Candidate faces are determined
-        using spherical bounding boxes - faces whose bounds contain the target latitude
-        are included in calculations.
+        Only supported for face-centered data variables.
+
+        Conservative averaging preserves integral quantities and is recommended for
+        physical analysis. Non-conservative averaging samples at latitude lines.
         """
         if not self._face_centered():
             raise ValueError(
                 "Zonal mean computations are currently only supported for face-centered data variables."
             )
 
-        if isinstance(lat, tuple):
-            # zonal mean over a range of latitudes
-            latitudes = np.arange(lat[0], lat[1] + lat[2], lat[2])
-            latitudes = np.clip(latitudes, -90, 90)
-        elif isinstance(lat, (float, int)):
-            # zonal mean over a single latitude
-            latitudes = [lat]
-        elif isinstance(lat, (list, np.ndarray)):
-            # zonal mean over an array of arbitrary latitudes
-            latitudes = np.asarray(lat)
-        else:
-            raise ValueError(
-                "Invalid value for 'lat' provided. Must either be a single scalar value, tuple (min_lat, max_lat, step), or array-like."
+        face_axis = self.dims.index("n_face")
+
+        if not conservative:
+            # Non-conservative (traditional) zonal averaging
+            if isinstance(lat, tuple):
+                start, end, step = lat
+                if step <= 0:
+                    raise ValueError("Step size must be positive.")
+                if step < 0.1:
+                    warnings.warn(
+                        f"Very small step size ({step}°) may lead to performance issues...",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                num_points = int(round((end - start) / step)) + 1
+                latitudes = np.linspace(start, end, num_points)
+                latitudes = np.clip(latitudes, -90, 90)
+            elif isinstance(lat, (float, int)):
+                latitudes = [lat]
+            elif isinstance(lat, (list, np.ndarray)):
+                latitudes = np.asarray(lat)
+            else:
+                raise ValueError(
+                    "Invalid value for 'lat' provided. Must be a scalar, tuple (min_lat, max_lat, step), or array-like."
+                )
+
+            res = _compute_non_conservative_zonal_mean(
+                uxda=self, latitudes=latitudes, **kwargs
             )
 
-        res = _compute_non_conservative_zonal_mean(
-            uxda=self, latitudes=latitudes, **kwargs
+            dims = list(self.dims)
+            dims[face_axis] = "latitudes"
+
+            return xr.DataArray(
+                res,
+                dims=dims,
+                coords={"latitudes": latitudes},
+                name=self.name + "_zonal_mean"
+                if self.name is not None
+                else "zonal_mean",
+                attrs={"zonal_mean": True, "conservative": False},
+            )
+
+        else:
+            # Conservative zonal averaging
+            if isinstance(lat, tuple):
+                start, end, step = lat
+                if step <= 0:
+                    raise ValueError(
+                        "Step size must be positive for conservative averaging."
+                    )
+                if step < 0.1:
+                    warnings.warn(
+                        f"Very small step size ({step}°) may lead to performance issues...",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                num_points = int(round((end - start) / step)) + 1
+                edges = np.linspace(start, end, num_points)
+                edges = np.clip(edges, -90, 90)
+            elif isinstance(lat, (list, np.ndarray)):
+                edges = np.asarray(lat, dtype=float)
+            else:
+                raise ValueError(
+                    "For conservative averaging, 'lat' must be a tuple (start, end, step) or array-like band edges."
+                )
+
+            if edges.ndim != 1 or edges.size < 2:
+                raise ValueError("Band edges must be 1D with at least two values")
+
+            res = _compute_conservative_zonal_mean_bands(self, edges)
+
+            # Use band centers as coordinate values
+            centers = 0.5 * (edges[:-1] + edges[1:])
+
+            dims = list(self.dims)
+            dims[face_axis] = "latitudes"
+
+            return xr.DataArray(
+                res,
+                dims=dims,
+                coords={"latitudes": centers},
+                name=self.name + "_zonal_mean"
+                if self.name is not None
+                else "zonal_mean",
+                attrs={
+                    "zonal_mean": True,
+                    "conservative": True,
+                    "lat_band_edges": edges,
+                },
+            )
+
+    def zonal_average(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
+        """Alias of zonal_mean; prefer `zonal_mean` for primary API."""
+        return self.zonal_mean(lat=lat, conservative=conservative, **kwargs)
+
+    def azimuthal_mean(
+        self,
+        center_coord,
+        outer_radius: int | float,
+        radius_step: int | float,
+        return_hit_counts: bool = False,
+    ):
+        """Compute averages along circles of constant great-circle distance from a point.
+
+        Parameters
+        ----------
+        center_coord: tuple, list, ndarray
+            Longitude and latitude of the center of the bounding circle
+        outer_radius: scalar, int, float
+            The maximum radius, in great-circle degrees, at which the azimuthal mean will be computed.
+        radius_step: scalar, int, float
+            Means will be computed at intervals of `radius_step` on the interval [0, outer_radius]
+        return_hit_counts: bool, false
+            Indicates whether to return the number of hits at each radius
+
+        Returns
+        -------
+        azimuthal_mean: xr.DataArray
+            Contains a variable with a dimension 'radius' corresponding to the azimuthal average.
+        hit_counts: xr.DataArray
+            The number of hits at each radius
+
+
+        Examples
+        --------
+        # Range from 0° to 5° at 0.5° intervals, around the central point lon,lat=10,50
+        >>> az = uxds["var"].azimuthal_mean(
+        ...     center_coord=(10, 50), outer_radius=5.0, radius_step=0.5
+        ... )
+        >>> az.plot(title="Azimuthal Mean")
+
+        Notes
+        -----
+        Only supported for face-centered data variables. Candidate faces are determined
+        using bounding circles - for radii = [r1, r2, r3, ...] faces whose centers lie at distance d,
+        r2 < d <= r3 are included in calculations for r3.
+        """
+        from uxarray.grid.coordinates import _lonlat_rad_to_xyz
+
+        if not self._face_centered():
+            raise ValueError(
+                "Azimuthal mean computations are currently only supported for face-centered data variables."
+            )
+
+        if outer_radius <= 0:
+            raise ValueError("Radius must be a positive scalar.")
+
+        kdtree = self.uxgrid._get_scipy_kd_tree()
+
+        lon_deg, lat_deg = map(float, np.asarray(center_coord))
+        center_xyz = np.array(
+            _lonlat_rad_to_xyz(np.deg2rad(lon_deg), np.deg2rad(lat_deg))
         )
 
+        radii_deg = np.arange(0.0, outer_radius + radius_step, radius_step, dtype=float)
+        radii_rad = np.deg2rad(radii_deg)
+        chord_radii = 2.0 * np.sin(radii_rad / 2.0)
+
+        faces_processed = np.array([], dtype=np.int_)
+        means = np.full(
+            (radii_deg.size, *self.to_xarray().isel(drop=True, n_face=0).shape), np.nan
+        )
+        hit_count = np.zeros_like(radii_deg, dtype=np.int_)
+
+        for ii, r_chord in enumerate(chord_radii):
+            # indices of faces within the bounding circle for this radius
+            within = np.array(
+                kdtree.query_ball_point(center_xyz, r_chord), dtype=np.int_
+            )
+            if within.size:
+                within.sort()
+
+            # include only the new ring: r_(i-1) < d <= r_i
+            faces_in_bin = np.setdiff1d(within, faces_processed, assume_unique=True)
+            hit_count[ii] = faces_in_bin.size
+
+            if hit_count[ii] == 0:
+                continue
+
+            faces_processed = within  # cumulative set for next iteration
+
+            tpose = self.isel(n_face=faces_in_bin).transpose(..., "n_face")
+            means[ii, ...] = tpose.weighted_mean().data
+
+        # swap the leading 'radius' axis into the former n_face position
         face_axis = self.dims.index("n_face")
         dims = list(self.dims)
-        dims[face_axis] = "latitudes"
+        dims[face_axis] = "radius"
+        means = np.moveaxis(means, 0, face_axis)
 
-        uxda = UxDataArray(
-            res,
-            uxgrid=self.uxgrid,
-            dims=dims,
-            coords={"latitudes": latitudes},
-            name=self.name + "_zonal_mean" if self.name is not None else "zonal_mean",
-            attrs={"zonal_mean": True},
+        hit_count = xr.DataArray(
+            data=hit_count, dims="radius", coords={"radius": radii_deg}
         )
 
-        return uxda
+        uxda = xr.DataArray(
+            means,
+            dims=dims,
+            coords={"radius": radii_deg},
+            name=self.name + "_azimuthal_mean"
+            if self.name is not None
+            else "azimuthal_mean",
+            attrs={
+                "azimuthal_mean": True,
+                "center_lon": lon_deg,
+                "center_lat": lat_deg,
+                "radius_units": "degrees",
+            },
+        )
 
-    # Alias for 'zonal_mean', since this name is also commonly used.
-    zonal_average = zonal_mean
+        if return_hit_counts:
+            return uxda, hit_count
+        else:
+            return uxda
+
+    azimuthal_average = azimuthal_mean
 
     def weighted_mean(self, weights=None):
         """Computes a weighted mean.
@@ -515,8 +830,10 @@ class UxDataArray(xr.DataArray):
         weights : np.ndarray or None, optional
             The weights to use for the weighted mean calculation. If `None`, the function will
             determine weights based on the variable's association:
-                - For face-centered variables: uses `self.uxgrid.face_areas.data`
-                - For edge-centered variables: uses `self.uxgrid.edge_node_distances.data`
+
+            - For face-centered variables: uses `self.uxgrid.face_areas.data`
+            - For edge-centered variables: uses `self.uxgrid.edge_node_distances.data`
+
             If the variable is neither face-centered nor edge-centered, a warning is raised, and
             an unweighted mean is computed instead. User-defined weights should match the shape
             of the data variable's last dimension.
@@ -1016,69 +1333,210 @@ class UxDataArray(xr.DataArray):
         """
         return _uxda_grid_aggregate(self, destination, "any", **kwargs)
 
-    def gradient(
-        self, normalize: Optional[bool] = False, use_magnitude: Optional[bool] = True
-    ):
-        """Computes the horizontal gradient of a data variable.
+    def gradient(self, **kwargs) -> UxDataset:
+        """
+        Computes the gradient of a data variable.
 
-        Currently only supports gradients of face-centered data variables, with the resulting gradient being stored
-        on each edge. The gradient of a node-centered data variable can be approximated by computing the nodal average
-        and then computing the gradient.
+        Returns
+        -------
+        gradient: UxDataset
+            Dataset containing the zonal and merdional components of the gradient.
 
-        The aboslute value of the gradient is used, since UXarray does not yet support representing the direction
-        of the gradient.
-
-        The expression for calculating the gradient on each edge comes from Eq. 22 in Ringler et al. (2010), J. Comput. Phys.
-
-        Code is adapted from https://github.com/theweathermanda/MPAS_utilities/blob/main/mpas_calc_operators.py
-
-
-        Parameters
-        ----------
-        use_magnitude : bool, default=True
-            Whether to use the magnitude (aboslute value) of the resulting gradient
-        normalize: bool, default=None
-            Whether to normalize (l2) the resulting gradient
+        Notes
+        -----
+        The Green-Gauss theorm is utilized, where a closed control volume around each cell
+        is formed connecting centroids of the neighboring cells. The surface integral is
+        approximated using the trapezoidal rule. The sum of the contributions is then
+        normalized by the cell volume.
 
         Example
         -------
         >>> uxds["var"].gradient()
-        >>> uxds["var"].topological_mean(destination="face").gradient()
         """
+        from uxarray import UxDataset
 
-        if not self._face_centered():
-            raise ValueError(
-                "Gradient computations are currently only supported for face-centered data variables. For node-centered"
-                "data, consider performing a nodal average or remapping to faces."
+        if "use_magnitude" in kwargs or "normalize" in kwargs:
+            # Deprecation warning for old gradient implementation
+            warn(
+                "The `use_magnitude` and `normalize` parameters are deprecated. ",
+                DeprecationWarning,
             )
 
-        if use_magnitude is False:
-            warnings.warn(
-                "Gradients can only be represented in terms of their aboslute value, since UXarray does not "
-                "currently store any information for representing the sign."
-            )
+        # Compute the zonal and meridional gradient components of the stored data variable
+        grad_zonal_da, grad_meridional_da = _compute_gradient(self)
 
-        _grad = _calculate_grad_on_edge_from_faces(
-            d_var=self.values,
-            edge_faces=self.uxgrid.edge_face_connectivity.values,
-            edge_face_distances=self.uxgrid.edge_face_distances.values,
-            n_edge=self.uxgrid.n_edge,
-            normalize=normalize,
-        )
-
-        dims = list(self.dims)
-        dims[-1] = "n_edge"
-
-        uxda = UxDataArray(
-            _grad,
+        # Create a dataset containing both gradient components
+        return UxDataset(
+            {
+                "zonal_gradient": grad_zonal_da,
+                "meridional_gradient": grad_meridional_da,
+            },
             uxgrid=self.uxgrid,
-            dims=dims,
-            name=self.name + "_grad" if self.name is not None else "grad",
+            attrs={"gradient": True},
+            coords=self.coords,
         )
 
-        return uxda
+    def curl(self, other: "UxDataArray", **kwargs) -> "UxDataArray":
+        """
+        Computes the curl of a vector field.
 
-    def difference(self, destination: Optional[str] = "edge"):
+        Parameters
+        ----------
+        other : UxDataArray
+            The second component of the vector field. This UxDataArray should
+            represent the meridional (v) component, while self represents the
+            zonal (u) component.
+        **kwargs : dict
+            Additional keyword arguments (currently unused, reserved for future extensions).
+
+        Returns
+        -------
+        curl : UxDataArray
+            The curl of the vector field (u, v), computed as:
+            curl = ∂v/∂x - ∂u/∂y
+
+        Notes
+        -----
+        The curl is computed using the existing gradient infrastructure.
+        For a 2D vector field V = (u, v), the curl is a scalar field representing
+        the rotation or circulation density at each point.
+
+        The curl is computed by:
+        1. Computing the gradient of the u-component: ∇u = (∂u/∂x, ∂u/∂y)
+        2. Computing the gradient of the v-component: ∇v = (∂v/∂x, ∂v/∂y)
+        3. Extracting the relevant components: ∂v/∂x and ∂u/∂y
+        4. Computing: curl = ∂v/∂x - ∂u/∂y
+
+        Requirements:
+        - Both components must be UxDataArray objects
+        - Both must be defined on the same grid
+        - Both must be 1-dimensional (use .isel() for multi-dimensional data)
+        - Data must be face-centered
+
+        Example
+        -------
+        >>> u_component = uxds["u_wind"]
+        >>> v_component = uxds["v_wind"]
+        >>> curl_field = u_component.curl(v_component)
+        """
+        # Input validation
+        if not isinstance(other, UxDataArray):
+            raise TypeError("other must be a UxDataArray")
+
+        if self.uxgrid != other.uxgrid:
+            raise ValueError("Both vector components must be on the same grid")
+
+        if self.dims != other.dims:
+            raise ValueError("Both vector components must have the same dimensions")
+
+        if len(self.dims) != 1:
+            raise ValueError(
+                "Curl computation currently only supports 1-dimensional data. "
+                "Use .isel() to select a single time slice or level."
+            )
+
+        # Compute gradients of both components
+        grad_u_zonal, grad_u_meridional = _compute_gradient(self)
+        grad_v_zonal, grad_v_meridional = _compute_gradient(other)
+
+        # Compute curl = ∂v/∂x - ∂u/∂y
+        curl_values = grad_v_zonal.values - grad_u_meridional.values
+
+        # Create the result UxDataArray
+        curl_da = UxDataArray(
+            curl_values,
+            dims=self.dims,
+            attrs={
+                "long_name": f"Curl of ({self.name}, {other.name})",
+                "units": "1/s"
+                if "units" not in self.attrs
+                else f"({self.attrs.get('units', '1')})/m",
+                "description": "Curl of vector field computed as ∂v/∂x - ∂u/∂y",
+            },
+            uxgrid=self.uxgrid,
+            name=f"curl_{self.name}_{other.name}",
+        )
+
+        return curl_da
+
+    def divergence(self, other: "UxDataArray", **kwargs) -> "UxDataArray":
+        """
+        Computes the divergence of the vector field defined by this UxDataArray and other.
+
+        Parameters
+        ----------
+        other : UxDataArray
+            The second component of the vector field. This UxDataArray represents the first component.
+        **kwargs
+            Additional keyword arguments (reserved for future use).
+
+        Returns
+        -------
+        divergence : UxDataArray
+            UxDataArray containing the divergence of the vector field.
+
+        Notes
+        -----
+        The divergence is computed using the finite volume method. For a vector field V = (u, v),
+        where u and v are the components represented by this UxDataArray and other respectively,
+        the divergence is calculated as div(V) = ∂u/∂x + ∂v/∂y.
+
+        The implementation uses edge-centered gradients and face-centered divergence calculation
+        following the discrete divergence theorem.
+
+        Example
+        -------
+        >>> u_component = uxds["u_wind"]  # First component of vector field
+        >>> v_component = uxds["v_wind"]  # Second component of vector field
+        >>> div_field = u_component.divergence(v_component)
+        """
+        if not isinstance(other, UxDataArray):
+            raise TypeError("other must be a UxDataArray")
+
+        if self.uxgrid != other.uxgrid:
+            raise ValueError("Both UxDataArrays must have the same grid")
+
+        if self.dims != other.dims:
+            raise ValueError("Both UxDataArrays must have the same dimensions")
+
+        if self.ndim > 1:
+            raise ValueError(
+                "Divergence currently requires 1D face-centered data. Consider "
+                "reducing the dimension by selecting data across leading dimensions (e.g., `.isel(time=0)`, "
+                "`.sel(lev=500)`, or `.mean('time')`)."
+            )
+
+        if not (self._face_centered() and other._face_centered()):
+            raise ValueError(
+                "Computing the divergence is only supported for face-centered data variables."
+            )
+
+        # Compute gradients of both components
+        u_gradient = self.gradient()
+        v_gradient = other.gradient()
+
+        # For divergence: div(V) = ∂u/∂x + ∂v/∂y
+        # We use the zonal gradient (∂/∂lon) of u and meridional gradient (∂/∂lat) of v
+        u = u_gradient["zonal_gradient"]
+        v = v_gradient["meridional_gradient"]
+
+        # Align DataArrays to ensure coords/dims match, then perform xarray-aware addition
+        u, v = xr.align(u, v)
+        divergence = u + v
+        divergence.name = "divergence"
+        divergence.attrs.update(
+            {
+                "divergence": True,
+                "units": "1/s" if "units" not in kwargs else kwargs["units"],
+            }
+        )
+
+        # Wrap result as a UxDataArray while preserving uxgrid and coords
+        divergence_da = UxDataArray(divergence, uxgrid=self.uxgrid)
+
+        return divergence_da
+
+    def difference(self, destination: str | None = "edge"):
         """Computes the absolute difference of a data variable.
 
         The difference for a face-centered data variable can be computed on each edge using the ``edge_face_connectivity``,
@@ -1189,7 +1647,7 @@ class UxDataArray(xr.DataArray):
         **indexers_kwargs,
     ):
         """
-        Grid-aware index selection.
+        Return a new DataArray whose data is given by selecting indexes along the specified dimension(s).
 
         Performs xarray-style integer-location indexing along specified dimensions.
         If a single grid dimension ('n_node', 'n_edge', or 'n_face') is provided
@@ -1225,63 +1683,67 @@ class UxDataArray(xr.DataArray):
 
         Raises
         ------
-        TypeError
-            If `indexers` is provided and is not a Mapping.
         ValueError
             If more than one grid dimension is selected and `ignore_grid=False`.
         """
         from uxarray.core.dataarray import UxDataArray
+        from uxarray.core.utils import _validate_indexers
 
-        # merge dict‐style + kw‐style indexers
-        idx_map = {}
-        if indexers is not None:
-            if not isinstance(indexers, dict):
-                raise TypeError("`indexers` must be a dict of dimension indexers")
-            idx_map.update(indexers)
-        idx_map.update(indexers_kwargs)
-
-        # detect grid dims
-        grid_dims = [
-            d
-            for d in GRID_DIMS
-            if d in idx_map
-            and not (isinstance(idx_map[d], slice) and idx_map[d] == slice(None))
-        ]
-
-        # Grid Branch
-        if not ignore_grid and len(grid_dims) == 1:
-            # pop off the one grid‐dim indexer
-            grid_dim = grid_dims[0]
-            grid_indexer = idx_map.pop(grid_dim)
-
-            # slice the grid
-            sliced_grid = self.uxgrid.isel(
-                **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
-            )
-
-            da = self._slice_from_grid(sliced_grid)
-
-            # if there are any remaining indexers, apply them
-            if idx_map:
-                xarr = super(UxDataArray, da).isel(
-                    indexers=idx_map, drop=drop, missing_dims=missing_dims
-                )
-                # re‐wrap so the grid sticks around
-                return UxDataArray(xarr, uxgrid=sliced_grid)
-
-            # no other dims, return the grid‐sliced da
-            return da
-
-        # More than one grid dim provided
-        if not ignore_grid and len(grid_dims) > 1:
-            raise ValueError("Only one grid dimension can be sliced at a time")
-
-        # Fallback to Xarray
-        return super().isel(
-            indexers=idx_map or None,
-            drop=drop,
-            missing_dims=missing_dims,
+        indexers, grid_dims = _validate_indexers(
+            indexers, indexers_kwargs, "isel", ignore_grid
         )
+
+        try:
+            # Grid Branch
+            if not ignore_grid:
+                if len(grid_dims) == 1:
+                    # pop off the one grid‐dim indexer
+                    grid_dim = grid_dims.pop()
+                    grid_indexer = indexers.pop(grid_dim)
+
+                    sliced_grid = self.uxgrid.isel(
+                        **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
+                    )
+
+                    da = self._slice_from_grid(sliced_grid)
+
+                    # if there are any remaining indexers, apply them
+                    if indexers:
+                        xarr = super(UxDataArray, da).isel(
+                            indexers=indexers, drop=drop, missing_dims=missing_dims
+                        )
+                        # re‐wrap so the grid sticks around
+                        return type(self)(xarr, uxgrid=sliced_grid)
+
+                    # no other dims, return the grid‐sliced da
+                    return da
+                else:
+                    return type(self)(
+                        super().isel(
+                            indexers=indexers or None,
+                            drop=drop,
+                            missing_dims=missing_dims,
+                        ),
+                        uxgrid=self.uxgrid,
+                    )
+
+            return super().isel(
+                indexers=indexers or None,
+                drop=drop,
+                missing_dims=missing_dims,
+            )
+        except ValueError as e:
+            if "Dimensions" in str(e) and "do not exist" in str(e):
+                # The error message from xarray is quite good, but we can add to it.
+                # e.g. "Dimensions {'level'} do not exist. Expected one of ('n_face', 'time', 'lev')"
+                # Let's just append the available dimensions.
+                original_error_msg = str(e)
+                raise ValueError(
+                    f"{original_error_msg}. Available dimensions: {self.dims}"
+                ) from e
+            else:
+                # re-raise other ValueErrors
+                raise e
 
     @classmethod
     def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
@@ -1424,7 +1886,6 @@ class UxDataArray(xr.DataArray):
 
         return uxda
 
-
     def neighborhood_filter(
         self,
         func: Callable = np.mean,
@@ -1538,6 +1999,36 @@ class UxDataArray(xr.DataArray):
         uxda_filter.data = destination_data
 
         return uxda_filter
+
+    def __getattribute__(self, name):
+        """Intercept accessor method calls to return Ux-aware accessors."""
+        # Lazy import to avoid circular imports
+        from uxarray.core.accessors import DATAARRAY_ACCESSOR_METHODS
+
+        if name in DATAARRAY_ACCESSOR_METHODS:
+            from uxarray.core import accessors
+
+            # Get the accessor class by name
+            accessor_class = getattr(accessors, DATAARRAY_ACCESSOR_METHODS[name])
+
+            # Get the parent method
+            parent_method = super().__getattribute__(name)
+
+            # Create a wrapper method
+            def method(*args, **kwargs):
+                # Call the parent method
+                result = parent_method(*args, **kwargs)
+                # Wrap the result with our accessor
+                return accessor_class(result, self.uxgrid)
+
+            # Copy the docstring from the parent method
+            method.__doc__ = parent_method.__doc__
+            method.__name__ = name
+
+            return method
+
+        # For all other attributes, use the default behavior
+        return super().__getattribute__(name)
 
     def where(self, cond: Any, other: Any = dtypes.NA, drop: bool = False):
         return UxDataArray(super().where(cond, other, drop), uxgrid=self.uxgrid)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from html import escape
-from typing import IO, Any, Callable, Optional, Union
+from typing import IO, Any, Callable, Union
 from warnings import warn
 
 import numpy as np
@@ -15,7 +15,7 @@ from xarray.core.utils import UncachedAccessor
 import uxarray
 from uxarray.constants import GRID_DIMS
 from uxarray.core.dataarray import UxDataArray
-from uxarray.core.utils import _map_dims_to_ugrid
+from uxarray.core.utils import _map_dims_to_ugrid, _open_dataset_with_fallback
 from uxarray.formatting_html import dataset_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
@@ -48,6 +48,22 @@ class UxDataset(xr.Dataset):
     -----
     See `xarray.Dataset <https://docs.xarray.dev/en/stable/generated/xarray.Dataset.html>`__
     for further information about Datasets.
+
+    Grid-Aware Accessor Methods
+    ---------------------------
+    The following methods return specialized accessors that preserve grid information:
+
+    - ``groupby``: Groups data by dimension/coordinate
+    - ``groupby_bins``: Groups data by bins
+    - ``resample``: Resamples timeseries data
+    - ``rolling``: Rolling window operations
+    - ``coarsen``: Coarsens data by integer factors
+    - ``weighted``: Weighted operations
+    - ``rolling_exp``: Exponentially weighted rolling (requires numbagg)
+    - ``cumulative``: Cumulative operations
+
+    All these methods work identically to xarray but maintain the uxgrid attribute
+    throughout operations.
     """
 
     # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
@@ -60,7 +76,7 @@ class UxDataset(xr.Dataset):
         self,
         *args,
         uxgrid: Grid = None,
-        source_datasets: Optional[str] = None,
+        source_datasets: str | None = None,
         **kwargs,
     ):
         self._uxgrid = None
@@ -286,7 +302,7 @@ class UxDataset(xr.Dataset):
     @classmethod
     def from_healpix(
         cls,
-        ds: Union[str, os.PathLike, xr.Dataset],
+        ds: str | os.PathLike | xr.Dataset,
         pixels_only: bool = True,
         face_dim: str = "cell",
         **kwargs,
@@ -311,11 +327,11 @@ class UxDataset(xr.Dataset):
         """
 
         if not isinstance(ds, xr.Dataset):
-            ds = xr.open_dataset(ds, **kwargs)
+            ds = _open_dataset_with_fallback(ds, **kwargs)
 
         if face_dim not in ds.dims:
             raise ValueError(
-                f"The provided face dimension '{face_dim}' is present in the provided healpix dataset."
+                f"The provided face dimension '{face_dim}' is not present in the provided healpix dataset."
                 f"Please set 'face_dim' to the dimension corresponding to the healpix face dimension."
             )
 
@@ -327,6 +343,160 @@ class UxDataset(xr.Dataset):
         )
 
         return cls.from_xarray(ds, uxgrid, {face_dim: "n_face"})
+
+    def _slice_dataset_from_grid(self, sliced_grid, grid_dim: str, grid_indexer):
+        data_vars = {}
+        for name, da in self.data_vars.items():
+            if grid_dim in da.dims:
+                if hasattr(da, "_slice_from_grid"):
+                    data_vars[name] = da._slice_from_grid(sliced_grid)
+                else:
+                    data_vars[name] = da.isel({grid_dim: grid_indexer})
+            else:
+                data_vars[name] = da
+
+        coords = {}
+        for cname, cda in self.coords.items():
+            if grid_dim in cda.dims:
+                # Prefer authoritative coords from the sliced grid if available
+                replacement = getattr(sliced_grid, cname, None)
+                coords[cname] = (
+                    replacement
+                    if replacement is not None
+                    else cda.isel({grid_dim: grid_indexer})
+                )
+            else:
+                coords[cname] = cda
+
+        ds = xr.Dataset(data_vars=data_vars, coords=coords, attrs=self.attrs)
+
+        return ds
+
+    def isel(
+        self,
+        indexers: Mapping[Any, Any] | None = None,
+        drop: bool = False,
+        missing_dims: str = "raise",
+        ignore_grid: bool = False,
+        inverse_indices: bool = False,
+        **indexers_kwargs,
+    ):
+        """Returns a new dataset with each array indexed along the specified
+        dimension(s).
+
+        Performs xarray-style integer-location indexing along specified dimensions.
+        If a single grid dimension ('n_node', 'n_edge', or 'n_face') is provided
+        and `ignore_grid=False`, the underlying grid is sliced accordingly,
+        and remaining indexers are applied to the resulting Dataset.
+
+        Parameters
+        ----------
+        indexers : dict, optional
+            A dict with keys matching dimensions and values given
+            by integers, slice objects or arrays.
+            indexer can be a integer, slice, array-like or DataArray.
+            If DataArrays are passed as indexers, xarray-style indexing will be
+            carried out. See :ref:`indexing` for the details.
+            One of indexers or indexers_kwargs must be provided.
+        drop : bool, default: False
+            If ``drop=True``, drop coordinates variables indexed by integers
+            instead of making them scalar.
+        missing_dims : {"raise", "warn", "ignore"}, default: "raise"
+            What to do if dimensions that should be selected from are not present in the
+            Dataset:
+            - "raise": raise an exception
+            - "warn": raise a warning, and ignore the missing dimensions
+            - "ignore": ignore the missing dimensions
+        ignore_grid : bool, default=False
+            If False (default), allow slicing on one grid dimension to automatically
+            update the associated UXarray grid. If True, fall back to pure xarray behavior.
+        inverse_indices : bool, default=False
+            For grid-based slicing, pass this flag to `Grid.isel` to invert indices
+            when selecting (useful for staggering or reversing order).
+        **indexers_kwargs : dimension=indexer pairs, optional
+
+        **indexers_kwargs : {dim: indexer, ...}, optional
+            The keyword arguments form of ``indexers``.
+            One of indexers or indexers_kwargs must be provided.
+
+                Returns
+        -------
+        UxDataset
+            A new UxDataset indexed according to `indexers` and updated grid if applicable.
+        """
+        from uxarray.core.utils import _validate_indexers
+
+        indexers, grid_dims = _validate_indexers(
+            indexers, indexers_kwargs, "isel", ignore_grid
+        )
+
+        if not ignore_grid:
+            if len(grid_dims) == 1:
+                grid_dim = grid_dims.pop()
+                grid_indexer = indexers.pop(grid_dim)
+
+                # slice the grid
+                sliced_grid = self.uxgrid.isel(
+                    **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
+                )
+
+                ds = self._slice_dataset_from_grid(
+                    sliced_grid=sliced_grid,
+                    grid_dim=grid_dim,
+                    grid_indexer=grid_indexer,
+                )
+
+                if indexers:
+                    ds = xr.Dataset.isel(
+                        ds, indexers=indexers, drop=drop, missing_dims=missing_dims
+                    )
+
+                return type(self)(ds, uxgrid=sliced_grid)
+            else:
+                return type(self)(
+                    super().isel(
+                        indexers=indexers or None,
+                        drop=drop,
+                        missing_dims=missing_dims,
+                    ),
+                    uxgrid=self.uxgrid,
+                )
+
+        return super().isel(
+            indexers=indexers or None,
+            drop=drop,
+            missing_dims=missing_dims,
+        )
+
+    def __getattribute__(self, name):
+        """Intercept accessor method calls to return Ux-aware accessors."""
+        # Lazy import to avoid circular imports
+        from uxarray.core.accessors import DATASET_ACCESSOR_METHODS
+
+        if name in DATASET_ACCESSOR_METHODS:
+            from uxarray.core import accessors
+
+            # Get the accessor class by name
+            accessor_class = getattr(accessors, DATASET_ACCESSOR_METHODS[name])
+
+            # Get the parent method
+            parent_method = super().__getattribute__(name)
+
+            # Create a wrapper method
+            def method(*args, **kwargs):
+                # Call the parent method
+                result = parent_method(*args, **kwargs)
+                # Wrap the result with our accessor
+                return accessor_class(result, self.uxgrid, self.source_datasets)
+
+            # Copy the docstring from the parent method
+            method.__doc__ = parent_method.__doc__
+            method.__name__ = name
+
+            return method
+
+        # For all other attributes, use the default behavior
+        return super().__getattribute__(name)
 
     def info(self, buf: IO = None, show_attrs=False) -> None:
         """Concise summary of Dataset variables and attributes including grid
@@ -417,10 +587,7 @@ class UxDataset(xr.Dataset):
 
         integral = 0.0
 
-        # call function to get area of all the faces as a np array
-        face_areas, face_jacobian = self.uxgrid.compute_face_areas(
-            quadrature_rule, order
-        )
+        face_areas = self.uxgrid.face_areas.values
 
         # TODO: Should we fix this requirement? Shouldn't it be applicable to
         # TODO: all variables of dataset or a dataarray instead?
@@ -561,7 +728,13 @@ class UxDataset(xr.Dataset):
         self, indexers=None, method=None, tolerance=None, drop=False, **indexers_kwargs
     ):
         return UxDataset(
-            self.to_xarray().sel(indexers, tolerance, drop, **indexers_kwargs),
+            self.to_xarray().sel(
+                indexers=indexers,
+                method=method,
+                tolerance=tolerance,
+                drop=drop,
+                **indexers_kwargs,
+            ),
             uxgrid=self.uxgrid,
         )
 
