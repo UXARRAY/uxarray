@@ -124,8 +124,16 @@ def _barycentric_weights(point_xyz, dual, data_size, source_grid):
         cur_inds, counts = source_grid.get_faces_containing_point(points=point_xyz[i])
         if counts == 0:
             continue
-        all_weights[i, 0] = 1.0
-        all_indices[i, 0] = int(cur_inds[0])
+        # 2/2/2026: Below was the default assumption of the original implementation, but
+        # there were rare cases where counts > 0, hence the newer condition at the end
+        elif counts == 1:
+            all_weights[i, 0] = 1.0
+            all_indices[i, 0] = int(cur_inds[0])
+        # 2/2/2026: For some `remap_to="nodes"` cases, `counts` happen to be bigger than 1. Not sure
+        # if the best way to add weights from multiple faces is to take only the first face's though
+        else:
+            all_weights[i, 0] = 1.0
+            all_indices[i, 0] = int(cur_inds[0][0])
 
     # Prepare args for the Numba function
     valid_idxs = np.where(hits != 0)[0]
