@@ -236,6 +236,17 @@ def test_b_edge_centers_dim_change(gridpath):
     )
     assert "n_edge" in da.dims
 
+def test_b_nodes_many_faces_in_fallback(gridpath):
+    """Bilinear remap to edge centers produces an 'n_edge' dimension."""
+    source_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+    dest_path = gridpath("mpas", "QU", "480", "grid.nc")
+    uxds = ux.open_dataset(source_path, source_path)
+    dest = ux.open_grid(dest_path)
+    da = uxds["latCell"].remap.bilinear(
+        destination_grid=dest,
+        remap_to="nodes"
+    )
+    assert "n_node" in da.dims
 
 def test_b_value_errors(gridpath, datasetpath):
     """Bilinear remapping raises a value error when the source data is not on the faces"""
