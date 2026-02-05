@@ -475,14 +475,6 @@ def _grid_to_matplotlib_polycollection(
         central_longitude=central_longitude,
     )
 
-    # Filter out degenerate polygons, which cause issues with Cartopy 0.25
-    # fmt: off
-    degenerate = (
-        (polygon_shells[:,0,0][:,np.newaxis] == polygon_shells[:,1:,0]).all(axis=1)
-        | (polygon_shells[:,0,1][:,np.newaxis] == polygon_shells[:,1:,1]).all(axis=1)
-    )
-    # fmt: on
-    polygon_shells = polygon_shells[~degenerate, ...]
 
     # Projected polygon shells if a projection is specified
     if projection is not None:
@@ -515,6 +507,13 @@ def _grid_to_matplotlib_polycollection(
         # Get the indices of polygons that do not contain NaNs
         does_not_contain_nan = ~np.isnan(shells_d).any(axis=(1, 2))
         non_nan_polygon_indices = np.where(does_not_contain_nan)[0]
+
+        grid._poly_collection_cached_parameters["non_nan_polygon_indices"] = (
+            non_nan_polygon_indices
+        )
+        grid._poly_collection_cached_parameters["antimeridian_face_indices"] = (
+            antimeridian_face_indices
+        )
 
     # Select which shells to use: projected or original
     if projected_polygon_shells is not None:
