@@ -325,7 +325,9 @@ class UxDataArray(xr.DataArray):
                 # index data to ignore data mapped to periodic elements
                 _data = np.delete(
                     self.values,
-                    self.uxgrid._poly_collection_cached_parameters["antimeridian_face_indices"],
+                    self.uxgrid._poly_collection_cached_parameters[
+                        "antimeridian_face_indices"
+                    ],
                     axis=0,
                 )
             elif periodic_elements == "split":

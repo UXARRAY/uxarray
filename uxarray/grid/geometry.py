@@ -475,7 +475,6 @@ def _grid_to_matplotlib_polycollection(
         central_longitude=central_longitude,
     )
 
-
     # Projected polygon shells if a projection is specified
     if projection is not None:
         projected_polygon_shells = _build_polygon_shells(
