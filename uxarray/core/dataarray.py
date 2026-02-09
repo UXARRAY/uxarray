@@ -325,7 +325,7 @@ class UxDataArray(xr.DataArray):
                 # index data to ignore data mapped to periodic elements
                 _data = np.delete(
                     self.values,
-                    self.uxgrid.antimeridian_face_indices,
+                    self.uxgrid._poly_collection_cached_parameters["antimeridian_face_indices"],
                     axis=0,
                 )
             elif periodic_elements == "split":
@@ -347,9 +347,6 @@ class UxDataArray(xr.DataArray):
                 ]
 
             poly_collection.set_array(_data)
-
-            # by default, set edge color to face color
-            poly_collection.set_edgecolor('face')
 
             if return_indices:
                 return poly_collection, corrected_to_original_faces
