@@ -7,7 +7,6 @@ from warnings import warn
 import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
-from spatialpandas import GeoDataFrame
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
