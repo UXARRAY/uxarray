@@ -449,7 +449,7 @@ def _grid_to_matplotlib_polycollection(
     # Handle unsupported configuration: splitting periodic elements with projection
     if periodic_elements == "split" and projection is not None:
         raise ValueError(
-            "Explicitly projecting lines is not supported. Please pass in your projection"
+            "Explicitly projecting lines is not supported. Please pass in your projection "
             "using the 'transform' parameter"
         )
 
