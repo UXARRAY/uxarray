@@ -227,5 +227,3 @@ def test_to_raster_pixel_ratio(gridpath, r1, r2):
     f = r2 / r1
     d = np.array(raster2.shape) - f * np.array(raster1.shape)
     assert (d >= 0).all() and (d <= f - 1).all()
-
-
