@@ -2391,7 +2391,7 @@ class Grid:
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.LineCollection``` consisting
-        of lines representing the edges of the current ``Grid``
+        of lines representing the edges of the current unstructured grid.
 
         Parameters
         ----------
