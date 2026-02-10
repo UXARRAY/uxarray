@@ -4,6 +4,7 @@ import holoviews as hv
 import pytest
 import numpy as np
 
+import matplotlib
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 
@@ -236,3 +237,13 @@ def test_collections_projection_kwarg(gridpath):
     with pytest.warns(FutureWarning):
         pc = uxgrid.to_polycollection(projection=ccrs.PlateCarree())
         lc = uxgrid.to_linecollection(projection=ccrs.PlateCarree())
+
+
+def test_plot_edges(gridpath):
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.PlateCarree()})
+    lines = uxgrid.plot_edges(ax=ax, color="green")
+    # check if all edges are plotted
+    assert len(lines) == uxgrid.n_edge
+    # check if the type is correct
+    assert all(isinstance(line, matplotlib.lines.Line2D) for line in lines)
