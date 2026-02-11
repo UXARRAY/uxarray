@@ -6,19 +6,26 @@ import xarray as xr
 from uxarray.core.dataarray import UxDataArray
 from uxarray.grid.grid import Grid
 
+COORD_TYPES = {
+    "LON": "lon",
+    "LAT": "lat",
+    "CART_X": "X",
+    "CART_Y": "Y",
+}
+
+# CF attributes that indicate coordinate type
+CF_LAT_ATTRS = ["latitude", "projection_y_coordinate"]
+CF_LON_ATTRS = ["longitude", "projection_x_coordinate"]
+
+# CF units that indicate coordinate type
+CF_LAT_UNITS = ["degrees_north", "degree_north", "degree_n"]
+CF_LON_UNITS = ["degrees_east", "degree_east", "degree_e"]
+
 
 class SpatialCoordsRemapper:
     """Ensures remapping spatial coordinates between the source and destination grid for the remapping functions.
     It may include remapping of values, renaming, and removal of some of the coordinates with respect to the
     dimensions of source data & coordinates and the `remap_to` selection."""
-
-    # CF attributes that indicate coordinate type
-    CF_LAT_ATTRS = ["latitude", "projection_y_coordinate"]
-    CF_LON_ATTRS = ["longitude", "projection_x_coordinate"]
-
-    # CF units that indicate coordinate type
-    CF_LAT_UNITS = ["degrees_north", "degree_north", "degree_n"]
-    CF_LON_UNITS = ["degrees_east", "degree_east", "degree_e"]
 
     def __init__(
         self,
@@ -64,18 +71,24 @@ class SpatialCoordsRemapper:
         """
         if self.remap_to == "nodes":
             return {
-                "lon": self.destination_grid.node_lon,
-                "lat": self.destination_grid.node_lat,
+                COORD_TYPES["LON"]: self.destination_grid.node_lon,
+                COORD_TYPES["LAT"]: self.destination_grid.node_lat,
+                COORD_TYPES["CART_X"]: self.destination_grid.node_x,
+                COORD_TYPES["CART_Y"]: self.destination_grid.node_y,
             }
         elif self.remap_to == "faces":
             return {
-                "lon": self.destination_grid.face_lon,
-                "lat": self.destination_grid.face_lat,
+                COORD_TYPES["LON"]: self.destination_grid.face_lon,
+                COORD_TYPES["LAT"]: self.destination_grid.face_lat,
+                COORD_TYPES["CART_X"]: self.destination_grid.face_x,
+                COORD_TYPES["CART_Y"]: self.destination_grid.face_y,
             }
         elif self.remap_to == "edges":
             return {
-                "lon": self.destination_grid.edge_lon,
-                "lat": self.destination_grid.edge_lat,
+                COORD_TYPES["LON"]: self.destination_grid.edge_lon,
+                COORD_TYPES["LAT"]: self.destination_grid.edge_lat,
+                COORD_TYPES["CART_X"]: self.destination_grid.edge_x,
+                COORD_TYPES["CART_Y"]: self.destination_grid.edge_y,
             }
         else:
             raise ValueError(
@@ -117,32 +130,32 @@ class SpatialCoordsRemapper:
                 # Check `standard_name` first
                 if "standard_name" in coord.attrs:
                     std_name = coord.attrs["standard_name"].lower()
-                    if std_name in self.CF_LAT_ATTRS:
+                    if std_name in CF_LAT_ATTRS:
                         is_spatial = True
-                        coord_type = "lat"
-                    elif std_name in self.CF_LON_ATTRS:
+                        coord_type = COORD_TYPES["LAT"]
+                    elif std_name in CF_LON_ATTRS:
                         is_spatial = True
-                        coord_type = "lon"
+                        coord_type = COORD_TYPES["LON"]
 
                 # Check units if standard_name didn't work
                 if not is_spatial and "units" in coord.attrs:
                     units = coord.attrs["units"].lower()
-                    if any(u in units for u in self.CF_LAT_UNITS):
+                    if any(u in units for u in CF_LAT_UNITS):
                         is_spatial = True
-                        coord_type = "lat"
-                    elif any(u in units for u in self.CF_LON_UNITS):
+                        coord_type = COORD_TYPES["LAT"]
+                    elif any(u in units for u in CF_LON_UNITS):
                         is_spatial = True
-                        coord_type = "lon"
+                        coord_type = COORD_TYPES["LON"]
 
                 # Check axis attribute as last chance
                 if not is_spatial and "axis" in coord.attrs:
                     axis = coord.attrs["axis"].upper()
-                    if axis == "Y":
+                    if axis == COORD_TYPES["CART_Y"]:
                         is_spatial = True
-                        coord_type = "lat"
-                    elif axis == "X":
+                        coord_type = COORD_TYPES["CART_Y"]
+                    elif axis == COORD_TYPES["CART_X"]:
                         is_spatial = True
-                        coord_type = "lon"
+                        coord_type = COORD_TYPES["CART_X"]
 
             # If a spatial coord is found and `coord_type` is identified in `source`
             if is_spatial and coord_type:
@@ -290,13 +303,13 @@ class SpatialCoordsRemapper:
         # If `remap_to` matches `source` dimension
         if source_element_type == self.remap_to:
             # Swap coords on matching dimension
-            for coord_type in ["lat", "lon"]:
+            for coord_type in COORD_TYPES.values():
                 if coord_type in source_coords:
                     source_coord_name, std_name = source_coords[coord_type]
                     out_name = source_coord_name
 
                     # Assign destination grid values
-                    output_coords[out_name] = dest_grid_coords[coord_type]
+                    output_coords[out_name] = dest_grid_coords[coord_type].variable
 
         # `remap_to` differs from `source` dimension
         else:
@@ -312,7 +325,7 @@ class SpatialCoordsRemapper:
             renamed_coords = []
 
             # Swap and rename (as needed) coords from source dimension
-            for coord_type in ["lat", "lon"]:
+            for coord_type in COORD_TYPES.values():
                 if coord_type in source_coords:
                     source_coord_name, std_name = source_coords[coord_type]
 
@@ -324,7 +337,7 @@ class SpatialCoordsRemapper:
                         renamed_coords.append((source_coord_name, out_name))
 
                     # Assign destination grid values on remap_to dimension
-                    output_coords[out_name] = dest_grid_coords[coord_type]
+                    output_coords[out_name] = dest_grid_coords[coord_type].variable
 
             if renamed_coords:
                 for old, new in renamed_coords:
