@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 import numpy as np
 
 import uxarray.core.dataset
@@ -57,7 +55,7 @@ def _assert_dimension(dim):
         raise ValueError(f"Invalid spatial dimension: {dim!r}")
 
 
-def _construct_remapped_ds(source, remapped_vars, destination_grid, destination_dim):
+def _construct_remapped_ds(source, remapped_vars, destination_grid, remap_to):
     """
     Construct a new UxDataset from remapped data variables and updated coordinates.
 
@@ -69,22 +67,29 @@ def _construct_remapped_ds(source, remapped_vars, destination_grid, destination_
         Mapping of variable names to their remapped DataArrays.
     destination_grid : Grid
         The UXarray grid instance representing the new topology.
-    destination_dim : str
-        The spatial dimension name (e.g., 'n_face') for the destination grid.
+    remap_to : str
+        Which grid element receives the remapped values, either "nodes", "edges", or "faces"
 
     Returns
     -------
     UxDataset
         A new dataset containing only the remapped variables and retained coordinates.
     """
-    destination_coords = deepcopy(source.coords)
-    if destination_dim in destination_coords:
-        del destination_coords[destination_dim]
+
+    from uxarray.remap.spatial_coords_remap import SpatialCoordsRemapper
+
+    # Ensure handling of spatial coordinates between `source` and `destination_grid` for the remapped output
+    # with respect to the dimensions of data & coordinate and the `remap_to` selection. See the class
+    # definition and functions for detailed information
+    coords_remapper = SpatialCoordsRemapper(
+        source=source, destination_grid=destination_grid, remap_to=remap_to
+    )
+    output_coords = coords_remapper.construct_output_coords()
 
     ds_remapped = uxarray.core.dataset.UxDataset(
         data_vars=remapped_vars,
         uxgrid=destination_grid,
-        coords=destination_coords,
+        coords=output_coords,
     )
 
     return ds_remapped
