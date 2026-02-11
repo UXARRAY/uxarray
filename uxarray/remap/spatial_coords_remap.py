@@ -82,32 +82,24 @@ class SpatialCoordsRemapper:
                 f"Unknown `remap_to`: {self.remap_to}. Must be either 'nodes', 'faces', or 'edges'."
             )
 
-    def _find_source_coords(self) -> Dict[str, Dict[str, Tuple[str, str]]]:
+    def _find_source_coords(self) -> Dict[str, Tuple[str, str]]:
         """
         Find spatial coordinate variables in `source` by checking their attributes, units, and axes.
 
         Returns
         -------
-        Dict[str, Dict[str, Tuple[str, str]]]
-            Nested dictionary structure:
-            - First level keys: dimension names (e.g., 'n_face', 'n_node', 'n_edge')
-            - Second level keys: spatial identifier ('lat' or 'lon')
-            - Values: (coord_var_name, standard_name) tuples
+        Dict[str, Tuple[str, str]]
+            Dictionary with keys as spatial identifiers ('lat' or 'lon') and values as
+            (coord_var_name, standard_name) tuples
 
             Example output would look like:
                 {
-                    'n_face': {
-                        'lat': ('Mesh2_face_y', 'latitude'),
-                        'lon': ('Mesh2_face_x', 'longitude')
-                    },
-                    'n_node': {
-                        'lat': ('Mesh2_node_y', 'latitude'),
-                        'lon': ('Mesh2_node_x', 'longitude')
-                    }
+                    'lat': ('Mesh2_face_y', 'latitude'),
+                    'lon': ('Mesh2_face_x', 'longitude')
                 }
         """
 
-        coords_by_dim = {}
+        source_coords = {}
 
         # Check all coordinates in `source`
         for coord_name in self.source.coords:
@@ -116,8 +108,6 @@ class SpatialCoordsRemapper:
             # Skip if in rare case this coordinate doesn't have dimensions or has multiple dimensions
             if not hasattr(coord, "dims") or len(coord.dims) != 1:
                 continue
-
-            dim_name = coord.dims[0]
 
             # Determine if this is a spatial coordinate by checking attributes
             is_spatial = False
@@ -156,15 +146,11 @@ class SpatialCoordsRemapper:
 
             # If a spatial coord is found and `coord_type` is identified in `source`
             if is_spatial and coord_type:
-                # Initialize `coords_by_dim` that will be returned at the end
-                if dim_name not in coords_by_dim:
-                    coords_by_dim[dim_name] = {}
-
                 # Store the coordinate variable
                 standard_name = coord.attrs.get("standard_name", coord_type)
-                coords_by_dim[dim_name][coord_type] = (coord_name, standard_name)
+                source_coords[coord_type] = (coord_name, standard_name)
 
-        return coords_by_dim
+        return source_coords
 
     def _get_element_type_from_dimension(self, dim_name: str) -> Optional[str]:
         """
@@ -247,20 +233,17 @@ class SpatialCoordsRemapper:
     def construct_output_coords(self) -> Dict[str, xr.DataArray]:
         """
         Construct spatial coordinates for the remapped output by finding spatial coordinate variables, if any,
-        in the source data and employing a logic as follows:
+        in `source` and employing a logic as follows:
 
         Logic:
         ------
         If `remap_to` matches the `source` dimension (e.g. `source` on face centers` and `remap_to="faces"` etc.)
-            - Swap values of spatial coords, which are defined on the same dimension as `source`, with
-            values of the corresponding coords from `destination_grid`
-            - Remove spatial coords defined on different dimensions than `source` and display a warning about it
+            - Swap values of spatial coords with values of the corresponding coords from `destination_grid`
 
         Else (if `remap_to` doesn't match `source` dim (e.g. `source` on face centers but `remap_to="nodes"` etc.))
-            - Swap values of spatial coords, which are defined on the same dimension as `source`, with
-            values of the coords from `destination_grid` that are defined on the `remap_to` dimension.
+            - Swap values of spatial coords with values of the coords from `destination_grid` that are
+            defined on the `remap_to` dimension.
                 - Rename these coords to reflect new element type (e.g. 'face_x' → 'node_x')
-            - Remove other spatial coords and display a warning about it
 
         Returns
         -------
@@ -268,10 +251,10 @@ class SpatialCoordsRemapper:
             Dictionary mapping output coordinate variables to their new values
         """
 
-        # Find spatial coordinate variables in `source` by checking their attributes and organize them by dimension
-        coord_vars_by_dim = self._find_source_coords()
+        # Find spatial coordinate variables in `source` by checking their attributes
+        source_coords = self._find_source_coords()
 
-        if not coord_vars_by_dim:
+        if not source_coords:
             warnings.warn(
                 "No spatial coordinate variables found in `source`.",
                 UserWarning,
@@ -302,70 +285,46 @@ class SpatialCoordsRemapper:
         dest_grid_coords = self._get_destination_grid_coords()
 
         output_coords = {}
-        removed_coords = []
-        renamed_coords = []
 
         # Logic for the remapped spatial coords construction starts here
         # If `remap_to` matches `source` dimension
         if source_element_type == self.remap_to:
             # Swap coords on matching dimension
-            if source_spatial_dim in coord_vars_by_dim:
-                for coord_type in ["lat", "lon"]:
-                    if coord_type in coord_vars_by_dim[source_spatial_dim]:
-                        source_coord_name, std_name = coord_vars_by_dim[
-                            source_spatial_dim
-                        ][coord_type]
+            for coord_type in ["lat", "lon"]:
+                if coord_type in source_coords:
+                    source_coord_name, std_name = source_coords[coord_type]
+                    out_name = source_coord_name
 
-                        out_name = source_coord_name
-
-                        # Assign destination grid values
-                        output_coords[out_name] = dest_grid_coords[coord_type]
-
-            # Remove coords on other dimensions (actually, exclude them from the output and keep track of them)
-            for dim_name, coords_dict in coord_vars_by_dim.items():
-                if dim_name != source_spatial_dim:
-                    for coord_type, (coord_name, _) in coords_dict.items():
-                        removed_coords.append(coord_name)
-
-            if removed_coords:
-                warnings.warn(
-                    f"Removing spatial coordinates on non-matching dimensions: {removed_coords}.",
-                    UserWarning,
-                    stacklevel=2,
-                )
+                    # Assign destination grid values
+                    output_coords[out_name] = dest_grid_coords[coord_type]
 
         # `remap_to` differs from `source` dimension
         else:
             warnings.warn(
-                f"`source` dimention:('{source_spatial_dim}') but remapped to ('{self.remap_to}'). Coords "
-                f"will be swapped to '{self.remap_to}' dimension and renamed accordingly.",
+                f"Coordinates handling as part of remapping: `source` has the dimension:"
+                f"('{source_spatial_dim}') but is being remapped to ('{self.remap_to}'). Therefore, "
+                f"coordinate values will be swapped to the '{self.remap_to}' coordinates from "
+                f"`destination_grid` and renamed accordingly.",
                 UserWarning,
                 stacklevel=2,
             )
 
+            renamed_coords = []
+
             # Swap and rename (as needed) coords from source dimension
-            if source_spatial_dim in coord_vars_by_dim:
-                for coord_type in ["lat", "lon"]:
-                    if coord_type in coord_vars_by_dim[source_spatial_dim]:
-                        source_coord_name, std_name = coord_vars_by_dim[
-                            source_spatial_dim
-                        ][coord_type]
+            for coord_type in ["lat", "lon"]:
+                if coord_type in source_coords:
+                    source_coord_name, std_name = source_coords[coord_type]
 
-                        # Rename to reflect new element type
-                        out_name = self._rename_coord_for_new_dimension(
-                            source_coord_name, source_element_type, self.remap_to
-                        )
-                        if out_name != source_coord_name:
-                            renamed_coords.append((source_coord_name, out_name))
+                    # Rename to reflect new element type
+                    out_name = self._rename_coord_for_new_dimension(
+                        source_coord_name, source_element_type, self.remap_to
+                    )
+                    if out_name != source_coord_name:
+                        renamed_coords.append((source_coord_name, out_name))
 
-                        # Assign destination grid values on remap_to dimension
-                        output_coords[out_name] = dest_grid_coords[coord_type]
-
-            # Remove coords on other dimensions (actually, exclude them from the output and keep track of them)
-            for dim_name, coords_dict in coord_vars_by_dim.items():
-                if dim_name != source_spatial_dim:
-                    for coord_type, (coord_name, _) in coords_dict.items():
-                        removed_coords.append(coord_name)
+                    # Assign destination grid values on remap_to dimension
+                    output_coords[out_name] = dest_grid_coords[coord_type]
 
             if renamed_coords:
                 for old, new in renamed_coords:
@@ -374,12 +333,5 @@ class SpatialCoordsRemapper:
                         UserWarning,
                         stacklevel=2,
                     )
-
-            if removed_coords:
-                warnings.warn(
-                    f"Removing spatial coordinates on non-matching dimensions: {removed_coords}.",
-                    UserWarning,
-                    stacklevel=2,
-                )
 
         return output_coords

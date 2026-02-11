@@ -79,8 +79,8 @@ def _construct_remapped_ds(source, remapped_vars, destination_grid, remap_to):
     from uxarray.remap.spatial_coords_remap import SpatialCoordsRemapper
 
     # Ensure handling of spatial coordinates between `source` and `destination_grid` for the remapped output
-    # with respect to the dimensions of data & coordinate and the `remap_to` selection. See the class
-    # definition and functions for detailed information
+    # with respect to the source dimension and `remap_to` selection. See the class definition and functions
+    # for detailed information
     coords_remapper = SpatialCoordsRemapper(
         source=source, destination_grid=destination_grid, remap_to=remap_to
     )
