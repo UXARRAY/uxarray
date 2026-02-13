@@ -205,6 +205,7 @@ def _point_in_face_query(
         Number of valid face‐hits per point.
     """
     pts = np.asarray(points, dtype=np.float64)
+    pts = np.ascontiguousarray(pts)
     if pts.ndim == 1:
         pts = pts[np.newaxis, :]
     # Cull with k-d tree
