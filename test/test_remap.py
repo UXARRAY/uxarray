@@ -265,3 +265,45 @@ def test_b_quadrilateral(gridpath, datasetpath):
     out = uxds['var2'].remap.bilinear(destination_grid=dest)
 
     assert out.size > 0
+
+def test_b_coords_remap_to_faces(gridpath):
+    """Bilinear remap should change the array when remap_to != source."""
+    mesh_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+    dest = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
+
+    uxda_with_coords = ux.core.UxDataArray(
+        data=uxds["latCell"],
+        uxgrid=uxds.uxgrid,
+        coords={"Mesh2_face_lat": uxds.uxgrid.face_lat,
+                "Mesh_Face_lon": uxds.uxgrid.face_lon,
+                }
+    )
+
+    da_remap_b = uxda_with_coords.remap.bilinear(
+        destination_grid=dest, remap_to="faces"
+    )
+
+    assert (da_remap_b.Mesh_Face_lon.size == dest.face_lon.size)
+    assert np.array_equal(da_remap_b.Mesh_Face_lon.values, dest.face_lon.values)
+
+def test_b_coords_remap_to_nodes(gridpath):
+    """Bilinear remap should change the array when remap_to != source."""
+    mesh_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+    dest = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
+
+    uxda_with_coords = ux.core.UxDataArray(
+        data=uxds["latCell"],
+        uxgrid=uxds.uxgrid,
+        coords={"Mesh2_face_lat": uxds.uxgrid.face_lat,
+                "Mesh_Face_lon": uxds.uxgrid.face_lon,
+                }
+    )
+
+    da_remap_b = uxda_with_coords.remap.bilinear(
+        destination_grid=dest, remap_to="nodes"
+    )
+
+    assert (da_remap_b.Mesh_Node_lon.size == dest.node_lon.size)
+    assert np.array_equal(da_remap_b.Mesh_Node_lon.values, dest.node_lon.values)
