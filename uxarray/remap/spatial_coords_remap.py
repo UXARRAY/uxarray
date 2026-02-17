@@ -24,8 +24,8 @@ CF_LON_UNITS = ["degrees_east", "degree_east", "degree_e"]
 
 class SpatialCoordsRemapper:
     """Ensures remapping spatial coordinates between the source and destination grid for the remapping functions.
-    It may include remapping of values, renaming, and removal of some of the coordinates with respect to the
-    dimensions of source data & coordinates and the `remap_to` selection."""
+    It may include swapping of values and renaming of some of the coordinates with respect to the dimensions of
+    source data and the `remap_to` selection."""
 
     def __init__(
         self,
