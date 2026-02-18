@@ -29,7 +29,7 @@ from .utils import (
 def _bilinear(
     source: UxDataArray | UxDataset,
     destination_grid: Grid,
-    destination_dim: str = "n_face",
+    remap_to: str = "faces",
 ) -> np.ndarray:
     """Bilinear Remapping between two grids, mapping data that resides on the
     corner nodes, edge centers, or face centers on the source grid to the
@@ -39,8 +39,8 @@ def _bilinear(
     ---------
     source_uxda : UxDataArray
         Source UxDataArray
-    remap_to : str, default="nodes"
-        Location of where to map data, either "nodes", "edge centers", or "face centers"
+    remap_to : str, default="faces"
+        Which grid element receives the remapped values, either "nodes", "edges", or "faces"
 
     Returns
     -------
@@ -49,7 +49,7 @@ def _bilinear(
     """
 
     # ensure array is a np.ndarray
-    _assert_dimension(destination_dim)
+    _assert_dimension(remap_to)
 
     # Ensure the destination grid is normalized
     destination_grid.normalize_cartesian_coordinates()
@@ -70,12 +70,12 @@ def _bilinear(
         dual = source.uxgrid.get_dual()
 
         # get destination coordinate pairs
-        point_xyz = _prepare_points(destination_grid, destination_dim)
+        point_xyz = _prepare_points(destination_grid, remap_to)
 
         weights, indices = _barycentric_weights(
             point_xyz=point_xyz,
             dual=dual,
-            data_size=getattr(destination_grid, f"n_{KDTREE_DIM_MAP[destination_dim]}"),
+            data_size=getattr(destination_grid, f"n_{KDTREE_DIM_MAP[remap_to]}"),
             source_grid=ds.uxgrid,
         )
 
@@ -87,8 +87,8 @@ def _bilinear(
             inds, w = indices, weights
 
             # pack indices & weights into tiny DataArrays:
-            indexer = xr.DataArray(inds, dims=[LABEL_TO_COORD[destination_dim], "k"])
-            weight_da = xr.DataArray(w, dims=[LABEL_TO_COORD[destination_dim], "k"])
+            indexer = xr.DataArray(inds, dims=[LABEL_TO_COORD[remap_to], "k"])
+            weight_da = xr.DataArray(w, dims=[LABEL_TO_COORD[remap_to], "k"])
 
             # gather the k neighbor values:
             da_k = da.isel({source_dim: indexer}, ignore_grid=True)
@@ -103,7 +103,7 @@ def _bilinear(
             remapped_vars[name] = da
 
     ds_remapped = _construct_remapped_ds(
-        source, remapped_vars, destination_grid, destination_dim
+        source, remapped_vars, destination_grid, remap_to
     )
 
     return ds_remapped[name] if is_da else ds_remapped
@@ -124,8 +124,16 @@ def _barycentric_weights(point_xyz, dual, data_size, source_grid):
         cur_inds, counts = source_grid.get_faces_containing_point(points=point_xyz[i])
         if counts == 0:
             continue
-        all_weights[i, 0] = 1.0
-        all_indices[i, 0] = int(cur_inds[0])
+        # 2/2/2026: Below was the default assumption of the original implementation, but
+        # there were rare cases where counts > 0, hence the newer condition at the end
+        elif counts == 1:
+            all_weights[i, 0] = 1.0
+            all_indices[i, 0] = int(cur_inds[0])
+        # 2/2/2026: For some `remap_to="nodes"` cases, `counts` happen to be bigger than 1. Not sure
+        # if the best way to add weights from multiple faces is to take only the first face's though
+        else:
+            all_weights[i, 0] = 1.0
+            all_indices[i, 0] = int(cur_inds[0][0])
 
     # Prepare args for the Numba function
     valid_idxs = np.where(hits != 0)[0]
