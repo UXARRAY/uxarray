@@ -1,6 +1,6 @@
-# Contributing to Uxarray
+# Contributing to UXarray
 
-Anyone can contribute to and participate in the Uxarray project
+Anyone can contribute to and participate in the UXarray project
 at any levels of project development! We conduct all of our work
 in the open, and all of our work is Open Source Licensed.
 
