@@ -236,6 +236,7 @@ linkcheck_ignore = [
     r"https://gmao.gsfc.nasa.gov/gmaoftp/*",
     r"https://docs.xarray.dev/*",
     r"https://seatstandards.org/*",
+    r"https://healpix.sourceforge.io/*",
     # More URLs as needed
 ]
 
