@@ -14,13 +14,13 @@ from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
 import uxarray
+from uxarray.constants import GRID_DIMS
 from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.gradient import (
     _calculate_edge_face_difference,
     _calculate_edge_node_difference,
     _compute_gradient,
 )
-from uxarray.constants import GRID_DIMS
 from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.core.zonal import (
     _compute_conservative_zonal_mean_bands,

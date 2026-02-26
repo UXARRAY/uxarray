@@ -611,7 +611,6 @@ class UxDataset(xr.Dataset):
         xarr = super().to_array()
         return UxDataArray(xarr, uxgrid=self.uxgrid)
 
-
     def neighborhood_filter(
         self,
         func: Callable = np.mean,
@@ -667,7 +666,6 @@ class UxDataset(xr.Dataset):
             return xr.Dataset(ds)
 
         return xr.Dataset(self)
-
 
     def get_dual(self):
         """Compute the dual mesh for a dataset, returns a new dataset object.
