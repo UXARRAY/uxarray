@@ -1,9 +1,10 @@
 import copy
 import os
 from html import escape
-from typing import Sequence
+from typing import Optional, Sequence
 from warnings import warn
 
+import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
 from xarray.core.options import OPTIONS
@@ -207,9 +208,22 @@ class Grid:
             "antimeridian_face_indices": None,
         }
 
-        # Cached matplotlib data structures
-        self._cached_poly_collection = None
-        self._cached_line_collection = None
+        # cached parameters for PolyCollection conversions
+        self._poly_collection_cached_parameters = {
+            "poly_collection": None,
+            "periodic_elements": None,
+            "projection": None,
+            "corrected_to_original_faces": None,
+            "non_nan_polygon_indices": None,
+            "antimeridian_face_indices": None,
+        }
+
+        # cached parameters for LineCollection conversions
+        self._line_collection_cached_parameters = {
+            "line_collection": None,
+            "periodic_elements": None,
+            "projection": None,
+        }
 
         self._raster_data_id = None
 
@@ -2285,89 +2299,147 @@ class Grid:
 
     def to_polycollection(
         self,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        return_indices: Optional[bool] = False,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
+        return_non_nan_polygon_indices: Optional[bool] = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
-        of polygons representing the faces of the unstructured grid.
+        of polygons representing the faces of the current ``Grid``
 
         Parameters
         ----------
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
+        projection: ccrs.Projection
+            Cartopy geographic projection to use
+        return_indices: bool
+            Flag to indicate whether to return the indices of corrected polygons, if any exist
+        cache: bool
+            Flag to indicate whether to cache the computed PolyCollection
+        override: bool
+            Flag to indicate whether to override a cached PolyCollection, if it exists
         **kwargs: dict
             Key word arguments to pass into the construction of a PolyCollection
         """
-        import cartopy.crs as ccrs
 
-        if "projection" in kwargs:
-            proj = kwargs.pop("projection")
-            warn(
-                (
-                    "'projection' is not a supported argument and will be ignored. "
-                    "Define the desired projection on the GeoAxes that this collection will be added to. "
-                    "Example:\n"
-                    "    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.Robinson()})\n"
-                    "    ax.add_collection(poly_collection)\n"
-                    f"(received projection={proj!r})"
-                ),
-                category=FutureWarning,
-                stacklevel=2,
+        if periodic_elements not in ["ignore", "exclude", "split"]:
+            raise ValueError(
+                f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
             )
 
-        if self._cached_poly_collection:
-            return copy.deepcopy(self._cached_poly_collection)
+        if self._poly_collection_cached_parameters["poly_collection"] is not None:
+            if (
+                self._poly_collection_cached_parameters["periodic_elements"]
+                != periodic_elements
+                or self._poly_collection_cached_parameters["projection"] != projection
+            ):
+                # cached PolyCollection has a different projection or periodic element handling method
+                override = True
+
+        if (
+            self._poly_collection_cached_parameters["poly_collection"] is not None
+            and not override
+        ):
+            # use cached PolyCollection
+            if return_indices:
+                return copy.deepcopy(
+                    self._poly_collection_cached_parameters["poly_collection"]
+                ), self._poly_collection_cached_parameters[
+                    "corrected_to_original_faces"
+                ]
+            else:
+                return copy.deepcopy(
+                    self._poly_collection_cached_parameters["poly_collection"]
+                )
 
         (
             poly_collection,
             corrected_to_original_faces,
         ) = _grid_to_matplotlib_polycollection(
-            self, periodic_elements="ignore", projection=None, **kwargs
+            self, periodic_elements, projection, **kwargs
         )
 
-        poly_collection.set_transform(ccrs.Geodetic())
-        self._cached_poly_collection = poly_collection
+        if cache:
+            # cache PolyCollection, indices, and state
+            self._poly_collection_cached_parameters["poly_collection"] = poly_collection
+            self._poly_collection_cached_parameters["corrected_to_original_faces"] = (
+                corrected_to_original_faces
+            )
+            self._poly_collection_cached_parameters["periodic_elements"] = (
+                periodic_elements
+            )
+            self._poly_collection_cached_parameters["projection"] = projection
 
-        return copy.deepcopy(poly_collection)
+        if return_indices:
+            return copy.deepcopy(poly_collection), corrected_to_original_faces
+        else:
+            return copy.deepcopy(poly_collection)
 
     def to_linecollection(
         self,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.LineCollection``` consisting
-        of lines representing the edges of the unstructured grid.
+        of lines representing the edges of the current unstructured grid.
 
         Parameters
         ----------
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
+        projection: ccrs.Projection
+            Cartopy geographic projection to use
+        cache: bool
+            Flag to indicate whether to cache the computed LineCollection
+        override: bool
+            Flag to indicate whether to override a cached LineCollection, if it exists
         **kwargs: dict
             Key word arguments to pass into the construction of a LineCollection
         """
-        import cartopy.crs as ccrs
-
-        if "projection" in kwargs:
-            proj = kwargs.pop("projection")
-            warn(
-                (
-                    "'projection' is not a supported argument and will be ignored. "
-                    "Define the desired projection on the GeoAxes that this collection will be added to. "
-                    "Example:\n"
-                    "    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.Robinson()})\n"
-                    "    ax.add_collection(line_collection)\n"
-                    f"(received projection={proj!r})"
-                ),
-                category=FutureWarning,
-                stacklevel=2,
+        if periodic_elements not in ["ignore", "exclude", "split"]:
+            raise ValueError(
+                f"Invalid value for 'periodic_elements'. Expected one of ['ignore', 'exclude', 'split'] but received: {periodic_elements}"
             )
-        if self._cached_line_collection:
-            return copy.deepcopy(self._cached_line_collection)
+
+        if self._line_collection_cached_parameters["line_collection"] is not None:
+            if (
+                self._line_collection_cached_parameters["periodic_elements"]
+                != periodic_elements
+                or self._line_collection_cached_parameters["projection"] != projection
+            ):
+                override = True
+
+            if not override:
+                return self._line_collection_cached_parameters["line_collection"]
 
         line_collection = _grid_to_matplotlib_linecollection(
             grid=self,
-            periodic_elements="ingore",
-            projection=None,
+            periodic_elements=periodic_elements,
+            projection=projection,
             **kwargs,
         )
 
-        line_collection.set_transform(ccrs.Geodetic())
-
-        self._cached_line_collection = line_collection
+        if cache:
+            self._line_collection_cached_parameters["line_collection"] = line_collection
+            self._line_collection_cached_parameters["periodic_elements"] = (
+                periodic_elements
+            )
+            self._line_collection_cached_parameters["periodic_elements"] = (
+                periodic_elements
+            )
 
         return copy.deepcopy(line_collection)
 

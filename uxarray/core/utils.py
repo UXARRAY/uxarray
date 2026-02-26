@@ -123,11 +123,8 @@ def _validate_indexers(indexers, indexers_kwargs, func_name, ignore_grid):
     from uxarray.constants import GRID_DIMS
 
     # Used to filter out slices containing all Nones (causes subscription errors, i.e., var[0])
-    _is_full_none_slice = (
-        lambda v: isinstance(v, slice)
-        and v.start is None
-        and v.stop is None
-        and v.step is None
+    _is_full_none_slice = lambda v: (
+        isinstance(v, slice) and v.start is None and v.stop is None and v.step is None
     )
 
     indexers = either_dict_or_kwargs(indexers, indexers_kwargs, func_name)

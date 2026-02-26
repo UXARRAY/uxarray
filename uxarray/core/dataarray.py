@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import warnings
 from html import escape
-from typing import TYPE_CHECKING, Any, Callable, Hashable, Literal, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Hashable, Literal, Mapping, Optional
 from warnings import warn
 
+import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
 from cartopy.mpl.geoaxes import GeoAxes
@@ -276,6 +277,11 @@ class UxDataArray(xr.DataArray):
 
     def to_polycollection(
         self,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        return_indices: Optional[bool] = False,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
@@ -284,8 +290,19 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        **kwargs: dict
-            Key word arguments to pass into the construction of a PolyCollection
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
+        projection: ccrs.Projection
+            Cartopy geographic projection to use
+        return_indices: bool
+            Flag to indicate whether to return the indices of corrected polygons, if any exist
+        cache: bool
+            Flag to indicate whether to cache the computed PolyCollection
+        override: bool
+            Flag to indicate whether to override a cached PolyCollection, if it exists
         """
         # data is multidimensional, must be a 1D slice
         if self.values.ndim > 1:
@@ -294,11 +311,53 @@ class UxDataArray(xr.DataArray):
                 f"for face-centered data."
             )
 
-        poly_collection = self.uxgrid.to_polycollection(**kwargs)
+        if self._face_centered():
+            poly_collection, corrected_to_original_faces = (
+                self.uxgrid.to_polycollection(
+                    override=override,
+                    cache=cache,
+                    periodic_elements=periodic_elements,
+                    return_indices=True,
+                    projection=projection,
+                    **kwargs,
+                )
+            )
 
-        poly_collection.set_array(self.data)
+            if periodic_elements == "exclude":
+                # index data to ignore data mapped to periodic elements
+                _data = np.delete(
+                    self.values,
+                    self.uxgrid._poly_collection_cached_parameters[
+                        "antimeridian_face_indices"
+                    ],
+                    axis=0,
+                )
+            elif periodic_elements == "split":
+                _data = self.values[corrected_to_original_faces]
+            else:
+                _data = self.values
 
-        return poly_collection
+            if (
+                self.uxgrid._poly_collection_cached_parameters[
+                    "non_nan_polygon_indices"
+                ]
+                is not None
+            ):
+                # index data to ignore NaN polygons
+                _data = _data[
+                    self.uxgrid._poly_collection_cached_parameters[
+                        "non_nan_polygon_indices"
+                    ]
+                ]
+
+            poly_collection.set_array(_data)
+
+            if return_indices:
+                return poly_collection, corrected_to_original_faces
+            else:
+                return poly_collection
+        else:
+            raise ValueError("Data variable must be face centered.")
 
     def to_raster(
         self,
@@ -515,7 +574,7 @@ class UxDataArray(xr.DataArray):
 
         Examples
         --------
-        Open a Uxarray dataset and compute the integral
+        Open a UXarray dataset and compute the integral
 
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
@@ -633,10 +692,19 @@ class UxDataArray(xr.DataArray):
             dims = list(self.dims)
             dims[face_axis] = "latitudes"
 
+            # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
+            new_coords = {
+                k: v
+                for k, v in self.coords.items()
+                if self.dims[face_axis] not in v.dims
+            }
+            # Add latitudes to the resulting coords
+            new_coords["latitudes"] = latitudes
+
             return xr.DataArray(
                 res,
                 dims=dims,
-                coords={"latitudes": latitudes},
+                coords=new_coords,
                 name=self.name + "_zonal_mean"
                 if self.name is not None
                 else "zonal_mean",
@@ -795,10 +863,17 @@ class UxDataArray(xr.DataArray):
             data=hit_count, dims="radius", coords={"radius": radii_deg}
         )
 
+        # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
+        new_coords = {
+            k: v for k, v in self.coords.items() if self.dims[face_axis] not in v.dims
+        }
+        # Add radii_deg to the resulting coords
+        new_coords["radius"] = radii_deg
+
         uxda = xr.DataArray(
             means,
             dims=dims,
-            coords={"radius": radii_deg},
+            coords=new_coords,
             name=self.name + "_azimuthal_mean"
             if self.name is not None
             else "azimuthal_mean",

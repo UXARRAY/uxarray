@@ -568,7 +568,7 @@ class UxDataset(xr.Dataset):
 
         Examples
         --------
-        Open a Uxarray dataset
+        Open a UXarray dataset
 
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")

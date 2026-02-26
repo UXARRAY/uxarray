@@ -58,6 +58,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Zonal Means <user-guide/zonal-average.ipynb>`_
  Compute the zonal averages across lines of constant latitude
 
+`Azimuthal Mean <user-guide/azimuthal-average.ipynb>`_
+ Compute the azimuthal average along rings of constant distance from a specified central point
+
 `Remapping <user-guide/remapping.ipynb>`_
  Remap (a.k.a Regrid) between unstructured grids
 
@@ -114,6 +117,7 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/subset.ipynb
    user-guide/cross-sections.ipynb
    user-guide/zonal-average.ipynb
+   user-guide/azimuthal-average.ipynb
    user-guide/remapping.ipynb
    user-guide/topological-aggregations.ipynb
    user-guide/weighted_mean.ipynb
