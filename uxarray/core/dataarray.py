@@ -866,7 +866,7 @@ class UxDataArray(xr.DataArray):
         new_coords = {
             k: v for k, v in self.coords.items() if self.dims[face_axis] not in v.dims
         }
-        # Add latitudes to the resulting coords
+        # Add radii_deg to the resulting coords
         new_coords["radius"] = radii_deg
 
         uxda = xr.DataArray(
