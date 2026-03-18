@@ -238,6 +238,7 @@ linkcheck_ignore = [
     r"https://seatstandards.org/*",
     r"https://healpix.sourceforge.io/*",
     r"https://zenodo.org/*",
+    r"https://doi.org/*zenodo*",
     # More URLs as needed
 ]
 
