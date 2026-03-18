@@ -13,7 +13,7 @@ dependencies:
   - healpix
   - netcdf4
   - numba
-  - numpy<2.4
+  - numpy
   - pandas
   - pathlib
   - pre_commit
