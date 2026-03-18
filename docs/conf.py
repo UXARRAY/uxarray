@@ -237,6 +237,7 @@ linkcheck_ignore = [
     r"https://docs.xarray.dev/*",
     r"https://seatstandards.org/*",
     r"https://healpix.sourceforge.io/*",
+    r"https://zenodo.org/*",
     # More URLs as needed
 ]
 
