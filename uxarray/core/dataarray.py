@@ -691,10 +691,19 @@ class UxDataArray(xr.DataArray):
             dims = list(self.dims)
             dims[face_axis] = "latitudes"
 
+            # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
+            new_coords = {
+                k: v
+                for k, v in self.coords.items()
+                if self.dims[face_axis] not in v.dims
+            }
+            # Add latitudes to the resulting coords
+            new_coords["latitudes"] = latitudes
+
             return xr.DataArray(
                 res,
                 dims=dims,
-                coords={"latitudes": latitudes},
+                coords=new_coords,
                 name=self.name + "_zonal_mean"
                 if self.name is not None
                 else "zonal_mean",
@@ -853,10 +862,17 @@ class UxDataArray(xr.DataArray):
             data=hit_count, dims="radius", coords={"radius": radii_deg}
         )
 
+        # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
+        new_coords = {
+            k: v for k, v in self.coords.items() if self.dims[face_axis] not in v.dims
+        }
+        # Add radii_deg to the resulting coords
+        new_coords["radius"] = radii_deg
+
         uxda = xr.DataArray(
             means,
             dims=dims,
-            coords={"radius": radii_deg},
+            coords=new_coords,
             name=self.name + "_azimuthal_mean"
             if self.name is not None
             else "azimuthal_mean",
