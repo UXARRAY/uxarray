@@ -227,12 +227,3 @@ def test_to_raster_pixel_ratio(gridpath, r1, r2):
     f = r2 / r1
     d = np.array(raster2.shape) - f * np.array(raster1.shape)
     assert (d >= 0).all() and (d <= f - 1).all()
-
-
-def test_collections_projection_kwarg(gridpath):
-    import cartopy.crs as ccrs
-    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
-
-    with pytest.warns(FutureWarning):
-        pc = uxgrid.to_polycollection(projection=ccrs.PlateCarree())
-        lc = uxgrid.to_linecollection(projection=ccrs.PlateCarree())

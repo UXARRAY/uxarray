@@ -1,5 +1,5 @@
-# How to install Uxarray
+# How to install UXarray
 
 Please see our
-[Uxarray Installation](https://uxarray.readthedocs.io/en/latest/getting-started/installation.html)
+[UXarray Installation](https://uxarray.readthedocs.io/en/latest/getting-started/installation.html)
 instructions for detailed information!

@@ -1,4 +1,4 @@
-.. Uxarray documentation master file, created by
+.. UXarray documentation master file, created by
    sphinx-quickstart on Tues Oct 26 08:45:00 2019.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
@@ -6,7 +6,7 @@
 .. module:: uxarray
 
 .. meta::
-   :description: Uxarray Python module
+   :description: UXarray Python module
    :keywords: weather research and forecasting,
               model, weather, numerical weather prediction, model,
               matplotlib, cartopy, nsf ncar, ucar, cisl, UC Davis, SEATS, ugrid,
@@ -102,7 +102,7 @@ around the `UGRID <http://ugrid-conventions.github.io/ugrid-conventions/>`_ conv
     Gallery <gallery>
     API Reference <api>
     Tutorials and Videos <tutorials>
-    Cite Uxarray <citation>
+    Cite UXarray <citation>
 
 .. toctree::
     :maxdepth: 1

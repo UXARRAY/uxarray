@@ -1,5 +1,5 @@
 """
-Delegation-based accessor classes for UxArray groupby operations.
+Delegation-based accessor classes for UXarray groupby operations.
 
 These classes wrap xarray's groupby/resample/etc objects and ensure that
 operations return UxDataArray/UxDataset objects with preserved uxgrid.
@@ -34,7 +34,7 @@ DATAARRAY_ACCESSOR_METHODS = {
 
 
 class BaseAccessor:
-    """Base class for all UxArray accessor classes."""
+    """Base class for all UXarray accessor classes."""
 
     # Default methods known to return DataArrays/Datasets - optimized for performance
     _DEFAULT_PRESERVE_METHODS = {

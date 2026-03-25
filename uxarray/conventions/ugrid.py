@@ -84,12 +84,14 @@ NODE_X_ATTRS = {
     "standard_name": "x",
     "long name": "Cartesian x location of the corner nodes of each face",
     "units": "meters",
+    "axis": "X",
 }
 
 NODE_Y_ATTRS = {
     "standard_name": "y",
     "long name": "Cartesian y location of the corner nodes of each face",
     "units": "meters",
+    "axis": "Y",
 }
 
 NODE_Z_ATTRS = {
@@ -104,12 +106,14 @@ EDGE_X_ATTRS = {
     "standard_name": "x",
     "long name": "Cartesian x location of the center of each edge",
     "units": "meters",
+    "axis": "X",
 }
 
 EDGE_Y_ATTRS = {
     "standard_name": "y",
     "long name": "Cartesian y location of the center of each edge",
     "units": "meters",
+    "axis": "Y",
 }
 
 EDGE_Z_ATTRS = {
@@ -124,12 +128,14 @@ FACE_X_ATTRS = {
     "standard_name": "x",
     "long name": "Cartesian x location of the center of each face",
     "units": "meters",
+    "axis": "X",
 }
 
 FACE_Y_ATTRS = {
     "standard_name": "y",
     "long name": "Cartesian y location of the center of each face",
     "units": "meters",
+    "axis": "Y",
 }
 
 FACE_Z_ATTRS = {

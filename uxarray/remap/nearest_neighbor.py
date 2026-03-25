@@ -75,7 +75,7 @@ def _nearest_neighbor_query(
 def _nearest_neighbor_remap(
     source: UxDataArray | UxDataset,
     destination_grid: Grid,
-    destination_dim: str = "n_face",
+    remap_to: str = "faces",
 ):
     """
     Apply nearest-neighbor remapping from a UXarray object onto another grid.
@@ -88,15 +88,15 @@ def _nearest_neighbor_remap(
         The data array or dataset to be remapped.
     destination_grid : Grid
         The UXarray Grid instance to which data will be remapped.
-    destination_dim : str, default='n_face'
-        The spatial dimension on the destination grid ('n_node', 'n_edge', 'n_face').
+    remap_to : str, default='faces'
+        Which grid element receives the remapped values, either 'nodes', 'edges', 'faces').
 
     Returns
     -------
     UxDataArray or UxDataset
         A new UXarray object with data values assigned to `destination_grid`.
     """
-    _assert_dimension(destination_dim)
+    _assert_dimension(remap_to)
 
     # Perform remapping on a UxDataset
     ds, is_da, name = _to_dataset(source)
@@ -106,9 +106,7 @@ def _nearest_neighbor_remap(
 
     # Build Nearest Neighbor Index Arrays
     indices_map: dict[str, np.ndarray] = {
-        src_dim: _nearest_neighbor_query(
-            ds.uxgrid, destination_grid, src_dim, destination_dim
-        )
+        src_dim: _nearest_neighbor_query(ds.uxgrid, destination_grid, src_dim, remap_to)
         for src_dim in dims_to_remap
     }
     remapped_vars = {}
@@ -122,7 +120,7 @@ def _nearest_neighbor_remap(
             indexer = xr.DataArray(
                 indices,
                 dims=[
-                    LABEL_TO_COORD[destination_dim],
+                    LABEL_TO_COORD[remap_to],
                 ],
             )
 
@@ -134,7 +132,7 @@ def _nearest_neighbor_remap(
             remapped_vars[name] = da
 
     ds_remapped = _construct_remapped_ds(
-        source, remapped_vars, destination_grid, destination_dim
+        source, remapped_vars, destination_grid, remap_to
     )
 
     return ds_remapped[name] if is_da else ds_remapped

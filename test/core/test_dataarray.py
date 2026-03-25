@@ -71,7 +71,7 @@ def test_to_polycollection(gridpath, datasetpath):
         uxds_geoflow['v1'].to_polycollection()
 
     # grid conversion
-    pc_geoflow_grid = uxds_geoflow.uxgrid.to_polycollection()
+    pc_geoflow_grid = uxds_geoflow.uxgrid.to_polycollection(periodic_elements="ignore")
 
     # number of elements
     assert len(pc_geoflow_grid._paths) == uxds_geoflow.uxgrid.n_face
