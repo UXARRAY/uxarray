@@ -128,7 +128,7 @@ def _barycentric_weights(point_xyz, dual, data_size, source_grid):
         # there were rare cases where counts > 0, hence the newer condition at the end
         elif counts == 1:
             all_weights[i, 0] = 1.0
-            all_indices[i, 0] = int(cur_inds[0])
+            all_indices[i, 0] = int(cur_inds[0].squeeze())
         # 2/2/2026: For some `remap_to="nodes"` cases, `counts` happen to be bigger than 1. Not sure
         # if the best way to add weights from multiple faces is to take only the first face's though
         else:
