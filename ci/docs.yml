@@ -7,7 +7,7 @@ dependencies:
     - cmocean
     - netcdf4
     - numba
-    - numpy<2.4
+    - numpy
     - pathlib
     - pre_commit
     - pytest
