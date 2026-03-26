@@ -2,9 +2,13 @@ import numpy as np
 import pytest
 
 import uxarray as ux
+from uxarray.remap.yac import YacNotAvailableError, _import_yac
 
 
-yac = pytest.importorskip("yac")
+try:
+    _import_yac()
+except YacNotAvailableError:
+    pytest.skip("yac.core is not available", allow_module_level=True)
 
 
 def test_yac_nnn_node_remap(gridpath, datasetpath):
