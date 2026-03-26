@@ -68,7 +68,7 @@ def _xyz_to_lonlat_rad_no_norm(
 def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
     if normalize:
         x, y, z = _normalize_xyz_scalar(x, y, z)
-        denom = math.hypot(math.hypot(x, y), z)
+        denom = math.hypot(x, y, z)
         x = x / denom
         y = y / denom
         z = z / denom
@@ -121,7 +121,7 @@ def _xyz_to_lonlat_rad(
 
     if normalize:
         x, y, z = _normalize_xyz(x, y, z)
-        denom = np.hypot(np.hypot(x, y), z)
+        denom = np.sqrt(x * x + y * y + z * z)
         x = x / denom
         y = y / denom
         z = z / denom
