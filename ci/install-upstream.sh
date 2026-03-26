@@ -23,11 +23,9 @@ pip uninstall -y \
 conda list
 
 # if available install from scientific-python nightly wheels
-# constrain numpy to <2.4 until numba supports newer versions
 # use stable pandas (not nightly) due to geopandas incompatibility with pandas nightly internals
 # (see: https://github.com/UXARRAY/uxarray/issues/1414)
 python -m pip install \
-    'numpy<2.4' \
     'pandas>=2.0.0'
 
 python -m pip install \
@@ -35,6 +33,7 @@ python -m pip install \
     --no-deps \
     --pre \
     --upgrade \
+    numpy \
     scikit-learn \
     scipy \
     xarray
