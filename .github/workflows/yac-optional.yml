@@ -84,6 +84,7 @@ jobs:
           cd yaxt/build
           ../configure \
             --prefix="${YAC_PREFIX}" \
+            --without-regard-for-quality \
             CC="${MPICC}" \
             FC="${MPIF90}"
           make -j2

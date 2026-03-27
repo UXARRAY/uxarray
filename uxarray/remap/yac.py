@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import importlib
 import importlib.util
-from pathlib import Path
 import sys
+from dataclasses import dataclass
+from pathlib import Path
 from types import ModuleType
 from typing import Any
 from uuid import uuid4
@@ -83,8 +83,7 @@ def _import_yac():
 def _normalize_yac_method(yac_method: str | None) -> _YacOptions:
     if not yac_method:
         raise ValueError(
-            "backend='yac' requires yac_method to be set to 'nnn' or "
-            "'conservative'."
+            "backend='yac' requires yac_method to be set to 'nnn' or 'conservative'."
         )
     method = yac_method.lower()
     if method not in {"nnn", "conservative"}:
@@ -113,9 +112,7 @@ def _coerce_enum(enum_type, value: Any):
         if member.name == normalized or member.name.endswith(f"_{normalized}"):
             return member
 
-    raise ValueError(
-        f"Unsupported value {value!r} for enum {enum_type.__name__}."
-    )
+    raise ValueError(f"Unsupported value {value!r} for enum {enum_type.__name__}.")
 
 
 class _YacRemapper:
@@ -172,10 +169,7 @@ class _YacRemapper:
                 yac_kwargs.get("normalisation"),
             )
             if normalisation is None:
-                normalisation = (
-                    yac_core.yac_interp_method_conserv_normalisation
-                    .YAC_INTERP_CONSERV_DESTAREA
-                )
+                normalisation = yac_core.yac_interp_method_conserv_normalisation.YAC_INTERP_CONSERV_DESTAREA
             stack.add_conservative(
                 order=yac_kwargs.get("order", 1),
                 enforced_conserv=yac_kwargs.get("enforced_conserv", False),
