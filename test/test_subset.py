@@ -190,4 +190,3 @@ def test_da_subset(gridpath, datasetpath):
     res3 = uxds['t2m'].subset.nearest_neighbor(center_coord=(0, 0), k=4)
 
     assert len(res1) == len(res2) == len(res3) == 4
-    assert False
