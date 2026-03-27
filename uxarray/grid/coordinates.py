@@ -68,10 +68,6 @@ def _xyz_to_lonlat_rad_no_norm(
 def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
     if normalize:
         x, y, z = _normalize_xyz_scalar(x, y, z)
-        denom = abs(x * x + y * y + z * z)
-        x /= denom
-        y /= denom
-        z /= denom
 
     lon = np.arctan2(y, x)
     lat = np.asin(z)
@@ -121,10 +117,6 @@ def _xyz_to_lonlat_rad(
 
     if normalize:
         x, y, z = _normalize_xyz(x, y, z)
-        denom = np.abs(x * x + y * y + z * z)
-        x /= denom
-        y /= denom
-        z /= denom
 
     lon = np.arctan2(y, x)
     lat = np.arcsin(z)
