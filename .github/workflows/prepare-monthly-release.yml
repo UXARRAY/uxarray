@@ -1,0 +1,122 @@
+name: Prepare Monthly Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_override:
+        description: Optional tag override (for example, v2026.03.1)
+        required: false
+        type: string
+      dry_run:
+        description: Preview artifacts only without creating the issue or draft release
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: read
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard non-main release creation
+        if: ${{ !inputs.dry_run && github.ref_name != 'main' }}
+        run: |
+          echo "Non-dry runs must be launched from the main branch."
+          exit 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate release artifacts
+        id: prep
+        shell: bash
+        env:
+          VERSION_OVERRIDE: ${{ inputs.version_override }}
+        run: |
+          args=(--output-dir .release-prep)
+          if [ -n "$VERSION_OVERRIDE" ]; then
+            args+=(--version "$VERSION_OVERRIDE")
+          fi
+
+          python ci/release/prepare_monthly_release.py "${args[@]}"
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          metadata = json.loads(Path('.release-prep/release-metadata.json').read_text())
+          summary = Path('.release-prep/summary.txt').read_text()
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as handle:
+              handle.write(f"version={metadata['version']}\n")
+              handle.write(f"previous_tag={metadata['previous_tag'] or ''}\n")
+
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as handle:
+              handle.write("## Release Prep Preview\n\n")
+              handle.write("```text\n")
+              handle.write(summary)
+              handle.write("```\n\n")
+              handle.write("Generated files:\n\n")
+              handle.write("- `.release-prep/release-issue.md`\n")
+              handle.write("- `.release-prep/release-notes.md`\n")
+          PY
+
+      - name: Upload release prep artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-prep-${{ steps.prep.outputs.version }}
+          path: .release-prep/
+
+      - name: Create release tracking issue
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.prep.outputs.version }}
+        shell: bash
+        run: |
+          existing_number=$(gh issue list \
+            --state all \
+            --json number,title \
+            --jq ".[] | select(.title == \"[Release]: ${VERSION}\") | .number" \
+            | head -n 1)
+
+          if [ -n "$existing_number" ]; then
+            echo "Release issue already exists: #${existing_number}"
+          else
+            gh issue create \
+              --title "[Release]: ${VERSION}" \
+              --assignee philipc2 \
+              --label release \
+              --label high-priority \
+              --body-file .release-prep/release-issue.md
+          fi
+
+      - name: Create draft GitHub release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.prep.outputs.version }}
+        shell: bash
+        run: |
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "Draft/release ${VERSION} already exists."
+          else
+            gh release create "$VERSION" \
+              --target main \
+              --title "$VERSION" \
+              --notes-file .release-prep/release-notes.md \
+              --draft
+          fi
