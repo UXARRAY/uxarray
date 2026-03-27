@@ -55,13 +55,15 @@ jobs:
       - name: Running Tests
         id: tests
         run: |
-          python -m pytest test/test_subset.py -k "test_da_subset" -v --cov=./uxarray --cov-report=xml
+          python -m pytest test -v --cov=./uxarray --cov-report=xml
 
   failure-issue:
     name: failure-issue
     needs: [upstream-dev]
     if: |
       needs.upstream-dev.testresults != 'success'
+      && github.repository == 'UXARRAY/uxarray'
+      && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     defaults:
       run:
