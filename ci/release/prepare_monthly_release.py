@@ -1,4 +1,16 @@
 #!/usr/bin/env python3
+"""Prepare artifacts for the manual monthly UXarray release flow.
+
+This helper is used by `.github/workflows/prepare-monthly-release.yml` to:
+- compute the next calendar-based release tag
+- generate draft release notes
+- generate the release issue body from the existing issue template
+
+It prepares text artifacts only. Publishing the GitHub Release still happens
+manually, which then triggers the existing PyPI publish workflow. Conda-forge
+steps remain manual.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -9,7 +21,6 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
-
 
 VERSION_RE = re.compile(r"^v(?P<year>\d{4})\.(?P<month>\d{2})\.(?P<patch>\d+)$")
 PR_RE = re.compile(r"\(#(?P<number>\d+)\)")
@@ -75,6 +86,7 @@ def _resolve_today(today_override: str | None) -> date:
 
 
 def _resolve_version(today: date, version_override: str | None) -> str:
+    """Return the next release tag for the current month or an explicit override."""
     if version_override:
         if _parse_version_tag(version_override) is None:
             raise ValueError(
@@ -83,7 +95,9 @@ def _resolve_version(today: date, version_override: str | None) -> str:
         return version_override
 
     monthly_tags = [
-        tag for tag in _list_version_tags() if tag.year == today.year and tag.month == today.month
+        tag
+        for tag in _list_version_tags()
+        if tag.year == today.year and tag.month == today.month
     ]
 
     next_patch = monthly_tags[-1].patch + 1 if monthly_tags else 0
@@ -100,11 +114,17 @@ def _categorize_title(title: str) -> str:
 
     if any(token in lowered for token in ["doc", "readme", "notebook", "tutorial"]):
         return "docs"
-    if any(token in lowered for token in ["fix", "bug", "correct", "error", "issue", "typo"]):
+    if any(
+        token in lowered
+        for token in ["fix", "bug", "correct", "error", "issue", "typo"]
+    ):
         return "fixes"
     if any(token in lowered for token in ["test", "ci", "workflow", "pre-commit"]):
         return "testing"
-    if any(token in lowered for token in ["add", "support", "implement", "introduce", "enable", "new"]):
+    if any(
+        token in lowered
+        for token in ["add", "support", "implement", "introduce", "enable", "new"]
+    ):
         return "features"
     return "maintenance"
 
@@ -142,7 +162,10 @@ def _format_entry(entry: ReleaseEntry) -> str:
     return f"- {entry.title} ({entry.sha[:7]}) by {entry.author}"
 
 
-def _build_release_notes(version: str, previous_tag: str | None, entries: list[ReleaseEntry]) -> str:
+def _build_release_notes(
+    version: str, previous_tag: str | None, entries: list[ReleaseEntry]
+) -> str:
+    """Build editable release notes with highlights first and a flat change list."""
     top_candidates = entries[:5]
     contributor_counts = Counter(entry.author for entry in entries)
 
@@ -188,8 +211,11 @@ def _extract_issue_template_body() -> str:
 
 
 def _build_release_issue(version: str, previous_tag: str | None, today: date) -> str:
+    """Build the release tracking issue body from the repository template."""
     body = _extract_issue_template_body()
-    body = body.replace("Date of intended release:", f"Date of intended release: {today.isoformat()}")
+    body = body.replace(
+        "Date of intended release:", f"Date of intended release: {today.isoformat()}"
+    )
 
     context_lines = [f"Release version: `{version}`"]
     if previous_tag:
@@ -199,7 +225,9 @@ def _build_release_issue(version: str, previous_tag: str | None, today: date) ->
     return f"{context}\n\n{body}".rstrip() + "\n"
 
 
-def _build_summary(version: str, previous_tag: str | None, entries: list[ReleaseEntry]) -> str:
+def _build_summary(
+    version: str, previous_tag: str | None, entries: list[ReleaseEntry]
+) -> str:
     lines = [f"Version: {version}"]
     lines.append(f"Previous tag: {previous_tag or 'none'}")
     lines.append(f"Commits included: {len(entries)}")
@@ -210,8 +238,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Prepare local artifacts for the monthly UXarray release workflow."
     )
-    parser.add_argument("--output-dir", required=True, help="Directory for generated release artifacts.")
-    parser.add_argument("--version", help="Optional release tag override, e.g. v2026.03.1.")
+    parser.add_argument(
+        "--output-dir", required=True, help="Directory for generated release artifacts."
+    )
+    parser.add_argument(
+        "--version", help="Optional release tag override, e.g. v2026.03.1."
+    )
     parser.add_argument("--today", help="Optional ISO date override for local testing.")
     args = parser.parse_args()
 
@@ -223,9 +255,15 @@ def main() -> None:
     previous_tag = _latest_tag()
     entries = _collect_release_entries(previous_tag=previous_tag)
 
-    release_notes = _build_release_notes(version=version, previous_tag=previous_tag, entries=entries)
-    release_issue = _build_release_issue(version=version, previous_tag=previous_tag, today=today)
-    summary = _build_summary(version=version, previous_tag=previous_tag, entries=entries)
+    release_notes = _build_release_notes(
+        version=version, previous_tag=previous_tag, entries=entries
+    )
+    release_issue = _build_release_issue(
+        version=version, previous_tag=previous_tag, today=today
+    )
+    summary = _build_summary(
+        version=version, previous_tag=previous_tag, entries=entries
+    )
 
     metadata = {
         "version": version,
@@ -237,7 +275,9 @@ def main() -> None:
     (output_dir / "release-notes.md").write_text(release_notes)
     (output_dir / "release-issue.md").write_text(release_issue)
     (output_dir / "summary.txt").write_text(summary)
-    (output_dir / "release-metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+    (output_dir / "release-metadata.json").write_text(
+        json.dumps(metadata, indent=2) + "\n"
+    )
 
     print(summary, end="")
 
