@@ -279,6 +279,6 @@ def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwa
         remapped_vars[var_name] = da_out
 
     ds_remapped = _construct_remapped_ds(
-        source, remapped_vars, destination_grid, destination_dim
+        source, remapped_vars, destination_grid, remap_to
     )
     return ds_remapped[name] if is_da else ds_remapped
