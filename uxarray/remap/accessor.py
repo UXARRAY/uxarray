@@ -41,13 +41,10 @@ class RemapAccessor:
         Calling `.remap(...)` with no explicit method will invoke
         `nearest_neighbor(...)`.
         """
-        return self.nearest_neighbor(
-            *args,
-            backend=backend,
-            yac_method=yac_method,
-            yac_options=yac_options,
-            **kwargs,
-        )
+        nn_kwargs: dict = {"backend": backend, "yac_options": yac_options}
+        if yac_method is not None:
+            nn_kwargs["yac_method"] = yac_method
+        return self.nearest_neighbor(*args, **nn_kwargs, **kwargs)
 
     def nearest_neighbor(
         self,
