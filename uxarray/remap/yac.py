@@ -182,11 +182,11 @@ class _YacRemapper:
             self._src_field,
             self._tgt_field,
         )
-        self._interpolation = self._weights.get_interpolation(collection_size=1)
+        self._interpolations: dict[int, Any] = {}
         self._src_size = self._src_grid.get_data_size(self._src_location)
         self._tgt_size = self._tgt_grid.get_data_size(self._tgt_location)
 
-    def remap(self, values: np.ndarray) -> np.ndarray:
+    def apply(self, values: np.ndarray) -> np.ndarray:
         """Apply the pre-computed interpolation weights to *values*.
 
         The interpolation method (NNN or conservative) is determined by
@@ -197,21 +197,39 @@ class _YacRemapper:
         Parameters
         ----------
         values : np.ndarray
-            1-D array of source-grid values with length equal to the number of
-            source points registered with YAC (``self._src_size``).
+            1-D or 2-D array of source-grid values. The trailing dimension must
+            equal the number of source points registered with YAC
+            (``self._src_size``). When 2-D, the leading dimension is treated as
+            the YAC collection size and is remapped in one batched call.
 
         Returns
         -------
         np.ndarray
-            1-D array of remapped values on the destination grid.
+            Array of remapped values on the destination grid with the same
+            number of leading collections as the input.
         """
-        values = np.ascontiguousarray(values, dtype=np.float64).reshape(1, -1)
+        values = np.ascontiguousarray(values, dtype=np.float64)
+        if values.ndim == 1:
+            values = values.reshape(1, -1)
+        elif values.ndim != 2:
+            raise ValueError(
+                f"YAC remap expects a 1-D or 2-D array, got {values.ndim}-D input."
+            )
         if values.shape[1] != self._src_size:
             raise ValueError(
                 f"YAC remap expects {self._src_size} values, got {values.shape[1]}."
             )
-        out = self._interpolation(values)
-        return np.asarray(out, dtype=np.float64).reshape(-1)
+
+        collection_size = values.shape[0]
+        interpolation = self._interpolations.get(collection_size)
+        if interpolation is None:
+            interpolation = self._weights.get_interpolation(
+                collection_size=collection_size
+            )
+            self._interpolations[collection_size] = interpolation
+
+        out = interpolation(values)
+        return np.asarray(out, dtype=np.float64)
 
 
 def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwargs):
@@ -261,9 +279,7 @@ def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwa
         src_values = np.asarray(da_t.values)
         flat_src = src_values.reshape(-1, src_values.shape[-1])
         remapper = remappers[src_dim]
-        out_flat = np.empty((flat_src.shape[0], remapper._tgt_size), dtype=np.float64)
-        for idx in range(flat_src.shape[0]):
-            out_flat[idx] = remapper.remap(flat_src[idx])
+        out_flat = remapper.apply(flat_src)
 
         out_shape = src_values.shape[:-1] + (remapper._tgt_size,)
         out_values = out_flat.reshape(out_shape)
