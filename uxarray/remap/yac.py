@@ -187,6 +187,24 @@ class _YacRemapper:
         self._tgt_size = self._tgt_grid.get_data_size(self._tgt_location)
 
     def remap(self, values: np.ndarray) -> np.ndarray:
+        """Apply the pre-computed interpolation weights to *values*.
+
+        The interpolation method (NNN or conservative) is determined by
+        *yac_method* passed to the constructor and is fixed for the lifetime of
+        this remapper instance.  This method simply executes the weight
+        application; it does not select or alter the interpolation algorithm.
+
+        Parameters
+        ----------
+        values : np.ndarray
+            1-D array of source-grid values with length equal to the number of
+            source points registered with YAC (``self._src_size``).
+
+        Returns
+        -------
+        np.ndarray
+            1-D array of remapped values on the destination grid.
+        """
         values = np.ascontiguousarray(values, dtype=np.float64).reshape(1, -1)
         if values.shape[1] != self._src_size:
             raise ValueError(
@@ -203,6 +221,22 @@ def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwa
     options.kwargs.update(yac_kwargs or {})
     ds, is_da, name = _to_dataset(source)
     dims_to_remap = _get_remap_dims(ds)
+
+    if options.method == "conservative":
+        if destination_dim != "n_face":
+            raise ValueError(
+                "YAC conservative remapping requires the destination to be "
+                "face-centered (remap_to='faces'). "
+                f"Got remap_to={remap_to!r} which maps to dimension {destination_dim!r}."
+            )
+        non_face_src = dims_to_remap - {"n_face"}
+        if non_face_src:
+            raise ValueError(
+                "YAC conservative remapping requires all source data to be "
+                f"face-centered (dimension 'n_face'). "
+                f"Found non-face source dimension(s): {non_face_src}. "
+                "Use yac_method='nnn' for node- or edge-centered data."
+            )
     remappers: dict[str, _YacRemapper] = {}
     remapped_vars = {}
 
