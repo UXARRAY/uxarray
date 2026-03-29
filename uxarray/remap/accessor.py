@@ -11,6 +11,15 @@ from uxarray.remap.bilinear import _bilinear
 from uxarray.remap.inverse_distance_weighted import _inverse_distance_weighted_remap
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_remap
 
+_VALID_BACKENDS = ("uxarray", "yac")
+
+
+def _validate_backend(backend: str) -> None:
+    if backend not in _VALID_BACKENDS:
+        raise ValueError(
+            f"Invalid backend '{backend}'. Expected one of {_VALID_BACKENDS}."
+        )
+
 
 class RemapAccessor:
     """Expose remapping methods on UxDataArray and UxDataset objects."""
@@ -81,6 +90,7 @@ class RemapAccessor:
             A new object with data mapped onto `destination_grid`.
         """
 
+        _validate_backend(backend)
         if backend == "yac":
             from uxarray.remap.yac import _yac_remap
 
@@ -133,6 +143,7 @@ class RemapAccessor:
             A new object with data mapped onto `destination_grid`.
         """
 
+        _validate_backend(backend)
         if backend == "yac":
             from uxarray.remap.yac import _yac_remap
 
@@ -177,6 +188,7 @@ class RemapAccessor:
             A new object with data mapped onto `destination_grid`.
         """
 
+        _validate_backend(backend)
         if backend == "yac":
             from uxarray.remap.yac import _yac_remap
 
