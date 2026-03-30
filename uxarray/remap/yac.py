@@ -126,6 +126,7 @@ class _YacRemapper:
         yac_kwargs: dict[str, Any],
     ):
         yac_core = _import_yac()
+        self._frac_mask_fallback_value = yac_kwargs.get("frac_mask_fallback_value")
         self._src_location = _get_location(yac_core, src_dim)
         self._tgt_location = _get_location(yac_core, tgt_dim)
 
@@ -176,6 +177,9 @@ class _YacRemapper:
                 partial_coverage=yac_kwargs.get("partial_coverage", False),
                 normalisation=normalisation,
             )
+            fixed_value = yac_kwargs.get("fixed_value", 0.0)
+            if fixed_value is not None:
+                stack.add_fixed(float(fixed_value))
 
         self._weights = yac_core.compute_weights(
             stack,
@@ -186,7 +190,9 @@ class _YacRemapper:
         self._src_size = self._src_grid.get_data_size(self._src_location)
         self._tgt_size = self._tgt_grid.get_data_size(self._tgt_location)
 
-    def apply(self, values: np.ndarray) -> np.ndarray:
+    def apply(
+        self, values: np.ndarray, frac_mask: np.ndarray | None = None
+    ) -> np.ndarray:
         """Apply the pre-computed interpolation weights to *values*.
 
         The interpolation method (NNN or conservative) is determined by
@@ -201,6 +207,9 @@ class _YacRemapper:
             equal the number of source points registered with YAC
             (``self._src_size``). When 2-D, the leading dimension is treated as
             the YAC collection size and is remapped in one batched call.
+        frac_mask : np.ndarray, optional
+            Optional fractional source mask with the same shape as ``values``.
+            When provided, it is forwarded to YAC's interpolation call.
 
         Returns
         -------
@@ -220,16 +229,51 @@ class _YacRemapper:
                 f"YAC remap expects {self._src_size} values, got {values.shape[1]}."
             )
 
+        if frac_mask is not None:
+            frac_mask = np.ascontiguousarray(frac_mask, dtype=np.float64)
+            if frac_mask.ndim == 1:
+                frac_mask = frac_mask.reshape(1, -1)
+            elif frac_mask.ndim != 2:
+                raise ValueError(
+                    "YAC fractional mask expects a 1-D or 2-D array, "
+                    f"got {frac_mask.ndim}-D input."
+                )
+            if frac_mask.shape != values.shape:
+                raise ValueError(
+                    "YAC fractional mask must match remap input shape. "
+                    f"Got mask shape {frac_mask.shape} and value shape {values.shape}."
+                )
+
         collection_size = values.shape[0]
         interpolation = self._interpolations.get(collection_size)
         if interpolation is None:
             interpolation = self._weights.get_interpolation(
-                collection_size=collection_size
+                collection_size=collection_size,
+                frac_mask_fallback_value=self._frac_mask_fallback_value,
             )
             self._interpolations[collection_size] = interpolation
 
-        out = interpolation(values)
+        out = (
+            interpolation(values, frac_mask=frac_mask)
+            if frac_mask is not None
+            else interpolation(values)
+        )
         return np.asarray(out, dtype=np.float64)
+
+
+def _prepare_frac_mask(frac_mask, da_t, src_values, src_dim: str) -> np.ndarray:
+    if hasattr(frac_mask, "dims"):
+        other_dims = [d for d in da_t.dims if d != src_dim]
+        frac_mask_values = np.asarray(frac_mask.transpose(*other_dims, src_dim).values)
+    else:
+        frac_mask_values = np.asarray(frac_mask)
+
+    if frac_mask_values.shape != src_values.shape:
+        raise ValueError(
+            "YAC fractional mask must match the remapped source variable shape. "
+            f"Got mask shape {frac_mask_values.shape} and source shape {src_values.shape}."
+        )
+    return frac_mask_values.reshape(-1, frac_mask_values.shape[-1])
 
 
 def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwargs):
@@ -278,8 +322,17 @@ def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwa
         da_t = da.transpose(*other_dims, src_dim)
         src_values = np.asarray(da_t.values)
         flat_src = src_values.reshape(-1, src_values.shape[-1])
+        frac_masks = yac_kwargs.get("frac_masks")
+        frac_mask = (
+            frac_masks.get(var_name)
+            if isinstance(frac_masks, dict) and var_name in frac_masks
+            else yac_kwargs.get("frac_mask")
+        )
+        flat_frac_mask = None
+        if frac_mask is not None:
+            flat_frac_mask = _prepare_frac_mask(frac_mask, da_t, src_values, src_dim)
         remapper = remappers[src_dim]
-        out_flat = remapper.apply(flat_src)
+        out_flat = remapper.apply(flat_src, frac_mask=flat_frac_mask)
 
         out_shape = src_values.shape[:-1] + (remapper._tgt_size,)
         out_values = out_flat.reshape(out_shape)
