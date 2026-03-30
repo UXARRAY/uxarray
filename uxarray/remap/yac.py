@@ -83,10 +83,10 @@ def _import_yac():
 def _normalize_yac_method(yac_method: str | None) -> _YacOptions:
     if not yac_method:
         raise ValueError(
-            "backend='yac' requires yac_method to be set to 'nnn' or 'conservative'."
+            "backend='yac' requires yac_method to be set to 'nnn', 'average', or 'conservative'."
         )
     method = yac_method.lower()
-    if method not in {"nnn", "conservative"}:
+    if method not in {"nnn", "average", "conservative"}:
         raise ValueError(f"Unsupported YAC method: {yac_method!r}")
     return _YacOptions(method=method, kwargs={})
 
@@ -101,6 +101,28 @@ def _get_location(yac_core, dim: str):
         return mapping[dim]
     except KeyError as exc:
         raise ValueError(f"Unsupported remap dimension for YAC: {dim!r}") from exc
+
+
+def _get_lon_lat(grid, dim: str) -> tuple[np.ndarray, np.ndarray]:
+    attr_map = {
+        "n_face": ("face_lon", "face_lat"),
+        "n_node": ("node_lon", "node_lat"),
+        "n_edge": ("edge_lon", "edge_lat"),
+    }
+    try:
+        lon_attr, lat_attr = attr_map[dim]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported remap dimension for YAC: {dim!r}") from exc
+
+    lon = getattr(grid, lon_attr, None)
+    lat = getattr(grid, lat_attr, None)
+    if lon is None or lat is None:
+        raise ValueError(
+            f"Grid does not provide {lon_attr}/{lat_attr} required for YAC remapping."
+        )
+    return np.deg2rad(np.asarray(lon.values, dtype=np.float64)), np.deg2rad(
+        np.asarray(lat.values, dtype=np.float64)
+    )
 
 
 def _coerce_enum(enum_type, value: Any):
@@ -142,12 +164,14 @@ class _YacRemapper:
             tgt_grid,
             def_edges=define_edges,
         )
+        src_lon, src_lat = _get_lon_lat(src_grid, src_dim)
+        tgt_lon, tgt_lat = _get_lon_lat(tgt_grid, tgt_dim)
 
         self._src_field = yac_core.InterpField(
-            self._src_grid.add_coordinates(self._src_location)
+            self._src_grid.add_coordinates(self._src_location, src_lon, src_lat)
         )
         self._tgt_field = yac_core.InterpField(
-            self._tgt_grid.add_coordinates(self._tgt_location)
+            self._tgt_grid.add_coordinates(self._tgt_location, tgt_lon, tgt_lat)
         )
 
         stack = yac_core.InterpolationStack()
@@ -163,6 +187,19 @@ class _YacRemapper:
                 n=yac_kwargs.get("n", 1),
                 max_search_distance=yac_kwargs.get("max_search_distance", 0.0),
                 scale=yac_kwargs.get("scale", 1.0),
+            )
+        elif yac_method == "average":
+            reduction_type = _coerce_enum(
+                yac_core.yac_interp_avg_weight_type,
+                yac_kwargs.get("reduction_type", yac_kwargs.get("weight_type")),
+            )
+            if reduction_type is None:
+                reduction_type = (
+                    yac_core.yac_interp_avg_weight_type.YAC_INTERP_AVG_ARITHMETIC
+                )
+            stack.add_average(
+                reduction_type=reduction_type,
+                partial_coverage=yac_kwargs.get("partial_coverage", False),
             )
         elif yac_method == "conservative":
             normalisation = _coerce_enum(

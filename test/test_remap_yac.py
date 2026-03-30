@@ -126,22 +126,18 @@ def test_yac_idw_not_implemented():
         )
 
 
-def test_yac_bilinear_not_implemented():
-    verts = np.array([(0.0, 90.0), (-180.0, 0.0), (0.0, -90.0)])
-    grid = ux.open_grid(verts)
-    da = ux.UxDataArray(
-        np.asarray([1.0, 2.0, 3.0]),
-        dims=["n_node"],
-        coords={"n_node": [0, 1, 2]},
-        uxgrid=grid,
+def test_yac_bilinear_face_remap(gridpath):
+    mesh_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+    dest = ux.open_grid(mesh_path)
+
+    out = uxds["latCell"].remap.bilinear(
+        destination_grid=dest,
+        remap_to="faces",
+        backend="yac",
     )
 
-    with pytest.raises(NotImplementedError, match="bilinear"):
-        da.remap.bilinear(
-            destination_grid=grid,
-            remap_to="nodes",
-            backend="yac",
-        )
+    assert out.size == dest.n_face
 
 
 def test_yac_conservative_rejects_non_face_data():

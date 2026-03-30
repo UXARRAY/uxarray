@@ -161,6 +161,7 @@ class RemapAccessor:
         destination_grid: Grid,
         remap_to: str = "faces",
         backend: str = "uxarray",
+        yac_options: dict | None = None,
         **kwargs,
     ) -> UxDataArray | UxDataset:
         """
@@ -173,9 +174,11 @@ class RemapAccessor:
         remap_to : {'nodes', 'edges', 'faces'}, default='faces'
             Which grid element receives the remapped values.
 
-        backend : {'uxarray'}, default='uxarray'
-            Remapping backend to use. The YAC backend does not support bilinear
-            remapping; use ``backend='uxarray'`` (the default).
+        backend : {'uxarray', 'yac'}, default='uxarray'
+            Remapping backend to use. When set to 'yac', bilinear remapping is
+            routed through YAC's average interpolation.
+        yac_options : dict, optional
+            YAC interpolation configuration options for the average method.
 
         Returns
         -------
@@ -185,11 +188,10 @@ class RemapAccessor:
 
         _validate_backend(backend)
         if backend == "yac":
-            raise NotImplementedError(
-                "bilinear with backend='yac' is not implemented. "
-                "The YAC backend currently supports only 'nnn' and 'conservative' "
-                "methods and will not perform bilinear remapping. "
-                "Use backend='uxarray' for bilinear, or choose a different remapping "
-                "method that is supported by YAC."
+            from uxarray.remap.yac import _yac_remap
+
+            yac_kwargs = yac_options or {}
+            return _yac_remap(
+                self.ux_obj, destination_grid, remap_to, "average", yac_kwargs
             )
         return _bilinear(self.ux_obj, destination_grid, remap_to)
