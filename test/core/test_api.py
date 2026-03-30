@@ -39,6 +39,21 @@ def test_open_dataset(gridpath, datasetpath, mesh_constants):
     nt.assert_equal(len(uxds_var2_ne30.uxgrid._ds.data_vars), mesh_constants['DATAVARS_outCSne30'])
     nt.assert_equal(uxds_var2_ne30.source_datasets, str(data_path))
 
+
+def test_open_dataset_single_combined_mpas_file(gridpath):
+    """Loads a combined MPAS grid-and-data file with a single argument."""
+
+    file_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+
+    uxds_single = ux.open_dataset(file_path)
+    uxds_pair = ux.open_dataset(file_path, file_path)
+
+    nt.assert_equal(uxds_single.uxgrid.source_grid_spec, "MPAS")
+    nt.assert_equal(uxds_single.source_datasets, str(file_path))
+    nt.assert_equal(uxds_single.sizes["n_face"], uxds_pair.sizes["n_face"])
+    nt.assert_equal(set(uxds_single.data_vars), set(uxds_pair.data_vars))
+
+
 def test_open_mf_dataset(gridpath, datasetpath, mesh_constants):
     """Loads multiple datasets with their grid topology file using
     uxarray's open_dataset call."""

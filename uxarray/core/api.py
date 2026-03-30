@@ -353,7 +353,7 @@ def list_grid_names(
 
 def open_dataset(
     grid_filename_or_obj: str | os.PathLike[Any] | dict | Dataset,
-    filename_or_obj: str | os.PathLike[Any],
+    filename_or_obj: str | os.PathLike[Any] | None = None,
     chunks=None,
     chunk_grid: bool = True,
     use_dual: bool | None = False,
@@ -368,10 +368,12 @@ def open_dataset(
         Strings and Path objects are interpreted as a path to a grid file. Xarray Datasets assume that
         each member variable is in the UGRID conventions and will be used to create a ``ux.Grid``. Similarly, a dictionary
         containing UGRID variables can be used to create a ``ux.Grid``
-    filename_or_obj : str | os.PathLike[Any]
+    filename_or_obj : str | os.PathLike[Any], optional
         String or Path object as a path to a netCDF file or an OpenDAP URL that
         stores the actual data set. It is the same ``filename_or_obj`` in
-        ``xarray.open_dataset``.
+        ``xarray.open_dataset``. If omitted, ``grid_filename_or_obj`` is also
+        used as the data source, allowing combined grid-and-data files to be
+        opened with a single argument.
     chunks : int, dict, 'auto' or None, default: None
         If provided, used to load the grid into dask arrays.
 
@@ -406,9 +408,21 @@ def open_dataset(
 
     >>> import uxarray as ux
     >>> ux_ds = ux.open_dataset("grid_file.nc", "data_file.nc")
+
+    Open a dataset stored in a single combined grid-and-data file
+
+    >>> ux_ds = ux.open_dataset("combined_file.nc")
     """
     if grid_kwargs is None:
         grid_kwargs = {}
+
+    if filename_or_obj is None:
+        if isinstance(grid_filename_or_obj, (str, os.PathLike)):
+            filename_or_obj = grid_filename_or_obj
+        else:
+            raise ValueError(
+                "If filename_or_obj is omitted, grid_filename_or_obj must be a file path."
+            )
 
     # Construct a Grid, validate parameters, and correct chunks
     uxgrid, corrected_chunks = _get_grid(
