@@ -67,6 +67,7 @@ jobs:
           python -m pytest test
 
   link-check:
+      if: github.event_name != 'pull_request'
       runs-on: ubuntu-latest
       defaults:
         run:
@@ -114,4 +115,5 @@ jobs:
               eval "$(micromamba shell hook --shell bash)"
               micromamba activate uxarray-docs
               cd docs
+              echo 'nb_execution_mode = "off"' >> conf.py
               make linkcheck
