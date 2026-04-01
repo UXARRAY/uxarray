@@ -43,8 +43,8 @@ References
 ----------
 * https://ugrid-conventions.github.io/ugrid-conventions/#ugrid-conventions-v10
 * https://github.com/ugrid-conventions/ugrid-conventions
-* https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#ugrid-conventions
-* https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#mesh-topology-variables
+* https://cf-convention.github.io/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#ugrid-conventions
+* https://cf-convention.github.io/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#mesh-topology-variables
 
 MPAS
 ====
