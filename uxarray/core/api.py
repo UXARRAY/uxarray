@@ -418,19 +418,40 @@ def open_dataset(
 
     if filename_or_obj is None:
         if isinstance(grid_filename_or_obj, (str, os.PathLike)):
+            if os.path.isdir(grid_filename_or_obj):
+                raise ValueError(
+                    "Directory-based grids require a separate data file when calling ux.open_dataset()."
+                )
+
             filename_or_obj = grid_filename_or_obj
+
+            if "latlon" in kwargs:
+                warn(
+                    "'latlon is no longer a supported parameter",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                grid_kwargs["latlon"] = kwargs["latlon"]
+
+            corrected_chunks = match_chunks_to_ugrid(grid_filename_or_obj, chunks)
+            ds = _open_dataset_with_fallback(
+                filename_or_obj, chunks=corrected_chunks, **kwargs
+            )
+            uxgrid = open_grid(ds, use_dual=use_dual, **grid_kwargs)
         else:
             raise ValueError(
                 "If filename_or_obj is omitted, grid_filename_or_obj must be a file path."
             )
+    else:
+        # Construct a Grid, validate parameters, and correct chunks
+        uxgrid, corrected_chunks = _get_grid(
+            grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
+        )
 
-    # Construct a Grid, validate parameters, and correct chunks
-    uxgrid, corrected_chunks = _get_grid(
-        grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
-    )
-
-    # Load the data as a Xarray Dataset
-    ds = _open_dataset_with_fallback(filename_or_obj, chunks=corrected_chunks, **kwargs)
+        # Load the data as a Xarray Dataset
+        ds = _open_dataset_with_fallback(
+            filename_or_obj, chunks=corrected_chunks, **kwargs
+        )
 
     # Map original dimensions to the UGRID conventions
     ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)

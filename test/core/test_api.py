@@ -43,8 +43,8 @@ def test_open_dataset(gridpath, datasetpath, mesh_constants):
 def test_open_dataset_single_combined_mpas_file(gridpath):
     """Loads a combined MPAS grid-and-data file with a single argument."""
 
-    # Use a known combined grid-and-data MPAS file
-    file_path = gridpath("mpas", "oQU480", "oQU480.231010.nc")
+    # Use a known combined grid-and-data MPAS file.
+    file_path = gridpath("mpas", "QU", "oQU480.231010.nc")
 
     uxds_single = ux.open_dataset(file_path)
     uxds_pair = ux.open_dataset(file_path, file_path)
@@ -55,6 +55,14 @@ def test_open_dataset_single_combined_mpas_file(gridpath):
     nt.assert_equal(uxds_single.source_datasets, str(file_path))
     nt.assert_equal(uxds_single.sizes["n_face"], uxds_pair.sizes["n_face"])
     nt.assert_equal(set(uxds_single.data_vars), set(uxds_pair.data_vars))
+    assert "ssh" in uxds_single.data_vars
+
+
+def test_open_dataset_single_argument_rejects_directory_grid(tmp_path):
+    """Requires a separate data file for directory-based grids."""
+
+    with pytest.raises(ValueError, match="Directory-based grids require a separate data file"):
+        ux.open_dataset(tmp_path)
 
 
 def test_open_mf_dataset(gridpath, datasetpath, mesh_constants):
