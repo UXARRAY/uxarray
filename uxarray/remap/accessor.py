@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 from uxarray.remap.bilinear import _bilinear
 from uxarray.remap.inverse_distance_weighted import _inverse_distance_weighted_remap
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_remap
+from uxarray.remap.precomputed import _apply_weights
 
 _VALID_BACKENDS = ("uxarray", "yac")
 
@@ -34,6 +35,7 @@ class RemapAccessor:
             + "Supported methods:\n"
             + "  • nearest_neighbor(destination_grid, remap_to='faces')\n"
             + "  • inverse_distance_weighted(destination_grid, remap_to='faces', power=2, k=8)\n"
+            + "  • apply_weights(weights, destination_grid, remap_to='faces')\n"
         )
 
     def __call__(
@@ -227,3 +229,42 @@ class RemapAccessor:
                 yac_kwargs,
             )
         return _bilinear(self.ux_obj, destination_grid, remap_to)
+
+    def apply_weights(
+        self,
+        weights,
+        destination_grid: Grid,
+        remap_to: str = "faces",
+        source_dim: str | None = None,
+    ) -> UxDataArray | UxDataset:
+        """
+        Apply a sparse remap operator loaded from disk.
+
+        Parameters
+        ----------
+        weights : str, PathLike, xr.Dataset, or RemapWeights
+            Weight file or reusable loaded weights. Standard SCRIP/ESMF sparse
+            map files are expected to provide ``row``, ``col``, ``S``, and
+            dimensions ``n_a``/``n_b``.
+        destination_grid : Grid
+            Grid representing the destination topology and coordinates.
+        remap_to : {'nodes', 'edges', 'faces'}, default='faces'
+            Which destination grid element receives the remapped values.
+        source_dim : {'n_node', 'n_edge', 'n_face'}, optional
+            Explicit source spatial dimension to remap along. If omitted, UXarray
+            infers it from variables whose trailing spatial dimension matches
+            the loaded weight source size.
+
+        Returns
+        -------
+        UxDataArray or UxDataset
+            A new object with data mapped onto ``destination_grid``.
+        """
+
+        return _apply_weights(
+            self.ux_obj,
+            weights=weights,
+            destination_grid=destination_grid,
+            remap_to=remap_to,
+            source_dim=source_dim,
+        )
