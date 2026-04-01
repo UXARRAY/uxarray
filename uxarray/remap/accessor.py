@@ -7,10 +7,10 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.grid.grid import Grid
 
+from uxarray.remap.apply_weights import _apply_weights
 from uxarray.remap.bilinear import _bilinear
 from uxarray.remap.inverse_distance_weighted import _inverse_distance_weighted_remap
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_remap
-from uxarray.remap.precomputed import _apply_weights
 
 _VALID_BACKENDS = ("uxarray", "yac")
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import xarray as xr
@@ -16,9 +15,7 @@ def _first_present(mapping, names: tuple[str, ...], kind: str):
     for name in names:
         if name in mapping:
             return mapping[name]
-    raise ValueError(
-        f"Could not find {kind}. Expected one of: {', '.join(names)}."
-    )
+    raise ValueError(f"Could not find {kind}. Expected one of: {', '.join(names)}.")
 
 
 def _normalize_indices(indices: np.ndarray, size: int, label: str) -> np.ndarray:
@@ -60,9 +57,7 @@ class RemapWeights:
 
         try:
             source_size = int(
-                _first_present(
-                    ds.sizes, ("n_a", "src_grid_size"), "source dimension"
-                )
+                _first_present(ds.sizes, ("n_a", "src_grid_size"), "source dimension")
             )
             destination_size = int(
                 _first_present(

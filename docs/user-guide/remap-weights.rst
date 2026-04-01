@@ -117,4 +117,3 @@ This path is useful when:
 - remapping needs to be repeated many times
 - external tools already produce trusted offline maps
 - you want to stay in Python for applying the map and preserving array metadata
-
