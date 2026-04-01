@@ -26,7 +26,7 @@ def _get_source_dim(
 
     if len(spatial_dims) > 1:
         raise ValueError(
-            f"Precomputed weight application does not support variables with multiple "
+            f"Weight application does not support variables with multiple "
             f"spatial dimensions. Got {spatial_dims!r} for variable {da.name!r}."
         )
 
