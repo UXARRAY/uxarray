@@ -43,11 +43,14 @@ def test_open_dataset(gridpath, datasetpath, mesh_constants):
 def test_open_dataset_single_combined_mpas_file(gridpath):
     """Loads a combined MPAS grid-and-data file with a single argument."""
 
-    file_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    # Use a known combined grid-and-data MPAS file
+    file_path = gridpath("mpas", "oQU480", "oQU480.231010.nc")
 
     uxds_single = ux.open_dataset(file_path)
     uxds_pair = ux.open_dataset(file_path, file_path)
 
+    # Ensure that the single-argument path actually loads data variables
+    assert len(uxds_single.data_vars) > 0
     nt.assert_equal(uxds_single.uxgrid.source_grid_spec, "MPAS")
     nt.assert_equal(uxds_single.source_datasets, str(file_path))
     nt.assert_equal(uxds_single.sizes["n_face"], uxds_pair.sizes["n_face"])
