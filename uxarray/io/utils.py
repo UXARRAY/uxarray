@@ -76,25 +76,26 @@ def _is_fesom2(dataset: xr.Dataset) -> bool:
 
 
 def _parse_grid_type(dataset):
-    """Checks input and contents to determine grid type. Supports detection of
-    UGrid, SCRIP, Exodus, ESMF, and shape file.
+    """Determine the grid type represented by an input dataset.
 
     Parameters
     ----------
     dataset : Xarray dataset
-       Xarray dataset of the grid
+        Xarray dataset containing grid topology information.
 
     Returns
     -------
-    mesh_type : str
-        File type of the file, ug, exo, scrip or shp
+    tuple[str, str | None, str | None]
+        A 3-tuple of ``(mesh_type, lon_name, lat_name)``. ``mesh_type`` is one
+        of ``"Exodus"``, ``"Scrip"``, ``"UGRID"``, ``"MPAS"``, ``"ESMF"``,
+        ``"GEOS-CS"``, ``"ICON"``, ``"FESOM2"``, or ``"Structured"``. The
+        longitude and latitude coordinate names are only returned for structured
+        grids and are otherwise ``None``.
 
     Raises
     ------
     RuntimeError
-            If invalid file type
-    ValueError
-        If file is not in UGRID format
+        If the dataset format cannot be recognized.
     """
 
     _structured, lon_name, lat_name = _is_structured(dataset)
