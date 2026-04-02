@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import importlib
+import importlib.util
+import sys
 from dataclasses import dataclass
+from pathlib import Path
+from types import ModuleType
 from typing import Any
 from uuid import uuid4
 
@@ -26,79 +31,110 @@ class _YacOptions:
     kwargs: dict[str, Any]
 
 
+def _load_yac_core_from_file() -> ModuleType | None:
+    if "yac.core" in sys.modules:
+        return sys.modules["yac.core"]
+
+    for path_entry in sys.path:
+        pkg_dir = Path(path_entry) / "yac"
+        if not pkg_dir.is_dir():
+            continue
+
+        matches = sorted(pkg_dir.glob("core*.so"))
+        if not matches:
+            matches = sorted(pkg_dir.glob("core*.pyd"))
+        if not matches:
+            continue
+
+        pkg = sys.modules.get("yac")
+        if pkg is None:
+            pkg = ModuleType("yac")
+            sys.modules["yac"] = pkg
+        pkg.__path__ = [str(pkg_dir)]
+
+        spec = importlib.util.spec_from_file_location("yac.core", matches[0])
+        if spec is None or spec.loader is None:
+            continue
+
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["yac.core"] = module
+        spec.loader.exec_module(module)
+        setattr(pkg, "core", module)
+        return module
+
+    return None
+
+
 def _import_yac():
+    module = _load_yac_core_from_file()
+    if module is not None:
+        return module
+
     try:
-        import yac  # type: ignore
-    except Exception as exc:  # pragma: no cover - import failure handled in tests
+        return importlib.import_module("yac.core")
+    except Exception as exc:  # pragma: no cover - fallback depends on local install
         raise YacNotAvailableError(
-            "YAC backend requested but 'yac' is not available. "
-            "Build YAC with Python bindings and ensure it is on PYTHONPATH."
+            "YAC backend requested but 'yac.core' is not available. "
+            "Build YAC with Python bindings and ensure its site-packages and "
+            "shared libraries are discoverable."
         ) from exc
-    return yac
-
-
-def _get_lon_lat(grid, dim_kind: str) -> tuple[np.ndarray, np.ndarray]:
-    if dim_kind == "node":
-        for prefix in ("node", "vertex"):
-            lon = getattr(grid, f"{prefix}_lon", None)
-            lat = getattr(grid, f"{prefix}_lat", None)
-            if lon is not None and lat is not None:
-                return np.asarray(lon, dtype=np.float64), np.asarray(
-                    lat, dtype=np.float64
-                )
-        raise AttributeError(
-            "Grid has neither node_lon/node_lat nor vertex_lon/vertex_lat"
-        )
-    if dim_kind == "edge":
-        lon = getattr(grid, "edge_lon", None)
-        lat = getattr(grid, "edge_lat", None)
-        if lon is None or lat is None:
-            raise AttributeError("Grid does not provide edge_lon/edge_lat")
-        return np.asarray(lon, dtype=np.float64), np.asarray(lat, dtype=np.float64)
-    if dim_kind == "face":
-        lon = getattr(grid, "face_lon", None)
-        lat = getattr(grid, "face_lat", None)
-        if lon is None or lat is None:
-            raise AttributeError("Grid does not provide face_lon/face_lat")
-        return np.asarray(lon, dtype=np.float64), np.asarray(lat, dtype=np.float64)
-    raise ValueError(f"Unsupported grid dimension kind: {dim_kind!r}")
-
-
-def _get_connectivity(grid) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    try:
-        from uxarray import INT_FILL_VALUE
-
-        fill_value = INT_FILL_VALUE
-    except Exception:
-        fill_value = -1
-    connectivity = np.asarray(getattr(grid, "face_node_connectivity")).astype(np.int64)
-    num_vertices = np.sum(connectivity != fill_value, axis=1).astype(np.intc)
-    cell_to_vertex = connectivity[connectivity != fill_value].astype(np.intc)
-    return connectivity, num_vertices, cell_to_vertex
-
-
-def _build_unstructured_grid(yac, grid, grid_name: str):
-    node_lon, node_lat = _get_lon_lat(grid, "node")
-    _, num_vertices, cell_to_vertex = _get_connectivity(grid)
-    return yac.UnstructuredGrid(
-        grid_name,
-        num_vertices,
-        np.deg2rad(node_lon),
-        np.deg2rad(node_lat),
-        cell_to_vertex,
-        use_ll_edges=False,
-    )
 
 
 def _normalize_yac_method(yac_method: str | None) -> _YacOptions:
     if not yac_method:
         raise ValueError(
-            "backend='yac' requires yac_method to be set to 'nnn' or 'conservative'."
+            "backend='yac' requires yac_method to be set to 'nnn', 'average', or 'conservative'."
         )
     method = yac_method.lower()
-    if method not in {"nnn", "conservative"}:
+    if method not in {"nnn", "average", "conservative"}:
         raise ValueError(f"Unsupported YAC method: {yac_method!r}")
     return _YacOptions(method=method, kwargs={})
+
+
+def _get_location(yac_core, dim: str):
+    mapping = {
+        "n_face": yac_core.yac_location.YAC_LOC_CELL,
+        "n_node": yac_core.yac_location.YAC_LOC_CORNER,
+        "n_edge": yac_core.yac_location.YAC_LOC_EDGE,
+    }
+    try:
+        return mapping[dim]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported remap dimension for YAC: {dim!r}") from exc
+
+
+def _get_lon_lat(grid, dim: str) -> tuple[np.ndarray, np.ndarray]:
+    attr_map = {
+        "n_face": ("face_lon", "face_lat"),
+        "n_node": ("node_lon", "node_lat"),
+        "n_edge": ("edge_lon", "edge_lat"),
+    }
+    try:
+        lon_attr, lat_attr = attr_map[dim]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported remap dimension for YAC: {dim!r}") from exc
+
+    lon = getattr(grid, lon_attr, None)
+    lat = getattr(grid, lat_attr, None)
+    if lon is None or lat is None:
+        raise ValueError(
+            f"Grid does not provide {lon_attr}/{lat_attr} required for YAC remapping."
+        )
+    return np.deg2rad(np.asarray(lon.values, dtype=np.float64)), np.deg2rad(
+        np.asarray(lat.values, dtype=np.float64)
+    )
+
+
+def _coerce_enum(enum_type, value: Any):
+    if not isinstance(value, str):
+        return value
+
+    normalized = value.upper()
+    for member in enum_type:
+        if member.name == normalized or member.name.endswith(f"_{normalized}"):
+            return member
+
+    raise ValueError(f"Unsupported value {value!r} for enum {enum_type.__name__}.")
 
 
 class _YacRemapper:
@@ -111,126 +147,170 @@ class _YacRemapper:
         yac_method: str,
         yac_kwargs: dict[str, Any],
     ):
-        yac = _import_yac()
-        self._yac = yac
-        yac.def_calendar(yac.Calendar.PROLEPTIC_GREGORIAN)
-        self._yac_inst = yac.YAC(default_instance=True)
-        self._yac_inst.def_datetime("2000-01-01T00:00:00", "2000-01-01T00:01:00")
+        yac_core = _import_yac()
+        self._frac_mask_fallback_value = yac_kwargs.get("frac_mask_fallback_value")
+        self._src_location = _get_location(yac_core, src_dim)
+        self._tgt_location = _get_location(yac_core, tgt_dim)
 
+        define_edges = "n_edge" in (src_dim, tgt_dim)
         unique = uuid4().hex
-        self._comp_name = f"uxarray_yac_{unique}"
-        self._comp = self._yac_inst.def_comp(self._comp_name)
-        self._src_grid_name = f"src_{unique}"
-        self._tgt_grid_name = f"tgt_{unique}"
+        self._src_grid = yac_core.BasicGrid.from_uxgrid(
+            f"uxarray_src_{unique}",
+            src_grid,
+            def_edges=define_edges,
+        )
+        self._tgt_grid = yac_core.BasicGrid.from_uxgrid(
+            f"uxarray_tgt_{unique}",
+            tgt_grid,
+            def_edges=define_edges,
+        )
+        src_lon, src_lat = _get_lon_lat(src_grid, src_dim)
+        tgt_lon, tgt_lat = _get_lon_lat(tgt_grid, tgt_dim)
 
-        self._src_points, self._tgt_points = self._build_points(
-            src_grid, tgt_grid, src_dim, tgt_dim, yac_method
+        self._src_field = yac_core.InterpField(
+            self._src_grid.add_coordinates(self._src_location, src_lon, src_lat)
+        )
+        self._tgt_field = yac_core.InterpField(
+            self._tgt_grid.add_coordinates(self._tgt_location, tgt_lon, tgt_lat)
         )
 
-        self._src_field = yac.Field.create(
-            "src_field",
-            self._comp,
-            self._src_points,
-            1,
-            "1",
-            yac.TimeUnit.SECOND,
-        )
-        self._tgt_field = yac.Field.create(
-            "tgt_field",
-            self._comp,
-            self._tgt_points,
-            1,
-            "1",
-            yac.TimeUnit.SECOND,
-        )
-
-        stack = yac.InterpolationStack()
+        stack = yac_core.InterpolationStack()
         if yac_method == "nnn":
-            reduction = yac_kwargs.get("reduction_type", yac.NNNReductionType.AVG)
-            if isinstance(reduction, str):
-                reduction = yac.NNNReductionType[reduction.upper()]
+            weight_type = _coerce_enum(
+                yac_core.yac_interp_nnn_weight_type,
+                yac_kwargs.get("reduction_type", yac_kwargs.get("nnn_type")),
+            )
+            if weight_type is None:
+                weight_type = yac_core.yac_interp_nnn_weight_type.YAC_INTERP_NNN_AVG
             stack.add_nnn(
-                reduction_type=reduction,
+                nnn_type=weight_type,
                 n=yac_kwargs.get("n", 1),
                 max_search_distance=yac_kwargs.get("max_search_distance", 0.0),
                 scale=yac_kwargs.get("scale", 1.0),
             )
-        elif yac_method == "conservative":
-            normalisation = yac_kwargs.get(
-                "normalisation", yac.ConservNormalizationType.DESTAREA
+        elif yac_method == "average":
+            reduction_type = _coerce_enum(
+                yac_core.yac_interp_avg_weight_type,
+                yac_kwargs.get("reduction_type", yac_kwargs.get("weight_type")),
             )
-            if isinstance(normalisation, str):
-                normalisation = yac.ConservNormalizationType[normalisation.upper()]
+            if reduction_type is None:
+                reduction_type = (
+                    yac_core.yac_interp_avg_weight_type.YAC_INTERP_AVG_ARITHMETIC
+                )
+            stack.add_average(
+                reduction_type=reduction_type,
+                partial_coverage=yac_kwargs.get("partial_coverage", False),
+            )
+        elif yac_method == "conservative":
+            normalisation = _coerce_enum(
+                yac_core.yac_interp_method_conserv_normalisation,
+                yac_kwargs.get("normalisation"),
+            )
+            if normalisation is None:
+                normalisation = yac_core.yac_interp_method_conserv_normalisation.YAC_INTERP_CONSERV_DESTAREA
             stack.add_conservative(
                 order=yac_kwargs.get("order", 1),
                 enforced_conserv=yac_kwargs.get("enforced_conserv", False),
                 partial_coverage=yac_kwargs.get("partial_coverage", False),
                 normalisation=normalisation,
             )
+            fixed_value = yac_kwargs.get("fixed_value", 0.0)
+            if fixed_value is not None:
+                stack.add_fixed(float(fixed_value))
 
-        self._yac_inst.def_couple(
-            self._comp_name,
-            self._src_grid_name,
-            "src_field",
-            self._comp_name,
-            self._tgt_grid_name,
-            "tgt_field",
-            "1",
-            yac.TimeUnit.SECOND,
-            yac.Reduction.TIME_NONE,
+        self._weights = yac_core.compute_weights(
             stack,
+            self._src_field,
+            self._tgt_field,
         )
-        self._yac_inst.enddef()
+        self._interpolations: dict[int, Any] = {}
+        self._src_size = self._src_grid.get_data_size(self._src_location)
+        self._tgt_size = self._tgt_grid.get_data_size(self._tgt_location)
 
-    def _build_points(self, src_grid, tgt_grid, src_dim, tgt_dim, yac_method):
-        yac = self._yac
-        if yac_method == "conservative":
-            if src_dim != "n_face" or tgt_dim != "n_face":
-                raise ValueError(
-                    "YAC conservative remapping only supports face-centered data."
-                )
-            self._src_grid = _build_unstructured_grid(
-                yac, src_grid, self._src_grid_name
-            )
-            self._tgt_grid = _build_unstructured_grid(
-                yac, tgt_grid, self._tgt_grid_name
-            )
-            src_lon, src_lat = _get_lon_lat(src_grid, "face")
-            tgt_lon, tgt_lat = _get_lon_lat(tgt_grid, "face")
-            src_points = self._src_grid.def_points(
-                yac.Location.CELL, np.deg2rad(src_lon), np.deg2rad(src_lat)
-            )
-            tgt_points = self._tgt_grid.def_points(
-                yac.Location.CELL, np.deg2rad(tgt_lon), np.deg2rad(tgt_lat)
-            )
-            return src_points, tgt_points
+    def apply(
+        self, values: np.ndarray, frac_mask: np.ndarray | None = None
+    ) -> np.ndarray:
+        """Apply the pre-computed interpolation weights to *values*.
 
-        src_kind = src_dim.replace("n_", "")
-        tgt_kind = tgt_dim.replace("n_", "")
-        src_lon, src_lat = _get_lon_lat(src_grid, src_kind)
-        tgt_lon, tgt_lat = _get_lon_lat(tgt_grid, tgt_kind)
-        self._src_grid = yac.CloudGrid(
-            self._src_grid_name, np.deg2rad(src_lon), np.deg2rad(src_lat)
-        )
-        self._tgt_grid = yac.CloudGrid(
-            self._tgt_grid_name, np.deg2rad(tgt_lon), np.deg2rad(tgt_lat)
-        )
-        src_points = self._src_grid.def_points(np.deg2rad(src_lon), np.deg2rad(src_lat))
-        tgt_points = self._tgt_grid.def_points(np.deg2rad(tgt_lon), np.deg2rad(tgt_lat))
-        return src_points, tgt_points
+        The interpolation method (NNN or conservative) is determined by
+        *yac_method* passed to the constructor and is fixed for the lifetime of
+        this remapper instance.  This method simply executes the weight
+        application; it does not select or alter the interpolation algorithm.
 
-    def remap(self, values: np.ndarray) -> np.ndarray:
-        values = np.ascontiguousarray(values, dtype=np.float64).reshape(-1)
-        if values.size != self._src_field.size:
+        Parameters
+        ----------
+        values : np.ndarray
+            1-D or 2-D array of source-grid values. The trailing dimension must
+            equal the number of source points registered with YAC
+            (``self._src_size``). When 2-D, the leading dimension is treated as
+            the YAC collection size and is remapped in one batched call.
+        frac_mask : np.ndarray, optional
+            Optional fractional source mask with the same shape as ``values``.
+            When provided, it is forwarded to YAC's interpolation call.
+
+        Returns
+        -------
+        np.ndarray
+            Array of remapped values on the destination grid with the same
+            number of leading collections as the input.
+        """
+        values = np.ascontiguousarray(values, dtype=np.float64)
+        if values.ndim == 1:
+            values = values.reshape(1, -1)
+        elif values.ndim != 2:
             raise ValueError(
-                f"YAC remap expects {self._src_field.size} values, got {values.size}."
+                f"YAC remap expects a 1-D or 2-D array, got {values.ndim}-D input."
             )
-        self._src_field.put(values)
-        out, _ = self._tgt_field.get()
-        return np.asarray(out, dtype=np.float64).reshape(-1)
+        if values.shape[1] != self._src_size:
+            raise ValueError(
+                f"YAC remap expects {self._src_size} values, got {values.shape[1]}."
+            )
 
-    def close(self) -> None:
-        self._yac_inst.cleanup()
+        if frac_mask is not None:
+            frac_mask = np.ascontiguousarray(frac_mask, dtype=np.float64)
+            if frac_mask.ndim == 1:
+                frac_mask = frac_mask.reshape(1, -1)
+            elif frac_mask.ndim != 2:
+                raise ValueError(
+                    "YAC fractional mask expects a 1-D or 2-D array, "
+                    f"got {frac_mask.ndim}-D input."
+                )
+            if frac_mask.shape != values.shape:
+                raise ValueError(
+                    "YAC fractional mask must match remap input shape. "
+                    f"Got mask shape {frac_mask.shape} and value shape {values.shape}."
+                )
+
+        collection_size = values.shape[0]
+        interpolation = self._interpolations.get(collection_size)
+        if interpolation is None:
+            interpolation = self._weights.get_interpolation(
+                collection_size=collection_size,
+                frac_mask_fallback_value=self._frac_mask_fallback_value,
+            )
+            self._interpolations[collection_size] = interpolation
+
+        out = (
+            interpolation(values, frac_mask=frac_mask)
+            if frac_mask is not None
+            else interpolation(values)
+        )
+        return np.asarray(out, dtype=np.float64)
+
+
+def _prepare_frac_mask(frac_mask, da_t, src_values, src_dim: str) -> np.ndarray:
+    if hasattr(frac_mask, "dims"):
+        other_dims = [d for d in da_t.dims if d != src_dim]
+        frac_mask_values = np.asarray(frac_mask.transpose(*other_dims, src_dim).values)
+    else:
+        frac_mask_values = np.asarray(frac_mask)
+
+    if frac_mask_values.shape != src_values.shape:
+        raise ValueError(
+            "YAC fractional mask must match the remapped source variable shape. "
+            f"Got mask shape {frac_mask_values.shape} and source shape {src_values.shape}."
+        )
+    return frac_mask_values.reshape(-1, frac_mask_values.shape[-1])
 
 
 def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwargs):
@@ -240,6 +320,22 @@ def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwa
     options.kwargs.update(yac_kwargs or {})
     ds, is_da, name = _to_dataset(source)
     dims_to_remap = _get_remap_dims(ds)
+
+    if options.method == "conservative":
+        if destination_dim != "n_face":
+            raise ValueError(
+                "YAC conservative remapping requires the destination to be "
+                "face-centered (remap_to='faces'). "
+                f"Got remap_to={remap_to!r} which maps to dimension {destination_dim!r}."
+            )
+        non_face_src = dims_to_remap - {"n_face"}
+        if non_face_src:
+            raise ValueError(
+                "YAC conservative remapping requires all source data to be "
+                f"face-centered (dimension 'n_face'). "
+                f"Found non-face source dimension(s): {non_face_src}. "
+                "Use yac_method='nnn' for node- or edge-centered data."
+            )
     remappers: dict[str, _YacRemapper] = {}
     remapped_vars = {}
 
@@ -253,41 +349,42 @@ def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwa
             options.kwargs,
         )
 
-    try:
-        for var_name, da in ds.data_vars.items():
-            src_dim = next((d for d in da.dims if d in dims_to_remap), None)
-            if src_dim is None:
-                remapped_vars[var_name] = da
-                continue
+    for var_name, da in ds.data_vars.items():
+        src_dim = next((d for d in da.dims if d in dims_to_remap), None)
+        if src_dim is None:
+            remapped_vars[var_name] = da
+            continue
 
-            other_dims = [d for d in da.dims if d != src_dim]
-            da_t = da.transpose(*other_dims, src_dim)
-            src_values = np.asarray(da_t.values)
-            flat_src = src_values.reshape(-1, src_values.shape[-1])
-            remapper = remappers[src_dim]
-            out_flat = np.empty(
-                (flat_src.shape[0], remapper._tgt_field.size), dtype=np.float64
-            )
-            for idx in range(flat_src.shape[0]):
-                out_flat[idx] = remapper.remap(flat_src[idx])
+        other_dims = [d for d in da.dims if d != src_dim]
+        da_t = da.transpose(*other_dims, src_dim)
+        src_values = np.asarray(da_t.values)
+        flat_src = src_values.reshape(-1, src_values.shape[-1])
+        frac_masks = yac_kwargs.get("frac_masks")
+        frac_mask = (
+            frac_masks.get(var_name)
+            if isinstance(frac_masks, dict) and var_name in frac_masks
+            else yac_kwargs.get("frac_mask")
+        )
+        flat_frac_mask = None
+        if frac_mask is not None:
+            flat_frac_mask = _prepare_frac_mask(frac_mask, da_t, src_values, src_dim)
+        remapper = remappers[src_dim]
+        out_flat = remapper.apply(flat_src, frac_mask=flat_frac_mask)
 
-            out_shape = src_values.shape[:-1] + (remapper._tgt_field.size,)
-            out_values = out_flat.reshape(out_shape)
-            coords = {dim: da.coords[dim] for dim in other_dims if dim in da.coords}
-            da_out = uxarray.core.dataarray.UxDataArray(
-                out_values,
-                dims=other_dims + [destination_dim],
-                coords=coords,
-                name=da.name,
-                attrs=da.attrs,
-                uxgrid=destination_grid,
-            )
-            remapped_vars[var_name] = da_out
-    finally:
-        for remapper in remappers.values():
-            remapper.close()
+        out_shape = src_values.shape[:-1] + (remapper._tgt_size,)
+        out_values = out_flat.reshape(out_shape)
+        coords = {dim: da.coords[dim] for dim in other_dims if dim in da.coords}
+        da_out = uxarray.core.dataarray.UxDataArray(
+            out_values,
+            dims=other_dims + [destination_dim],
+            coords=coords,
+            name=da.name,
+            attrs=da.attrs,
+            uxgrid=destination_grid,
+        )
+        remapped_vars[var_name] = da_out
 
     ds_remapped = _construct_remapped_ds(
-        source, remapped_vars, destination_grid, destination_dim
+        source, remapped_vars, destination_grid, remap_to
     )
     return ds_remapped[name] if is_da else ds_remapped

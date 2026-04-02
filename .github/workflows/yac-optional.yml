@@ -10,14 +10,14 @@ on:
 
 jobs:
   yac-optional:
-    name: YAC v3.9.3 (Ubuntu)
+    name: YAC core v3.14.0_p1 (Ubuntu)
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -l {0}
     env:
-      YAC_VERSION: v3.9.3
-      YAXT_VERSION: v0.11.5
+      YAC_VERSION: v3.14.0_p1
+      YAXT_VERSION: v0.11.5.1
       MPIEXEC: /usr/bin/mpirun
       MPIRUN: /usr/bin/mpirun
       MPICC: /usr/bin/mpicc
@@ -50,8 +50,6 @@ jobs:
             automake \
             gawk \
             gfortran \
-            libfyaml-dev \
-            libnetcdf-dev \
             libopenmpi-dev \
             libtool \
             make \
@@ -68,7 +66,7 @@ jobs:
       - name: Install Python build dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install cython mpi4py wheel
+          python -m pip install cython wheel
       - name: Build and install YAXT
         run: |
           set -euxo pipefail
@@ -107,9 +105,11 @@ jobs:
           ../configure \
             --prefix="${YAC_PREFIX}" \
             --with-yaxt-root="${YAC_PREFIX}" \
-            --with-netcdf-root="${CONDA_PREFIX}" \
-            --with-fyaml-root=/usr \
-            --without-regard-for-quality \
+            --disable-mci \
+            --disable-utils \
+            --disable-examples \
+            --disable-tools \
+            --disable-netcdf \
             --enable-python-bindings \
             CC="${MPICC}" \
             FC="${MPIF90}"
@@ -121,11 +121,18 @@ jobs:
           PY_VER="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
           echo "LD_LIBRARY_PATH=${YAC_PREFIX}/lib:${LD_LIBRARY_PATH:-}" >> "${GITHUB_ENV}"
           echo "PYTHONPATH=${YAC_PREFIX}/lib/python${PY_VER}/site-packages:${YAC_PREFIX}/lib/python${PY_VER}/dist-packages:${PYTHONPATH:-}" >> "${GITHUB_ENV}"
-      - name: Verify YAC Python bindings
+      - name: Verify YAC core Python bindings
         run: |
           python - <<'PY'
-          import yac
-          print("YAC version:", getattr(yac, "__version__", "unknown"))
+          from pathlib import Path
+          import sys
+          candidates = []
+          for entry in sys.path:
+              pkg = Path(entry) / "yac"
+              candidates.extend(pkg.glob("core*.so"))
+              candidates.extend(pkg.glob("core*.pyd"))
+          assert candidates, "yac.core extension not found on sys.path"
+          print("Found yac.core extension:", candidates[0])
           PY
       - name: Install uxarray
         run: |

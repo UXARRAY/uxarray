@@ -11,6 +11,15 @@ from uxarray.remap.bilinear import _bilinear
 from uxarray.remap.inverse_distance_weighted import _inverse_distance_weighted_remap
 from uxarray.remap.nearest_neighbor import _nearest_neighbor_remap
 
+_VALID_BACKENDS = ("uxarray", "yac")
+
+
+def _validate_backend(backend: str) -> None:
+    if backend not in _VALID_BACKENDS:
+        raise ValueError(
+            f"Invalid backend '{backend}'. Expected one of {_VALID_BACKENDS}."
+        )
+
 
 class RemapAccessor:
     """Expose remapping methods on UxDataArray and UxDataset objects."""
@@ -41,13 +50,10 @@ class RemapAccessor:
         Calling `.remap(...)` with no explicit method will invoke
         `nearest_neighbor(...)`.
         """
-        return self.nearest_neighbor(
-            *args,
-            backend=backend,
-            yac_method=yac_method,
-            yac_options=yac_options,
-            **kwargs,
-        )
+        nn_kwargs: dict = {"backend": backend, "yac_options": yac_options}
+        if yac_method is not None:
+            nn_kwargs["yac_method"] = yac_method
+        return self.nearest_neighbor(*args, **nn_kwargs, **kwargs)
 
     def nearest_neighbor(
         self,
@@ -84,6 +90,7 @@ class RemapAccessor:
             A new object with data mapped onto `destination_grid`.
         """
 
+        _validate_backend(backend)
         if backend == "yac":
             from uxarray.remap.yac import _yac_remap
 
@@ -136,12 +143,14 @@ class RemapAccessor:
             A new object with data mapped onto `destination_grid`.
         """
 
+        _validate_backend(backend)
         if backend == "yac":
-            from uxarray.remap.yac import _yac_remap
-
-            yac_kwargs = yac_options or {}
-            return _yac_remap(
-                self.ux_obj, destination_grid, remap_to, yac_method, yac_kwargs
+            raise NotImplementedError(
+                "inverse_distance_weighted with backend='yac' is not implemented. "
+                "The YAC backend currently supports only 'nnn' and 'conservative' "
+                "methods and will not perform inverse-distance-weighted remapping. "
+                "Use backend='uxarray' for IDW, or choose a different remapping "
+                "method that is supported by YAC."
             )
         return _inverse_distance_weighted_remap(
             self.ux_obj, destination_grid, remap_to, power, k
@@ -152,7 +161,6 @@ class RemapAccessor:
         destination_grid: Grid,
         remap_to: str = "faces",
         backend: str = "uxarray",
-        yac_method: str | None = None,
         yac_options: dict | None = None,
         **kwargs,
     ) -> UxDataArray | UxDataset:
@@ -167,12 +175,10 @@ class RemapAccessor:
             Which grid element receives the remapped values.
 
         backend : {'uxarray', 'yac'}, default='uxarray'
-            Remapping backend to use. When set to 'yac', requires YAC to be
-            available on PYTHONPATH.
-        yac_method : {'nnn', 'conservative'}, optional
-            YAC interpolation method. Required when backend='yac'.
+            Remapping backend to use. When set to 'yac', bilinear remapping is
+            routed through YAC's average interpolation.
         yac_options : dict, optional
-            YAC interpolation configuration options.
+            YAC interpolation configuration options for the average method.
 
         Returns
         -------
@@ -180,11 +186,12 @@ class RemapAccessor:
             A new object with data mapped onto `destination_grid`.
         """
 
+        _validate_backend(backend)
         if backend == "yac":
             from uxarray.remap.yac import _yac_remap
 
             yac_kwargs = yac_options or {}
             return _yac_remap(
-                self.ux_obj, destination_grid, remap_to, yac_method, yac_kwargs
+                self.ux_obj, destination_grid, remap_to, "average", yac_kwargs
             )
         return _bilinear(self.ux_obj, destination_grid, remap_to)
