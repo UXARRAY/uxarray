@@ -58,11 +58,33 @@ def test_open_dataset_single_combined_mpas_file(gridpath):
     assert "ssh" in uxds_single.data_vars
 
 
+def test_open_dataset_single_combined_xarray_dataset(gridpath):
+    """Loads a combined MPAS grid-and-data xarray.Dataset with a single argument."""
+
+    file_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+
+    with xr.open_dataset(file_path) as ds:
+        uxds = ux.open_dataset(ds)
+
+    nt.assert_equal(uxds.uxgrid.source_grid_spec, "MPAS")
+    nt.assert_equal(uxds.source_datasets, None)
+    assert "ssh" in uxds.data_vars
+
+
 def test_open_dataset_single_argument_rejects_directory_grid(tmp_path):
     """Requires a separate data file for directory-based grids."""
 
     with pytest.raises(ValueError, match="Directory-based grids require a separate data file"):
         ux.open_dataset(tmp_path)
+
+
+def test_open_dataset_single_argument_rejects_invalid_combined_file(datasetpath):
+    """Rejects one-file inputs that do not contain recognizable grid metadata."""
+
+    data_path = datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc")
+
+    with pytest.raises(RuntimeError, match="Could not recognize dataset format"):
+        ux.open_dataset(data_path)
 
 
 def test_open_mf_dataset(gridpath, datasetpath, mesh_constants):
