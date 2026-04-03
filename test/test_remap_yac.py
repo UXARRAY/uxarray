@@ -140,6 +140,20 @@ def test_yac_bilinear_face_remap(gridpath):
     assert out.size == dest.n_face
 
 
+def test_yac_bilinear_rejects_non_average_method(gridpath):
+    mesh_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+    dest = ux.open_grid(mesh_path)
+
+    with pytest.raises(ValueError, match="only supports yac_method='average'"):
+        uxds["latCell"].remap.bilinear(
+            destination_grid=dest,
+            remap_to="faces",
+            backend="yac",
+            yac_method="conservative",
+        )
+
+
 def test_yac_conservative_rejects_non_face_data():
     verts = np.array([(0.0, 90.0), (-180.0, 0.0), (0.0, -90.0)])
     grid = ux.open_grid(verts)

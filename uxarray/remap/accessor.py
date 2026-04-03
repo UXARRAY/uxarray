@@ -49,6 +49,9 @@ class RemapAccessor:
 
         Calling `.remap(...)` with no explicit method will invoke
         `nearest_neighbor(...)`.
+
+        When ``backend="yac"``, this generic entrypoint can also be used to
+        select a YAC-specific interpolation method through ``yac_method``.
         """
         nn_kwargs: dict = {"backend": backend, "yac_options": yac_options}
         if yac_method is not None:
@@ -147,8 +150,8 @@ class RemapAccessor:
         if backend == "yac":
             raise NotImplementedError(
                 "inverse_distance_weighted with backend='yac' is not implemented. "
-                "The YAC backend currently supports only 'nnn' and 'conservative' "
-                "methods and will not perform inverse-distance-weighted remapping. "
+                "UXarray currently exposes only YAC's 'nnn', 'average', and "
+                "'conservative' methods through the YAC backend. "
                 "Use backend='uxarray' for IDW, or choose a different remapping "
                 "method that is supported by YAC."
             )
@@ -161,6 +164,7 @@ class RemapAccessor:
         destination_grid: Grid,
         remap_to: str = "faces",
         backend: str = "uxarray",
+        yac_method: str | None = "average",
         yac_options: dict | None = None,
         **kwargs,
     ) -> UxDataArray | UxDataset:
@@ -177,6 +181,9 @@ class RemapAccessor:
         backend : {'uxarray', 'yac'}, default='uxarray'
             Remapping backend to use. When set to 'yac', bilinear remapping is
             routed through YAC's average interpolation.
+        yac_method : {'average'}, optional
+            YAC interpolation method for the bilinear convenience wrapper.
+            Only ``'average'`` is supported here.
         yac_options : dict, optional
             YAC interpolation configuration options for the average method.
 
@@ -190,8 +197,17 @@ class RemapAccessor:
         if backend == "yac":
             from uxarray.remap.yac import _yac_remap
 
+            if yac_method not in (None, "average"):
+                raise ValueError(
+                    "bilinear with backend='yac' only supports yac_method='average'. "
+                    "Use .remap(..., backend='yac', yac_method=...) for other YAC methods."
+                )
             yac_kwargs = yac_options or {}
             return _yac_remap(
-                self.ux_obj, destination_grid, remap_to, "average", yac_kwargs
+                self.ux_obj,
+                destination_grid,
+                remap_to,
+                yac_method or "average",
+                yac_kwargs,
             )
         return _bilinear(self.ux_obj, destination_grid, remap_to)

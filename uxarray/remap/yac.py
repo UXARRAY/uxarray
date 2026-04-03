@@ -138,6 +138,14 @@ def _coerce_enum(enum_type, value: Any):
 
 
 class _YacRemapper:
+    """Build and reuse YAC interpolation weights for one source dimension.
+
+    Each instance owns the YAC source/target field registration for a single
+    source location type (faces, nodes, or edges) and one requested YAC method.
+    The resulting weights can then be applied repeatedly to batches of values
+    that share the same source dimension.
+    """
+
     def __init__(
         self,
         src_grid,
@@ -299,6 +307,7 @@ class _YacRemapper:
 
 
 def _prepare_frac_mask(frac_mask, da_t, src_values, src_dim: str) -> np.ndarray:
+    """Normalize a fractional mask to the flattened shape expected by YAC."""
     if hasattr(frac_mask, "dims"):
         other_dims = [d for d in da_t.dims if d != src_dim]
         frac_mask_values = np.asarray(frac_mask.transpose(*other_dims, src_dim).values)
@@ -314,6 +323,14 @@ def _prepare_frac_mask(frac_mask, da_t, src_values, src_dim: str) -> np.ndarray:
 
 
 def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwargs):
+    """Remap a UXarray object through YAC and reconstruct the UXarray result.
+
+    This is the main integration boundary between the public UXarray remap
+    accessor and the lower-level ``yac.core`` bindings. It normalizes the
+    requested YAC method, validates method-specific constraints, batches each
+    remapped variable by its source dimension, and returns a remapped
+    ``UxDataArray`` or ``UxDataset`` with UXarray metadata preserved.
+    """
     _assert_dimension(remap_to)
     destination_dim = LABEL_TO_COORD[remap_to]
     options = _normalize_yac_method(yac_method)
