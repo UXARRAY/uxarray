@@ -149,11 +149,10 @@ class RemapAccessor:
         _validate_backend(backend)
         if backend == "yac":
             raise NotImplementedError(
-                "inverse_distance_weighted with backend='yac' is not implemented. "
-                "UXarray currently exposes only YAC's 'nnn', 'average', and "
-                "'conservative' methods through the YAC backend. "
-                "Use backend='uxarray' for IDW, or choose a different remapping "
-                "method that is supported by YAC."
+                "inverse_distance_weighted with backend='yac' is not currently "
+                "exposed through the UXarray YAC accessor. "
+                "Use backend='uxarray' for IDW, or use the YAC backend through "
+                ".remap(..., backend='yac', yac_method=..., yac_options=...)."
             )
         return _inverse_distance_weighted_remap(
             self.ux_obj, destination_grid, remap_to, power, k
