@@ -28,7 +28,7 @@ jobs:
 
 
       - name: Set up Conda environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: ${{env.CONDA_ENV_FILE}}
           cache-environment: true
