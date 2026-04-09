@@ -10,6 +10,7 @@ This page provides an auto-generated summary of UXarray's API. For more details
 and examples, refer to the relevant chapters in the main part of the
 documentation.
 
+
 Top Level Functions
 -------------------
 
@@ -34,12 +35,21 @@ Constructors
 
    Grid
    Grid.from_dataset
+   Grid.from_face_vertices
    Grid.from_file
-   Grid.from_topology
-   Grid.from_structured
-   Grid.from_points
    Grid.from_healpix
+   Grid.from_points
+   Grid.from_structured
+   Grid.from_topology
 
+
+Dual Mesh Construction
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   Grid.get_dual
 
 
 Indexing
@@ -47,11 +57,20 @@ Indexing
 .. autosummary::
    :toctree: generated/
 
+   Grid.get_edges_at_constant_latitude
+   Grid.get_edges_at_constant_longitude
+   Grid.get_faces_at_constant_latitude
+   Grid.get_faces_at_constant_longitude
+   Grid.get_faces_between_latitudes
+   Grid.get_faces_between_longitudes
+   Grid.get_faces_containing_point
    Grid.isel
    Grid.inverse_indices
 
+
 Dimensions
 ~~~~~~~~~~
+
 .. autosummary::
    :toctree: generated/
 
@@ -68,12 +87,14 @@ Dimensions
    Grid.n_max_node_edges
    Grid.n_nodes_per_face
 
+
 Spherical Coordinates
 ~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
 
+   Grid.coordinates
    Grid.node_lon
    Grid.node_lat
    Grid.edge_lon
@@ -81,12 +102,14 @@ Spherical Coordinates
    Grid.face_lon
    Grid.face_lat
 
+
 Cartesian Coordinates
 ~~~~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: generated/
 
+   Grid.coordinates
    Grid.node_x
    Grid.node_y
    Grid.node_z
@@ -96,6 +119,7 @@ Cartesian Coordinates
    Grid.face_x
    Grid.face_y
    Grid.face_z
+
 
 Connectivity
 ~~~~~~~~~~~~
@@ -113,26 +137,30 @@ Connectivity
    Grid.node_edge_connectivity
    Grid.node_face_connectivity
 
+
 Descriptors
 ~~~~~~~~~~~
 .. autosummary::
    :toctree: generated/
 
    Grid.descriptors
-   Grid.face_areas
-   Grid.bounds
-   Grid.face_bounds_lon
-   Grid.face_bounds_lat
-   Grid.edge_node_distances
-   Grid.edge_face_distances
    Grid.antimeridian_face_indices
+   Grid.bounds
    Grid.boundary_node_indices
    Grid.boundary_edge_indices
    Grid.boundary_face_indices
-   Grid.partial_sphere_coverage
+   Grid.edge_node_distances
+   Grid.edge_face_distances
+   Grid.face_areas
+   Grid.face_bounds_lon
+   Grid.face_bounds_lat
+   Grid.is_subset
    Grid.global_sphere_coverage
-   Grid.triangular
    Grid.max_face_radius
+   Grid.partial_sphere_coverage
+   Grid.sphere_radius
+   Grid.triangular
+
 
 Attributes
 ~~~~~~~~~~
@@ -141,21 +169,24 @@ Attributes
 
    Grid.attrs
 
+
 Methods
 ~~~~~~~
 .. autosummary::
    :toctree: generated/
 
-   Grid.copy
    Grid.chunk
-   Grid.validate
+   Grid.copy
    Grid.calculate_total_face_area
-   Grid.normalize_cartesian_coordinates
+   Grid.compute_face_areas
    Grid.construct_face_centers
    Grid.get_ball_tree
    Grid.get_kd_tree
    Grid.get_spatial_hash
    Grid.get_faces_containing_point
+   Grid.normalize_cartesian_coordinates
+   Grid.validate
+
 
 Inheritance of Xarray Functionality
 -----------------------------------
@@ -164,6 +195,7 @@ The primary data structures in UXarray, ``uxarray.UxDataArray`` and ``uxarray.Ux
 ``xarray.Dataset`` respectively. This means that they contain the same methods and attributes that are present in Xarray, with
 new additions and some overloaded as discussed in the next sections. For a detailed list of Xarray specific behavior
 and functionality, please refer to Xarray's `documentation <https://docs.xarray.dev/en/stable/>`_.
+
 
 UxDataArray
 -----------
@@ -178,6 +210,16 @@ Constructors
    UxDataArray.from_xarray
    UxDataArray.from_healpix
 
+
+Dual Mesh Construction
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.get_dual
+
+
 Selection & Indexing
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -185,6 +227,8 @@ Selection & Indexing
    :toctree: generated/
 
    UxDataArray.isel
+   UxDataArray.where
+
 
 Grid Accessor
 ~~~~~~~~~~~~~
@@ -205,9 +249,21 @@ Constructors
    :toctree: generated/
 
    UxDataset
+   UxDataset.from_dataframe
+   UxDataset.from_dict
+   UxDataset.from_healpix
    UxDataset.from_structured
    UxDataset.from_xarray
-   UxDataset.from_healpix
+
+
+Dual Mesh Construction
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset.get_dual
+
 
 Grid Accessor
 ~~~~~~~~~~~~~
@@ -217,6 +273,23 @@ Grid Accessor
 
    UxDataset.uxgrid
 
+
+Attributes
+~~~~~~~~~~
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset.source_datasets
+
+
+Methods
+~~~~~~~
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset.info
+
+
 Selection & Indexing
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -224,13 +297,14 @@ Selection & Indexing
    :toctree: generated/
 
    UxDataset.isel
+   UxDataset.sel
+   UxDataset.where
 
 
 Conversion Methods
 ------------------
 
 UXarray provides functionality to convert its unstructured grids representation to other data structures that can be ingested by existing, widely used tools, such as Matplotlib and Cartopy. This allows users to keep using their workflows with such tools.
-
 
 
 Grid
@@ -240,9 +314,10 @@ Grid
    :toctree: generated/
 
    Grid.to_geodataframe
-   Grid.to_polycollection
    Grid.to_linecollection
+   Grid.to_polycollection
    Grid.to_xarray
+
 
 UxDataArray
 ~~~~~~~~~~~
@@ -250,11 +325,12 @@ UxDataArray
 .. autosummary::
    :toctree: generated/
 
+   UxDataArray.to_dataset
    UxDataArray.to_geodataframe
    UxDataArray.to_polycollection
    UxDataArray.to_raster
-   UxDataArray.to_dataset
    UxDataArray.to_xarray
+
 
 UxDataset
 ~~~~~~~~~
@@ -262,13 +338,12 @@ UxDataset
 .. autosummary::
    :toctree: generated/
 
-   UxDataset.to_xarray
    UxDataset.to_array
+   UxDataset.to_xarray
 
 
 Plotting
 --------
-
 
 UXarray's plotting API is written using `hvPlot <https://hvplot.holoviz.org/>`_. We also support standalone functions
 for pure Matplotlib and Cartopy workflows.
@@ -277,6 +352,7 @@ for pure Matplotlib and Cartopy workflows.
 
     `Plotting User Guide Section <https://uxarray.readthedocs.io/en/latest/user-guide/plotting.html>`_
     `Plotting with Matplotlib User Guide Section <https://uxarray.readthedocs.io/en/latest/user-guide/mpl.html>`_
+
 
 Grid
 ~~~~
@@ -310,11 +386,6 @@ UxDataArray
    UxDataArray.plot.points
    UxDataArray.plot.line
    UxDataArray.plot.scatter
-
-
-
-
-
 
 
 Subsetting
@@ -367,12 +438,12 @@ Cross Sections
     `Cross Sections User Guide Section <https://uxarray.readthedocs.io/en/latest/user-guide/cross-sections.html>`_
 
 
-
 .. autosummary::
    :toctree: generated/
    :template: autosummary/accessor_method.rst
 
    UxDataArray.cross_section
+
 
 Remapping
 ---------
@@ -380,6 +451,7 @@ Remapping
 .. seealso::
 
     `Remapping User Guide Section <https://uxarray.readthedocs.io/en/latest/user-guide/remapping.html>`_
+
 
 UxDataArray
 ~~~~~~~~~~~
@@ -393,6 +465,7 @@ UxDataArray
    UxDataArray.remap.inverse_distance_weighted
    UxDataArray.remap.bilinear
 
+
 UxDataset
 ~~~~~~~~~
 
@@ -405,29 +478,22 @@ UxDataset
    UxDataset.remap.inverse_distance_weighted
    UxDataset.remap.bilinear
 
+
 Mathematical Operators
 ----------------------
 
 .. autosummary::
    :toctree: generated/
 
-   UxDataArray.integrate
-   UxDataArray.gradient
+   UxDataArray.curl
    UxDataArray.difference
+   UxDataArray.divergence
+   UxDataArray.gradient
+   UxDataArray.integrate
 
-
-Dual Mesh Construction
-----------------------
-.. autosummary::
-   :toctree: generated/
-
-   Grid.get_dual
-   UxDataArray.get_dual
-   UxDataset.get_dual
 
 Aggregations
 ------------
-
 
 Topological
 ~~~~~~~~~~~
@@ -439,7 +505,6 @@ on each face.
 .. seealso::
 
     `Topological Aggregations User Guide Section <https://uxarray.readthedocs.io/en/latest/user-guide/topological-aggregations.html>`_
-
 
 .. autosummary::
    :toctree: generated/
@@ -455,24 +520,25 @@ on each face.
    UxDataArray.topological_all
    UxDataArray.topological_any
 
+
 Azimuthal
 ~~~~~~~~~
 
 Azimuthal aggregations apply an aggregation (i.e. averaging) along circles of constant great-circle distance from a specified point on the sphere.
-
 
 .. autosummary::
    :toctree: generated/
 
    UxDataArray.azimuthal_mean
 
+
 Zonal Average
 ~~~~~~~~~~~~~
 .. autosummary::
    :toctree: generated/
 
+   UxDataArray.zonal_average
    UxDataArray.zonal_mean
-
 
 
 Weighted
@@ -481,7 +547,6 @@ Weighted
    :toctree: generated/
 
    UxDataArray.weighted_mean
-
 
 
 Spherical Geometry
@@ -495,6 +560,7 @@ Intersections
 
    grid.intersections.gca_gca_intersection
    grid.intersections.gca_const_lat_intersection
+
 
 Arcs
 ~~~~
