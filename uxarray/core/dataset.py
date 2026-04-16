@@ -91,17 +91,17 @@ class UxDataset(xr.Dataset):
             self._uxgrid = uxgrid
 
         # As of xarray's 2026.4.0, `xr.Dataset(xr.Dataset)` is prohibited;
-        # hence this check, i.e. If we get `xr.Dataset` as input, use its `data_vars`
-        # as `dict` and
+        # hence this check, i.e. if we get `xr.Dataset` as input, use its `data_vars`
+        # as `dict` and handle `coords` and `attrs` properly as well
         if args and isinstance(args[0], xr.Dataset):
             ds = args[0]
+            # Replacee only args[0], `ds`, with `ds.data_vars` as `dict`
             args = (dict(ds.data_vars),) + args[1:]
+            # Set `coords` and `attrs` only if they are not explicitly provided
             kwargs.setdefault("coords", dict(ds.coords))
             kwargs.setdefault("attrs", ds.attrs)
 
         super().__init__(*args, **kwargs)
-
-        # super().__init__(*args, **kwargs)
 
     # declare plotting accessor
     plot = UncachedAccessor(UxDatasetPlotAccessor)
