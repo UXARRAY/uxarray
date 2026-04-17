@@ -97,9 +97,16 @@ class UxDataset(xr.Dataset):
             ds = args[0]
             # Replacee only args[0], `ds`, with `ds.data_vars` as `dict`
             args = (dict(ds.data_vars),) + args[1:]
-            # Set `coords` and `attrs` only if they are not explicitly provided
-            kwargs.setdefault("coords", dict(ds.coords))
-            kwargs.setdefault("attrs", ds.attrs)
+            # coords not passed positionally
+            if len(args) < 2:
+                kwargs.setdefault(
+                    "coords", dict(ds.coords)
+                )  # Set it as kwarg only if not explicitly provided
+            # attrs not passed positionally
+            if len(args) < 3:
+                kwargs.setdefault(
+                    "attrs", ds.attrs
+                )  # Set it as kwarg only if not explicitly provided
 
         super().__init__(*args, **kwargs)
 
