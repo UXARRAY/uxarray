@@ -99,3 +99,16 @@ def test_sel_method_forwarded(gridpath, datasetpath):
         nearest["time"].values,
         np.array(uxds["time"].values[2], dtype="datetime64[ns]"),
     )
+
+def test_uxdataset_init_from_xarray_dataset():
+    ds = xr.Dataset(
+        data_vars={"a": ("x", [1, 2])},
+        coords={"x": [10, 20]},
+        attrs={"source": "testing"},
+    )
+
+    uxds = ux.UxDataset(ds)
+
+    assert "a" in uxds.data_vars
+    assert "x" in uxds.coords
+    assert uxds.attrs["source"] == "testing"

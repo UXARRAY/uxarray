@@ -90,6 +90,24 @@ class UxDataset(xr.Dataset):
         else:
             self._uxgrid = uxgrid
 
+        # As of xarray's 2026.4.0, `xr.Dataset(xr.Dataset)` is prohibited;
+        # hence this check, i.e. if we get `xr.Dataset` as input, use its `data_vars`
+        # as `dict` and handle `coords` and `attrs` properly as well
+        if args and isinstance(args[0], xr.Dataset):
+            ds = args[0]
+            # Replacee only args[0], `ds`, with `ds.data_vars` as `dict`
+            args = (dict(ds.data_vars),) + args[1:]
+            # coords not passed positionally
+            if len(args) < 2:
+                kwargs.setdefault(
+                    "coords", dict(ds.coords)
+                )  # Set it as kwarg only if not explicitly provided
+            # attrs not passed positionally
+            if len(args) < 3:
+                kwargs.setdefault(
+                    "attrs", ds.attrs
+                )  # Set it as kwarg only if not explicitly provided
+
         super().__init__(*args, **kwargs)
 
     # declare plotting accessor
@@ -627,9 +645,9 @@ class UxDataset(xr.Dataset):
         """
         if grid_format == "HEALPix":
             ds = self.rename_dims({"n_face": "cell"})
-            return xr.Dataset(ds)
+            return xr.Dataset(ds.data_vars, coords=ds.coords, attrs=ds.attrs)
 
-        return xr.Dataset(self)
+        return xr.Dataset(self.data_vars, coords=self.coords, attrs=self.attrs)
 
     def get_dual(self):
         """Compute the dual mesh for a dataset, returns a new dataset object.
