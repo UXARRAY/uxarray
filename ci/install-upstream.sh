@@ -8,7 +8,6 @@ conda remove -y --force \
     datashader \
     distributed \
     holoviews \
-    numpy \
     pandas \
     scikit-learn \
     scipy \
@@ -26,7 +25,6 @@ conda list
 # use stable pandas (not nightly) due to geopandas incompatibility with pandas nightly internals
 # (see: https://github.com/UXARRAY/uxarray/issues/1414)
 python -m pip install \
-    'numpy<2.5' \
     'pandas>=2.0.0'
 
 python -m pip install \
