@@ -8,7 +8,6 @@ conda remove -y --force \
     datashader \
     distributed \
     holoviews \
-    numpy \
     pandas \
     scikit-learn \
     scipy \
@@ -33,7 +32,6 @@ python -m pip install \
     --no-deps \
     --pre \
     --upgrade \
-    numpy \
     scikit-learn \
     scipy \
     xarray
