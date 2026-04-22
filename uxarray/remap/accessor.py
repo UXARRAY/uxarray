@@ -82,7 +82,7 @@ class RemapAccessor:
         backend : {'uxarray', 'yac'}, default='uxarray'
             Remapping backend to use. When set to 'yac', requires YAC to be
             available on PYTHONPATH.
-        yac_method : {'nnn', 'conservative'}, optional
+        yac_method : {'nnn', 'average', 'conservative'}, optional
             YAC interpolation method. Defaults to 'nnn' when backend='yac'.
         yac_options : dict, optional
             YAC interpolation configuration options.
@@ -91,6 +91,14 @@ class RemapAccessor:
         -------
         UxDataArray or UxDataset
             A new object with data mapped onto `destination_grid`.
+
+        Notes
+        -----
+        When ``backend="yac"``, remapping uses YAC's low-level ``yac.core``
+        Python bindings. See the YAC documentation and installation guide:
+
+        - https://dkrz-sw.gitlab-pages.dkrz.de/yac/
+        - https://dkrz-sw.gitlab-pages.dkrz.de/yac/d1/d9f/installing_yac.html
         """
 
         _validate_backend(backend)
@@ -144,6 +152,15 @@ class RemapAccessor:
         -------
         UxDataArray or UxDataset
             A new object with data mapped onto `destination_grid`.
+
+        Notes
+        -----
+        When ``backend="yac"``, this method delegates to YAC's ``average``
+        interpolation method through the low-level ``yac.core`` Python
+        bindings. See the YAC documentation and installation guide:
+
+        - https://dkrz-sw.gitlab-pages.dkrz.de/yac/
+        - https://dkrz-sw.gitlab-pages.dkrz.de/yac/d1/d9f/installing_yac.html
         """
 
         _validate_backend(backend)
