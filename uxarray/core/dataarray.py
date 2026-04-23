@@ -465,12 +465,7 @@ class UxDataArray(xr.DataArray):
         else:
 
             def _is_default_extent() -> bool:
-                # Default extents are indicated by xlim/ylim being (0, 1)
-                # when autoscale is still on (no extent has been explicitly set)
-                if not ax.get_autoscale_on():
-                    return False
-                xlim, ylim = ax.get_xlim(), ax.get_ylim()
-                return np.allclose(xlim, (0.0, 1.0)) and np.allclose(ylim, (0.0, 1.0))
+                return ax.get_autoscale_on()
 
             if _is_default_extent():
                 try:
