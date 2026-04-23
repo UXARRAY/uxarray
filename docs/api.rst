@@ -477,6 +477,7 @@ UxDataArray
    UxDataArray.remap.nearest_neighbor
    UxDataArray.remap.inverse_distance_weighted
    UxDataArray.remap.bilinear
+   UxDataArray.remap.to_rectilinear
 
 
 UxDataset
@@ -490,6 +491,7 @@ UxDataset
    UxDataset.remap.nearest_neighbor
    UxDataset.remap.inverse_distance_weighted
    UxDataset.remap.bilinear
+   UxDataset.remap.to_rectilinear
 
 
 Mathematical Operators
