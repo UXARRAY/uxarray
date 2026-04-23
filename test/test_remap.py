@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.testing as nt
 import pytest
+import xarray as xr
 
 import uxarray as ux
 from uxarray.core.dataarray import UxDataArray
@@ -194,6 +195,51 @@ def test_dataset_remap_preserves_coords(gridpath, datasetpath):
     dest = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
     ds_out = uxds.remap.inverse_distance_weighted(destination_grid=dest, remap_to="nodes")
     assert "time" in ds_out.coords
+
+
+def test_to_rectilinear_native_backend():
+    """Rectilinear remap returns plain xarray output on lat/lon axes."""
+    grid = ux.Grid.from_structured(
+        lon=np.asarray([0.0, 90.0]),
+        lat=np.asarray([0.0, 45.0]),
+    )
+    da = UxDataArray(
+        np.asarray([1.0, 2.0, 3.0, 4.0]),
+        dims=["n_face"],
+        coords={
+            "n_face": [0, 1, 2, 3],
+            "face_lon": (
+                "n_face",
+                grid.face_lon.values,
+                {"standard_name": "longitude", "units": "degrees_east"},
+            ),
+            "face_lat": (
+                "n_face",
+                grid.face_lat.values,
+                {"standard_name": "latitude", "units": "degrees_north"},
+            ),
+        },
+        uxgrid=grid,
+    )
+    lon = xr.DataArray(
+        [0.0, 90.0],
+        dims=["lon"],
+        attrs={"axis": "X", "units": "degrees_east"},
+    )
+    lat = xr.DataArray(
+        [0.0, 45.0],
+        dims=["lat"],
+        attrs={"axis": "Y", "units": "degrees_north"},
+    )
+
+    out = da.remap.to_rectilinear(lon=lon, lat=lat, backend="uxarray")
+
+    assert isinstance(out, xr.DataArray)
+    assert out.dims == ("lat", "lon")
+    assert out.shape == (2, 2)
+    nt.assert_array_equal(out.values, np.asarray([[1.0, 2.0], [3.0, 4.0]]))
+    assert out["lon"].attrs["units"] == "degrees_east"
+    assert out["lat"].attrs["units"] == "degrees_north"
 
 
 # ------------------------------------------------------------

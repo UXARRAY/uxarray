@@ -34,6 +34,7 @@ class RemapAccessor:
             + "Supported methods:\n"
             + "  • nearest_neighbor(destination_grid, remap_to='faces')\n"
             + "  • inverse_distance_weighted(destination_grid, remap_to='faces', power=2, k=8)\n"
+            + "  • to_rectilinear(lon, lat, backend='yac')\n"
         )
 
     def __call__(
@@ -174,6 +175,59 @@ class RemapAccessor:
         return _inverse_distance_weighted_remap(
             self.ux_obj, destination_grid, remap_to, power, k
         )
+
+    def to_rectilinear(
+        self,
+        lon,
+        lat,
+        backend: str = "yac",
+        yac_method: str | None = "nnn",
+        yac_options: dict | None = None,
+        **kwargs,
+    ):
+        """
+        Remap onto a rectilinear longitude/latitude grid.
+
+        This convenience method targets 1-D longitude and latitude coordinate
+        arrays and returns a plain xarray object with ``lat`` and ``lon`` axes,
+        making the output suitable for downstream structured-grid workflows.
+
+        Parameters
+        ----------
+        lon : array-like or xarray.DataArray
+            1-D target longitude cell-center coordinate in degrees.
+        lat : array-like or xarray.DataArray
+            1-D target latitude cell-center coordinate in degrees.
+        backend : {'uxarray', 'yac'}, default='yac'
+            Remapping backend to use. The YAC backend uses YAC's rectilinear
+            grid support directly.
+        yac_method : {'nnn', 'average', 'conservative'}, optional
+            YAC interpolation method. Defaults to ``'nnn'``.
+        yac_options : dict, optional
+            YAC interpolation configuration options.
+
+        Returns
+        -------
+        xarray.DataArray or xarray.Dataset
+            Remapped data with the source spatial dimension replaced by the
+            provided latitude and longitude dimensions.
+        """
+
+        _validate_backend(backend)
+        if backend == "yac":
+            from uxarray.remap.yac import _yac_remap_to_rectilinear
+
+            return _yac_remap_to_rectilinear(
+                self.ux_obj,
+                lon,
+                lat,
+                yac_method or "nnn",
+                yac_options or {},
+            )
+
+        from uxarray.remap.structured import _native_remap_to_rectilinear
+
+        return _native_remap_to_rectilinear(self.ux_obj, lon, lat)
 
     def bilinear(
         self,

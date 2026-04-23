@@ -256,3 +256,52 @@ def test_yac_batched_remap_with_fractional_mask():
 
     assert out.shape == da.shape
     np.testing.assert_array_equal(out.values, da.values)
+
+
+def test_yac_to_rectilinear_node_remap():
+    verts = np.array([(0.0, 0.0), (90.0, 0.0), (0.0, 45.0)])
+    grid = ux.open_grid(verts)
+    da = ux.UxDataArray(
+        np.asarray([1.0, 2.0, 3.0]),
+        dims=["n_node"],
+        coords={"n_node": [0, 1, 2]},
+        uxgrid=grid,
+    )
+
+    out = da.remap.to_rectilinear(
+        lon=np.asarray([0.0, 90.0]),
+        lat=np.asarray([0.0, 45.0]),
+        backend="yac",
+        yac_method="nnn",
+        yac_options={"n": 1},
+    )
+
+    assert out.dims == ("lat", "lon")
+    assert out.shape == (2, 2)
+    np.testing.assert_array_equal(out.values, np.asarray([[1.0, 3.0], [2.0, 3.0]]))
+
+
+def test_yac_to_rectilinear_preserves_extra_dimensions():
+    verts = np.array([(0.0, 0.0), (90.0, 0.0), (0.0, 45.0)])
+    grid = ux.open_grid(verts)
+    da = ux.UxDataArray(
+        np.asarray([[1.0, 2.0, 3.0], [10.0, 20.0, 30.0]]),
+        dims=["time", "n_node"],
+        coords={"time": [0, 1], "n_node": [0, 1, 2]},
+        uxgrid=grid,
+    )
+
+    out = da.remap.to_rectilinear(
+        lon=np.asarray([0.0, 90.0]),
+        lat=np.asarray([0.0, 45.0]),
+        backend="yac",
+        yac_method="nnn",
+        yac_options={"n": 1},
+    )
+
+    assert out.dims == ("time", "lat", "lon")
+    assert out.shape == (2, 2, 2)
+    np.testing.assert_array_equal(
+        out.values,
+        np.asarray([[[1.0, 3.0], [2.0, 3.0]], [[10.0, 30.0], [20.0, 30.0]]]),
+    )
