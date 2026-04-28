@@ -242,6 +242,25 @@ def test_to_rectilinear_native_backend():
     assert out["lat"].attrs["units"] == "degrees_north"
 
 
+def test_reshape_to_rectilinear_accepts_xarray_dataset():
+    """Rectilinear reshaping accepts an already-open xarray Dataset."""
+    from uxarray.remap.structured import (
+        _normalize_rectilinear_target,
+        _reshape_to_rectilinear,
+    )
+
+    spec = _normalize_rectilinear_target(
+        lon=np.asarray([0.0, 90.0]), lat=np.asarray([0.0, 45.0])
+    )
+    ds = xr.Dataset({"var": ("n_face", np.asarray([1.0, 2.0, 3.0, 4.0]))})
+
+    out = _reshape_to_rectilinear(ds, spec)
+
+    assert isinstance(out, xr.Dataset)
+    assert out["var"].dims == ("lat", "lon")
+    nt.assert_array_equal(out["var"].values, np.asarray([[1.0, 2.0], [3.0, 4.0]]))
+
+
 # ------------------------------------------------------------
 # Bilinear tests
 # ------------------------------------------------------------
