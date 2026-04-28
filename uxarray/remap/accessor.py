@@ -202,9 +202,12 @@ class RemapAccessor:
             Remapping backend to use. The YAC backend uses YAC's rectilinear
             grid support directly.
         yac_method : {'nnn', 'average', 'conservative'}, optional
-            YAC interpolation method. Defaults to ``'nnn'``.
+            YAC interpolation method. Defaults to ``'nnn'`` because nearest-neighbor
+            works for node-, edge-, and face-centered source data. ``'conservative'``
+            requires face-centered source data.
         yac_options : dict, optional
-            YAC interpolation configuration options.
+            YAC interpolation configuration options forwarded to the selected
+            YAC method.
 
         Returns
         -------
