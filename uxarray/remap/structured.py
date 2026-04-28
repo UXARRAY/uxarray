@@ -164,7 +164,12 @@ def _reshape_to_rectilinear(obj, spec: RectilinearGridSpec):
     if isinstance(obj, xr.DataArray):
         return _reshape_array_to_rectilinear(obj, spec)
 
-    xr_obj = obj.to_xarray() if hasattr(obj, "to_xarray") else xr.Dataset(obj)
+    if isinstance(obj, xr.Dataset):
+        xr_obj = obj
+    elif hasattr(obj, "to_xarray"):
+        xr_obj = obj.to_xarray()
+    else:
+        xr_obj = xr.Dataset(obj)
     data_vars = {
         name: _reshape_array_to_rectilinear(da, spec)
         for name, da in xr_obj.data_vars.items()
