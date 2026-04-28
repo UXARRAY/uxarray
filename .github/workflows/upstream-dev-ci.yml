@@ -70,7 +70,7 @@ jobs:
         shell: bash -l {0}
     steps:
       - name: checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Create or update failure issue
         shell: bash

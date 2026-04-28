@@ -34,7 +34,7 @@ jobs:
           token: ${{ github.token }}
 
       - name: conda_setup (x64)
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         if: matrix.os != 'macos-14'
         with:
           activate-environment: uxarray_build
@@ -46,7 +46,7 @@ jobs:
           miniforge-version: latest
 
       - name: conda_setup (ARM64)
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         if: matrix.os == 'macos-14'
         with:
           activate-environment: uxarray_build

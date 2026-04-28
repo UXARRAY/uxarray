@@ -27,12 +27,12 @@ jobs:
       OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           token: ${{ github.token }}
 
       - name: conda_setup
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         with:
           activate-environment: uxarray_build
           channel-priority: strict
