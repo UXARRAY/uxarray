@@ -200,7 +200,9 @@ class RemapAccessor:
             1-D target latitude cell-center coordinate in degrees.
         backend : {'uxarray', 'yac'}, default='yac'
             Remapping backend to use. The YAC backend uses YAC's rectilinear
-            grid support directly.
+            grid support directly. The UXarray backend builds a temporary
+            structured destination grid and applies native nearest-neighbor
+            remapping before reshaping the result to latitude/longitude axes.
         yac_method : {'nnn', 'average', 'conservative'}, optional
             YAC interpolation method. Defaults to ``'nnn'`` because nearest-neighbor
             works for node-, edge-, and face-centered source data. ``'conservative'``
