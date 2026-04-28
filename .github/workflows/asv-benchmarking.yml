@@ -38,7 +38,7 @@ jobs:
           path: uxarray-asv
 
       - name: Setup Miniforge
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         with:
           miniforge-version: "24.1.2-0"
           activate-environment: asv
