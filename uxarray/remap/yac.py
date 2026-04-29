@@ -16,6 +16,7 @@ import uxarray.core.dataarray
 from uxarray.remap.structured import (
     RectilinearGridSpec,
     _normalize_rectilinear_target,
+    _preserve_valid_coords,
     _reshape_to_rectilinear,
 )
 from uxarray.remap.utils import (
@@ -500,10 +501,11 @@ def _yac_remap_to_rectilinear(source, lon, lat, yac_method: str, yac_kwargs):
 
         out_shape = src_values.shape[:-1] + (remapper._tgt_size,)
         out_values = out_flat.reshape(out_shape)
-        coords = {dim: da.coords[dim] for dim in other_dims if dim in da.coords}
+        output_dims = tuple(other_dims + [destination_dim])
+        coords = _preserve_valid_coords(da, src_dim, output_dims)
         remapped_vars[var_name] = xr.DataArray(
             out_values,
-            dims=other_dims + [destination_dim],
+            dims=output_dims,
             coords=coords,
             name=da.name,
             attrs=da.attrs,

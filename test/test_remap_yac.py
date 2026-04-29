@@ -305,3 +305,38 @@ def test_yac_to_rectilinear_preserves_extra_dimensions():
         out.values,
         np.asarray([[[1.0, 3.0], [2.0, 3.0]], [[10.0, 30.0], [20.0, 30.0]]]),
     )
+
+
+def test_yac_to_rectilinear_preserves_valid_nonspatial_coords():
+    verts = np.array([(0.0, 0.0), (90.0, 0.0), (0.0, 45.0)])
+    grid = ux.open_grid(verts)
+    da = ux.UxDataArray(
+        np.asarray([[1.0, 2.0, 3.0], [10.0, 20.0, 30.0]]),
+        dims=["time", "n_node"],
+        coords={
+            "time": [0, 1],
+            "n_node": [0, 1, 2],
+            "run": ("time", np.asarray([100, 101])),
+            "experiment": "demo",
+            "node_lon": (
+                "n_node",
+                np.asarray([0.0, 90.0, 0.0]),
+                {"standard_name": "longitude", "units": "degrees_east"},
+            ),
+        },
+        uxgrid=grid,
+    )
+
+    out = da.remap.to_rectilinear(
+        lon=np.asarray([0.0, 90.0]),
+        lat=np.asarray([0.0, 45.0]),
+        backend="yac",
+        yac_method="nnn",
+        yac_options={"n": 1},
+    )
+
+    assert "run" in out.coords
+    assert "experiment" in out.coords
+    assert "node_lon" not in out.coords
+    np.testing.assert_array_equal(out["run"].values, np.asarray([100, 101]))
+    assert out["experiment"].item() == "demo"

@@ -125,6 +125,21 @@ def _normalize_rectilinear_target(lon, lat) -> RectilinearGridSpec:
     )
 
 
+def _preserve_valid_coords(
+    da: xr.DataArray,
+    dropped_dim: str,
+    output_dims: tuple[str, ...] | list[str],
+) -> dict[str, xr.DataArray]:
+    """Keep only coords that remain valid after replacing ``dropped_dim``."""
+
+    output_dims = set(output_dims)
+    return {
+        name: coord
+        for name, coord in da.coords.items()
+        if dropped_dim not in coord.dims and set(coord.dims).issubset(output_dims)
+    }
+
+
 def _reshape_array_to_rectilinear(
     da: xr.DataArray, spec: RectilinearGridSpec
 ) -> xr.DataArray:
