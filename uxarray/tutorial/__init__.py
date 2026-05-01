@@ -4,8 +4,6 @@ from pathlib import Path
 
 from uxarray.tutorial.registry import DATASETS, Component, TutorialDataset
 
-_MESHFILES_PATH = Path(__file__).resolve().parents[2] / "test" / "meshfiles"
-
 
 def available_datasets() -> tuple[str, ...]:
     """Return the names of available tutorial datasets."""
@@ -31,7 +29,7 @@ def file_path(name: str, component: Component | None = None) -> Path:
         component = components[0]
 
     path_parts = _get_component_path(dataset, name, component)
-    path = _MESHFILES_PATH.joinpath(*path_parts)
+    path = _meshfiles_path().joinpath(*path_parts)
 
     if not path.exists():
         raise FileNotFoundError(
@@ -51,7 +49,8 @@ def file_paths(name: str) -> tuple[Path, ...]:
             "Use uxarray.tutorial.file_path(...) instead."
         )
 
-    paths = tuple(_MESHFILES_PATH.joinpath(*parts) for parts in dataset.data_files)
+    meshfiles_path = _meshfiles_path()
+    paths = tuple(meshfiles_path.joinpath(*parts) for parts in dataset.data_files)
 
     for path in paths:
         if not path.exists():
@@ -124,6 +123,24 @@ def _get_dataset_entry(name: str) -> TutorialDataset:
 
     _validate_dataset_entry(name, dataset)
     return dataset
+
+
+def _meshfiles_path() -> Path:
+    """Support both local development from a cloned
+    repo and cwd fallback supports docs builds that run from the root repo"""
+    candidates = (
+        Path(__file__).resolve().parents[2] / "test" / "meshfiles",
+        Path.cwd() / "test" / "meshfiles",
+    )
+
+    for path in candidates:
+        if path.exists():
+            return path
+
+    checked = ", ".join(str(path) for path in candidates)
+    raise FileNotFoundError(
+        f"Could not locate the tutorial dataset directory. Checked: {checked}"
+    )
 
 
 def _available_components(dataset: TutorialDataset) -> tuple[Component, ...]:
