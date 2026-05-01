@@ -126,12 +126,13 @@ def _get_dataset_entry(name: str) -> TutorialDataset:
 
 
 def _meshfiles_path() -> Path:
-    """Support both local development from a cloned
+    """Locate the local ``test/meshfiles`` directory for tutorial datasets.
+    This supports both local development from a cloned
     repo and cwd fallback supports docs builds that run from the root repo"""
-    candidates = (
-        Path(__file__).resolve().parents[2] / "test" / "meshfiles",
-        Path.cwd() / "test" / "meshfiles",
-    )
+    candidates = [Path(__file__).resolve().parents[2] / "test" / "meshfiles"]
+
+    cwd = Path.cwd().resolve()
+    candidates.extend(parent / "test" / "meshfiles" for parent in (cwd, *cwd.parents))
 
     for path in candidates:
         if path.exists():
