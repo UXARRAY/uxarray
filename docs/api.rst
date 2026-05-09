@@ -23,6 +23,19 @@ Top Level Functions
    open_mfdataset
    concat
 
+Tutorial
+--------
+
+.. autosummary::
+   :toctree: generated/
+
+   tutorial.available_datasets
+   tutorial.describe_dataset
+   tutorial.file_path
+   tutorial.file_paths
+   tutorial.open_grid
+   tutorial.open_dataset
+   tutorial.open_mfdataset
 
 Grid
 ----

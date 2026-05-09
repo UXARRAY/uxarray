@@ -17,6 +17,12 @@ import yaml
 from sphinx.application import Sphinx
 from sphinx.util import logging
 
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
+os.environ.setdefault(
+    "UXARRAY_DATA_DIR",
+    str(PROJECT_ROOT / "test" / "meshfiles"),
+)
+
 import uxarray
 
 __all__ = (uxarray, matplotlib.pyplot)
