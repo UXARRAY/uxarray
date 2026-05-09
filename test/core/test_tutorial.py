@@ -1,5 +1,14 @@
+from pathlib import Path
+
 import pytest
 import uxarray as ux
+import uxarray.tutorial as tutorial
+
+
+@pytest.fixture(autouse=True)
+def set_tutorial_data_dir(monkeypatch):
+    meshfiles = Path(__file__).resolve().parents[1] / "meshfiles"
+    monkeypatch.setenv("UXARRAY_DATA_DIR", str(meshfiles))
 
 
 def test_available_datasets():
@@ -45,3 +54,27 @@ def test_file_paths():
     paths = ux.tutorial.file_paths("quad-hexagon-random")
     assert len(paths) == 3
     assert all(path.exists() for path in paths)
+
+
+def test_file_path_prefers_env_var(monkeypatch, tmp_path):
+    data_dir = tmp_path / "meshfiles"
+    grid = data_dir / "ugrid" / "quad-hexagon" / "grid.nc"
+    grid.parent.mkdir(parents=True)
+    grid.write_text("dummy")
+
+    monkeypatch.setenv("UXARRAY_DATA_DIR", str(data_dir))
+
+    path = ux.tutorial.file_path("quad-hexagon", component="grid")
+    assert path == grid
+
+
+def test_file_path_falls_back_to_cache(monkeypatch, tmp_path):
+    cached = tmp_path / "cached-grid.nc"
+    cached.write_text("dummy")
+
+    monkeypatch.delenv("UXARRAY_DATA_DIR", raising=False)
+    monkeypatch.setattr(tutorial, "_ensure_cached", lambda parts: cached)
+    monkeypatch.setattr(tutorial, "_local_meshfiles_path", lambda: None)
+
+    path = ux.tutorial.file_path("quad-hexagon", component="grid")
+    assert path == cached

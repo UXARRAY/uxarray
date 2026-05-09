@@ -1,8 +1,21 @@
 from __future__ import annotations
 
+import os
+import urllib.request
+import warnings
 from pathlib import Path
 
 from uxarray.tutorial.registry import DATASETS, Component, TutorialDataset
+
+_BASE_DATA_URL = "https://raw.githubusercontent.com/UXARRAY/uxarray/main/test/meshfiles"
+_CACHE_DIR = Path(
+    os.environ.get(
+        "UXARRAY_TUTORIAL_CACHE_DIR",
+        Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+        / "uxarray"
+        / "tutorial",
+    )
+)
 
 
 def available_datasets() -> tuple[str, ...]:
@@ -29,14 +42,14 @@ def file_path(name: str, component: Component | None = None) -> Path:
         component = components[0]
 
     path_parts = _get_component_path(dataset, name, component)
-    path = _meshfiles_path().joinpath(*path_parts)
 
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Tutorial dataset file for {name!r} was not found at {path}."
-        )
+    local_root = _local_meshfiles_path()
+    if local_root is not None:
+        path = local_root.joinpath(*path_parts)
+        if path.exists():
+            return path
 
-    return path
+    return _ensure_cached(path_parts)
 
 
 def file_paths(name: str) -> tuple[Path, ...]:
@@ -49,16 +62,13 @@ def file_paths(name: str) -> tuple[Path, ...]:
             "Use uxarray.tutorial.file_path(...) instead."
         )
 
-    meshfiles_path = _meshfiles_path()
-    paths = tuple(meshfiles_path.joinpath(*parts) for parts in dataset.data_files)
+    local_root = _local_meshfiles_path()
+    if local_root is not None:
+        paths = tuple(local_root.joinpath(*parts) for parts in dataset.data_files)
+        if all(path.exists() for path in paths):
+            return paths
 
-    for path in paths:
-        if not path.exists():
-            raise FileNotFoundError(
-                f"Tutorial dataset file for {name!r} was not found at {path}."
-            )
-
-    return paths
+    return tuple(_ensure_cached(parts) for parts in dataset.data_files)
 
 
 def open_grid(name: str, **kwargs):
@@ -125,23 +135,48 @@ def _get_dataset_entry(name: str) -> TutorialDataset:
     return dataset
 
 
-def _meshfiles_path() -> Path:
-    """Locate the local ``test/meshfiles`` directory for tutorial datasets.
-    This supports both local development from a cloned
-    repo and cwd fallback supports docs builds that run from the root repo"""
-    candidates = [Path(__file__).resolve().parents[2] / "test" / "meshfiles"]
+def _local_meshfiles_path() -> Path | None:
+    """Return the local ``test/meshfiles`` directory if it is available."""
+    candidates = []
 
-    cwd = Path.cwd().resolve()
-    candidates.extend(parent / "test" / "meshfiles" for parent in (cwd, *cwd.parents))
+    data_dir = os.environ.get("UXARRAY_DATA_DIR")
+    if data_dir:
+        candidates.append(Path(data_dir).expanduser().resolve())
+
+    candidates.append(Path(__file__).resolve().parents[2] / "test" / "meshfiles")
 
     for path in candidates:
         if path.exists():
             return path
 
-    checked = ", ".join(str(path) for path in candidates)
-    raise FileNotFoundError(
-        f"Could not locate the tutorial dataset directory. Checked: {checked}"
+    return None
+
+
+def _ensure_cached(path_parts: tuple[str, ...]) -> Path:
+    """Ensure a tutorial dataset file is available locally and return its path."""
+    destination = _CACHE_DIR.joinpath(*path_parts)
+
+    if destination.exists():
+        return destination
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    url = "/".join([_BASE_DATA_URL, *path_parts])
+    label = "/".join(path_parts)
+
+    warnings.warn(
+        f"Downloading tutorial dataset file {label!r} to {destination}.",
+        stacklevel=2,
     )
+    tmp_path = destination.with_suffix(destination.suffix + ".tmp")
+
+    try:
+        urllib.request.urlretrieve(url, str(tmp_path))
+        tmp_path.replace(destination)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+    return destination
 
 
 def _available_components(dataset: TutorialDataset) -> tuple[Component, ...]:
