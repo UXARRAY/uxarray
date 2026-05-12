@@ -2,9 +2,9 @@
 
 .. _calendar:
 
-*************************
-UXarray's Public Calendar
-*************************
+***************
+Events Calendar
+***************
 
 Please find the public monthly community meetings and other events in the
 calendar below and join us once or regularly with whichever of them works
