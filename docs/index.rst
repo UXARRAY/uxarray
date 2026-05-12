@@ -113,6 +113,7 @@ around the `UGRID <http://ugrid-conventions.github.io/ugrid-conventions/>`_ conv
     GitHub Issues <https://github.com/UXARRAY/uxarray/issues>
     UGRID Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>
     contributing
+    calendar
 
 .. raw:: html
 
