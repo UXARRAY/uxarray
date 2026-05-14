@@ -495,13 +495,6 @@ def _grid_to_matplotlib_polycollection(
         polygon_shells[:, :, 0]
     )
 
-    # Always cache antimeridian_face_indices; dataarray.to_polycollection reads it
-    # regardless of whether a projection is used. Without this, the cache entry
-    # stays None and np.delete raises IndexError on numpy >= 2.0.
-    grid._poly_collection_cached_parameters["antimeridian_face_indices"] = (
-        antimeridian_face_indices
-    )
-
     # Filter out NaN-containing polygons if projection is applied
     non_nan_polygon_indices = None
     if projected_polygon_shells is not None:
@@ -514,9 +507,12 @@ def _grid_to_matplotlib_polycollection(
         does_not_contain_nan = ~np.isnan(shells_d).any(axis=(1, 2))
         non_nan_polygon_indices = np.where(does_not_contain_nan)[0]
 
-        grid._poly_collection_cached_parameters["non_nan_polygon_indices"] = (
-            non_nan_polygon_indices
-        )
+    grid._poly_collection_cached_parameters["non_nan_polygon_indices"] = (
+        non_nan_polygon_indices
+    )
+    grid._poly_collection_cached_parameters["antimeridian_face_indices"] = (
+        antimeridian_face_indices
+    )
 
     # Select which shells to use: projected or original
     if projected_polygon_shells is not None:
