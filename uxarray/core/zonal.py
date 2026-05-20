@@ -231,19 +231,33 @@ def _compute_face_band_weights(uxgrid, bands):
     Shared geometry kernel used by both zonal_mean and zonal_anomaly so the
     expensive intersection calculations are never duplicated.
 
+    Returns a sparse per-band representation so memory scales with the number
+    of faces that overlap each band (typically O(n_face) total) rather than
+    O(n_face * n_bands), which would OOM on large grids with fine bands.
+
     Parameters
     ----------
     uxgrid : Grid
     bands : array-like
-        Latitude band edges in degrees, shape (n_bands + 1,)
+        Latitude band edges in degrees, shape (n_bands + 1,). Must be
+        monotonic non-decreasing.
 
     Returns
     -------
-    W : ndarray, shape (n_face, n_bands)
-        W[f, b] is the overlap area between face f and band b.
-        Fully-contained faces carry their full face area; partially-overlapping
-        faces carry the exact intersection area.
+    per_band : list of (indices, weights) tuples, length n_bands
+        For band ``bi``: ``indices`` is an int ndarray of face indices that
+        overlap the band, and ``weights`` is the corresponding overlap-area
+        ndarray. Fully-contained faces carry their full face area; partially-
+        overlapping faces carry the exact intersection area.
     """
+    bands = np.asarray(bands, dtype=float)
+    if bands.ndim != 1 or bands.size < 2:
+        raise ValueError("bands must be 1D with at least two edges")
+    if np.any(np.diff(bands) < 0):
+        raise ValueError(
+            f"bands must be monotonic non-decreasing; got diff(bands)={np.diff(bands)}"
+        )
+
     faces_edge_nodes_xyz = _get_cartesian_face_edge_nodes_array(
         uxgrid.face_node_connectivity.values,
         uxgrid.n_face,
@@ -256,9 +270,8 @@ def _compute_face_band_weights(uxgrid, bands):
     face_bounds_lat = uxgrid.face_bounds_lat.values
     face_areas = uxgrid.face_areas.values
 
-    bands = np.asarray(bands, dtype=float)
     nb = bands.size - 1
-    W = np.zeros((uxgrid.n_face, nb), dtype=float)
+    per_band = []
 
     for bi in range(nb):
         lat0 = float(np.clip(bands[bi], -90.0, 90.0))
@@ -270,25 +283,33 @@ def _compute_face_band_weights(uxgrid, bands):
         z1 = np.sin(np.deg2rad(lat1))
         zmin, zmax = (z0, z1) if z0 <= z1 else (z1, z0)
 
-        fully_contained = uxgrid.get_faces_between_latitudes((lat0, lat1))
         mask = ~((face_bounds_lat[:, 1] < lat0) | (face_bounds_lat[:, 0] > lat1))
         all_overlapping = np.nonzero(mask)[0]
 
         if all_overlapping.size == 0:
+            per_band.append((np.empty(0, dtype=np.int64), np.empty(0, dtype=float)))
             continue
 
+        fully_contained = uxgrid.get_faces_between_latitudes((lat0, lat1))
         is_fully_contained = np.isin(all_overlapping, fully_contained)
 
-        fc = all_overlapping[is_fully_contained]
-        W[fc, bi] = face_areas[fc]
+        weights = np.empty(all_overlapping.size, dtype=float)
 
-        for f in all_overlapping[~is_fully_contained]:
+        fc_mask = is_fully_contained
+        fc = all_overlapping[fc_mask]
+        weights[fc_mask] = face_areas[fc]
+
+        partial = all_overlapping[~fc_mask]
+        partial_pos = np.nonzero(~fc_mask)[0]
+        for pos, f in zip(partial_pos, partial):
             nedge = n_nodes_per_face[f]
-            W[f, bi] = _compute_band_overlap_area(
+            weights[pos] = _compute_band_overlap_area(
                 faces_edge_nodes_xyz[f, :nedge], zmin, zmax
             )
 
-    return W
+        per_band.append((all_overlapping.astype(np.int64), weights))
+
+    return per_band
 
 
 def _compute_conservative_zonal_mean_bands(uxda, bands):
@@ -308,28 +329,28 @@ def _compute_conservative_zonal_mean_bands(uxda, bands):
     import dask.array as da
 
     bands = np.asarray(bands, dtype=float)
-    if bands.ndim != 1 or bands.size < 2:
-        raise ValueError("bands must be 1D with at least two edges")
-
-    W = _compute_face_band_weights(uxda.uxgrid, bands)  # (n_face, n_bands)
-    nb = W.shape[1]
+    per_band = _compute_face_band_weights(uxda.uxgrid, bands)
+    nb = len(per_band)
     face_axis = uxda.get_axis_num("n_face")
+
+    if np.issubdtype(uxda.dtype, np.integer) or np.issubdtype(uxda.dtype, np.bool_):
+        result_dtype = np.float64
+    else:
+        result_dtype = uxda.dtype
 
     shape = list(uxda.shape)
     shape[face_axis] = nb
     if isinstance(uxda.data, da.Array):
-        result = da.full(shape, np.nan, dtype=float)
+        result = da.full(shape, np.nan, dtype=result_dtype)
     else:
-        result = np.full(shape, np.nan, dtype=float)
+        result = np.full(shape, np.nan, dtype=result_dtype)
 
-    for bi in range(nb):
-        overlapping = np.nonzero(W[:, bi] > 0)[0]
+    for bi, (overlapping, w) in enumerate(per_band):
         if overlapping.size == 0:
             continue
 
-        w = W[overlapping, bi]
         total = w.sum()
-        if total == 0.0:
+        if total == 0.0 or not np.isfinite(total):
             continue
 
         data_slice = uxda.isel(n_face=overlapping, ignore_grid=True).data
@@ -347,76 +368,134 @@ def _compute_conservative_zonal_mean_bands(uxda, bands):
 def _compute_zonal_anomaly(uxda, bands, conservative=False):
     """Compute zonal anomaly: each face value minus the mean of its latitude band.
 
+    Preserves the input dtype (promoting only integer/bool inputs so NaNs can
+    fit), the input shape (n_face axis stays in place even if it is not the
+    last axis), and dask laziness when ``uxda`` is chunked.
+
     Parameters
     ----------
     uxda : UxDataArray
     bands : array-like
-        Latitude band edges in degrees
+        Latitude band edges in degrees. Must be monotonic non-decreasing.
     conservative : bool
         If True, uses area-weighted band means and blends across bands for
-        faces that straddle a boundary, reusing the same weight matrix as
-        zonal_mean so geometry is computed only once.
+        faces that straddle a boundary, reusing the same sparse weight kernel
+        as zonal_mean so geometry is computed only once.
         If False, assigns each face to a band by centroid latitude.
 
     Returns
     -------
-    ndarray
-        Same shape as uxda, with the per-face band mean subtracted.
+    array-like
+        Same shape and axis order as ``uxda.data``. Returns a dask array when
+        ``uxda.data`` is a dask array; otherwise a numpy array.
     """
+    import dask.array as da
+
     bands = np.asarray(bands, dtype=float)
+    if bands.ndim != 1 or bands.size < 2:
+        raise ValueError("Band edges must be 1D with at least two values.")
+    if np.any(np.diff(bands) < 0):
+        raise ValueError(
+            "Band edges must be monotonic non-decreasing; got "
+            f"diff(bands)={np.diff(bands)}"
+        )
+
     face_axis = uxda.get_axis_num("n_face")
     n_face = uxda.uxgrid.n_face
     nb = bands.size - 1
+    is_dask = isinstance(uxda.data, da.Array)
+
+    if np.issubdtype(uxda.dtype, np.integer) or np.issubdtype(uxda.dtype, np.bool_):
+        out_dtype = np.float64
+    else:
+        out_dtype = uxda.dtype
+
+    reduced_shape = list(uxda.shape)
+    reduced_shape.pop(face_axis)
+
+    def _reshape_along_face(w_1d):
+        s = [1] * uxda.ndim
+        s[face_axis] = w_1d.size
+        return w_1d.reshape(s)
 
     if conservative:
-        # Single geometry pass shared with zonal_mean
-        W = _compute_face_band_weights(uxda.uxgrid, bands)  # (n_face, n_bands)
+        per_band = _compute_face_band_weights(uxda.uxgrid, bands)
 
-        # Band means
-        band_means = np.full(nb, np.nan)
-        for bi in range(nb):
-            overlapping = np.nonzero(W[:, bi] > 0)[0]
+        # Compute per-band means along the n_face axis, preserving other dims.
+        # band_means is a list of length nb; entries are arrays with shape
+        # reduced_shape (or None when no overlap). They are small relative to
+        # uxda, so materializing them is cheap.
+        band_means = [None] * nb
+        face_totals = np.zeros(n_face, dtype=float)
+
+        for bi, (overlapping, w) in enumerate(per_band):
             if overlapping.size == 0:
                 continue
-            w = W[overlapping, bi]
             total = w.sum()
-            if total > 0:
-                vals = uxda.isel(n_face=overlapping, ignore_grid=True).values
-                band_means[bi] = (w * vals).sum() / total
+            if total == 0.0 or not np.isfinite(total):
+                continue
+            face_totals[overlapping] += w
+            data_slice = uxda.isel(n_face=overlapping, ignore_grid=True).data
+            band_mean = (data_slice * _reshape_along_face(w)).sum(
+                axis=face_axis
+            ) / total
+            if isinstance(band_mean, da.Array):
+                band_mean = band_mean.compute()
+            band_means[bi] = band_mean.astype(out_dtype, copy=False)
 
-        # Map band means back to faces; straddling faces get area-weighted blend
-        face_totals = W.sum(axis=1)
+        # face_means_num[..., f, ...] = sum_b W[f,b] * band_mean[b]
+        # This is the output-shaped per-face mean field. Built eagerly because
+        # the scatter pattern is awkward in dask; uxda.data itself is not
+        # touched so its laziness is preserved by the final subtract.
+        face_means_num = np.zeros(uxda.shape, dtype=out_dtype)
+        for bi, (overlapping, w) in enumerate(per_band):
+            if overlapping.size == 0 or band_means[bi] is None:
+                continue
+            bm_expanded = np.expand_dims(band_means[bi], face_axis)
+            contrib = bm_expanded * _reshape_along_face(w)
+            idx = [slice(None)] * uxda.ndim
+            idx[face_axis] = overlapping
+            face_means_num[tuple(idx)] += contrib
+
         valid = face_totals > 0
-        face_means = np.where(
-            valid,
-            np.where(
-                valid,
-                (
-                    W * np.where(np.isnan(band_means), 0.0, band_means)[np.newaxis, :]
-                ).sum(axis=1)
-                / np.where(valid, face_totals, 1.0),
-                np.nan,
-            ),
-            np.nan,
-        )
+        face_means = np.full(uxda.shape, np.nan, dtype=out_dtype)
+        if valid.any():
+            valid_idx = np.nonzero(valid)[0]
+            idx = [slice(None)] * uxda.ndim
+            idx[face_axis] = valid_idx
+            face_means[tuple(idx)] = face_means_num[tuple(idx)] / _reshape_along_face(
+                face_totals[valid_idx]
+            )
+
     else:
-        # Centroid-based: fast, no intersection geometry needed
+        # Centroid-based: fast, no intersection geometry needed.
         face_lats = uxda.uxgrid.face_lat.values
         band_indices = np.clip(np.digitize(face_lats, bands) - 1, 0, nb - 1)
 
-        band_means = np.full(nb, np.nan)
+        # Compute per-band mean reducing only over the face axis. Build a
+        # stack of shape (nb, *reduced_shape); preserve dask laziness.
+        per_band_means = []
         for bi in range(nb):
-            mask = band_indices == bi
-            if mask.any():
-                band_means[bi] = float(
-                    uxda.isel(
-                        n_face=np.nonzero(mask)[0], ignore_grid=True
-                    ).values.mean()
-                )
+            sel = np.nonzero(band_indices == bi)[0]
+            if sel.size == 0:
+                if is_dask:
+                    per_band_means.append(
+                        da.full(tuple(reduced_shape), np.nan, dtype=out_dtype)
+                    )
+                else:
+                    per_band_means.append(
+                        np.full(tuple(reduced_shape), np.nan, dtype=out_dtype)
+                    )
+            else:
+                sub = uxda.isel(n_face=sel, ignore_grid=True).data
+                per_band_means.append(sub.mean(axis=face_axis))
 
-        face_means = band_means[band_indices]
+        if is_dask:
+            band_means = da.stack(per_band_means, axis=0)
+            face_means_face_first = band_means[band_indices]
+        else:
+            band_means = np.stack(per_band_means, axis=0)
+            face_means_face_first = np.take(band_means, band_indices, axis=0)
+        face_means = np.moveaxis(face_means_face_first, 0, face_axis)
 
-    # Broadcast face_means to match uxda shape (face axis may not be last)
-    shape = [1] * uxda.ndim
-    shape[face_axis] = n_face
-    return uxda.values - face_means.reshape(shape)
+    return uxda.data - face_means
