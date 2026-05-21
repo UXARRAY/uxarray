@@ -31,6 +31,11 @@ def _get_source_dim(
         )
 
     if source_dim is not None:
+        if source_dim not in SPATIAL_DIMS:
+            raise ValueError(
+                f"source_dim {source_dim!r} is not a spatial dimension. "
+                f"Expected one of {sorted(SPATIAL_DIMS)}."
+            )
         if source_dim not in da.dims:
             return None
         if da.sizes[source_dim] != weights.source_size:
@@ -51,7 +56,12 @@ def _apply_weights(
     remap_to: str = "faces",
     source_dim: str | None = None,
 ):
-    """Apply a sparse remap operator to UXarray data."""
+    """Apply a sparse remap operator to UXarray data.
+
+    Note: this path materializes dask-backed inputs eagerly when applying
+    the sparse operator. For lazy/chunked execution, use one of the other
+    remap methods (e.g., ``nearest_neighbor``, ``inverse_distance_weighted``).
+    """
     _assert_dimension(remap_to)
 
     weights_obj = load_remap_weights(weights)
@@ -79,7 +89,12 @@ def _apply_weights(
         da_t = da.transpose(*other_dims, variable_source_dim)
         remapped_values = weights_obj.apply(np.asarray(da_t.values))
 
-        coords = {dim: da.coords[dim] for dim in other_dims if dim in da.coords}
+        other_dims_set = set(other_dims)
+        coords = {
+            coord_name: coord
+            for coord_name, coord in da.coords.items()
+            if set(coord.dims).issubset(other_dims_set)
+        }
         da_out = uxarray.core.dataarray.UxDataArray(
             remapped_values,
             dims=other_dims + [destination_dim],
