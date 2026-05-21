@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import OrderedDict
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
@@ -8,7 +9,16 @@ import numpy as np
 import xarray as xr
 from scipy import sparse
 
-_WEIGHTS_CACHE: dict[tuple[str, int, int], "RemapWeights"] = {}
+from uxarray.core.utils import _open_dataset_with_fallback
+
+# LRU-bounded cache for loaded remap operators.
+_WEIGHTS_CACHE_MAXSIZE = 32
+_WEIGHTS_CACHE: "OrderedDict[tuple[str, int, int], RemapWeights]" = OrderedDict()
+
+
+def clear_remap_weights_cache() -> None:
+    """Drop all cached remap weight operators."""
+    _WEIGHTS_CACHE.clear()
 
 
 def _first_present(mapping, names: tuple[str, ...], kind: str):
@@ -18,20 +28,47 @@ def _first_present(mapping, names: tuple[str, ...], kind: str):
     raise ValueError(f"Could not find {kind}. Expected one of: {', '.join(names)}.")
 
 
-def _normalize_indices(indices: np.ndarray, size: int, label: str) -> np.ndarray:
-    indices = np.asarray(indices, dtype=np.int64).ravel()
-    if indices.size == 0:
-        return indices
+def _normalize_indices(indices, size: int, label: str) -> np.ndarray:
+    """Convert SCRIP/ESMF-style index arrays to 0-based ``np.int64``.
 
-    if indices.min() >= 1 and indices.max() <= size:
-        indices = indices - 1
-    elif indices.min() < 0 or indices.max() >= size:
+    Prefers an explicit ``start_index`` attribute (SCRIP/ESMF convention).
+    Without one, treats indices as 1-based only when ``max == size`` (the
+    only unambiguous evidence); otherwise treats them as 0-based when in
+    range, and raises on anything else.
+    """
+    start_index = None
+    if hasattr(indices, "attrs"):
+        start_index = indices.attrs.get("start_index")
+
+    arr = np.asarray(indices, dtype=np.int64).ravel()
+    if arr.size == 0:
+        return arr
+
+    arr_min = int(arr.min())
+    arr_max = int(arr.max())
+
+    if start_index is None:
+        if arr_max == size:
+            start_index = 1
+        elif arr_min >= 0 and arr_max < size:
+            start_index = 0
+        else:
+            raise ValueError(
+                f"{label} indices are out of bounds for size {size}. "
+                f"Found min={arr_min}, max={arr_max}."
+            )
+    else:
+        start_index = int(start_index)
+
+    arr = arr - start_index
+    if arr.min() < 0 or arr.max() >= size:
         raise ValueError(
-            f"{label} indices are out of bounds for size {size}. "
-            f"Found min={indices.min()}, max={indices.max()}."
+            f"{label} indices are out of bounds for size {size} "
+            f"with start_index={start_index}. "
+            f"Found min={int(arr.min())}, max={int(arr.max())}."
         )
 
-    return indices
+    return arr
 
 
 @dataclass(frozen=True)
@@ -51,7 +88,7 @@ class RemapWeights:
             close_ds = False
             path = None
         else:
-            ds = xr.open_dataset(filename_or_obj)
+            ds = _open_dataset_with_fallback(filename_or_obj)
             close_ds = True
             path = str(filename_or_obj)
 
@@ -130,7 +167,8 @@ def load_remap_weights(
     """Load or normalize reusable remap weights.
 
     Path-based inputs are cached by resolved path, mtime, and file size so
-    repeated loads avoid rebuilding the sparse matrix.
+    repeated loads avoid rebuilding the sparse matrix. The cache is
+    LRU-bounded; call :func:`clear_remap_weights_cache` to drop all entries.
     """
     if isinstance(filename_or_obj, RemapWeights):
         return filename_or_obj
@@ -143,5 +181,9 @@ def load_remap_weights(
     if weights is None:
         weights = RemapWeights.from_file(filename_or_obj)
         _WEIGHTS_CACHE[cache_key] = weights
+        while len(_WEIGHTS_CACHE) > _WEIGHTS_CACHE_MAXSIZE:
+            _WEIGHTS_CACHE.popitem(last=False)
+    else:
+        _WEIGHTS_CACHE.move_to_end(cache_key)
 
     return weights

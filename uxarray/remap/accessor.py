@@ -259,6 +259,12 @@ class RemapAccessor:
         -------
         UxDataArray or UxDataset
             A new object with data mapped onto ``destination_grid``.
+
+        Notes
+        -----
+        Dask-backed inputs are materialized in memory before the sparse
+        operator is applied. For lazy/chunked execution, prefer
+        ``nearest_neighbor`` or ``inverse_distance_weighted``.
         """
 
         return _apply_weights(
