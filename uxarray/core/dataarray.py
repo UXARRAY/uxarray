@@ -1654,15 +1654,14 @@ class UxDataArray(xr.DataArray):
                 "Computing the scalar dot gradient is only supported for face-centered data variables."
             )
 
-        u = self
+        # Validate coordinate alignment up-front so a misaligned input fails
+        # before the (potentially expensive) gradient call.
+        u_aligned, v_aligned, q_aligned = xr.align(self, v, q, join="exact", copy=False)
 
-        q_gradient = q.gradient()
+        q_gradient = q_aligned.gradient()
         q_zonal = q_gradient["zonal_gradient"]
         q_meridional = q_gradient["meridional_gradient"]
 
-        u_aligned, v_aligned, q_zonal, q_meridional = xr.align(
-            u, v, q_zonal, q_meridional, join="exact", copy=False
-        )
         scalar_dot_gradient = (u_aligned * q_zonal) + (v_aligned * q_meridional)
         scalar_dot_gradient.name = "scalar_dot_gradient"
         scalar_dot_gradient.attrs.update(
