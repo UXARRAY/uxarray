@@ -1,7 +1,7 @@
 .. currentmodule:: uxarray
 
-Remap Weights
-=============
+Remap with Weights
+==================
 
 UXarray can apply precomputed offline remapping weights produced outside of UXarray.
 This is useful when weights are generated once with tools such as ESMF or
@@ -11,9 +11,7 @@ slices, or variables.
 The core workflow is:
 
 1. Generate a weight file for a specific source grid and destination grid.
-2. Load the weight file once with :func:`load_remap_weights`.
-3. Reuse the loaded :class:`RemapWeights` object with :meth:`UxDataArray.remap.apply_weights`
-   or :meth:`UxDataset.remap.apply_weights`.
+2. Apply it with :meth:`UxDataArray.remap.apply_weights` or :meth:`UxDataset.remap.apply_weights`.
 
 Basic Usage
 -----------
@@ -25,15 +23,10 @@ Basic Usage
    src = ux.open_dataset("source_grid.nc", "source_data.nc")
    dst = ux.open_grid("destination_grid.nc")
 
-   weights = ux.load_remap_weights("map.nc")
+   remapped_temperature = src["temperature"].remap.apply_weights(dst, "map.nc")
+   remapped_dataset = src.remap.apply_weights(dst, "map.nc")
 
-   remapped_temperature = src["temperature"].remap.apply_weights(
-       weights, destination_grid=dst
-   )
-
-   remapped_dataset = src.remap.apply_weights(weights, destination_grid=dst)
-
-Repeated calls with the same path reuse a cached sparse operator, so loading the
+Repeated calls with the same path reuse a cached sparse operator, so applying the
 same file again in one Python session avoids rebuilding the matrix.
 
 What A Weight File Represents
@@ -89,6 +82,8 @@ This implementation was verified against real files from both families:
 
 In practice, UXarray supports the standard full offline map format used by both
 tools.
+
+Currently, this API applies externally generated sparse remap files. Generating reusable UXarray weight maps can be added as a future extension.
 
 Current caveats:
 
