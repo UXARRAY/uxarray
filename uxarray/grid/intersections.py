@@ -1,14 +1,15 @@
+import math
+
 import numpy as np
 from numba import njit, prange
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, MACHINE_EPSILON
+from uxarray.grid._eft import accucross
 from uxarray.grid.arcs import (
     extreme_gca_z,
     in_between,
+    on_minor_arc,
     point_within_gca,
-)
-from uxarray.grid.utils import (
-    _angle_of_2_vectors,
 )
 
 
@@ -292,6 +293,19 @@ def faces_within_lat_bounds(lats, face_bounds_lat):
     return candidate_faces
 
 
+@njit(cache=True)
+def _normalize_pair(x_hi, y_hi, z_hi, x_lo, y_lo, z_lo):
+    """Normalize an (hi, lo) compensated vector, returning the unit vector and magnitude."""
+    x = x_hi + x_lo
+    y = y_hi + y_lo
+    z = z_hi + z_lo
+    n = math.sqrt(x * x + y * y + z * z)
+    if n == 0.0:
+        return 0.0, 0.0, 0.0, 0.0
+    inv = 1.0 / n
+    return x * inv, y * inv, z * inv, n
+
+
 def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
     gca_a_xyz = np.asarray(gca_a_xyz)
     gca_b_xyz = np.asarray(gca_b_xyz)
@@ -301,139 +315,200 @@ def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
 
 @njit(cache=True)
 def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
+    """Find intersection point(s) of two great-circle arcs using compensated arithmetic.
+
+    Uses ``accucross`` (error-free cross products) and ``on_minor_arc`` (EFT-based
+    arc membership) to avoid the catastrophic cancellation that affects naive
+    cross product implementations when arcs are nearly parallel.
+
+    Parameters
+    ----------
+    gca_a_xyz : np.ndarray, shape (2, 3)
+        Cartesian endpoints of the first great-circle arc.
+    gca_b_xyz : np.ndarray, shape (2, 3)
+        Cartesian endpoints of the second great-circle arc.
+
+    Returns
+    -------
+    np.ndarray, shape (n, 3)
+        Intersection points lying on both arcs; n is 0, 1, or 2.
+    """
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
         raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
 
-    # Extract points
-    w0_xyz = gca_a_xyz[0]
-    w1_xyz = gca_a_xyz[1]
-    v0_xyz = gca_b_xyz[0]
-    v1_xyz = gca_b_xyz[1]
+    w0 = gca_a_xyz[0]
+    w1 = gca_a_xyz[1]
+    v0 = gca_b_xyz[0]
+    v1 = gca_b_xyz[1]
 
-    angle_w0w1 = _angle_of_2_vectors(w0_xyz, w1_xyz)
-    angle_v0v1 = _angle_of_2_vectors(v0_xyz, v1_xyz)
+    # 1. Plane normals via accurate cross products.
+    n1x, n1y, n1z, n1_mag = _normalize_pair(
+        *accucross(w0[0], w0[1], w0[2], w1[0], w1[1], w1[2])
+    )
+    n2x, n2y, n2z, n2_mag = _normalize_pair(
+        *accucross(v0[0], v0[1], v0[2], v1[0], v1[1], v1[2])
+    )
 
-    if angle_w0w1 > np.pi:
-        w0_xyz, w1_xyz = w1_xyz, w0_xyz
-
-    if angle_v0v1 > np.pi:
-        v0_xyz, v1_xyz = v1_xyz, v0_xyz
-
-    w0w1_norm = np.cross(w0_xyz, w1_xyz)
-    v0v1_norm = np.cross(v0_xyz, v1_xyz)
-    cross_norms = np.cross(w0w1_norm, v0v1_norm)
-
-    # Initialize result array and counter
     res = np.empty((2, 3))
     count = 0
 
-    # Check if the two GCAs are parallel
-    if np.allclose(cross_norms, 0.0, atol=MACHINE_EPSILON):
-        if point_within_gca(v0_xyz, w0_xyz, w1_xyz):
-            res[count, :] = v0_xyz
+    if n1_mag == 0.0 or n2_mag == 0.0:
+        return res[:count]
+
+    # 2. Intersection direction: cross product of the two plane normals.
+    vx, vy, vz, vn = _normalize_pair(
+        *accucross(n1x, n1y, n1z, n2x, n2y, n2z)
+    )
+
+    if vn == 0.0 or not (math.isfinite(vx) and math.isfinite(vy) and math.isfinite(vz)):
+        # Parallel (coplanar) arcs: check whether endpoints of one lie on the other.
+        if on_minor_arc(v0, w0, w1):
+            res[count, 0] = v0[0]
+            res[count, 1] = v0[1]
+            res[count, 2] = v0[2]
             count += 1
-
-        if point_within_gca(v1_xyz, w0_xyz, w1_xyz):
-            res[count, :] = v1_xyz
+        if on_minor_arc(v1, w0, w1):
+            res[count, 0] = v1[0]
+            res[count, 1] = v1[1]
+            res[count, 2] = v1[2]
             count += 1
+        return res[:count]
 
-        return res[:count, :]
+    # 3. Two antipodal candidate intersection points; keep those on both arcs.
+    pos = np.empty(3)
+    pos[0] = vx
+    pos[1] = vy
+    pos[2] = vz
+    neg = np.empty(3)
+    neg[0] = -vx
+    neg[1] = -vy
+    neg[2] = -vz
 
-    # Normalize the cross_norms
-    cross_norms = cross_norms / np.linalg.norm(cross_norms)
-    x1_xyz = cross_norms
-    x2_xyz = -x1_xyz
-
-    # Check intersection points
-    if point_within_gca(x1_xyz, w0_xyz, w1_xyz) and point_within_gca(
-        x1_xyz, v0_xyz, v1_xyz
-    ):
-        res[count, :] = x1_xyz
+    if on_minor_arc(pos, w0, w1) and on_minor_arc(pos, v0, v1):
+        res[count, 0] = pos[0]
+        res[count, 1] = pos[1]
+        res[count, 2] = pos[2]
         count += 1
 
-    if point_within_gca(x2_xyz, w0_xyz, w1_xyz) and point_within_gca(
-        x2_xyz, v0_xyz, v1_xyz
-    ):
-        res[count, :] = x2_xyz
+    if on_minor_arc(neg, w0, w1) and on_minor_arc(neg, v0, v1):
+        res[count, 0] = neg[0]
+        res[count, 1] = neg[1]
+        res[count, 2] = neg[2]
         count += 1
 
-    return res[:count, :]
+    return res[:count]
 
 
 @njit(cache=True)
 def gca_const_lat_intersection(gca_cart, const_z):
-    """Calculate the intersection point(s) of a Great Circle Arc (GCA) and a
-    constant latitude line in a Cartesian coordinate system.
+    """Find intersection point(s) of a great-circle arc and a constant-latitude line.
+
+    Uses the plane-normal of the arc (computed via ``accucross`` for extra
+    precision) to solve the system ``n . p = 0``, ``p[2] = const_z``,
+    ``|p| = 1``. Candidate solutions are checked against the arc with
+    ``on_minor_arc`` instead of ``point_within_gca`` to avoid the
+    ``arctan2`` overhead in that function.
 
     Parameters
     ----------
-    gca_cart : [2, 3] np.ndarray Cartesian coordinates of the two end points GCA.
+    gca_cart : np.ndarray, shape (2, 3)
+        Cartesian coordinates of the two endpoints of the great-circle arc.
     const_z : float
-        The constant latitude represented in cartesian of the latitude line.
+        The constant z-coordinate (= sin(latitude)) of the latitude line.
 
     Returns
     -------
-    np.ndarray
-        Cartesian coordinates of the intersection point(s) the shape is [2, 3]. If no intersections are found,
-        all values a `nan`. If one intersection is found, the first column represent the intersection point, and
-        if two intersections are found, each column represents a point.
-
+    np.ndarray, shape (2, 3)
+        Intersection point(s). Missing entries are NaN-filled rows. The first
+        valid intersection is in row 0; a second (rare) intersection in row 1.
     """
     res = np.empty((2, 3))
     res.fill(np.nan)
 
-    x1, x2 = gca_cart
+    x1 = gca_cart[0]
+    x2 = gca_cart[1]
 
-    # Check if the constant latitude has the same latitude as the GCA endpoints
-    x1_at_const_z = np.isclose(
-        x1[2], const_z, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
-    )
-    x2_at_const_z = np.isclose(
-        x2[2], const_z, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
-    )
+    # 1. Endpoint coincidence with the latitude line.
+    x1_at_z = abs(x1[2] - const_z) <= ERROR_TOLERANCE
+    x2_at_z = abs(x2[2] - const_z) <= ERROR_TOLERANCE
 
-    if x1_at_const_z and x2_at_const_z:
-        res[0] = x1
-        res[1] = x2
+    if x1_at_z and x2_at_z:
+        res[0, 0] = x1[0]
+        res[0, 1] = x1[1]
+        res[0, 2] = x1[2]
+        res[1, 0] = x2[0]
+        res[1, 1] = x2[1]
+        res[1, 2] = x2[2]
         return res
-    elif x1_at_const_z:
-        res[0] = x1
+    elif x1_at_z:
+        res[0, 0] = x1[0]
+        res[0, 1] = x1[1]
+        res[0, 2] = x1[2]
         return res
-    elif x2_at_const_z:
-        res[0] = x2
+    elif x2_at_z:
+        res[0, 0] = x2[0]
+        res[0, 1] = x2[1]
+        res[0, 2] = x2[2]
         return res
 
-    # If the constant latitude is not the same as the GCA endpoints, calculate the intersection point
+    # 2. Early-exit if const_z is outside the arc's latitude range.
     z_min = extreme_gca_z(gca_cart, extreme_type="min")
     z_max = extreme_gca_z(gca_cart, extreme_type="max")
-
-    # Check if the constant latitude is within the GCA range
     if not in_between(z_min, const_z, z_max):
         return res
 
-    n = np.cross(x1, x2)
+    # 3. Plane normal via accurate cross product.
+    nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(
+        x1[0], x1[1], x1[2], x2[0], x2[1], x2[2]
+    )
+    nx = nx_hi + nx_lo
+    ny = ny_hi + ny_lo
+    nz = nz_hi + nz_lo
+    denom = nx * nx + ny * ny
+    if denom == 0.0:
+        return res
 
-    nx, ny, nz = n
+    # 4. Solve for the two candidate points on the latitude circle.
+    r2 = 1.0 - const_z * const_z
+    if r2 < 0.0:
+        return res
+    inv_denom = 1.0 / denom
+    cx = -nz * const_z * nx * inv_denom
+    cy = -nz * const_z * ny * inv_denom
+    disc = r2 - (nz * const_z) * (nz * const_z) * inv_denom
+    if disc < 0.0:
+        return res
+    s = math.sqrt(disc * inv_denom)
 
-    s_tilde = np.sqrt(nx**2 + ny**2 - (nx**2 + ny**2 + nz**2) * const_z**2)
-    p1_x = -(1.0 / (nx**2 + ny**2)) * (const_z * nx * nz + s_tilde * ny)
-    p2_x = -(1.0 / (nx**2 + ny**2)) * (const_z * nx * nz - s_tilde * ny)
-    p1_y = -(1.0 / (nx**2 + ny**2)) * (const_z * ny * nz - s_tilde * nx)
-    p2_y = -(1.0 / (nx**2 + ny**2)) * (const_z * ny * nz + s_tilde * nx)
+    p1 = np.empty(3)
+    p1[0] = cx + (-ny * s)
+    p1[1] = cy + (nx * s)
+    p1[2] = const_z
 
-    p1 = np.array([p1_x, p1_y, const_z])
-    p2 = np.array([p2_x, p2_y, const_z])
+    p2 = np.empty(3)
+    p2[0] = cx - (-ny * s)
+    p2[1] = cy - (nx * s)
+    p2[2] = const_z
 
-    p1_intersects_gca = point_within_gca(p1, gca_cart[0], gca_cart[1])
-    p2_intersects_gca = point_within_gca(p2, gca_cart[0], gca_cart[1])
+    # 5. Keep candidates that lie on the minor arc.
+    p1_ok = math.isfinite(p1[0]) and math.isfinite(p1[1]) and on_minor_arc(p1, x1, x2)
+    p2_ok = math.isfinite(p2[0]) and math.isfinite(p2[1]) and on_minor_arc(p2, x1, x2)
 
-    if p1_intersects_gca and p2_intersects_gca:
-        res[0] = p1
-        res[1] = p2
-    elif p1_intersects_gca:
-        res[0] = p1
-    elif p2_intersects_gca:
-        res[0] = p2
+    if p1_ok and p2_ok:
+        res[0, 0] = p1[0]
+        res[0, 1] = p1[1]
+        res[0, 2] = p1[2]
+        res[1, 0] = p2[0]
+        res[1, 1] = p2[1]
+        res[1, 2] = p2[2]
+    elif p1_ok:
+        res[0, 0] = p1[0]
+        res[0, 1] = p1[1]
+        res[0, 2] = p1[2]
+    elif p2_ok:
+        res[0, 0] = p2[0]
+        res[0, 1] = p2[1]
+        res[0, 2] = p2[2]
 
     return res
 
