@@ -3,13 +3,12 @@ import math
 import numpy as np
 from numba import njit, prange
 
-from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, MACHINE_EPSILON
+from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE
 from uxarray.grid._eft import accucross
 from uxarray.grid.arcs import (
     extreme_gca_z,
     in_between,
     on_minor_arc,
-    point_within_gca,
 )
 
 
@@ -356,9 +355,7 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
         return res[:count]
 
     # 2. Intersection direction: cross product of the two plane normals.
-    vx, vy, vz, vn = _normalize_pair(
-        *accucross(n1x, n1y, n1z, n2x, n2y, n2z)
-    )
+    vx, vy, vz, vn = _normalize_pair(*accucross(n1x, n1y, n1z, n2x, n2y, n2z))
 
     if vn == 0.0 or not (math.isfinite(vx) and math.isfinite(vy) and math.isfinite(vz)):
         # Parallel (coplanar) arcs: check whether endpoints of one lie on the other.
