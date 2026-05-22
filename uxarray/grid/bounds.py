@@ -11,7 +11,11 @@ from uxarray.grid.arcs import (
     point_within_gca,
 )
 from uxarray.grid.geometry import pole_point_inside_polygon
-from uxarray.grid.point_in_face import _LOC_INSIDE, _LOC_OUTSIDE, _point_in_polygon_sphere
+from uxarray.grid.point_in_face import (
+    _LOC_INSIDE,
+    _LOC_OUTSIDE,
+    _point_in_polygon_sphere,
+)
 from uxarray.grid.utils import (
     _get_cartesian_face_edge_nodes,
     _get_spherical_face_edge_nodes,
@@ -315,7 +319,6 @@ def _construct_face_bounds_array_gca(
         [[lat_min, lat_max], [lon_min, lon_max]] in radians per face.
     """
     n_face = face_node_connectivity.shape[0]
-    max_nodes = face_node_connectivity.shape[1]
     bounds_array = np.empty((n_face, 2, 2), dtype=np.float64)
     deg_to_rad = math.pi / 180.0
 

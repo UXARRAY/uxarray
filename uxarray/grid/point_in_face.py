@@ -7,7 +7,7 @@ import numpy as np
 from numba import njit, prange
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.arcs import _orient3d_on_sphere_value, on_minor_arc, orient3d_on_sphere
+from uxarray.grid.arcs import on_minor_arc, orient3d_on_sphere
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 if TYPE_CHECKING:
