@@ -11,7 +11,6 @@ from .core.api import (
 from .core.dataarray import UxDataArray
 from .core.dataset import UxDataset
 from .grid import Grid
-from .remap import RemapWeights, clear_remap_weights_cache, load_remap_weights
 
 try:
     from importlib.metadata import version as _version
@@ -38,7 +37,4 @@ __all__ = (
     "INT_DTYPE",
     "INT_FILL_VALUE",
     "Grid",
-    "RemapWeights",
-    "load_remap_weights",
-    "clear_remap_weights_cache",
 )

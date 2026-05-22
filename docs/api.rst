@@ -22,7 +22,6 @@ Top Level Functions
    open_multigrid
    open_mfdataset
    concat
-   load_remap_weights
 
 Tutorial
 --------
