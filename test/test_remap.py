@@ -232,12 +232,16 @@ def test_to_rectilinear_native_backend():
         attrs={"axis": "Y", "units": "degrees_north"},
     )
 
-    out = da.remap.to_rectilinear(lon=lon, lat=lat, backend="uxarray")
+    out = da.remap.to_rectilinear(lon=lon, lat=lat)
+    out_structured = da.remap.to_structured(lon=lon, lat=lat)
+    out_lonlat = da.remap.to_lonlat(lon=lon, lat=lat)
 
     assert isinstance(out, xr.DataArray)
     assert out.dims == ("lat", "lon")
     assert out.shape == (2, 2)
     nt.assert_array_equal(out.values, np.asarray([[1.0, 2.0], [3.0, 4.0]]))
+    nt.assert_array_equal(out_structured.values, out.values)
+    nt.assert_array_equal(out_lonlat.values, out.values)
     assert out["lon"].attrs["units"] == "degrees_east"
     assert out["lat"].attrs["units"] == "degrees_north"
 

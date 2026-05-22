@@ -478,6 +478,8 @@ UxDataArray
    UxDataArray.remap.inverse_distance_weighted
    UxDataArray.remap.bilinear
    UxDataArray.remap.to_rectilinear
+   UxDataArray.remap.to_structured
+   UxDataArray.remap.to_lonlat
 
 
 UxDataset
@@ -492,6 +494,8 @@ UxDataset
    UxDataset.remap.inverse_distance_weighted
    UxDataset.remap.bilinear
    UxDataset.remap.to_rectilinear
+   UxDataset.remap.to_structured
+   UxDataset.remap.to_lonlat
 
 
 Mathematical Operators
