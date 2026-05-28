@@ -4,14 +4,14 @@ import numpy as np
 from numba import njit
 
 from uxarray.constants import ERROR_TOLERANCE, MACHINE_EPSILON
-from uxarray.grid._eft import diff_of_products, two_sum
 from uxarray.grid.coordinates import (
     _normalize_xyz_scalar,
 )
 from uxarray.grid.utils import _angle_of_2_vectors
+from uxarray.utils.computing import diff_of_products, two_sum
 
 # Tolerance used to classify orient3d results as zero.  For double-precision
-# unit-vector inputs this covers rounding error in the EFT cross product.
+# unit-vector inputs this covers rounding error in the compensated cross product.
 _PREDICATE_ZERO_TOL = 1e-15
 
 # Default tolerance for the on_minor_arc collinearity and interval tests.
@@ -376,11 +376,11 @@ def compute_arc_length(pt_a, pt_b):
 
 @njit(cache=True)
 def _orient3d_on_sphere_value(a, b, q):
-    """Return the EFT-accurate value of the orient3d-on-sphere predicate.
+    """Return the accurately computed value of the orient3d-on-sphere predicate.
 
     Computes the scalar (a x b) . q using ``diff_of_products`` for the
     cross-product components and ``two_sum`` for the final accumulation.
-    For unit vectors all coordinates are in [-1, 1], so the EFT cross product
+    For unit vectors all coordinates are in [-1, 1], so the compensated cross product
     provides roughly double the effective precision of a naive evaluation.
     The result is positive when q lies to the left of the directed arc a->b,
     negative when to the right, and near zero when q is on the great circle
@@ -411,7 +411,7 @@ def _orient3d_on_sphere_value(a, b, q):
 def orient3d_on_sphere(a, b, q, tol=_PREDICATE_ZERO_TOL):
     """Sign of the orient3d predicate on the unit sphere: -1, 0, or +1.
 
-    Evaluates the sign of ``(a x b) . q`` using error-free transformations to
+    Evaluates the sign of ``(a x b) . q`` using compensated arithmetic to
     avoid false zero results from floating-point cancellation near great-circle
     boundaries. The sign determines which side of the great circle through a
     and b the point q lies on.

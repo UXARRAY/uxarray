@@ -86,31 +86,30 @@ def _face_location_info(face_vertices, polar_cap_z):
         z2 = x2[2]
         d = x1[0] * x2[0] + x1[1] * x2[1] + x1[2] * x2[2]
 
-        # Parameter along the arc at which z is extremal.
+        # Parameter along the arc at which z is extremal (matches C++ get_face_location_info).
         denom = (z1 + z2) * (d - 1.0)
-        if denom != 0.0:
-            a_raw = (z1 * d - z2) / denom
-        else:
-            a_raw = -1.0
+        a_raw = (z1 * d - z2) / denom if denom != 0.0 else -1.0
+        a = min(max(a_raw, 0.0), 1.0)
 
-        if 0.0 < a_raw < 1.0:
-            one_a = 1.0 - a_raw
-            y0 = one_a * x1[0] + a_raw * x2[0]
-            y1 = one_a * x1[1] + a_raw * x2[1]
-            y2 = one_a * x1[2] + a_raw * x2[2]
-            norm = math.sqrt(y0 * y0 + y1 * y1 + y2 * y2)
-            z_ext = y2 / norm
-            if z_ext > z_max:
-                z_max = z_ext
-            if z_ext < z_min:
-                z_min = z_ext
-        else:
-            z_edge_max = z1 if z1 > z2 else z2
-            z_edge_min = z1 if z1 < z2 else z2
-            if z_edge_max > z_max:
-                z_max = z_edge_max
-            if z_edge_min < z_min:
-                z_min = z_edge_min
+        one_a = 1.0 - a
+        y0 = one_a * x1[0] + a * x2[0]
+        y1 = one_a * x1[1] + a * x2[1]
+        y2 = one_a * x1[2] + a * x2[2]
+        norm = math.sqrt(y0 * y0 + y1 * y1 + y2 * y2)
+        z_ext = y2 / norm
+
+        z_edge_max = z1 if z1 > z2 else z2
+        z_edge_min = z1 if z1 < z2 else z2
+
+        # Mask-based selection: use z_ext only when the extremum is interior (a_raw in (0,1)).
+        use_ext = 1 if (0.0 < a_raw < 1.0) else 0
+        z_max_candidate = use_ext * z_ext + (1 - use_ext) * z_edge_max
+        z_min_candidate = use_ext * z_ext + (1 - use_ext) * z_edge_min
+
+        if z_max_candidate > z_max:
+            z_max = z_max_candidate
+        if z_min_candidate < z_min:
+            z_min = z_min_candidate
 
     if z_max >= polar_cap_z:
         return _FACE_LOC_NORTH_POLAR, z_min, z_max
@@ -199,11 +198,11 @@ def _generate_lat_lon_bounds_local(face_vertices, z_min, z_max, snap_tol_deg):
     lat_max = math.asin(zmx) * rad_to_deg
     lat_min = math.asin(zmn) * rad_to_deg
 
-    # Snap arc extrema to vertex values when they are nearly equal.
-    if abs(lat_max - ep_lat_max) <= snap_tol_deg:
-        lat_max = ep_lat_max
-    if abs(lat_min - ep_lat_min) <= snap_tol_deg:
-        lat_min = ep_lat_min
+    # Snap arc extrema to vertex values when nearly equal — mask-based (matches C++).
+    snap_max = 1 if abs(lat_max - ep_lat_max) <= snap_tol_deg else 0
+    snap_min = 1 if abs(lat_min - ep_lat_min) <= snap_tol_deg else 0
+    lat_max = snap_max * ep_lat_max + (1 - snap_max) * lat_max
+    lat_min = snap_min * ep_lat_min + (1 - snap_min) * lat_min
 
     return lat_min, lat_max, lon_min, lon_max
 
@@ -273,10 +272,10 @@ def _generate_lat_lon_bounds_pole(face_vertices, label, z_min, z_max, snap_tol_d
     lat_max = math.asin(zmx) * rad_to_deg
     lat_min = math.asin(zmn) * rad_to_deg
 
-    if abs(lat_max - ep_lat_max) <= snap_tol_deg:
-        lat_max = ep_lat_max
-    if abs(lat_min - ep_lat_min) <= snap_tol_deg:
-        lat_min = ep_lat_min
+    snap_max = 1 if abs(lat_max - ep_lat_max) <= snap_tol_deg else 0
+    snap_min = 1 if abs(lat_min - ep_lat_min) <= snap_tol_deg else 0
+    lat_max = snap_max * ep_lat_max + (1 - snap_max) * lat_max
+    lat_min = snap_min * ep_lat_min + (1 - snap_min) * lat_min
 
     if north_loc != _LOC_OUTSIDE:
         if north_loc == _LOC_INSIDE:

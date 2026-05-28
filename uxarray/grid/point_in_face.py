@@ -85,7 +85,7 @@ def _counts_as_crossing(A, B, q, R):
 
     An edge AB crosses ray q->R iff q and R lie on opposite sides of the great
     circle plane through AB AND A and B lie on opposite sides of the great
-    circle plane through q->R. Uses orient3d_on_sphere (EFT-based) for all
+    circle plane through q->R. Uses orient3d_on_sphere (compensated) for all
     side-of-plane tests. Returns -1 when R lies exactly on plane(AB), which
     signals the caller to perturb R and retry.
     """
@@ -127,7 +127,7 @@ def _point_in_polygon_sphere(q, polygon):
 
     Casts a great-circle ray from q toward its perturbed antipode R and counts
     how many polygon edges the ray crosses. Uses ``orient3d_on_sphere``
-    (EFT-based) for the crossing test, avoiding the ``arctan2`` calls in the
+    (compensated) for the crossing test, avoiding the ``arctan2`` calls in the
     winding-number approach and the large number of ``np.cross`` allocations.
 
     Returns one of _LOC_INSIDE, _LOC_OUTSIDE, _LOC_ON_VERTEX, _LOC_ON_EDGE.
