@@ -584,13 +584,24 @@ Arcs
    grid.arcs.in_between
    grid.arcs.point_within_gca
    grid.arcs.extreme_gca_latitude
+   grid.arcs.orient3d_on_sphere
+   grid.arcs.on_minor_arc
 
 
-Accurate Computing
-------------------
+Compensated Arithmetic
+----------------------
+
+Numba-compiled primitives used throughout the geometry stack to avoid
+catastrophic cancellation in cross-product and dot-product operations.
+``two_sum`` and ``two_prod`` are true error-free transformations (EFT);
+the higher-level functions are compensated algorithms built on top of them.
 
 .. autosummary::
    :toctree: generated/
 
-   utils.computing.cross_fma
-   utils.computing.dot_fma
+   utils.computing.two_sum
+   utils.computing.two_prod
+   utils.computing.diff_of_products
+   utils.computing.accucross
+   utils.computing.accucross_pair
+   utils.computing.acc_sqrt_re

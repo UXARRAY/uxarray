@@ -4,11 +4,17 @@ import numpy as np
 from numba import njit, prange
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE
-from uxarray.grid._eft import accucross
-from uxarray.grid.arcs import (
-    extreme_gca_z,
-    in_between,
-    on_minor_arc,
+from uxarray.grid.arcs import on_minor_arc
+from uxarray.utils.computing import (
+    _cdp2,
+    _cdp4,
+    _sum_sq_c2,
+    _sum_sq_c3,
+    acc_sqrt_re,
+    accucross,
+    accucross_pair,
+    two_prod,
+    two_sum,
 )
 
 
@@ -292,19 +298,6 @@ def faces_within_lat_bounds(lats, face_bounds_lat):
     return candidate_faces
 
 
-@njit(cache=True)
-def _normalize_pair(x_hi, y_hi, z_hi, x_lo, y_lo, z_lo):
-    """Normalize an (hi, lo) compensated vector, returning the unit vector and magnitude."""
-    x = x_hi + x_lo
-    y = y_hi + y_lo
-    z = z_hi + z_lo
-    n = math.sqrt(x * x + y * y + z * z)
-    if n == 0.0:
-        return 0.0, 0.0, 0.0, 0.0
-    inv = 1.0 / n
-    return x * inv, y * inv, z * inv, n
-
-
 def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
     gca_a_xyz = np.asarray(gca_a_xyz)
     gca_b_xyz = np.asarray(gca_b_xyz)
@@ -316,7 +309,7 @@ def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
 def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     """Find intersection point(s) of two great-circle arcs using compensated arithmetic.
 
-    Uses ``accucross`` (error-free cross products) and ``on_minor_arc`` (EFT-based
+    Uses ``accucross`` (compensated cross products) and ``on_minor_arc`` (compensated
     arc membership) to avoid the catastrophic cancellation that affects naive
     cross product implementations when arcs are nearly parallel.
 
@@ -340,24 +333,56 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     v0 = gca_b_xyz[0]
     v1 = gca_b_xyz[1]
 
-    # 1. Plane normals via accurate cross products.
-    n1x, n1y, n1z, n1_mag = _normalize_pair(
-        *accucross(w0[0], w0[1], w0[2], w1[0], w1[1], w1[2])
+    # 1. Plane normals via accurate cross products — keep compensated (hi, lo).
+    n1x_hi, n1y_hi, n1z_hi, n1x_lo, n1y_lo, n1z_lo = accucross(
+        w0[0], w0[1], w0[2], w1[0], w1[1], w1[2]
     )
-    n2x, n2y, n2z, n2_mag = _normalize_pair(
-        *accucross(v0[0], v0[1], v0[2], v1[0], v1[1], v1[2])
+    n2x_hi, n2y_hi, n2z_hi, n2x_lo, n2y_lo, n2z_lo = accucross(
+        v0[0], v0[1], v0[2], v1[0], v1[1], v1[2]
     )
 
     res = np.empty((2, 3))
     count = 0
 
-    if n1_mag == 0.0 or n2_mag == 0.0:
+    # Degenerate check: collapsed (zero-length) input arc.
+    n1x = n1x_hi + n1x_lo
+    n1y = n1y_hi + n1y_lo
+    n1z = n1z_hi + n1z_lo
+    n2x = n2x_hi + n2x_lo
+    n2y = n2y_hi + n2y_lo
+    n2z = n2z_hi + n2z_lo
+    if (
+        n1x * n1x + n1y * n1y + n1z * n1z == 0.0
+        or n2x * n2x + n2y * n2y + n2z * n2z == 0.0
+    ):
         return res[:count]
 
-    # 2. Intersection direction: cross product of the two plane normals.
-    vx, vy, vz, vn = _normalize_pair(*accucross(n1x, n1y, n1z, n2x, n2y, n2z))
+    # 2. Intersection direction: compensated cross of the two plane normals.
+    vx_hi, vy_hi, vz_hi, vx_lo, vy_lo, vz_lo = accucross_pair(
+        n1x_hi,
+        n1y_hi,
+        n1z_hi,
+        n1x_lo,
+        n1y_lo,
+        n1z_lo,
+        n2x_hi,
+        n2y_hi,
+        n2z_hi,
+        n2x_lo,
+        n2y_lo,
+        n2z_lo,
+    )
+    vx = vx_hi + vx_lo
+    vy = vy_hi + vy_lo
+    vz = vz_hi + vz_lo
+    vn = math.sqrt(vx * vx + vy * vy + vz * vz)
 
-    if vn == 0.0 or not (math.isfinite(vx) and math.isfinite(vy) and math.isfinite(vz)):
+    if vn == 0.0 or not (
+        math.isfinite(vx)
+        and math.isfinite(vy)
+        and math.isfinite(vz)
+        and math.isfinite(vn)
+    ):
         # Parallel (coplanar) arcs: check whether endpoints of one lie on the other.
         if on_minor_arc(v0, w0, w1):
             res[count, 0] = v0[0]
@@ -372,14 +397,15 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
         return res[:count]
 
     # 3. Two antipodal candidate intersection points; keep those on both arcs.
+    inv = 1.0 / vn
     pos = np.empty(3)
-    pos[0] = vx
-    pos[1] = vy
-    pos[2] = vz
+    pos[0] = vx * inv
+    pos[1] = vy * inv
+    pos[2] = vz * inv
     neg = np.empty(3)
-    neg[0] = -vx
-    neg[1] = -vy
-    neg[2] = -vz
+    neg[0] = -pos[0]
+    neg[1] = -pos[1]
+    neg[2] = -pos[2]
 
     if on_minor_arc(pos, w0, w1) and on_minor_arc(pos, v0, v1):
         res[count, 0] = pos[0]
@@ -400,11 +426,20 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
 def gca_const_lat_intersection(gca_cart, const_z):
     """Find intersection point(s) of a great-circle arc and a constant-latitude line.
 
-    Uses the plane-normal of the arc (computed via ``accucross`` for extra
-    precision) to solve the system ``n . p = 0``, ``p[2] = const_z``,
-    ``|p| = 1``. Candidate solutions are checked against the arc with
-    ``on_minor_arc`` instead of ``point_within_gca`` to avoid the
-    ``arctan2`` overhead in that function.
+    Implements the ``accux_constlat`` algorithm from AccuSphGeom
+    (gca_constlat_intersection.hpp) using compensated arithmetic throughout
+    to achieve near-machine-precision accuracy even for arcs nearly tangent
+    to the latitude circle.
+
+    The algorithm:
+    1. Compute the arc's plane normal n = a × b via ``accucross`` (compensated).
+    2. Compute s2 = nx² + ny² and s3 = |n|² using compensated sum-of-squares
+       on the (hi, lo) pairs from ``accucross``.
+    3. Compute the discriminant planar_sq = s2 − s3·z₀² using compensated
+       arithmetic; take its accurate square root via ``acc_sqrt_re``.
+    4. Compute the two candidate intersection points using compensated 2-term
+       dot products for the x and y numerators, divided by s2.
+    5. Retain each candidate that is finite and lies on the minor arc.
 
     Parameters
     ----------
@@ -425,71 +460,107 @@ def gca_const_lat_intersection(gca_cart, const_z):
     x1 = gca_cart[0]
     x2 = gca_cart[1]
 
-    # 1. Endpoint coincidence with the latitude line.
-    x1_at_z = abs(x1[2] - const_z) <= ERROR_TOLERANCE
-    x2_at_z = abs(x2[2] - const_z) <= ERROR_TOLERANCE
-
-    if x1_at_z and x2_at_z:
-        res[0, 0] = x1[0]
-        res[0, 1] = x1[1]
-        res[0, 2] = x1[2]
-        res[1, 0] = x2[0]
-        res[1, 1] = x2[1]
-        res[1, 2] = x2[2]
-        return res
-    elif x1_at_z:
-        res[0, 0] = x1[0]
-        res[0, 1] = x1[1]
-        res[0, 2] = x1[2]
-        return res
-    elif x2_at_z:
-        res[0, 0] = x2[0]
-        res[0, 1] = x2[1]
-        res[0, 2] = x2[2]
-        return res
-
-    # 2. Early-exit if const_z is outside the arc's latitude range.
-    z_min = extreme_gca_z(gca_cart, extreme_type="min")
-    z_max = extreme_gca_z(gca_cart, extreme_type="max")
-    if not in_between(z_min, const_z, z_max):
-        return res
-
-    # 3. Plane normal via accurate cross product.
+    # 1. Plane normal via compensated cross product (keeps hi, lo residuals).
     nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(
         x1[0], x1[1], x1[2], x2[0], x2[1], x2[2]
     )
-    nx = nx_hi + nx_lo
-    ny = ny_hi + ny_lo
-    nz = nz_hi + nz_lo
-    denom = nx * nx + ny * ny
+
+    # 2. s2 = nx²+ny²  (compensated, on hi/lo pairs — matches sum_of_squares_c<2>).
+    s2_hi, s2_lo = _sum_sq_c2(nx_hi, nx_lo, ny_hi, ny_lo)
+    denom = s2_hi + s2_lo
     if denom == 0.0:
         return res
 
-    # 4. Solve for the two candidate points on the latitude circle.
-    r2 = 1.0 - const_z * const_z
-    if r2 < 0.0:
-        return res
-    inv_denom = 1.0 / denom
-    cx = -nz * const_z * nx * inv_denom
-    cy = -nz * const_z * ny * inv_denom
-    disc = r2 - (nz * const_z) * (nz * const_z) * inv_denom
-    if disc < 0.0:
-        return res
-    s = math.sqrt(disc * inv_denom)
+    # 3. s3 = |n|² = nx²+ny²+nz²  (compensated — matches sum_of_squares_c<3>).
+    s3_hi, s3_lo = _sum_sq_c3(nx_hi, nx_lo, ny_hi, ny_lo, nz_hi, nz_lo)
 
+    # 4. zsq = z₀² exactly (two_prod replaces two_prod_fma; same exact result).
+    zsq_hi, zsq_lo = two_prod(const_z, const_z)
+
+    # 5. d = s3 · zsq  via 4-term compensated dot product matching C++:
+    #    compensated_dot_product({s3_hi, s3_hi, s3_lo, s3_lo},
+    #                            {zsq_hi, zsq_lo, zsq_hi, zsq_lo})
+    d_hi, d_lo = _cdp4(
+        s3_hi,
+        zsq_hi,
+        s3_hi,
+        zsq_lo,
+        s3_lo,
+        zsq_hi,
+        s3_lo,
+        zsq_lo,
+    )
+    # Note: Numba doesn't allow negative sign in function args, so negate d_hi explicitly.
+    neg_d_hi = -d_hi
+
+    # 6. planar_sq = s2 − d  (compensated two_sum on the high parts + low correction).
+    e_hi, e_lo = two_sum(s2_hi, neg_d_hi)
+    planar_sq = e_hi + (e_lo + s2_lo - d_lo)
+
+    if planar_sq < 0.0:
+        return res
+
+    # 7. Accurate square root of discriminant.
+    s_root, s_corr = acc_sqrt_re(planar_sq)
+
+    # Collapse compensated values to scalars for the final formula.
+    nx = nx_hi + nx_lo
+    ny = ny_hi + ny_lo
+    nz = nz_hi + nz_lo
+    planar = s_root + s_corr
+
+    # 8. Numerators via 2-term compensated dot products (matches C++ accux_constlat).
+    #    x_pos = -(nx*nz*z₀  + (−ny)*planar) / denom
+    #    y_pos = -(ny*nz*z₀  +   nx *planar) / denom
+    #    x_neg = -(nx*nz*z₀  +   ny *planar) / denom
+    #    y_neg = -(ny*nz*z₀  + (−nx)*planar) / denom
+    xp_hi, xp_lo = _cdp2(nx * nz, const_z, -ny, planar)
+    yp_hi, yp_lo = _cdp2(ny * nz, const_z, nx, planar)
+    xn_hi, xn_lo = _cdp2(nx * nz, const_z, ny, planar)
+    yn_hi, yn_lo = _cdp2(ny * nz, const_z, -nx, planar)
+
+    inv_denom = 1.0 / denom
     p1 = np.empty(3)
-    p1[0] = cx + (-ny * s)
-    p1[1] = cy + (nx * s)
+    p1[0] = -(xp_hi + xp_lo) * inv_denom
+    p1[1] = -(yp_hi + yp_lo) * inv_denom
     p1[2] = const_z
 
     p2 = np.empty(3)
-    p2[0] = cx - (-ny * s)
-    p2[1] = cy - (nx * s)
+    p2[0] = -(xn_hi + xn_lo) * inv_denom
+    p2[1] = -(yn_hi + yn_lo) * inv_denom
     p2[2] = const_z
 
-    # 5. Keep candidates that lie on the minor arc.
+    # 9a. Snap computed (x, y) to any arc endpoint that lies exactly on the latitude.
+    #     Adjacent edges sharing such an endpoint would otherwise return slightly
+    #     different coordinates; snapping gives them the same exact value so that
+    #     deduplication in the caller works correctly.  Matches Hongyu's suggestion
+    #     of mask-selection to snap after computing rather than branching out early.
+    _snap_sq = 1e-14  # distance² ≈ (1e-7)² — well above algorithm error (~1e-15)
+    for xe in (x1, x2):
+        if abs(xe[2] - const_z) <= ERROR_TOLERANCE:
+            dx = p1[0] - xe[0]
+            dy = p1[1] - xe[1]
+            if dx * dx + dy * dy < _snap_sq:
+                p1[0] = xe[0]
+                p1[1] = xe[1]
+            dx = p2[0] - xe[0]
+            dy = p2[1] - xe[1]
+            if dx * dx + dy * dy < _snap_sq:
+                p2[0] = xe[0]
+                p2[1] = xe[1]
+
+    # 9b. Retain each candidate that is finite and lies on the minor arc.
     p1_ok = math.isfinite(p1[0]) and math.isfinite(p1[1]) and on_minor_arc(p1, x1, x2)
     p2_ok = math.isfinite(p2[0]) and math.isfinite(p2[1]) and on_minor_arc(p2, x1, x2)
+
+    # When both candidates are valid but nearly identical (tangent/endpoint case),
+    # treat as a single intersection — same as the C++ scalar gca_constlat_intersection
+    # which returns only one point when status==0 (exactly one candidate lies on the arc).
+    if p1_ok and p2_ok:
+        dx = p1[0] - p2[0]
+        dy = p1[1] - p2[1]
+        if dx * dx + dy * dy < _snap_sq:
+            p2_ok = False
 
     if p1_ok and p2_ok:
         res[0, 0] = p1[0]
