@@ -431,15 +431,10 @@ def gca_const_lat_intersection(gca_cart, const_z):
     to achieve near-machine-precision accuracy even for arcs nearly tangent
     to the latitude circle.
 
-    The algorithm:
-    1. Compute the arc's plane normal n = a × b via ``accucross`` (compensated).
-    2. Compute s2 = nx² + ny² and s3 = |n|² using compensated sum-of-squares
-       on the (hi, lo) pairs from ``accucross``.
-    3. Compute the discriminant planar_sq = s2 − s3·z₀² using compensated
-       arithmetic; take its accurate square root via ``acc_sqrt_re``.
-    4. Compute the two candidate intersection points using compensated 2-term
-       dot products for the x and y numerators, divided by s2.
-    5. Retain each candidate that is finite and lies on the minor arc.
+    Computes the plane normal via ``accucross``, forms the discriminant using
+    compensated sum-of-squares and ``acc_sqrt_re``, solves for the two candidate
+    intersection points with compensated dot products, and retains only those
+    that are finite and lie on the minor arc.
 
     Parameters
     ----------
