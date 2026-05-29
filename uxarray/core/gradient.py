@@ -88,7 +88,7 @@ def _check_node_on_boundary_and_gather_node_neighbors(
     return bool_bdy, node_neighbors[0:num_node_neighbors]
 
 
-def _compute_gradient(data):
+def _compute_gradient(data, scale_by_radius=True):
     from uxarray import UxDataArray
 
     uxgrid = data.uxgrid
@@ -185,6 +185,11 @@ def _compute_gradient(data):
         raise ValueError(
             "Computing the gradient is only supported for face-centered data variables."
         )
+
+    if scale_by_radius:
+        radius = uxgrid.sphere_radius
+        grad_zonal = grad_zonal / radius
+        grad_meridional = grad_meridional / radius
 
     # Zonal
     grad_zonal_da = UxDataArray(

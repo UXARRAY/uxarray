@@ -87,7 +87,7 @@ class TestGradientDyamondSubset:
             gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
             datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
         )
-        grad = uxds['gaussian'].gradient()
+        grad = uxds['gaussian'].gradient(scale_by_radius=False)
         zg, mg = grad.zonal_gradient, grad.meridional_gradient
         mag = np.hypot(zg, mg)
         angle = np.arctan2(mg, zg)
@@ -118,7 +118,7 @@ class TestGradientDyamondSubset:
             gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
             datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
         )
-        grad = uxds['inverse_gaussian'].gradient()
+        grad = uxds['inverse_gaussian'].gradient(scale_by_radius=False)
         zg, mg = grad.zonal_gradient, grad.meridional_gradient
         mag = np.hypot(zg, mg)
         angle = np.arctan2(mg, zg)
@@ -140,6 +140,24 @@ class TestGradientDyamondSubset:
         assert angle[self.right_fidx] < 0
         assert angle[self.top_fidx] > 0
         assert angle[self.bottom_fidx] < 0
+
+    def test_gradient_scales_by_radius(self, gridpath, datasetpath):
+        uxds = ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc"),
+        )
+        radius = uxds.uxgrid.sphere_radius
+
+        grad_scaled = uxds["gaussian"].gradient()
+        grad_unit = uxds["gaussian"].gradient(scale_by_radius=False)
+
+        nt.assert_allclose(
+            grad_scaled["zonal_gradient"], grad_unit["zonal_gradient"] / radius
+        )
+        nt.assert_allclose(
+            grad_scaled["meridional_gradient"],
+            grad_unit["meridional_gradient"] / radius,
+        )
 
 
 class TestDivergenceQuadHex:
@@ -523,6 +541,20 @@ class TestCurlDyamondSubset:
             antisymmetry_error = np.abs(curl_uv_finite + curl_vu_finite).max()
             # Use a more relaxed tolerance for discrete computation
             assert antisymmetry_error < 200.0, f"Curl antisymmetry violated, max error: {antisymmetry_error}"
+
+    def test_curl_scales_by_radius(self, gridpath, datasetpath):
+        uxds = ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc"),
+        )
+        radius = uxds.uxgrid.sphere_radius
+        u_component = uxds["face_lon"]
+        v_component = uxds["face_lat"]
+
+        curl_scaled = u_component.curl(v_component)
+        curl_unit = u_component.curl(v_component, scale_by_radius=False)
+
+        nt.assert_allclose(curl_scaled, curl_unit / radius)
 
     def test_curl_units_and_attributes(self, gridpath, datasetpath):
         """Test that curl preserves appropriate units and attributes"""

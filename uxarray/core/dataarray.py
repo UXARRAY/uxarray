@@ -1411,9 +1411,14 @@ class UxDataArray(xr.DataArray):
         """
         return _uxda_grid_aggregate(self, destination, "any", **kwargs)
 
-    def gradient(self, **kwargs) -> UxDataset:
+    def gradient(self, scale_by_radius: bool = True, **kwargs) -> UxDataset:
         """
         Computes the gradient of a data variable.
+
+        Parameters
+        ----------
+        scale_by_radius : bool, default=True
+            Scale derivatives by ``uxgrid.sphere_radius``.
 
         Returns
         -------
@@ -1441,7 +1446,9 @@ class UxDataArray(xr.DataArray):
             )
 
         # Compute the zonal and meridional gradient components of the stored data variable
-        grad_zonal_da, grad_meridional_da = _compute_gradient(self)
+        grad_zonal_da, grad_meridional_da = _compute_gradient(
+            self, scale_by_radius=scale_by_radius
+        )
 
         # Create a dataset containing both gradient components
         return UxDataset(
@@ -1454,7 +1461,9 @@ class UxDataArray(xr.DataArray):
             coords=self.coords,
         )
 
-    def curl(self, other: "UxDataArray", **kwargs) -> "UxDataArray":
+    def curl(
+        self, other: "UxDataArray", scale_by_radius: bool = True, **kwargs
+    ) -> "UxDataArray":
         """
         Computes the curl of a vector field.
 
@@ -1464,6 +1473,8 @@ class UxDataArray(xr.DataArray):
             The second component of the vector field. This UxDataArray should
             represent the meridional (v) component, while self represents the
             zonal (u) component.
+        scale_by_radius : bool, default=True
+            Scale derivatives by ``uxgrid.sphere_radius``.
         **kwargs : dict
             Additional keyword arguments (currently unused, reserved for future extensions).
 
@@ -1514,8 +1525,12 @@ class UxDataArray(xr.DataArray):
             )
 
         # Compute gradients of both components
-        grad_u_zonal, grad_u_meridional = _compute_gradient(self)
-        grad_v_zonal, grad_v_meridional = _compute_gradient(other)
+        grad_u_zonal, grad_u_meridional = _compute_gradient(
+            self, scale_by_radius=scale_by_radius
+        )
+        grad_v_zonal, grad_v_meridional = _compute_gradient(
+            other, scale_by_radius=scale_by_radius
+        )
 
         # Compute curl = ∂v/∂x - ∂u/∂y
         curl_values = grad_v_zonal.values - grad_u_meridional.values
