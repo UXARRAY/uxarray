@@ -77,6 +77,18 @@ def test_to_polycollection(gridpath, datasetpath):
     assert len(pc_geoflow_grid._paths) == uxds_geoflow.uxgrid.n_face
 
 
+def test_plot_polygons_preserves_antimeridian_faces(gridpath, datasetpath):
+    uxds = ux.open_dataset(
+        gridpath("scrip", "ne30pg2", "grid.nc"),
+        datasetpath("scrip", "ne30pg2", "data.nc"),
+    )
+
+    gdf = uxds["RELHUM"].isel(lev=0).to_geodataframe(periodic_elements="split")
+
+    assert gdf.shape == (uxds.uxgrid.n_face, 2)
+    assert len(uxds.uxgrid.antimeridian_face_indices) == 120
+
+
 def test_geodataframe_caching(gridpath, datasetpath):
     uxds = ux.open_dataset(
         gridpath("ugrid", "outCSne30", "outCSne30.ug"),
