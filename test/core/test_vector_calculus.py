@@ -152,11 +152,14 @@ class TestGradientDyamondSubset:
         grad_unit = uxds["gaussian"].gradient(scale_by_radius=False)
 
         nt.assert_allclose(
-            grad_scaled["zonal_gradient"], grad_unit["zonal_gradient"] / radius
+            grad_scaled["zonal_gradient"],
+            grad_unit["zonal_gradient"] / radius,
+            equal_nan=True,
         )
         nt.assert_allclose(
             grad_scaled["meridional_gradient"],
             grad_unit["meridional_gradient"] / radius,
+            equal_nan=True,
         )
 
 
@@ -554,7 +557,7 @@ class TestCurlDyamondSubset:
         curl_scaled = u_component.curl(v_component)
         curl_unit = u_component.curl(v_component, scale_by_radius=False)
 
-        nt.assert_allclose(curl_scaled, curl_unit / radius)
+        nt.assert_allclose(curl_scaled, curl_unit / radius, equal_nan=True)
 
     def test_curl_units_and_attributes(self, gridpath, datasetpath):
         """Test that curl preserves appropriate units and attributes"""
