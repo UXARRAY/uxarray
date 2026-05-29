@@ -1418,7 +1418,7 @@ class UxDataArray(xr.DataArray):
         Parameters
         ----------
         scale_by_radius : bool, default=True
-            Scale derivatives by ``uxgrid.sphere_radius``.
+            Divide unit-sphere derivatives by ``uxgrid.sphere_radius``.
 
         Returns
         -------
@@ -1474,7 +1474,7 @@ class UxDataArray(xr.DataArray):
             represent the meridional (v) component, while self represents the
             zonal (u) component.
         scale_by_radius : bool, default=True
-            Scale derivatives by ``uxgrid.sphere_radius``.
+            Divide unit-sphere derivatives by ``uxgrid.sphere_radius``.
         **kwargs : dict
             Additional keyword arguments (currently unused, reserved for future extensions).
 
