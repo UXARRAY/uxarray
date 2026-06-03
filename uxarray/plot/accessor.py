@@ -389,7 +389,7 @@ class UxDataArrayPlotAccessor:
         Parameters
         ----------
         periodic_elements : str, optional, default="split"
-            Specifies whether to split, include, or exclude periodic elements in the grid.
+            Specifies whether to split, ignore, or exclude periodic elements in the grid.
             Options are:
             - "split": Split periodic elements.
             - "exclude": Exclude periodic elements,
