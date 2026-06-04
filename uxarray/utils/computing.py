@@ -38,11 +38,11 @@ AccuSphGeom reference implementation (C++):
 What this module omits: AccuSphGeom's full robustness stack has three
 tiers — an EFT filter (what this module implements), Shewchuk adaptive
 predicates for results that fall inside the filter threshold, and a geogram
-exact-arithmetic fallback. This port implements only the EFT tier. For
-non-degenerate inputs in double precision this is sufficient; callers that
-need to handle geometrically degenerate inputs (coincident arcs, a query
-point exactly on a polygon edge) should add their own perturbation or
-fall-back logic.
+exact-arithmetic fallback. This port implements only the EFT tier. The
+compensated cross-product routines are roughly twice as accurate as direct
+floating-point cross products while retaining the same vectorizable operation
+structure; callers that need the full robustness stack should add an adaptive
+predicate or exact-arithmetic fallback.
 """
 
 import math

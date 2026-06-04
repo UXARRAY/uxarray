@@ -312,18 +312,6 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     Uses ``accucross`` (compensated cross products) and ``on_minor_arc`` (compensated
     arc membership) to avoid the catastrophic cancellation that affects naive
     cross product implementations when arcs are nearly parallel.
-
-    Parameters
-    ----------
-    gca_a_xyz : np.ndarray, shape (2, 3)
-        Cartesian endpoints of the first great-circle arc.
-    gca_b_xyz : np.ndarray, shape (2, 3)
-        Cartesian endpoints of the second great-circle arc.
-
-    Returns
-    -------
-    np.ndarray, shape (n, 3)
-        Intersection points lying on both arcs; n is 0, 1, or 2.
     """
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
         raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
@@ -333,7 +321,6 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     v0 = gca_b_xyz[0]
     v1 = gca_b_xyz[1]
 
-    # 1. Plane normals via accurate cross products — keep compensated (hi, lo).
     n1x_hi, n1y_hi, n1z_hi, n1x_lo, n1y_lo, n1z_lo = accucross(
         w0[0], w0[1], w0[2], w1[0], w1[1], w1[2]
     )
@@ -344,20 +331,6 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     res = np.empty((2, 3))
     count = 0
 
-    # Degenerate check: collapsed (zero-length) input arc.
-    n1x = n1x_hi + n1x_lo
-    n1y = n1y_hi + n1y_lo
-    n1z = n1z_hi + n1z_lo
-    n2x = n2x_hi + n2x_lo
-    n2y = n2y_hi + n2y_lo
-    n2z = n2z_hi + n2z_lo
-    if (
-        n1x * n1x + n1y * n1y + n1z * n1z == 0.0
-        or n2x * n2x + n2y * n2y + n2z * n2z == 0.0
-    ):
-        return res[:count]
-
-    # 2. Intersection direction: compensated cross of the two plane normals.
     vx_hi, vy_hi, vz_hi, vx_lo, vy_lo, vz_lo = accucross_pair(
         n1x_hi,
         n1y_hi,
@@ -383,7 +356,8 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
         and math.isfinite(vz)
         and math.isfinite(vn)
     ):
-        # Parallel (coplanar) arcs: check whether endpoints of one lie on the other.
+        # Coplanar overlap is outside the AccuXGCA intersection kernel. Preserve
+        # the historical UXarray behavior by detecting shared endpoints here.
         if on_minor_arc(v0, w0, w1):
             res[count, 0] = v0[0]
             res[count, 1] = v0[1]
@@ -396,7 +370,6 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
             count += 1
         return res[:count]
 
-    # 3. Two antipodal candidate intersection points; keep those on both arcs.
     inv = 1.0 / vn
     pos = np.empty(3)
     pos[0] = vx * inv
@@ -423,58 +396,19 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
 
 
 @njit(cache=True)
-def gca_const_lat_intersection(gca_cart, const_z):
-    """Find intersection point(s) of a great-circle arc and a constant-latitude line.
-
-    Implements the ``accux_constlat`` algorithm from AccuSphGeom
-    (gca_constlat_intersection.hpp) using compensated arithmetic throughout
-    to achieve near-machine-precision accuracy even for arcs nearly tangent
-    to the latitude circle.
-
-    Computes the plane normal via ``accucross``, forms the discriminant using
-    compensated sum-of-squares and ``acc_sqrt_re``, solves for the two candidate
-    intersection points with compensated dot products, and retains only those
-    that are finite and lie on the minor arc.
-
-    Parameters
-    ----------
-    gca_cart : np.ndarray, shape (2, 3)
-        Cartesian coordinates of the two endpoints of the great-circle arc.
-    const_z : float
-        The constant z-coordinate (= sin(latitude)) of the latitude line.
-
-    Returns
-    -------
-    np.ndarray, shape (2, 3)
-        Intersection point(s). Missing entries are NaN-filled rows. The first
-        valid intersection is in row 0; a second (rare) intersection in row 1.
-    """
-    res = np.empty((2, 3))
-    res.fill(np.nan)
-
+def _try_gca_const_lat_intersection(gca_cart, const_z):
+    """AccuSphGeom-style GCA/constant-latitude kernel."""
     x1 = gca_cart[0]
     x2 = gca_cart[1]
 
-    # 1. Plane normal via compensated cross product (keeps hi, lo residuals).
     nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(
         x1[0], x1[1], x1[2], x2[0], x2[1], x2[2]
     )
 
-    # 2. s2 = nx²+ny²  (compensated, on hi/lo pairs — matches sum_of_squares_c<2>).
     s2_hi, s2_lo = _sum_sq_c2(nx_hi, nx_lo, ny_hi, ny_lo)
     denom = s2_hi + s2_lo
-    if denom == 0.0:
-        return res
-
-    # 3. s3 = |n|² = nx²+ny²+nz²  (compensated — matches sum_of_squares_c<3>).
     s3_hi, s3_lo = _sum_sq_c3(nx_hi, nx_lo, ny_hi, ny_lo, nz_hi, nz_lo)
-
-    # 4. zsq = z₀² exactly (two_prod replaces two_prod_fma; same exact result).
     zsq_hi, zsq_lo = two_prod(const_z, const_z)
-
-    # 5. d = s3 · zsq  via 4-term compensated dot product matching C++:
-    #    compensated_dot_product({s3_hi, s3_hi, s3_lo, s3_lo},
-    #                            {zsq_hi, zsq_lo, zsq_hi, zsq_lo})
     d_hi, d_lo = _cdp4(
         s3_hi,
         zsq_hi,
@@ -485,93 +419,108 @@ def gca_const_lat_intersection(gca_cart, const_z):
         s3_lo,
         zsq_lo,
     )
-    # Note: Numba doesn't allow negative sign in function args, so negate d_hi explicitly.
-    neg_d_hi = -d_hi
 
-    # 6. planar_sq = s2 − d  (compensated two_sum on the high parts + low correction).
-    e_hi, e_lo = two_sum(s2_hi, neg_d_hi)
+    e_hi, e_lo = two_sum(s2_hi, -d_hi)
     planar_sq = e_hi + (e_lo + s2_lo - d_lo)
-
     if planar_sq < 0.0:
-        return res
+        root_arg = np.nan
+    else:
+        root_arg = planar_sq
+    s_root, s_corr = acc_sqrt_re(root_arg)
 
-    # 7. Accurate square root of discriminant.
-    s_root, s_corr = acc_sqrt_re(planar_sq)
-
-    # Collapse compensated values to scalars for the final formula.
     nx = nx_hi + nx_lo
     ny = ny_hi + ny_lo
     nz = nz_hi + nz_lo
     planar = s_root + s_corr
 
-    # 8. Numerators via 2-term compensated dot products (matches C++ accux_constlat).
-    #    x_pos = -(nx*nz*z₀  + (−ny)*planar) / denom
-    #    y_pos = -(ny*nz*z₀  +   nx *planar) / denom
-    #    x_neg = -(nx*nz*z₀  +   ny *planar) / denom
-    #    y_neg = -(ny*nz*z₀  + (−nx)*planar) / denom
     xp_hi, xp_lo = _cdp2(nx * nz, const_z, -ny, planar)
     yp_hi, yp_lo = _cdp2(ny * nz, const_z, nx, planar)
     xn_hi, xn_lo = _cdp2(nx * nz, const_z, ny, planar)
     yn_hi, yn_lo = _cdp2(ny * nz, const_z, -nx, planar)
 
     inv_denom = 1.0 / denom
-    p1 = np.empty(3)
-    p1[0] = -(xp_hi + xp_lo) * inv_denom
-    p1[1] = -(yp_hi + yp_lo) * inv_denom
-    p1[2] = const_z
+    pos = np.empty(3)
+    pos[0] = -(xp_hi + xp_lo) * inv_denom
+    pos[1] = -(yp_hi + yp_lo) * inv_denom
+    pos[2] = const_z
 
-    p2 = np.empty(3)
-    p2[0] = -(xn_hi + xn_lo) * inv_denom
-    p2[1] = -(yn_hi + yn_lo) * inv_denom
-    p2[2] = const_z
+    neg = np.empty(3)
+    neg[0] = -(xn_hi + xn_lo) * inv_denom
+    neg[1] = -(yn_hi + yn_lo) * inv_denom
+    neg[2] = const_z
 
-    # 9a. Snap computed (x, y) to any arc endpoint that lies exactly on the latitude.
-    #     Adjacent edges sharing such an endpoint would otherwise return slightly
-    #     different coordinates; snapping gives them the same exact value so that
-    #     deduplication in the caller works correctly.  Matches Hongyu's suggestion
-    #     of mask-selection to snap after computing rather than branching out early.
-    _snap_sq = 1e-14  # distance² ≈ (1e-7)² — well above algorithm error (~1e-15)
+    pos_valid = (
+        math.isfinite(pos[0]) and math.isfinite(pos[1]) and on_minor_arc(pos, x1, x2)
+    )
+    neg_valid = (
+        math.isfinite(neg[0]) and math.isfinite(neg[1]) and on_minor_arc(neg, x1, x2)
+    )
+
+    pos_mask = 1.0 if pos_valid and not neg_valid else 0.0
+    neg_mask = 1.0 if neg_valid and not pos_valid else 0.0
+    point = np.empty(3)
+    point[0] = pos_mask * pos[0] + neg_mask * neg[0]
+    point[1] = pos_mask * pos[1] + neg_mask * neg[1]
+    point[2] = pos_mask * pos[2] + neg_mask * neg[2]
+
+    both = 1 if pos_valid and neg_valid else 0
+    none = 1 if (not pos_valid and not neg_valid) else 0
+    status = both + none * 2
+    return point, status, pos, neg
+
+
+@njit(cache=True)
+def _snap_const_lat_endpoint(point, x1, x2, const_z):
+    snap_sq = 1e-14
+    out = np.empty(3)
+    out[0] = point[0]
+    out[1] = point[1]
+    out[2] = point[2]
     for xe in (x1, x2):
         if abs(xe[2] - const_z) <= ERROR_TOLERANCE:
-            dx = p1[0] - xe[0]
-            dy = p1[1] - xe[1]
-            if dx * dx + dy * dy < _snap_sq:
-                p1[0] = xe[0]
-                p1[1] = xe[1]
-            dx = p2[0] - xe[0]
-            dy = p2[1] - xe[1]
-            if dx * dx + dy * dy < _snap_sq:
-                p2[0] = xe[0]
-                p2[1] = xe[1]
+            dx = out[0] - xe[0]
+            dy = out[1] - xe[1]
+            if dx * dx + dy * dy < snap_sq:
+                out[0] = xe[0]
+                out[1] = xe[1]
+    return out
 
-    # 9b. Retain each candidate that is finite and lies on the minor arc.
-    p1_ok = math.isfinite(p1[0]) and math.isfinite(p1[1]) and on_minor_arc(p1, x1, x2)
-    p2_ok = math.isfinite(p2[0]) and math.isfinite(p2[1]) and on_minor_arc(p2, x1, x2)
 
-    # When both candidates are valid but nearly identical (tangent/endpoint case),
-    # treat as a single intersection — same as the C++ scalar gca_constlat_intersection
-    # which returns only one point when status==0 (exactly one candidate lies on the arc).
-    if p1_ok and p2_ok:
-        dx = p1[0] - p2[0]
-        dy = p1[1] - p2[1]
-        if dx * dx + dy * dy < _snap_sq:
-            p2_ok = False
+@njit(cache=True)
+def gca_const_lat_intersection(gca_cart, const_z):
+    """Find intersection point(s) of a great-circle arc and a constant-latitude line.
 
-    if p1_ok and p2_ok:
-        res[0, 0] = p1[0]
-        res[0, 1] = p1[1]
-        res[0, 2] = p1[2]
-        res[1, 0] = p2[0]
-        res[1, 1] = p2[1]
-        res[1, 2] = p2[2]
-    elif p1_ok:
-        res[0, 0] = p1[0]
-        res[0, 1] = p1[1]
-        res[0, 2] = p1[2]
-    elif p2_ok:
-        res[0, 0] = p2[0]
-        res[0, 1] = p2[1]
-        res[0, 2] = p2[2]
+    The core computation follows AccuSphGeom's status-code kernel; endpoint
+    snapping and UXarray's NaN-filled result packaging are isolated in this wrapper.
+    """
+    res = np.empty((2, 3))
+    res.fill(np.nan)
+
+    point, status, pos, neg = _try_gca_const_lat_intersection(gca_cart, const_z)
+    x1 = gca_cart[0]
+    x2 = gca_cart[1]
+
+    if status == 0:
+        point = _snap_const_lat_endpoint(point, x1, x2, const_z)
+        res[0, 0] = point[0]
+        res[0, 1] = point[1]
+        res[0, 2] = point[2]
+    elif status == 1:
+        pos = _snap_const_lat_endpoint(pos, x1, x2, const_z)
+        neg = _snap_const_lat_endpoint(neg, x1, x2, const_z)
+        dx = pos[0] - neg[0]
+        dy = pos[1] - neg[1]
+        if dx * dx + dy * dy < 1e-14:
+            res[0, 0] = pos[0]
+            res[0, 1] = pos[1]
+            res[0, 2] = pos[2]
+        else:
+            res[0, 0] = pos[0]
+            res[0, 1] = pos[1]
+            res[0, 2] = pos[2]
+            res[1, 0] = neg[0]
+            res[1, 1] = neg[1]
+            res[1, 2] = neg[2]
 
     return res
 
