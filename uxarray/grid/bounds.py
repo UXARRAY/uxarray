@@ -27,11 +27,6 @@ from uxarray.grid.utils import (
 # Constants for the accurate GCA bounds path.
 # ---------------------------------------------------------------------------
 
-# Faces whose z-extremum exceeds sin(_POLAR_CAP_DEG°) are treated as polar
-# candidates and get a point-in-polygon check for pole containment.
-_POLAR_CAP_DEG = 80.0
-_POLAR_CAP_Z = math.sin(_POLAR_CAP_DEG * math.pi / 180.0)
-
 # Latitude snap tolerance (degrees): if the GCA arc extreme is within this
 # distance of a vertex latitude, snap to the vertex value so that the bounds
 # remain tight and vertex-aligned.
@@ -111,11 +106,16 @@ def _face_location_info(face_vertices, polar_cap_z):
         if z_min_candidate < z_min:
             z_min = z_min_candidate
 
-    if z_max >= polar_cap_z:
-        return _FACE_LOC_NORTH_POLAR, z_min, z_max
-    if z_min <= -polar_cap_z:
-        return _FACE_LOC_SOUTH_POLAR, z_min, z_max
-    return _FACE_LOC_LOCAL, z_min, z_max
+    north_pole_candidate = z_max >= polar_cap_z
+    south_pole_candidate = z_min <= -polar_cap_z
+    local = not (north_pole_candidate or south_pole_candidate)
+
+    label = (
+        local * _FACE_LOC_LOCAL
+        + north_pole_candidate * _FACE_LOC_NORTH_POLAR
+        + (not north_pole_candidate and south_pole_candidate) * _FACE_LOC_SOUTH_POLAR
+    )
+    return label, z_min, z_max
 
 
 @njit(cache=True)
@@ -423,7 +423,7 @@ def _populate_face_bounds(
             grid.node_x.values,
             grid.node_y.values,
             grid.node_z.values,
-            _POLAR_CAP_Z,
+            math.sin(80.0 * math.pi / 180.0),
             _SNAP_TOL_DEG,
         )
     else:
