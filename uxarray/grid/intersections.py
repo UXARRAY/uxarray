@@ -484,7 +484,9 @@ def _accux_constlat(x1, x2, const_z):
     yp_hi, yp_lo = _cdp2(ny * nz, const_z, nx, planar)
     xn_hi, xn_lo = _cdp2(nx * nz, const_z, ny, planar)
     yn_hi, yn_lo = _cdp2(ny * nz, const_z, -nx, planar)
-    inv_denom = 1.0 / denom
+    # denom == 0 means the arc is vertical (normal has no x/y component).
+    # Produce inf so the isfinite mask in the status layer rejects candidates.
+    inv_denom = 1.0 / denom if denom != 0.0 else np.inf
     pos = np.empty(3)
     pos[0] = -(xp_hi + xp_lo) * inv_denom
     pos[1] = -(yp_hi + yp_lo) * inv_denom

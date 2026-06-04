@@ -417,6 +417,10 @@ def acc_sqrt_re(value, error=0.0):
     correction : float
         Additive correction; root + correction ≈ sqrt(value + error) to ~1 ulp.
     """
+    # Negative value means no real intersection; return NaN so that the
+    # isfinite mask in the status layer rejects this candidate without a branch.
+    if value < 0.0:
+        return math.nan, 0.0
     root = math.sqrt(value)
     if root == 0.0:
         return 0.0, 0.0
