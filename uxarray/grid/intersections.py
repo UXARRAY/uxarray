@@ -305,32 +305,24 @@ def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
     return gca_gca_intersection(gca_a_xyz, gca_b_xyz)
 
 
-@njit(cache=True)
-def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
-    """Find intersection point(s) of two great-circle arcs using compensated arithmetic.
+@njit(cache=True, inline="always")
+def _accux_gca(w0, w1, v0, v1):
+    """Layer 1 — pure numerical kernel (mirrors AccuSphGeom ``accux_gca``).
 
-    Uses ``accucross`` (compensated cross products) and ``on_minor_arc`` (compensated
-    arc membership) to avoid the catastrophic cancellation that affects naive
-    cross product implementations when arcs are nearly parallel.
+    Computes the two antipodal candidate intersection points of the great-circle
+    arcs w0-w1 and v0-v1.  No branching, no validity filtering.
+
+    Returns
+    -------
+    pos, neg : np.ndarray, shape (3,)
+        Two antipodal candidate unit vectors.
     """
-    if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
-        raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
-
-    w0 = gca_a_xyz[0]
-    w1 = gca_a_xyz[1]
-    v0 = gca_b_xyz[0]
-    v1 = gca_b_xyz[1]
-
     n1x_hi, n1y_hi, n1z_hi, n1x_lo, n1y_lo, n1z_lo = accucross(
         w0[0], w0[1], w0[2], w1[0], w1[1], w1[2]
     )
     n2x_hi, n2y_hi, n2z_hi, n2x_lo, n2y_lo, n2z_lo = accucross(
         v0[0], v0[1], v0[2], v1[0], v1[1], v1[2]
     )
-
-    res = np.empty((2, 3))
-    count = 0
-
     vx_hi, vy_hi, vz_hi, vx_lo, vy_lo, vz_lo = accucross_pair(
         n1x_hi,
         n1y_hi,
@@ -349,15 +341,102 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     vy = vy_hi + vy_lo
     vz = vz_hi + vz_lo
     vn = math.sqrt(vx * vx + vy * vy + vz * vz)
+    # Use np.inf safely when vn==0 (coplanar arcs): the resulting pos/neg
+    # will be non-finite, so the status layer marks them invalid without branching.
+    inv = 1.0 / vn if vn != 0.0 else np.inf
+    pos = np.empty(3)
+    pos[0] = vx * inv
+    pos[1] = vy * inv
+    pos[2] = vz * inv
+    neg = np.empty(3)
+    neg[0] = -pos[0]
+    neg[1] = -pos[1]
+    neg[2] = -pos[2]
+    return pos, neg
 
-    if vn == 0.0 or not (
-        math.isfinite(vx)
-        and math.isfinite(vy)
-        and math.isfinite(vz)
-        and math.isfinite(vn)
-    ):
-        # Coplanar overlap is outside the AccuXGCA intersection kernel. Preserve
-        # the historical UXarray behavior by detecting shared endpoints here.
+
+@njit(cache=True)
+def _try_gca_gca_intersection(w0, w1, v0, v1):
+    """Layer 2 — batch/status layer (mirrors AccuSphGeom ``try_gca_gca_intersection``).
+
+    Calls the pure numerical kernel, applies integer mask arithmetic to determine
+    validity, selects the output point without if/else branching in the hot path.
+
+    Status codes mirror AccuSphGeom:
+        0  exactly one candidate is valid
+        1  both candidates are valid
+        2  neither candidate is valid  (includes coplanar/parallel case)
+    """
+    pos, neg = _accux_gca(w0, w1, v0, v1)
+
+    pos_fin = (
+        1
+        if math.isfinite(pos[0]) and math.isfinite(pos[1]) and math.isfinite(pos[2])
+        else 0
+    )
+    neg_fin = (
+        1
+        if math.isfinite(neg[0]) and math.isfinite(neg[1]) and math.isfinite(neg[2])
+        else 0
+    )
+    pos_on_a = 1 if (pos_fin and on_minor_arc(pos, w0, w1)) else 0
+    pos_on_b = 1 if (pos_fin and on_minor_arc(pos, v0, v1)) else 0
+    neg_on_a = 1 if (neg_fin and on_minor_arc(neg, w0, w1)) else 0
+    neg_on_b = 1 if (neg_fin and on_minor_arc(neg, v0, v1)) else 0
+
+    pos_valid = pos_fin * pos_on_a * pos_on_b
+    neg_valid = neg_fin * neg_on_a * neg_on_b
+
+    pos_mask = pos_valid * (1 - neg_valid)
+    neg_mask = neg_valid * (1 - pos_valid)
+
+    point = np.empty(3)
+    point[0] = pos_mask * pos[0] + neg_mask * neg[0]
+    point[1] = pos_mask * pos[1] + neg_mask * neg[1]
+    point[2] = pos_mask * pos[2] + neg_mask * neg[2]
+
+    both = pos_valid * neg_valid
+    none = (1 - pos_valid) * (1 - neg_valid)
+    status = both + none * 2
+    return point, status, pos, neg
+
+
+@njit(cache=True)
+def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
+    """Layer 3 — dispatcher / convenience API.
+
+    Calls the batch/status layer and packages results into UXarray's existing
+    array-returning API (0, 1, or 2 rows).  Coplanar/shared-endpoint handling
+    lives here, outside the numerical core.
+    """
+    if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
+        raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
+
+    w0 = gca_a_xyz[0]
+    w1 = gca_a_xyz[1]
+    v0 = gca_b_xyz[0]
+    v1 = gca_b_xyz[1]
+
+    point, status, pos, neg = _try_gca_gca_intersection(w0, w1, v0, v1)
+
+    res = np.empty((2, 3))
+    count = 0
+    if status == 0:
+        res[0, 0] = point[0]
+        res[0, 1] = point[1]
+        res[0, 2] = point[2]
+        count = 1
+    elif status == 1:
+        res[0, 0] = pos[0]
+        res[0, 1] = pos[1]
+        res[0, 2] = pos[2]
+        res[1, 0] = neg[0]
+        res[1, 1] = neg[1]
+        res[1, 2] = neg[2]
+        count = 2
+    else:
+        # status == 2: no candidate on both arcs.
+        # Check for coplanar overlap (shared endpoints) outside the kernel.
         if on_minor_arc(v0, w0, w1):
             res[count, 0] = v0[0]
             res[count, 1] = v0[1]
@@ -368,109 +447,97 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
             res[count, 1] = v1[1]
             res[count, 2] = v1[2]
             count += 1
-        return res[:count]
-
-    inv = 1.0 / vn
-    pos = np.empty(3)
-    pos[0] = vx * inv
-    pos[1] = vy * inv
-    pos[2] = vz * inv
-    neg = np.empty(3)
-    neg[0] = -pos[0]
-    neg[1] = -pos[1]
-    neg[2] = -pos[2]
-
-    if on_minor_arc(pos, w0, w1) and on_minor_arc(pos, v0, v1):
-        res[count, 0] = pos[0]
-        res[count, 1] = pos[1]
-        res[count, 2] = pos[2]
-        count += 1
-
-    if on_minor_arc(neg, w0, w1) and on_minor_arc(neg, v0, v1):
-        res[count, 0] = neg[0]
-        res[count, 1] = neg[1]
-        res[count, 2] = neg[2]
-        count += 1
-
     return res[:count]
 
 
-@njit(cache=True)
-def _try_gca_const_lat_intersection(gca_cart, const_z):
-    """AccuSphGeom-style GCA/constant-latitude kernel."""
-    x1 = gca_cart[0]
-    x2 = gca_cart[1]
+@njit(cache=True, inline="always")
+def _accux_constlat(x1, x2, const_z):
+    """Layer 1 — pure numerical kernel (mirrors AccuSphGeom ``accux_constlat``).
 
+    Computes the two candidate intersection points between the great-circle arc
+    defined by unit vectors *x1*, *x2* and the constant-latitude plane z = const_z.
+    No branching, no validity filtering — all operations follow the exact compensated
+    sequence from AccuSphGeom so that the error bound holds.
+
+    Returns
+    -------
+    pos, neg : np.ndarray, shape (3,)
+        Two antipodal candidate points.  Invalid inputs propagate as non-finite
+        coordinates; the caller uses masks/status to identify validity.
+    """
     nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(
         x1[0], x1[1], x1[2], x2[0], x2[1], x2[2]
     )
-
     s2_hi, s2_lo = _sum_sq_c2(nx_hi, nx_lo, ny_hi, ny_lo)
     denom = s2_hi + s2_lo
     s3_hi, s3_lo = _sum_sq_c3(nx_hi, nx_lo, ny_hi, ny_lo, nz_hi, nz_lo)
     zsq_hi, zsq_lo = two_prod(const_z, const_z)
-    d_hi, d_lo = _cdp4(
-        s3_hi,
-        zsq_hi,
-        s3_hi,
-        zsq_lo,
-        s3_lo,
-        zsq_hi,
-        s3_lo,
-        zsq_lo,
-    )
-
+    d_hi, d_lo = _cdp4(s3_hi, zsq_hi, s3_hi, zsq_lo, s3_lo, zsq_hi, s3_lo, zsq_lo)
     e_hi, e_lo = two_sum(s2_hi, -d_hi)
     planar_sq = e_hi + (e_lo + s2_lo - d_lo)
-    if planar_sq < 0.0:
-        root_arg = np.nan
-    else:
-        root_arg = planar_sq
-    s_root, s_corr = acc_sqrt_re(root_arg)
-
+    s_root, s_corr = acc_sqrt_re(planar_sq)
     nx = nx_hi + nx_lo
     ny = ny_hi + ny_lo
     nz = nz_hi + nz_lo
     planar = s_root + s_corr
-
     xp_hi, xp_lo = _cdp2(nx * nz, const_z, -ny, planar)
     yp_hi, yp_lo = _cdp2(ny * nz, const_z, nx, planar)
     xn_hi, xn_lo = _cdp2(nx * nz, const_z, ny, planar)
     yn_hi, yn_lo = _cdp2(ny * nz, const_z, -nx, planar)
-
     inv_denom = 1.0 / denom
     pos = np.empty(3)
     pos[0] = -(xp_hi + xp_lo) * inv_denom
     pos[1] = -(yp_hi + yp_lo) * inv_denom
     pos[2] = const_z
-
     neg = np.empty(3)
     neg[0] = -(xn_hi + xn_lo) * inv_denom
     neg[1] = -(yn_hi + yn_lo) * inv_denom
     neg[2] = const_z
+    return pos, neg
 
-    pos_valid = (
-        math.isfinite(pos[0]) and math.isfinite(pos[1]) and on_minor_arc(pos, x1, x2)
-    )
-    neg_valid = (
-        math.isfinite(neg[0]) and math.isfinite(neg[1]) and on_minor_arc(neg, x1, x2)
-    )
 
-    pos_mask = 1.0 if pos_valid and not neg_valid else 0.0
-    neg_mask = 1.0 if neg_valid and not pos_valid else 0.0
+@njit(cache=True)
+def _try_gca_const_lat_intersection(gca_cart, const_z):
+    """Layer 2 — batch/status layer (mirrors AccuSphGeom ``try_gca_constlat_intersection``).
+
+    Calls the pure numerical kernel, computes integer validity masks (0 or 1)
+    for each candidate using finiteness and arc-membership tests, then selects
+    the output point via integer arithmetic — no if/else branching in the hot path.
+
+    Status codes mirror AccuSphGeom:
+        0  exactly one candidate is valid  (normal case)
+        1  both candidates are valid
+        2  neither candidate is valid
+    """
+    x1 = gca_cart[0]
+    x2 = gca_cart[1]
+    pos, neg = _accux_constlat(x1, x2, const_z)
+
+    pos_fin = 1 if math.isfinite(pos[0]) and math.isfinite(pos[1]) else 0
+    neg_fin = 1 if math.isfinite(neg[0]) and math.isfinite(neg[1]) else 0
+    pos_on = 1 if (pos_fin and on_minor_arc(pos, x1, x2)) else 0
+    neg_on = 1 if (neg_fin and on_minor_arc(neg, x1, x2)) else 0
+
+    pos_valid = pos_fin * pos_on
+    neg_valid = neg_fin * neg_on
+
+    pos_mask = pos_valid * (1 - neg_valid)
+    neg_mask = neg_valid * (1 - pos_valid)
+
     point = np.empty(3)
     point[0] = pos_mask * pos[0] + neg_mask * neg[0]
     point[1] = pos_mask * pos[1] + neg_mask * neg[1]
     point[2] = pos_mask * pos[2] + neg_mask * neg[2]
 
-    both = 1 if pos_valid and neg_valid else 0
-    none = 1 if (not pos_valid and not neg_valid) else 0
+    both = pos_valid * neg_valid
+    none = (1 - pos_valid) * (1 - neg_valid)
     status = both + none * 2
     return point, status, pos, neg
 
 
 @njit(cache=True)
 def _snap_const_lat_endpoint(point, x1, x2, const_z):
+    """Snap a candidate point to an arc endpoint when the endpoint lies on the latitude."""
     snap_sq = 1e-14
     out = np.empty(3)
     out[0] = point[0]
@@ -488,18 +555,17 @@ def _snap_const_lat_endpoint(point, x1, x2, const_z):
 
 @njit(cache=True)
 def gca_const_lat_intersection(gca_cart, const_z):
-    """Find intersection point(s) of a great-circle arc and a constant-latitude line.
+    """Layer 3 — dispatcher / convenience API.
 
-    The core computation follows AccuSphGeom's status-code kernel; endpoint
-    snapping and UXarray's NaN-filled result packaging are isolated in this wrapper.
+    Calls the batch/status kernel, applies endpoint snapping, and packages the
+    result in UXarray's NaN-filled (2, 3) format.  All UXarray-specific branching
+    lives here so the numerical core and status layers stay uniform.
     """
     res = np.empty((2, 3))
     res.fill(np.nan)
-
     point, status, pos, neg = _try_gca_const_lat_intersection(gca_cart, const_z)
     x1 = gca_cart[0]
     x2 = gca_cart[1]
-
     if status == 0:
         point = _snap_const_lat_endpoint(point, x1, x2, const_z)
         res[0, 0] = point[0]
@@ -521,7 +587,6 @@ def gca_const_lat_intersection(gca_cart, const_z):
             res[1, 0] = neg[0]
             res[1, 1] = neg[1]
             res[1, 2] = neg[2]
-
     return res
 
 
