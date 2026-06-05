@@ -368,7 +368,7 @@ class UxDataArrayPlotAccessor:
 
     def polygons(
         self,
-        periodic_elements: str | None = "exclude",
+        periodic_elements: str | None = "split",
         backend: str | None = None,
         engine: str | None = "spatialpandas",
         rasterize: bool | None = True,
@@ -388,11 +388,11 @@ class UxDataArrayPlotAccessor:
 
         Parameters
         ----------
-        periodic_elements : str, optional, default="exclude"
-            Specifies whether to include or exclude periodic elements in the grid.
+        periodic_elements : str, optional, default="split"
+            Specifies whether to split, ignore, or exclude periodic elements in the grid.
             Options are:
-            - "exclude": Exclude periodic elements,
             - "split": Split periodic elements.
+            - "exclude": Exclude periodic elements,
             - "ignore": Include periodic elements without any corrections
         backend : str or None, optional
             Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
