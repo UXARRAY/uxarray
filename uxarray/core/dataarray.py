@@ -1535,15 +1535,20 @@ class UxDataArray(xr.DataArray):
         # Compute curl = ∂v/∂x - ∂u/∂y
         curl_values = grad_v_zonal.values - grad_u_meridional.values
 
+        u_units = self.attrs.get("units", "")
+        has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
+        if scale_by_radius and has_sphere_radius:
+            curl_units = f"({u_units})/m" if u_units else "1/s"
+        else:
+            curl_units = f"({u_units})/rad" if u_units else "1/rad"
+
         # Create the result UxDataArray
         curl_da = UxDataArray(
             curl_values,
             dims=self.dims,
             attrs={
                 "long_name": f"Curl of ({self.name}, {other.name})",
-                "units": "1/s"
-                if "units" not in self.attrs
-                else f"({self.attrs.get('units', '1')})/m",
+                "units": curl_units,
                 "description": "Curl of vector field computed as ∂v/∂x - ∂u/∂y",
             },
             uxgrid=self.uxgrid,

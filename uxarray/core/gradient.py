@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 from numba import njit, prange
 
@@ -186,20 +188,38 @@ def _compute_gradient(data, scale_by_radius=True):
             "Computing the gradient is only supported for face-centered data variables."
         )
 
+    has_sphere_radius = "sphere_radius" in uxgrid._ds.attrs
     if scale_by_radius:
-        radius = uxgrid.sphere_radius
-        grad_zonal = grad_zonal / radius
-        grad_meridional = grad_meridional / radius
+        if has_sphere_radius:
+            radius = uxgrid.sphere_radius
+            grad_zonal = grad_zonal / radius
+            grad_meridional = grad_meridional / radius
+        else:
+            warnings.warn(
+                "scale_by_radius=True but the grid has no 'sphere_radius' "
+                "attribute; result is left on the unit sphere. Set "
+                "uxgrid.sphere_radius or pass scale_by_radius=False.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+    base_units = data.attrs.get("units", "")
+    if scale_by_radius and has_sphere_radius:
+        grad_units = f"{base_units}/m" if base_units else "1/m"
+    else:
+        grad_units = f"{base_units}/rad" if base_units else "1/rad"
 
     # Zonal
     grad_zonal_da = UxDataArray(
         data=grad_zonal, name="zonal_gradient", dims=data.dims, uxgrid=uxgrid
     )
+    grad_zonal_da.attrs["units"] = grad_units
 
     # Meridional
     grad_meridional_da = UxDataArray(
         data=grad_meridional, name="meridional_gradient", dims=data.dims, uxgrid=uxgrid
     )
+    grad_meridional_da.attrs["units"] = grad_units
 
     return grad_zonal_da, grad_meridional_da
 
