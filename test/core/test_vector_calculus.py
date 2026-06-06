@@ -162,6 +162,9 @@ class TestGradientDyamondSubset:
             equal_nan=True,
         )
 
+        assert grad_scaled["zonal_gradient"].attrs["units"].endswith("/m")
+        assert grad_unit["zonal_gradient"].attrs["units"].endswith("/rad")
+
 
 class TestDivergenceQuadHex:
 
@@ -558,6 +561,9 @@ class TestCurlDyamondSubset:
         curl_unit = u_component.curl(v_component, scale_by_radius=False)
 
         nt.assert_allclose(curl_scaled, curl_unit / radius, equal_nan=True)
+
+        assert curl_scaled.attrs["units"]
+        assert curl_unit.attrs["units"].endswith("/rad")
 
     def test_curl_units_and_attributes(self, gridpath, datasetpath):
         """Test that curl preserves appropriate units and attributes"""
