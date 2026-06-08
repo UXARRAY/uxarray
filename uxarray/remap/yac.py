@@ -10,8 +10,15 @@ from typing import Any
 from uuid import uuid4
 
 import numpy as np
+import xarray as xr
 
 import uxarray.core.dataarray
+from uxarray.remap.structured import (
+    RectilinearGridSpec,
+    _normalize_rectilinear_target,
+    _preserve_valid_coords,
+    _reshape_to_rectilinear,
+)
 from uxarray.remap.utils import (
     LABEL_TO_COORD,
     _assert_dimension,
@@ -125,6 +132,34 @@ def _get_lon_lat(grid, dim: str) -> tuple[np.ndarray, np.ndarray]:
     )
 
 
+def _is_rectilinear_target(grid) -> bool:
+    return isinstance(grid, RectilinearGridSpec)
+
+
+def _register_yac_grid(yac_core, name: str, grid, dim: str, define_edges: bool):
+    if _is_rectilinear_target(grid):
+        if dim != "n_face":
+            raise ValueError(
+                "Rectilinear YAC targets are face-centered; use remap_to='faces'."
+            )
+        yac_grid = yac_core.BasicGrid.reg_2d_new(
+            name,
+            grid.lon_edges_rad,
+            grid.lat_edges_rad,
+            cyclic=[grid.cyclic_lon, False],
+        )
+        lon, lat = grid.flattened_centers_rad()
+        return yac_grid, lon, lat
+
+    yac_grid = yac_core.BasicGrid.from_uxgrid(
+        name,
+        grid,
+        def_edges=define_edges,
+    )
+    lon, lat = _get_lon_lat(grid, dim)
+    return yac_grid, lon, lat
+
+
 def _coerce_enum(enum_type, value: Any):
     if not isinstance(value, str):
         return value
@@ -160,20 +195,21 @@ class _YacRemapper:
         self._src_location = _get_location(yac_core, src_dim)
         self._tgt_location = _get_location(yac_core, tgt_dim)
 
-        define_edges = "n_edge" in (src_dim, tgt_dim)
         unique = uuid4().hex
-        self._src_grid = yac_core.BasicGrid.from_uxgrid(
+        self._src_grid, src_lon, src_lat = _register_yac_grid(
+            yac_core,
             f"uxarray_src_{unique}",
             src_grid,
-            def_edges=define_edges,
+            src_dim,
+            define_edges=src_dim == "n_edge",
         )
-        self._tgt_grid = yac_core.BasicGrid.from_uxgrid(
+        self._tgt_grid, tgt_lon, tgt_lat = _register_yac_grid(
+            yac_core,
             f"uxarray_tgt_{unique}",
             tgt_grid,
-            def_edges=define_edges,
+            tgt_dim,
+            define_edges=tgt_dim == "n_edge",
         )
-        src_lon, src_lat = _get_lon_lat(src_grid, src_dim)
-        tgt_lon, tgt_lat = _get_lon_lat(tgt_grid, tgt_dim)
 
         self._src_field = yac_core.InterpField(
             self._src_grid.add_coordinates(self._src_location, src_lon, src_lat)
@@ -405,3 +441,76 @@ def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwa
         source, remapped_vars, destination_grid, remap_to
     )
     return ds_remapped[name] if is_da else ds_remapped
+
+
+def _yac_remap_to_rectilinear(source, lon, lat, yac_method: str, yac_kwargs):
+    """Remap a UXarray object to a 1-D lon/lat target through YAC."""
+
+    destination_dim = "n_face"
+    target = _normalize_rectilinear_target(lon, lat)
+    options = _normalize_yac_method(yac_method)
+    options.kwargs.update(yac_kwargs or {})
+    ds, is_da, name = _to_dataset(source)
+    dims_to_remap = _get_remap_dims(ds)
+
+    if options.method == "conservative":
+        non_face_src = dims_to_remap - {"n_face"}
+        if non_face_src:
+            raise ValueError(
+                "YAC conservative remapping to a rectilinear grid requires all "
+                "source data to be face-centered (dimension 'n_face'). "
+                f"Found non-face source dimension(s): {non_face_src}. "
+                "Use yac_method='nnn' for node- or edge-centered data."
+            )
+
+    remappers: dict[str, _YacRemapper] = {
+        src_dim: _YacRemapper(
+            ds.uxgrid,
+            target,
+            src_dim,
+            destination_dim,
+            options.method,
+            options.kwargs,
+        )
+        for src_dim in dims_to_remap
+    }
+    remapped_vars = {}
+
+    for var_name, da in ds.data_vars.items():
+        src_dim = next((d for d in da.dims if d in dims_to_remap), None)
+        if src_dim is None:
+            remapped_vars[var_name] = xr.DataArray(da)
+            continue
+
+        other_dims = [d for d in da.dims if d != src_dim]
+        da_t = da.transpose(*other_dims, src_dim)
+        src_values = np.asarray(da_t.values)
+        flat_src = src_values.reshape(-1, src_values.shape[-1])
+        frac_masks = yac_kwargs.get("frac_masks")
+        frac_mask = (
+            frac_masks.get(var_name)
+            if isinstance(frac_masks, dict) and var_name in frac_masks
+            else yac_kwargs.get("frac_mask")
+        )
+        flat_frac_mask = None
+        if frac_mask is not None:
+            flat_frac_mask = _prepare_frac_mask(frac_mask, da_t, src_values, src_dim)
+
+        remapper = remappers[src_dim]
+        out_flat = remapper.apply(flat_src, frac_mask=flat_frac_mask)
+
+        out_shape = src_values.shape[:-1] + (remapper._tgt_size,)
+        out_values = out_flat.reshape(out_shape)
+        output_dims = tuple(other_dims + [destination_dim])
+        coords = _preserve_valid_coords(da, src_dim, output_dims)
+        remapped_vars[var_name] = xr.DataArray(
+            out_values,
+            dims=output_dims,
+            coords=coords,
+            name=da.name,
+            attrs=da.attrs,
+        )
+
+    ds_remapped = xr.Dataset(remapped_vars, attrs=ds.attrs)
+    rectilinear = _reshape_to_rectilinear(ds_remapped, target)
+    return rectilinear[name] if is_da else rectilinear
