@@ -621,10 +621,11 @@ class UxDataset(xr.Dataset):
 
         return integral
 
-    def to_array(self,
-            dim: Hashable = 'variable',
-            name: Hashable = None,
-        ) -> UxDataArray:
+    def to_array(
+        self,
+        dim: Hashable = "variable",
+        name: Hashable = None,
+    ) -> UxDataArray:
         """Convert this ``uxarray.UxDataset`` into a ``uxarray.UxDataArray``,
         attaching this UxDataset's uxgrid to the result.
 
