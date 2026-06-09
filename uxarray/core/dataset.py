@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from html import escape
-from typing import IO, Any, Mapping
+from typing import IO, Any, Hashable, Mapping
 from warnings import warn
 
 import numpy as np
@@ -621,11 +621,31 @@ class UxDataset(xr.Dataset):
 
         return integral
 
-    def to_array(self) -> UxDataArray:
-        """Override to make the result an instance of
-        ``uxarray.UxDataArray``."""
+    def to_array(self,
+            dim: Hashable = 'variable',
+            name: Hashable = None,
+        ) -> UxDataArray:
+        """Convert this ``uxarray.UxDataset`` into a ``uxarray.UxDataArray``,
+        attaching this UxDataset's uxgrid to the result.
 
-        xarr = super().to_array()
+        Similarly to xarray.Dataset.to_array(), the data variables will be
+        broadcast against each other and stacked along the first axis of
+        the new array. All coordinates of this dataset will remain coordinates.
+
+        Parameters
+        ----------
+        dim : Hashable, optional
+            Name of the new dimension. Defaults to "variable"
+        name : Hashable or None, optional
+            Name of the new data array.
+
+        Returns
+        -------
+        UxDataArray
+            The ``uxarray.UxDataset`` represented as a ``uxarray.UxDataArray``
+        """
+
+        xarr = super().to_array(dim=dim, name=name)
         return UxDataArray(xarr, uxgrid=self.uxgrid)
 
     def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
