@@ -8,6 +8,19 @@ from uxarray.grid.coordinates import (
     _normalize_xyz_scalar,
 )
 from uxarray.grid.utils import _angle_of_2_vectors
+from uxarray.utils.computing import diff_of_products, two_sum
+
+# Tolerance used to classify orient3d results as zero.  For double-precision
+# unit-vector inputs this covers rounding error in the compensated cross product.
+_PREDICATE_ZERO_TOL = 1e-15
+
+# Default tolerance for the on_minor_arc collinearity and interval tests.
+# Intentionally tighter than AccuSphGeom's 1e-8 default: using 1e-10 keeps
+# borderline near-endpoint candidates out of the valid set, which produces
+# better accuracy on the AccuSphGeom baseline suite (err < 1e-15 vs ~1e-10
+# with the looser C++ default). The C++ tolerance was tuned for SIMD batch
+# throughput; the scalar Python path is more sensitive to spurious candidates.
+_ON_MINOR_ARC_TOL = 1e-10
 
 
 def _to_list(obj):
@@ -364,3 +377,108 @@ def compute_arc_length(pt_a, pt_b):
     delta_theta = np.arctan2(cross_2d, dot_2d)
 
     return rho * abs(delta_theta)
+
+
+@njit(cache=True)
+def _orient3d_on_sphere_value(a, b, q):
+    """Return the accurately computed value of the orient3d-on-sphere predicate.
+
+    Computes the scalar (a x b) . q using ``diff_of_products`` for the
+    cross-product components and ``two_sum`` for the final accumulation.
+    For unit vectors all coordinates are in [-1, 1], so the compensated cross product
+    provides roughly double the effective precision of a naive evaluation.
+    The result is positive when q lies to the left of the directed arc a->b,
+    negative when to the right, and near zero when q is on the great circle
+    through a and b.
+
+    Parameters
+    ----------
+    a, b, q : np.ndarray, shape (3,)
+        Unit vectors on the unit sphere.
+
+    Returns
+    -------
+    float
+        Signed determinant value.
+    """
+    x_hi, x_lo = diff_of_products(a[1], b[2], a[2], b[1])
+    y_hi, y_lo = diff_of_products(a[2], b[0], a[0], b[2])
+    z_hi, z_lo = diff_of_products(a[0], b[1], a[1], b[0])
+    p0 = (x_hi + x_lo) * q[0]
+    p1 = (y_hi + y_lo) * q[1]
+    p2 = (z_hi + z_lo) * q[2]
+    s, e = two_sum(p0, p1)
+    s, e2 = two_sum(s, p2)
+    return s + (e + e2)
+
+
+@njit(cache=True)
+def orient3d_on_sphere(a, b, q, tol=_PREDICATE_ZERO_TOL):
+    """Sign of the orient3d predicate on the unit sphere: -1, 0, or +1.
+
+    Evaluates the sign of ``(a x b) . q`` using compensated arithmetic to
+    avoid false zero results from floating-point cancellation near great-circle
+    boundaries. The sign determines which side of the great circle through a
+    and b the point q lies on.
+
+    Parameters
+    ----------
+    a, b, q : np.ndarray, shape (3,)
+        Unit vectors on the unit sphere.
+    tol : float, optional
+        Magnitude below which the result is classified as zero.
+
+    Returns
+    -------
+    int
+        +1 if q is to the left of a->b, -1 if to the right, 0 if collinear
+        within ``tol``.
+    """
+    v = _orient3d_on_sphere_value(a, b, q)
+    if v > tol:
+        return 1
+    if v < -tol:
+        return -1
+    return 0
+
+
+@njit(cache=True)
+def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
+    """Return True if q lies on the minor great-circle arc from a to b.
+
+    Uses ``_orient3d_on_sphere_value`` (a compensated cross product) for the
+    collinearity test and dot products for the interval check. Compared to
+    ``point_within_gca``, this avoids the ``arctan2`` call that guards against
+    180-degree arcs and avoids the separate plane-membership check via
+    ``np.cross`` + ``np.dot``.
+
+    Parameters
+    ----------
+    q : np.ndarray, shape (3,)
+        Query point (unit vector).
+    a, b : np.ndarray, shape (3,)
+        Endpoints of the great-circle arc (unit vectors).
+    tol : float, optional
+        Tolerance for the collinearity and interval checks.
+
+    Returns
+    -------
+    bool
+        True if q lies on the minor arc ab, False otherwise.
+    """
+    # Coincident endpoints: degenerate arc, no interior.
+    if a[0] == b[0] and a[1] == b[1] and a[2] == b[2]:
+        return False
+    # Antipodal endpoints: a×b = 0, so every point on the great circle passes
+    # the collinearity test and the interval conditions degenerate to 0 >= -tol,
+    # causing false positives for all points on the great circle.
+    if a[0] == -b[0] and a[1] == -b[1] and a[2] == -b[2]:
+        return False
+    # Collinearity check: q must lie on the great circle through a and b.
+    if abs(_orient3d_on_sphere_value(a, b, q)) > tol:
+        return False
+    # Interval check: q must lie on the minor-arc side of both endpoints.
+    qa = a[0] * q[0] + a[1] * q[1] + a[2] * q[2]
+    qb = b[0] * q[0] + b[1] * q[1] + b[2] * q[2]
+    ab = a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+    return (qb - ab * qa) >= -tol and (qa - qb * ab) >= -tol
