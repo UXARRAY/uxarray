@@ -13,6 +13,7 @@ dependencies:
   - healpix
   - holoviews
   - hvplot
+  - tornado<6.5.7
   - hypothesis
   - matplotlib-base
   - matplotlib-inline

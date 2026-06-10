@@ -4,7 +4,7 @@ import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
 from uxarray.grid.arcs import extreme_gca_z
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad,_xyz_to_lonlat_rad_scalar
-from uxarray.grid.intersections import gca_gca_intersection, gca_const_lat_intersection, _gca_gca_intersection_cartesian, get_number_of_intersections
+from uxarray.grid.intersections import gca_gca_intersection, gca_const_lat_intersection, get_number_of_intersections
 
 def test_get_GCA_GCA_intersections_antimeridian():
     GCA1 = _lonlat_rad_to_xyz(np.deg2rad(170.0), np.deg2rad(89.99))
@@ -16,7 +16,7 @@ def test_get_GCA_GCA_intersections_antimeridian():
         _lonlat_rad_to_xyz(np.deg2rad(70.0), 0.0),
         _lonlat_rad_to_xyz(np.deg2rad(179.0), 0.0)
     ])
-    res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
+    res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
 
     assert len(res_cart) == 0
 
@@ -30,7 +30,7 @@ def test_get_GCA_GCA_intersections_antimeridian():
         _lonlat_rad_to_xyz(np.deg2rad(175.0), 0.0)
     ])
 
-    res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
+    res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
     res_cart = res_cart[0]
 
     assert np.allclose(np.linalg.norm(res_cart, axis=0), 1.0, atol=ERROR_TOLERANCE)
@@ -47,7 +47,7 @@ def test_get_GCA_GCA_intersections_parallel():
         _lonlat_rad_to_xyz(0.5 * np.pi, 0.0),
         _lonlat_rad_to_xyz(-0.5 * np.pi - 0.01, 0.0)
     ])
-    res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
+    res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
     res_cart = res_cart[0]
     expected_res = np.array(_lonlat_rad_to_xyz(0.5 * np.pi, 0.0))
 
@@ -65,7 +65,7 @@ def test_get_GCA_GCA_intersections_perpendicular():
         _lonlat_rad_to_xyz(*[0.5 * np.pi - 0.01, 0.0]),
         _lonlat_rad_to_xyz(*[-0.5 * np.pi + 0.01, 0.0])
     ])
-    res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
+    res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
 
     # rest_cart should be empty since these two GCAs are not intersecting
     assert(len(res_cart) == 0)

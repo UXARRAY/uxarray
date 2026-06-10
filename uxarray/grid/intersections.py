@@ -308,13 +308,6 @@ def faces_within_lat_bounds(lats, face_bounds_lat):
     return candidate_faces
 
 
-def _gca_gca_intersection_cartesian(gca_a_xyz, gca_b_xyz):
-    gca_a_xyz = np.asarray(gca_a_xyz)
-    gca_b_xyz = np.asarray(gca_b_xyz)
-
-    return gca_gca_intersection(gca_a_xyz, gca_b_xyz)
-
-
 @njit(cache=True, inline="always")
 def _accux_gca(w0, w1, v0, v1):
     """Layer 1 — pure numerical kernel (mirrors AccuSphGeom ``accux_gca``).
@@ -547,6 +540,10 @@ def _try_gca_const_lat_intersection(gca_cart, const_z):
 @njit(cache=True)
 def _snap_const_lat_endpoint(point, x1, x2, const_z):
     """Snap a candidate point to an arc endpoint when the endpoint lies on the latitude."""
+    # 1e-14 is distance² in Cartesian between candidate and endpoint; corresponds
+    # to ~1e-7 in arc length (unit sphere). Candidates within this distance are
+    # snapped to the exact endpoint to avoid sub-ulp drift when the arc ends
+    # exactly on the latitude circle.
     snap_sq = 1e-14
     out = np.empty(3)
     out[0] = point[0]
