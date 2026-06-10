@@ -308,7 +308,7 @@ def faces_within_lat_bounds(lats, face_bounds_lat):
     return candidate_faces
 
 
-@njit(cache=True, inline="always")
+@njit(cache=True)
 def _accux_gca(w0, w1, v0, v1):
     """Layer 1 — pure numerical kernel (mirrors AccuSphGeom ``accux_gca``).
 
@@ -450,7 +450,7 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     return res[:count]
 
 
-@njit(cache=True, inline="always")
+@njit(cache=True)
 def _accux_constlat(x1, x2, const_z):
     """Layer 1 — pure numerical kernel (mirrors AccuSphGeom ``accux_constlat``).
 
