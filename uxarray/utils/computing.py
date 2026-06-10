@@ -15,8 +15,9 @@ The term "error-free transformation" (EFT) strictly applies to ``two_sum``
 and ``two_prod``, which capture their rounding errors exactly so that
 ``hi + lo`` equals the mathematical result with zero information loss.
 ``diff_of_products``, ``accucross``, and ``accucross_pair`` use those EFT
-building blocks to achieve near-double precision for cross products, but they
-are compensated algorithms, not zero-error transformations.
+building blocks as compensated algorithms that are roughly twice as accurate
+as direct floating-point cross products, but they are not zero-error
+transformations.
 
 All functions are ``@njit``-compiled and use the portable Veltkamp-splitting
 form of ``two_prod`` (no FMA dependency), making them suitable for use inside
@@ -36,13 +37,13 @@ AccuSphGeom reference implementation (C++):
     https://github.com/hongyuchen1030/AccuSphGeom
 
 What this module omits: AccuSphGeom's full robustness stack has three
-tiers — an EFT filter (what this module implements), Shewchuk adaptive
-predicates for results that fall inside the filter threshold, and a geogram
-exact-arithmetic fallback. This port implements only the EFT tier. The
-compensated cross-product routines are roughly twice as accurate as direct
-floating-point cross products while retaining the same vectorizable operation
-structure; callers that need the full robustness stack should add an adaptive
-predicate or exact-arithmetic fallback.
+tiers — a compensated-arithmetic filter (what this module implements),
+Shewchuk adaptive predicates for results that fall inside the filter
+threshold, and a geogram exact-arithmetic fallback. This port implements only
+the first tier. The compensated routines are roughly twice as accurate as
+direct floating-point equivalents while retaining the same vectorizable
+operation structure; robustness against all degenerate inputs would require
+adding an adaptive predicate or exact-arithmetic fallback tier.
 """
 
 import math

@@ -21,24 +21,9 @@ _LOC_INSIDE = 1
 _LOC_ON_VERTEX = 2
 _LOC_ON_EDGE = 3
 
-# Sign codes for orient3d_on_sphere results.
-_SIGN_NEG = -1
-_SIGN_ZERO = 0
-_SIGN_POS = 1
-
 _VERTEX_TOL = 1e-12
 _EDGE_TOL = 1e-10
 _RAY_EPS = 1e-8
-
-
-@njit(cache=True, inline="always")
-def _flip_sign(sign):
-    """Return the opposite sign code."""
-    if sign == _SIGN_POS:
-        return _SIGN_NEG
-    if sign == _SIGN_NEG:
-        return _SIGN_POS
-    return _SIGN_ZERO
 
 
 @njit(cache=True)
@@ -93,10 +78,10 @@ def _counts_as_crossing(A, B, q, R):
     s_AB_R = orient3d_on_sphere(A, B, R)
 
     # q on great circle AB: already caught by edge-membership check; not a crossing.
-    if s_AB_q == _SIGN_ZERO:
+    if s_AB_q == 0:
         return 0
     # R on great circle AB: degenerate ray, caller must perturb R.
-    if s_AB_R == _SIGN_ZERO:
+    if s_AB_R == 0:
         return -1
     # q and R on the same side of plane(AB): no crossing possible.
     if s_AB_q == s_AB_R:
@@ -112,11 +97,11 @@ def _counts_as_crossing(A, B, q, R):
     # Apply the half-edge rule: count the edge only if the other endpoint is
     # strictly on the negative side, so adjacent edges sharing this vertex
     # are not double-counted.
-    if s_qR_A == _SIGN_ZERO or s_qR_B == _SIGN_ZERO:
-        if s_qR_A == _SIGN_ZERO and s_qR_B == _SIGN_ZERO:
+    if s_qR_A == 0 or s_qR_B == 0:
+        if s_qR_A == 0 and s_qR_B == 0:
             return 0  # entire edge coplanar with ray: degenerate
-        s_other = s_qR_B if s_qR_A == _SIGN_ZERO else s_qR_A
-        return 1 if s_other == _SIGN_NEG else 0
+        s_other = s_qR_B if s_qR_A == 0 else s_qR_A
+        return 1 if s_other == -1 else 0
 
     return 1 if s_qR_A != s_qR_B else 0
 
@@ -131,6 +116,13 @@ def _point_in_polygon_sphere(q, polygon):
     winding-number approach and the large number of ``np.cross`` allocations.
 
     Returns one of _LOC_INSIDE, _LOC_OUTSIDE, _LOC_ON_VERTEX, _LOC_ON_EDGE.
+
+    Degenerate-ray handling: when R falls on a polygon edge's great circle, R
+    is nudged by a fixed perturbation and the loop restarts (up to 4 retries).
+    AccuSphGeom's Tier-3 approach instead uses Simulation of Simplicity (SoS)
+    with global vertex IDs to resolve degeneracies without any branching or
+    retries. SoS requires per-vertex IDs that are not available in the current
+    UXarray polygon representation, so it is left as future work.
 
     Parameters
     ----------
@@ -163,29 +155,33 @@ def _point_in_polygon_sphere(q, polygon):
             return _LOC_ON_EDGE
 
     # 3. Ray-casting crossing count.
+    # When R hits a degenerate edge, nudge and restart from i=0 so that all
+    # edges are counted with the same ray — a mid-loop nudge corrupts parity.
     R = _ray_endpoint(q)
-    inside = False
-    for i in range(n):
-        A = polygon[i]
-        B = polygon[(i + 1) % n]
-        c = _counts_as_crossing(A, B, q, R)
-        if c < 0:
-            # R lies on great circle of this edge; nudge R slightly and retry.
-            R[0] += 1e-7
-            R[1] -= 1e-7
-            R[2] += 5e-8
-            n2 = R[0] * R[0] + R[1] * R[1] + R[2] * R[2]
-            inv = 1.0 / math.sqrt(n2)
-            R[0] *= inv
-            R[1] *= inv
-            R[2] *= inv
+    for _retry in range(4):
+        inside = False
+        need_retry = False
+        for i in range(n):
+            A = polygon[i]
+            B = polygon[(i + 1) % n]
             c = _counts_as_crossing(A, B, q, R)
             if c < 0:
-                return _LOC_OUTSIDE
-        if c == 1:
-            inside = not inside
+                R[0] += 1e-7
+                R[1] -= 1e-7
+                R[2] += 5e-8
+                n2 = R[0] * R[0] + R[1] * R[1] + R[2] * R[2]
+                inv = 1.0 / math.sqrt(n2)
+                R[0] *= inv
+                R[1] *= inv
+                R[2] *= inv
+                need_retry = True
+                break
+            if c == 1:
+                inside = not inside
+        if not need_retry:
+            return _LOC_INSIDE if inside else _LOC_OUTSIDE
 
-    return _LOC_INSIDE if inside else _LOC_OUTSIDE
+    return _LOC_OUTSIDE
 
 
 @njit(cache=True)

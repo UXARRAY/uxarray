@@ -27,11 +27,6 @@ from uxarray.grid.utils import (
 # Constants for the accurate GCA bounds path.
 # ---------------------------------------------------------------------------
 
-# Latitude snap tolerance (degrees): if the GCA arc extreme is within this
-# distance of a vertex latitude, snap to the vertex value so that the bounds
-# remain tight and vertex-aligned.
-_SNAP_TOL_DEG = 1e-4
-
 # Face location codes used by _face_location_info.
 _FACE_LOC_LOCAL = 0
 _FACE_LOC_NORTH_POLAR = 1
@@ -96,10 +91,12 @@ def _face_location_info(face_vertices, polar_cap_z):
         z_edge_max = z1 if z1 > z2 else z2
         z_edge_min = z1 if z1 < z2 else z2
 
-        # Mask-based selection: use z_ext only when the extremum is interior (a_raw in (0,1)).
-        use_ext = 1 if (0.0 < a_raw < 1.0) else 0
-        z_max_candidate = use_ext * z_ext + (1 - use_ext) * z_edge_max
-        z_min_candidate = use_ext * z_ext + (1 - use_ext) * z_edge_min
+        if 0.0 < a_raw < 1.0:
+            z_max_candidate = z_ext
+            z_min_candidate = z_ext
+        else:
+            z_max_candidate = z_edge_max
+            z_min_candidate = z_edge_min
 
         if z_max_candidate > z_max:
             z_max = z_max_candidate
@@ -108,12 +105,10 @@ def _face_location_info(face_vertices, polar_cap_z):
 
     north_pole_candidate = z_max >= polar_cap_z
     south_pole_candidate = z_min <= -polar_cap_z
-    local = not (north_pole_candidate or south_pole_candidate)
 
     label = (
-        local * _FACE_LOC_LOCAL
-        + north_pole_candidate * _FACE_LOC_NORTH_POLAR
-        + (not north_pole_candidate and south_pole_candidate) * _FACE_LOC_SOUTH_POLAR
+        north_pole_candidate * _FACE_LOC_NORTH_POLAR
+        + (1 - north_pole_candidate) * south_pole_candidate * _FACE_LOC_SOUTH_POLAR
     )
     return label, z_min, z_max
 
@@ -123,7 +118,14 @@ def _lon_bounds_from_vertices(face_vertices):
     """Compute (lon_min, lon_max) in degrees in [0, 360].
 
     If the face crosses the antimeridian, returns lon_min > lon_max, which is
-    the uxarray wrap encoding.
+    the uxarray wrap encoding (lon_min > lon_max signals antimeridian crossing
+    throughout the bounds and cross-section APIs). AccuSphGeom uses a union-of-
+    intervals convention instead; this function is needed to translate to the
+    uxarray encoding and cannot be removed without changing the bounds API.
+
+    The largest-gap algorithm is standard for antimeridian detection on a set
+    of vertex longitudes: the gap in sorted longitudes opposite the face
+    interior is the one the face does NOT span.
     """
     n = face_vertices.shape[0]
     rad_to_deg = 180.0 / math.pi
@@ -153,20 +155,19 @@ def _lon_bounds_from_vertices(face_vertices):
 
 
 @njit(cache=True)
-def _generate_lat_lon_bounds_local(face_vertices, z_min, z_max, snap_tol_deg):
+def _generate_lat_lon_bounds_local(face_vertices, z_min, z_max):
     """Compute (lat_min, lat_max, lon_min, lon_max) in degrees for a non-polar face.
 
-    Uses the z-extrema already computed by ``_face_location_info`` for the
-    latitude bounds, snapping to vertex latitudes when within ``snap_tol_deg``
-    to keep bounds tight.
+    This is a UXarray-specific post-kernel formatting step, not part of the EFT
+    computation. It converts the arc z-extrema from ``_face_location_info``
+    (which already accounts for interior arc extrema via the compensated kernel)
+    into degree lat/lon bounds in uxarray's encoding.
 
     Parameters
     ----------
     face_vertices : np.ndarray, shape (n, 3)
     z_min, z_max : float
         Arc z-extrema from ``_face_location_info``.
-    snap_tol_deg : float
-        Tolerance in degrees for snapping to vertex latitudes.
 
     Returns
     -------
@@ -174,41 +175,15 @@ def _generate_lat_lon_bounds_local(face_vertices, z_min, z_max, snap_tol_deg):
         All in degrees; lon in [0, 360] with lon_min > lon_max for
         antimeridian-crossing faces.
     """
-    n = face_vertices.shape[0]
     rad_to_deg = 180.0 / math.pi
-
-    ep_lat_max = -np.inf
-    ep_lat_min = np.inf
-    for i in range(n):
-        zc = face_vertices[i, 2]
-        if zc > 1.0:
-            zc = 1.0
-        elif zc < -1.0:
-            zc = -1.0
-        lat = math.asin(zc) * rad_to_deg
-        if lat > ep_lat_max:
-            ep_lat_max = lat
-        if lat < ep_lat_min:
-            ep_lat_min = lat
-
     lon_min, lon_max = _lon_bounds_from_vertices(face_vertices)
-
-    zmx = min(z_max, 1.0)
-    zmn = max(z_min, -1.0)
-    lat_max = math.asin(zmx) * rad_to_deg
-    lat_min = math.asin(zmn) * rad_to_deg
-
-    # Snap arc extrema to vertex values when nearly equal — mask-based (matches C++).
-    snap_max = 1 if abs(lat_max - ep_lat_max) <= snap_tol_deg else 0
-    snap_min = 1 if abs(lat_min - ep_lat_min) <= snap_tol_deg else 0
-    lat_max = snap_max * ep_lat_max + (1 - snap_max) * lat_max
-    lat_min = snap_min * ep_lat_min + (1 - snap_min) * lat_min
-
+    lat_max = math.asin(min(z_max, 1.0)) * rad_to_deg
+    lat_min = math.asin(max(z_min, -1.0)) * rad_to_deg
     return lat_min, lat_max, lon_min, lon_max
 
 
 @njit(cache=True)
-def _generate_lat_lon_bounds_pole(face_vertices, label, z_min, z_max, snap_tol_deg):
+def _generate_lat_lon_bounds_pole(face_vertices, label, z_min, z_max):
     """Compute bounds for a polar-candidate face.
 
     Checks whether the relevant pole (north or south) is inside the polygon
@@ -221,7 +196,6 @@ def _generate_lat_lon_bounds_pole(face_vertices, label, z_min, z_max, snap_tol_d
     label : int
         _FACE_LOC_NORTH_POLAR or _FACE_LOC_SOUTH_POLAR.
     z_min, z_max : float
-    snap_tol_deg : float
 
     Returns
     -------
@@ -231,7 +205,6 @@ def _generate_lat_lon_bounds_pole(face_vertices, label, z_min, z_max, snap_tol_d
     wraps : bool
         True when the face spans the full longitude circle (pole inside face).
     """
-    n = face_vertices.shape[0]
     rad_to_deg = 180.0 / math.pi
 
     north_loc = (
@@ -246,36 +219,12 @@ def _generate_lat_lon_bounds_pole(face_vertices, label, z_min, z_max, snap_tol_d
     )
 
     if north_loc == _LOC_OUTSIDE and south_loc == _LOC_OUTSIDE:
-        a, b, c, d = _generate_lat_lon_bounds_local(
-            face_vertices, z_min, z_max, snap_tol_deg
-        )
+        a, b, c, d = _generate_lat_lon_bounds_local(face_vertices, z_min, z_max)
         return a, b, c, d, False
 
-    ep_lat_max = -np.inf
-    ep_lat_min = np.inf
-    for i in range(n):
-        zc = face_vertices[i, 2]
-        if zc > 1.0:
-            zc = 1.0
-        elif zc < -1.0:
-            zc = -1.0
-        lat = math.asin(zc) * rad_to_deg
-        if lat > ep_lat_max:
-            ep_lat_max = lat
-        if lat < ep_lat_min:
-            ep_lat_min = lat
-
     lon_min, lon_max = _lon_bounds_from_vertices(face_vertices)
-
-    zmx = min(z_max, 1.0)
-    zmn = max(z_min, -1.0)
-    lat_max = math.asin(zmx) * rad_to_deg
-    lat_min = math.asin(zmn) * rad_to_deg
-
-    snap_max = 1 if abs(lat_max - ep_lat_max) <= snap_tol_deg else 0
-    snap_min = 1 if abs(lat_min - ep_lat_min) <= snap_tol_deg else 0
-    lat_max = snap_max * ep_lat_max + (1 - snap_max) * lat_max
-    lat_min = snap_min * ep_lat_min + (1 - snap_min) * lat_min
+    lat_max = math.asin(min(z_max, 1.0)) * rad_to_deg
+    lat_min = math.asin(max(z_min, -1.0)) * rad_to_deg
 
     if north_loc != _LOC_OUTSIDE:
         if north_loc == _LOC_INSIDE:
@@ -295,7 +244,6 @@ def _construct_face_bounds_array_gca(
     node_y,
     node_z,
     polar_cap_z,
-    snap_tol_deg,
 ):
     """Parallel GCA bounds computation using the accurate local/polar-cap path.
 
@@ -310,7 +258,6 @@ def _construct_face_bounds_array_gca(
     node_x, node_y, node_z : np.ndarray, shape (n_node,)
     polar_cap_z : float
         Precomputed sin(polar_cap_latitude).
-    snap_tol_deg : float
 
     Returns
     -------
@@ -334,11 +281,11 @@ def _construct_face_bounds_array_gca(
 
         if label == _FACE_LOC_LOCAL:
             lat_min, lat_max, lon_min, lon_max = _generate_lat_lon_bounds_local(
-                verts, z_min, z_max, snap_tol_deg
+                verts, z_min, z_max
             )
         else:
             lat_min, lat_max, lon_min, lon_max, _ = _generate_lat_lon_bounds_pole(
-                verts, label, z_min, z_max, snap_tol_deg
+                verts, label, z_min, z_max
             )
 
         bounds_array[face_idx, 0, 0] = lat_min * deg_to_rad
@@ -424,7 +371,6 @@ def _populate_face_bounds(
             grid.node_y.values,
             grid.node_z.values,
             math.sin(80.0 * math.pi / 180.0),
-            _SNAP_TOL_DEG,
         )
     else:
         # Latlon or mixed-edge grids: use the existing path.

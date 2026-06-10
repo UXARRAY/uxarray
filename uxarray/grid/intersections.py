@@ -17,6 +17,16 @@ from uxarray.utils.computing import (
     two_sum,
 )
 
+# ---------------------------------------------------------------------------
+# Edge screeners (pre-existing, unrelated to the EFT intersection kernels below).
+#
+# These two functions are fast O(n) passes used by Grid.get_edges_at_constant_*
+# to identify candidate edges before the expensive GCA intersection is computed.
+# "no_extreme" means arc z-extrema along the great circle are not considered —
+# only the endpoint z/lon values are checked.  They are not part of the
+# AccuSphGeom-derived EFT stack.
+# ---------------------------------------------------------------------------
+
 
 @njit(parallel=True, nogil=True, cache=True)
 def constant_lat_intersections_no_extreme(lat, edge_node_z, n_edge):
@@ -369,20 +379,17 @@ def _try_gca_gca_intersection(w0, w1, v0, v1):
     """
     pos, neg = _accux_gca(w0, w1, v0, v1)
 
-    pos_fin = (
-        1
-        if math.isfinite(pos[0]) and math.isfinite(pos[1]) and math.isfinite(pos[2])
-        else 0
+    pos_fin = int(
+        math.isfinite(pos[0]) and math.isfinite(pos[1]) and math.isfinite(pos[2])
     )
-    neg_fin = (
-        1
-        if math.isfinite(neg[0]) and math.isfinite(neg[1]) and math.isfinite(neg[2])
-        else 0
-    )
-    pos_on_a = 1 if (pos_fin and on_minor_arc(pos, w0, w1)) else 0
-    pos_on_b = 1 if (pos_fin and on_minor_arc(pos, v0, v1)) else 0
-    neg_on_a = 1 if (neg_fin and on_minor_arc(neg, w0, w1)) else 0
-    neg_on_b = 1 if (neg_fin and on_minor_arc(neg, v0, v1)) else 0
+    # neg = -pos exactly, so neg is finite iff pos is finite.
+    neg_fin = pos_fin
+    # on_minor_arc must be guarded by the finiteness mask — calling it with inf
+    # inputs is undefined. The guard is the only unavoidable branch in L2.
+    pos_on_a = pos_fin * int(on_minor_arc(pos, w0, w1)) if pos_fin else 0
+    pos_on_b = pos_fin * int(on_minor_arc(pos, v0, v1)) if pos_fin else 0
+    neg_on_a = neg_fin * int(on_minor_arc(neg, w0, w1)) if neg_fin else 0
+    neg_on_b = neg_fin * int(on_minor_arc(neg, v0, v1)) if neg_fin else 0
 
     pos_valid = pos_fin * pos_on_a * pos_on_b
     neg_valid = neg_fin * neg_on_a * neg_on_b
@@ -515,10 +522,10 @@ def _try_gca_const_lat_intersection(gca_cart, const_z):
     x2 = gca_cart[1]
     pos, neg = _accux_constlat(x1, x2, const_z)
 
-    pos_fin = 1 if math.isfinite(pos[0]) and math.isfinite(pos[1]) else 0
-    neg_fin = 1 if math.isfinite(neg[0]) and math.isfinite(neg[1]) else 0
-    pos_on = 1 if (pos_fin and on_minor_arc(pos, x1, x2)) else 0
-    neg_on = 1 if (neg_fin and on_minor_arc(neg, x1, x2)) else 0
+    pos_fin = int(math.isfinite(pos[0]) and math.isfinite(pos[1]))
+    neg_fin = int(math.isfinite(neg[0]) and math.isfinite(neg[1]))
+    pos_on = pos_fin * int(on_minor_arc(pos, x1, x2)) if pos_fin else 0
+    neg_on = neg_fin * int(on_minor_arc(neg, x1, x2)) if neg_fin else 0
 
     pos_valid = pos_fin * pos_on
     neg_valid = neg_fin * neg_on

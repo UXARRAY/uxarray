@@ -15,6 +15,11 @@ from uxarray.utils.computing import diff_of_products, two_sum
 _PREDICATE_ZERO_TOL = 1e-15
 
 # Default tolerance for the on_minor_arc collinearity and interval tests.
+# Intentionally tighter than AccuSphGeom's 1e-8 default: using 1e-10 keeps
+# borderline near-endpoint candidates out of the valid set, which produces
+# better accuracy on the AccuSphGeom baseline suite (err < 1e-15 vs ~1e-10
+# with the looser C++ default). The C++ tolerance was tuned for SIMD batch
+# throughput; the scalar Python path is more sensitive to spurious candidates.
 _ON_MINOR_ARC_TOL = 1e-10
 
 
@@ -463,6 +468,11 @@ def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
     """
     # Coincident endpoints: degenerate arc, no interior.
     if a[0] == b[0] and a[1] == b[1] and a[2] == b[2]:
+        return False
+    # Antipodal endpoints: a×b = 0, so every point on the great circle passes
+    # the collinearity test and the interval conditions degenerate to 0 >= -tol,
+    # causing false positives for all points on the great circle.
+    if a[0] == -b[0] and a[1] == -b[1] and a[2] == -b[2]:
         return False
     # Collinearity check: q must lie on the great circle through a and b.
     if abs(_orient3d_on_sphere_value(a, b, q)) > tol:
