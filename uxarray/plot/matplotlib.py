@@ -148,7 +148,10 @@ def _get_points_from_axis(ax: GeoAxes, *, pixel_ratio: float = 1):
     xs = np.cos(lats) * np.cos(lons)
     ys = np.cos(lats) * np.sin(lons)
     zs = np.sin(lats)
-    pts = np.vstack((xs, ys, zs)).T
+
+    # TODO:
+    pts = np.column_stack((xs, ys, zs))
+    # pts = np.vstack((xs, ys, zs)).T
 
     return pts, valid, nx, ny
 
