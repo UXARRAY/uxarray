@@ -704,15 +704,26 @@ def _is_projected_grid(uxgrid) -> bool:
     attrs = da.attrs
 
     # 1. standard_name
-    stdname = attrs.get("standard_name", "")
+    stdname = attrs.get("standard_name", "") or ""
     if stdname == "projection_x_coordinate":
         return True
-    if stdname in ("longitude",):
+    if stdname == "longitude":
         return False
 
-    # 2. units — angular units mean geographic
-    units = attrs.get("units", "").lower().strip()
-    _ANGULAR_UNITS = {"degrees_east", "degrees", "degree", "deg", "rad", "radians"}
+    # 2. units — angular units mean geographic; length units mean projected.
+    # Guard against non-string values (e.g. None) before calling .lower().
+    raw_units = attrs.get("units", "")
+    units = raw_units.lower().strip() if isinstance(raw_units, str) else ""
+    _ANGULAR_UNITS = {
+        "degrees_east",
+        "degree_east",
+        "degree_e",
+        "degrees",
+        "degree",
+        "deg",
+        "rad",
+        "radians",
+    }
     _LENGTH_UNITS = {"m", "km", "meter", "meters", "metre", "metres", "ft", "feet"}
     if units in _LENGTH_UNITS:
         return True
@@ -720,7 +731,7 @@ def _is_projected_grid(uxgrid) -> bool:
         return False
 
     # 3. grid_mapping variable
-    gm_name = attrs.get("grid_mapping", "")
+    gm_name = attrs.get("grid_mapping", "") or ""
     if gm_name and gm_name in uxgrid._ds:
         gm_attrs = uxgrid._ds[gm_name].attrs
         gm_name_val = gm_attrs.get("grid_mapping_name", "latitude_longitude")
@@ -735,22 +746,24 @@ def _set_desired_longitude_range(uxgrid):
 
     Skipped entirely for projected grids: wrapping meter-scale coordinates
     as if they were degrees silently corrupts the geometry. A ``UserWarning``
-    is issued on the first access so users know which operations are invalid.
+    is issued once per Grid instance so users know which operations are invalid.
     """
     if _is_projected_grid(uxgrid):
-        import warnings
+        if not getattr(uxgrid, "_projected_warning_issued", False):
+            import warnings
 
-        warnings.warn(
-            "Projected (non-spherical) coordinates detected on this grid "
-            "(standard_name='projection_x_coordinate' or length units). "
-            "UXarray's geometry algorithms (face areas, GCA intersections, "
-            "zonal mean, bounds, cross-sections) assume a unit sphere and "
-            "will produce incorrect results on projected grids. "
-            "Loading, plotting, and connectivity operations are unaffected. "
-            "Check Grid.is_projected for the detected coordinate type.",
-            UserWarning,
-            stacklevel=3,
-        )
+            warnings.warn(
+                "Projected (non-spherical) coordinates detected on this grid "
+                "(standard_name='projection_x_coordinate' or length units). "
+                "UXarray's geometry algorithms (face areas, GCA intersections, "
+                "zonal mean, bounds, cross-sections) assume a unit sphere and "
+                "will produce incorrect results on projected grids. "
+                "Loading, plotting, and connectivity operations are unaffected. "
+                "Inspect grid.node_lon.attrs to see the detected coordinate metadata.",
+                UserWarning,
+                stacklevel=3,
+            )
+            uxgrid._projected_warning_issued = True
         return
 
     with xr.set_options(keep_attrs=True):
