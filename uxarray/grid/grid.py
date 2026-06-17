@@ -238,6 +238,9 @@ class Grid:
         # flag to track if coordinates are normalized
         self._normalized = None
 
+        # flag to ensure projected-grid warning fires only once per instance
+        self._projected_warning_issued = False
+
         # set desired longitude range to [-180, 180]
         _set_desired_longitude_range(self)
 
