@@ -464,6 +464,15 @@ Remapping
 .. seealso::
 
     `Remapping User Guide Section <https://uxarray.readthedocs.io/en/latest/user-guide/remapping.html>`_
+    `Applying External Remap Weights <https://uxarray.readthedocs.io/en/latest/user-guide/remap-weights.html>`_
+
+Helpers
+~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   RemapWeights
 
 
 UxDataArray
@@ -474,9 +483,13 @@ UxDataArray
    :template: autosummary/accessor_method.rst
 
    UxDataArray.remap
+   UxDataArray.remap.apply_weights
    UxDataArray.remap.nearest_neighbor
    UxDataArray.remap.inverse_distance_weighted
    UxDataArray.remap.bilinear
+   UxDataArray.remap.to_rectilinear
+   UxDataArray.remap.to_structured
+   UxDataArray.remap.to_lonlat
 
 
 UxDataset
@@ -487,9 +500,13 @@ UxDataset
    :template: autosummary/accessor_method.rst
 
    UxDataset.remap
+   UxDataset.remap.apply_weights
    UxDataset.remap.nearest_neighbor
    UxDataset.remap.inverse_distance_weighted
    UxDataset.remap.bilinear
+   UxDataset.remap.to_rectilinear
+   UxDataset.remap.to_structured
+   UxDataset.remap.to_lonlat
 
 
 Mathematical Operators
@@ -503,6 +520,7 @@ Mathematical Operators
    UxDataArray.divergence
    UxDataArray.gradient
    UxDataArray.integrate
+   UxDataArray.scalardotgradient
 
 
 Aggregations
@@ -552,6 +570,7 @@ Zonal Average
 
    UxDataArray.zonal_average
    UxDataArray.zonal_mean
+   UxDataArray.zonal_anomaly
 
 
 Weighted

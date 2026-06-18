@@ -87,7 +87,7 @@ class TestGradientDyamondSubset:
             gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
             datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
         )
-        grad = uxds['gaussian'].gradient()
+        grad = uxds['gaussian'].gradient(scale_by_radius=False)
         zg, mg = grad.zonal_gradient, grad.meridional_gradient
         mag = np.hypot(zg, mg)
         angle = np.arctan2(mg, zg)
@@ -118,7 +118,7 @@ class TestGradientDyamondSubset:
             gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
             datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
         )
-        grad = uxds['inverse_gaussian'].gradient()
+        grad = uxds['inverse_gaussian'].gradient(scale_by_radius=False)
         zg, mg = grad.zonal_gradient, grad.meridional_gradient
         mag = np.hypot(zg, mg)
         angle = np.arctan2(mg, zg)
@@ -140,6 +140,30 @@ class TestGradientDyamondSubset:
         assert angle[self.right_fidx] < 0
         assert angle[self.top_fidx] > 0
         assert angle[self.bottom_fidx] < 0
+
+    def test_gradient_scales_by_radius(self, gridpath, datasetpath):
+        uxds = ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc"),
+        )
+        radius = uxds.uxgrid.sphere_radius
+
+        grad_scaled = uxds["gaussian"].gradient()
+        grad_unit = uxds["gaussian"].gradient(scale_by_radius=False)
+
+        nt.assert_allclose(
+            grad_scaled["zonal_gradient"],
+            grad_unit["zonal_gradient"] / radius,
+            equal_nan=True,
+        )
+        nt.assert_allclose(
+            grad_scaled["meridional_gradient"],
+            grad_unit["meridional_gradient"] / radius,
+            equal_nan=True,
+        )
+
+        assert grad_scaled["zonal_gradient"].attrs["units"].endswith("/m")
+        assert grad_unit["zonal_gradient"].attrs["units"].endswith("/rad")
 
 
 class TestDivergenceQuadHex:
@@ -191,6 +215,79 @@ class TestDivergenceMPASOcean:
         # Check that we get finite values where expected
         assert not np.isnan(div_field.values).all()
         assert np.isfinite(div_field.values).any()
+
+
+class TestScalarDotGradientMPASOcean:
+
+    def test_scalardotgradient_uses_known_gradient_components(
+        self, gridpath, datasetpath, monkeypatch
+    ):
+        """Test scalar dot gradient against independently supplied gradients."""
+        uxds = ux.open_dataset(
+            gridpath("mpas", "QU", "480", "grid.nc"),
+            datasetpath("mpas", "QU", "480", "data.nc"),
+        )
+
+        n_face = uxds.uxgrid.n_face
+        dims = ["n_face"]
+        scalar = ux.UxDataArray(
+            np.zeros(n_face), dims=dims, uxgrid=uxds.uxgrid, name="scalar"
+        )
+        u_component = ux.UxDataArray(
+            np.full(n_face, 2.0), dims=dims, uxgrid=uxds.uxgrid, name="u"
+        )
+        v_component = ux.UxDataArray(
+            np.full(n_face, -0.5), dims=dims, uxgrid=uxds.uxgrid, name="v"
+        )
+
+        def mock_gradient(self):
+            return ux.UxDataset(
+                {
+                    "zonal_gradient": ux.UxDataArray(
+                        np.full(n_face, 3.0), dims=dims, uxgrid=self.uxgrid
+                    ),
+                    "meridional_gradient": ux.UxDataArray(
+                        np.full(n_face, -4.0), dims=dims, uxgrid=self.uxgrid
+                    ),
+                },
+                uxgrid=self.uxgrid,
+            )
+
+        monkeypatch.setattr(ux.UxDataArray, "gradient", mock_gradient)
+
+        result = u_component.scalardotgradient(v_component, scalar)
+
+        expected = np.full(n_face, 8.0)
+        nt.assert_allclose(result.values, expected, rtol=0.0, atol=0.0)
+
+        assert isinstance(result, ux.UxDataArray)
+        assert result.name == "scalar_dot_gradient"
+        assert result.attrs["long_name"] == "scalar dot gradient"
+        assert result.sizes == u_component.sizes
+
+    def test_scalardotgradient_rejects_misaligned_indexes(self, gridpath, datasetpath):
+        """Test scalar dot gradient fails instead of silently realigning faces."""
+        uxds = ux.open_dataset(
+            gridpath("mpas", "QU", "480", "grid.nc"),
+            datasetpath("mpas", "QU", "480", "data.nc"),
+        )
+
+        scalar = uxds["bottomDepth"]
+        u_component = ux.UxDataArray(
+            np.ones(scalar.size),
+            dims=["n_face"],
+            coords={"n_face": np.arange(scalar.size)},
+            uxgrid=uxds.uxgrid,
+        )
+        v_component = ux.UxDataArray(
+            np.ones(scalar.size),
+            dims=["n_face"],
+            coords={"n_face": np.arange(scalar.size) + 1},
+            uxgrid=uxds.uxgrid,
+        )
+
+        with pytest.raises(ValueError):
+            u_component.scalardotgradient(v_component, scalar)
 
 
 class TestDivergenceDyamondSubset:
@@ -523,6 +620,23 @@ class TestCurlDyamondSubset:
             antisymmetry_error = np.abs(curl_uv_finite + curl_vu_finite).max()
             # Use a more relaxed tolerance for discrete computation
             assert antisymmetry_error < 200.0, f"Curl antisymmetry violated, max error: {antisymmetry_error}"
+
+    def test_curl_scales_by_radius(self, gridpath, datasetpath):
+        uxds = ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc"),
+        )
+        radius = uxds.uxgrid.sphere_radius
+        u_component = uxds["face_lon"]
+        v_component = uxds["face_lat"]
+
+        curl_scaled = u_component.curl(v_component)
+        curl_unit = u_component.curl(v_component, scale_by_radius=False)
+
+        nt.assert_allclose(curl_scaled, curl_unit / radius, equal_nan=True)
+
+        assert curl_scaled.attrs["units"]
+        assert curl_unit.attrs["units"].endswith("/rad")
 
     def test_curl_units_and_attributes(self, gridpath, datasetpath):
         """Test that curl preserves appropriate units and attributes"""
