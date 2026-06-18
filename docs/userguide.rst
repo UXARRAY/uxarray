@@ -64,6 +64,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Remapping <user-guide/remapping.ipynb>`_
  Remap (a.k.a Regrid) between unstructured grids
 
+`Applying External Remap Weights <user-guide/remap-weights.rst>`_
+ Apply precomputed ESMF or TempestRemap offline map files
+
 `Topological Aggregations <user-guide/topological-aggregations.ipynb>`_
  Aggregate data across grid dimensions
 
@@ -119,6 +122,7 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/zonal-average.ipynb
    user-guide/azimuthal-average.ipynb
    user-guide/remapping.ipynb
+   user-guide/remap-weights.rst
    user-guide/topological-aggregations.ipynb
    user-guide/weighted_mean.ipynb
    user-guide/vector_calculus.ipynb
