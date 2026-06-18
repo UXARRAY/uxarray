@@ -564,6 +564,7 @@ Zonal Average
 
    UxDataArray.zonal_average
    UxDataArray.zonal_mean
+   UxDataArray.zonal_anomaly
 
 
 Weighted

@@ -24,6 +24,7 @@ from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.core.zonal import (
     _compute_conservative_zonal_mean_bands,
     _compute_non_conservative_zonal_mean,
+    _compute_zonal_anomaly,
 )
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
 from uxarray.formatting_html import array_repr
@@ -766,6 +767,70 @@ class UxDataArray(xr.DataArray):
     def zonal_average(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
         """Alias of zonal_mean; prefer `zonal_mean` for primary API."""
         return self.zonal_mean(lat=lat, conservative=conservative, **kwargs)
+
+    def zonal_anomaly(self, lat=(-90, 90, 10), conservative: bool = False):
+        """Compute the zonal anomaly: each face value minus the mean of its latitude band.
+
+        Returns a new ``UxDataArray`` with the same dimensions as the input,
+        where each face holds its original value minus the zonal mean of the
+        latitude band it belongs to.
+
+        Parameters
+        ----------
+        lat : tuple or array-like, default=(-90, 90, 10)
+            Latitude band specification:
+                - tuple (start, end, step): band edges via np.linspace(start, end, n)
+                - array-like: explicit band edges in degrees
+        conservative : bool, default=False
+            If True, uses area-weighted band means and blends across bands for
+            faces that straddle a band boundary, reusing the face-band weight
+            matrix computed for zonal_mean so no geometry is duplicated.
+            If False, assigns each face to a band by its centroid latitude.
+
+        Returns
+        -------
+        UxDataArray
+            Same dimensions as input with per-face band mean subtracted.
+
+        Examples
+        --------
+        >>> uxds["var"].zonal_anomaly()
+        >>> uxds["var"].zonal_anomaly(lat=(-60, 60, 5), conservative=True)
+        """
+        if not self._face_centered():
+            raise ValueError(
+                "Zonal anomaly is only supported for face-centered data variables."
+            )
+
+        if isinstance(lat, tuple):
+            start, end, step = lat
+            if step <= 0:
+                raise ValueError("Step size must be positive.")
+            num_points = int(round((end - start) / step)) + 1
+            edges = np.linspace(start, end, num_points)
+            edges = np.clip(edges, -90, 90)
+        elif isinstance(lat, (list, np.ndarray)):
+            edges = np.asarray(lat, dtype=float)
+        else:
+            raise ValueError(
+                "Invalid value for 'lat'. Must be a tuple (start, end, step) or array-like band edges."
+            )
+
+        if edges.ndim != 1 or edges.size < 2:
+            raise ValueError("Band edges must be 1D with at least two values.")
+
+        res = _compute_zonal_anomaly(self, edges, conservative=conservative)
+
+        return UxDataArray(
+            res,
+            dims=self.dims,
+            coords=self.coords,
+            name=self.name + "_zonal_anomaly"
+            if self.name is not None
+            else "zonal_anomaly",
+            attrs={"zonal_anomaly": True, "conservative": conservative},
+            uxgrid=self.uxgrid,
+        )
 
     def azimuthal_mean(
         self,
