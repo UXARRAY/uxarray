@@ -87,7 +87,7 @@ def _apply_weights(
         remapped_any = True
         other_dims = [dim for dim in da.dims if dim != variable_source_dim]
         da_t = da.transpose(*other_dims, variable_source_dim)
-        remapped_values = weights_obj.apply(np.asarray(da_t.values))
+        remapped_values = weights_obj._apply(np.asarray(da_t.values))
 
         other_dims_set = set(other_dims)
         coords = {

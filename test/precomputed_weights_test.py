@@ -38,7 +38,7 @@ def test_load_remap_weights_and_apply_vector(tmp_path, gridpath):
     )
 
     weights = load_remap_weights(weight_file)
-    result = weights.apply(np.arange(grid.n_face, dtype=np.float64))
+    result = weights._apply(np.arange(grid.n_face, dtype=np.float64))
 
     nt.assert_equal(weights.source_size, grid.n_face)
     nt.assert_equal(weights.destination_size, grid.n_face)

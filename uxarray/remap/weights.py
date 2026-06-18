@@ -137,8 +137,13 @@ class RemapWeights:
             path=path,
         )
 
-    def apply(self, values: np.ndarray) -> np.ndarray:
-        """Apply the sparse remap operator along the trailing dimension."""
+    def _apply(self, values: np.ndarray) -> np.ndarray:
+        """Apply the sparse remap operator along the trailing dimension.
+
+        Internal kernel used by :func:`uxarray.remap.apply_weights._apply_weights`.
+        The public entrypoint for applying weights is the ``.remap.apply_weights``
+        accessor method.
+        """
         values = np.asarray(values)
 
         if values.ndim == 0:
