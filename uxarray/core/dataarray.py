@@ -1634,6 +1634,65 @@ class UxDataArray(xr.DataArray):
 
         return divergence_da
 
+    def scalardotgradient(self, v: "UxDataArray", q: "UxDataArray") -> "UxDataArray":
+        """
+        Compute the dot product between a vector field and the gradient of a scalar field.
+
+        Parameters
+        ----------
+        v : UxDataArray
+            The meridional component of the vector field. ``self`` is treated as
+            the zonal component.
+        q : UxDataArray
+            Scalar field whose gradient is dotted with the vector field.
+
+        Returns
+        -------
+        scalar_dot_gradient : UxDataArray
+            Dot product ``self * dq/dx + v * dq/dy``.
+        """
+        if not isinstance(v, UxDataArray):
+            raise TypeError("v must be a UxDataArray")
+
+        if not isinstance(q, UxDataArray):
+            raise TypeError("q must be a UxDataArray")
+
+        if self.uxgrid != v.uxgrid or self.uxgrid != q.uxgrid:
+            raise ValueError("All UxDataArrays must have the same grid")
+
+        if self.dims != v.dims or self.dims != q.dims:
+            raise ValueError("All UxDataArrays must have the same dimensions")
+
+        if self.ndim > 1:
+            raise ValueError(
+                "Scalar dot gradient currently requires 1D face-centered data. "
+                "Consider selecting a single slice before computing."
+            )
+
+        if not (self._face_centered() and v._face_centered() and q._face_centered()):
+            raise ValueError(
+                "Computing the scalar dot gradient is only supported for face-centered data variables."
+            )
+
+        # Validate coordinate alignment up-front so a misaligned input fails
+        # before the (potentially expensive) gradient call.
+        u_aligned, v_aligned, q_aligned = xr.align(self, v, q, join="exact", copy=False)
+
+        q_gradient = q_aligned.gradient()
+        q_zonal = q_gradient["zonal_gradient"]
+        q_meridional = q_gradient["meridional_gradient"]
+
+        scalar_dot_gradient = (u_aligned * q_zonal) + (v_aligned * q_meridional)
+        scalar_dot_gradient.name = "scalar_dot_gradient"
+        scalar_dot_gradient.attrs.update(
+            {
+                "long_name": "scalar dot gradient",
+                "description": "Dot product u * (dq/dx) + v * (dq/dy).",
+            }
+        )
+
+        return UxDataArray(scalar_dot_gradient, uxgrid=self.uxgrid)
+
     def difference(self, destination: str | None = "edge"):
         """Computes the absolute difference of a data variable.
 
