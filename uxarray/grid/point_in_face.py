@@ -21,6 +21,11 @@ _LOC_INSIDE = 1
 _LOC_ON_VERTEX = 2
 _LOC_ON_EDGE = 3
 
+# Sign codes for orient3d_on_sphere results.
+_SIGN_NEG = -1
+_SIGN_ZERO = 0
+_SIGN_POS = 1
+
 _VERTEX_TOL = 1e-12
 _EDGE_TOL = 1e-10
 _RAY_EPS = 1e-8
@@ -78,10 +83,10 @@ def _counts_as_crossing(A, B, q, R):
     s_AB_R = orient3d_on_sphere(A, B, R)
 
     # q on great circle AB: already caught by edge-membership check; not a crossing.
-    if s_AB_q == 0:
+    if s_AB_q == _SIGN_ZERO:
         return 0
     # R on great circle AB: degenerate ray, caller must perturb R.
-    if s_AB_R == 0:
+    if s_AB_R == _SIGN_ZERO:
         return -1
     # q and R on the same side of plane(AB): no crossing possible.
     if s_AB_q == s_AB_R:
@@ -97,11 +102,11 @@ def _counts_as_crossing(A, B, q, R):
     # Apply the half-edge rule: count the edge only if the other endpoint is
     # strictly on the negative side, so adjacent edges sharing this vertex
     # are not double-counted.
-    if s_qR_A == 0 or s_qR_B == 0:
-        if s_qR_A == 0 and s_qR_B == 0:
+    if s_qR_A == _SIGN_ZERO or s_qR_B == _SIGN_ZERO:
+        if s_qR_A == _SIGN_ZERO and s_qR_B == _SIGN_ZERO:
             return 0  # entire edge coplanar with ray: degenerate
-        s_other = s_qR_B if s_qR_A == 0 else s_qR_A
-        return 1 if s_other == -1 else 0
+        s_other = s_qR_B if s_qR_A == _SIGN_ZERO else s_qR_A
+        return 1 if s_other == _SIGN_NEG else 0
 
     return 1 if s_qR_A != s_qR_B else 0
 

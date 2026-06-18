@@ -1,17 +1,48 @@
 """Compensated floating-point primitives for accurate spherical geometry.
 
-Cross products over nearly-parallel unit vectors suffer catastrophic
-cancellation. ``two_sum`` and ``two_prod`` are true error-free transformations
-(EFT): ``hi + lo`` equals the mathematical result exactly. The higher-level
-functions (``diff_of_products``, ``accucross``, ``accucross_pair``) compose
-those EFTs into compensated algorithms that are roughly twice as accurate as
-direct floating-point equivalents. All functions are Numba-compiled using the
-portable Veltkamp-splitting form of ``two_prod`` (no FMA dependency).
+In spherical-geometry computations the critical operations are cross products
+and dot products over unit vectors. When two vectors are nearly parallel, the
+difference of products that forms each cross-product component suffers
+catastrophic cancellation: both products round to the same floating-point
+value and their difference carries no significant bits. This affects
+GCA-GCA intersection of nearly tangent arcs, constant-latitude intersection
+near arc endpoints, and the ray-crossing test in point-in-polygon near polygon
+edges.
 
-Port of AccuSphGeom (Chen 2026, SIAM J. Sci. Comput.
-https://doi.org/10.1137/25M1737614; https://github.com/hongyuchen1030/AccuSphGeom).
-Only the compensated-arithmetic tier is implemented; the full library also has
-Shewchuk adaptive and exact-arithmetic fallback tiers.
+Naming note
+-----------
+The term "error-free transformation" (EFT) strictly applies to ``two_sum``
+and ``two_prod``, which capture their rounding errors exactly so that
+``hi + lo`` equals the mathematical result with zero information loss.
+``diff_of_products``, ``accucross``, and ``accucross_pair`` use those EFT
+building blocks to achieve near-double precision for cross products, but they
+are compensated algorithms, not zero-error transformations.
+
+All functions are ``@njit``-compiled and use the portable Veltkamp-splitting
+form of ``two_prod`` (no FMA dependency), making them suitable for use inside
+Numba-compiled geometry kernels.
+
+These primitives are a Python/Numba port of the AccuSphGeom C++ library:
+
+    Chen, H. (2026). Accurate and Robust Algorithms for Spherical Polygon
+    Operations. EGUsphere preprint.
+    https://egusphere.copernicus.org/preprints/2026/egusphere-2026-636/
+
+    Chen, H. Accurate and Robust Great Circle Arc Intersection and Great
+    Circle Arc Constant Latitude Intersection on the Sphere. SIAM J. Sci.
+    Comput. https://doi.org/10.1137/25M1737614
+
+AccuSphGeom reference implementation (C++):
+    https://github.com/hongyuchen1030/AccuSphGeom
+
+What this module omits: AccuSphGeom's full robustness stack has three
+tiers — an EFT filter (what this module implements), Shewchuk adaptive
+predicates for results that fall inside the filter threshold, and a geogram
+exact-arithmetic fallback. This port implements only the EFT tier. The
+compensated cross-product routines are roughly twice as accurate as direct
+floating-point cross products while retaining the same vectorizable operation
+structure; callers that need the full robustness stack should add an adaptive
+predicate or exact-arithmetic fallback.
 """
 
 import math
