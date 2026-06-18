@@ -193,6 +193,79 @@ class TestDivergenceMPASOcean:
         assert np.isfinite(div_field.values).any()
 
 
+class TestScalarDotGradientMPASOcean:
+
+    def test_scalardotgradient_uses_known_gradient_components(
+        self, gridpath, datasetpath, monkeypatch
+    ):
+        """Test scalar dot gradient against independently supplied gradients."""
+        uxds = ux.open_dataset(
+            gridpath("mpas", "QU", "480", "grid.nc"),
+            datasetpath("mpas", "QU", "480", "data.nc"),
+        )
+
+        n_face = uxds.uxgrid.n_face
+        dims = ["n_face"]
+        scalar = ux.UxDataArray(
+            np.zeros(n_face), dims=dims, uxgrid=uxds.uxgrid, name="scalar"
+        )
+        u_component = ux.UxDataArray(
+            np.full(n_face, 2.0), dims=dims, uxgrid=uxds.uxgrid, name="u"
+        )
+        v_component = ux.UxDataArray(
+            np.full(n_face, -0.5), dims=dims, uxgrid=uxds.uxgrid, name="v"
+        )
+
+        def mock_gradient(self):
+            return ux.UxDataset(
+                {
+                    "zonal_gradient": ux.UxDataArray(
+                        np.full(n_face, 3.0), dims=dims, uxgrid=self.uxgrid
+                    ),
+                    "meridional_gradient": ux.UxDataArray(
+                        np.full(n_face, -4.0), dims=dims, uxgrid=self.uxgrid
+                    ),
+                },
+                uxgrid=self.uxgrid,
+            )
+
+        monkeypatch.setattr(ux.UxDataArray, "gradient", mock_gradient)
+
+        result = u_component.scalardotgradient(v_component, scalar)
+
+        expected = np.full(n_face, 8.0)
+        nt.assert_allclose(result.values, expected, rtol=0.0, atol=0.0)
+
+        assert isinstance(result, ux.UxDataArray)
+        assert result.name == "scalar_dot_gradient"
+        assert result.attrs["long_name"] == "scalar dot gradient"
+        assert result.sizes == u_component.sizes
+
+    def test_scalardotgradient_rejects_misaligned_indexes(self, gridpath, datasetpath):
+        """Test scalar dot gradient fails instead of silently realigning faces."""
+        uxds = ux.open_dataset(
+            gridpath("mpas", "QU", "480", "grid.nc"),
+            datasetpath("mpas", "QU", "480", "data.nc"),
+        )
+
+        scalar = uxds["bottomDepth"]
+        u_component = ux.UxDataArray(
+            np.ones(scalar.size),
+            dims=["n_face"],
+            coords={"n_face": np.arange(scalar.size)},
+            uxgrid=uxds.uxgrid,
+        )
+        v_component = ux.UxDataArray(
+            np.ones(scalar.size),
+            dims=["n_face"],
+            coords={"n_face": np.arange(scalar.size) + 1},
+            uxgrid=uxds.uxgrid,
+        )
+
+        with pytest.raises(ValueError):
+            u_component.scalardotgradient(v_component, scalar)
+
+
 class TestDivergenceDyamondSubset:
 
     def test_divergence_constant_field(self, gridpath, datasetpath):

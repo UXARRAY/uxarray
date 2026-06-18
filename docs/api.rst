@@ -514,6 +514,7 @@ Mathematical Operators
    UxDataArray.divergence
    UxDataArray.gradient
    UxDataArray.integrate
+   UxDataArray.scalardotgradient
 
 
 Aggregations
