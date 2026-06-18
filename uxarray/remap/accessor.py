@@ -35,6 +35,7 @@ class RemapAccessor:
             + "Supported methods:\n"
             + "  • nearest_neighbor(destination_grid, remap_to='faces')\n"
             + "  • inverse_distance_weighted(destination_grid, remap_to='faces', power=2, k=8)\n"
+            + "  • to_rectilinear(lon, lat, backend='uxarray')\n"
             + "  • apply_weights(destination_grid, weights, remap_to='faces')\n"
         )
 
@@ -175,6 +176,103 @@ class RemapAccessor:
             )
         return _inverse_distance_weighted_remap(
             self.ux_obj, destination_grid, remap_to, power, k
+        )
+
+    def to_rectilinear(
+        self,
+        lon,
+        lat,
+        backend: str = "uxarray",
+        yac_method: str | None = None,
+        yac_options: dict | None = None,
+        **kwargs,
+    ):
+        """
+        Remap onto a rectilinear longitude/latitude grid.
+
+        This convenience method targets 1-D longitude and latitude coordinate
+        arrays and returns a plain xarray object with ``lat`` and ``lon`` axes,
+        making the output suitable for downstream structured-grid workflows.
+
+        Parameters
+        ----------
+        lon : array-like or xarray.DataArray
+            1-D target longitude cell-center coordinate in degrees.
+        lat : array-like or xarray.DataArray
+            1-D target latitude cell-center coordinate in degrees.
+        backend : {'uxarray', 'yac'}, default='uxarray'
+            Remapping backend to use. The UXarray backend builds a temporary
+            structured destination grid and applies native nearest-neighbor
+            remapping before reshaping the result to latitude/longitude axes.
+            The YAC backend uses YAC's rectilinear grid support directly and can
+            be faster for large targets when YAC is installed.
+        yac_method : {'nnn', 'average', 'conservative'}, optional
+            YAC interpolation method. When ``backend='yac'``, defaults to ``'nnn'``
+            because nearest-neighbor works for node-, edge-, and face-centered
+            source data. ``'conservative'`` requires face-centered source data.
+        yac_options : dict, optional
+            YAC interpolation configuration options forwarded to the selected
+            YAC method.
+
+        Returns
+        -------
+        xarray.DataArray or xarray.Dataset
+            Remapped data with the source spatial dimension replaced by the
+            provided latitude and longitude dimensions.
+        """
+
+        _validate_backend(backend)
+        if backend == "yac":
+            from uxarray.remap.yac import _yac_remap_to_rectilinear
+
+            return _yac_remap_to_rectilinear(
+                self.ux_obj,
+                lon,
+                lat,
+                yac_method or "nnn",
+                yac_options or {},
+            )
+
+        from uxarray.remap.structured import _native_remap_to_rectilinear
+
+        return _native_remap_to_rectilinear(self.ux_obj, lon, lat)
+
+    def to_structured(
+        self,
+        lon,
+        lat,
+        backend: str = "uxarray",
+        yac_method: str | None = None,
+        yac_options: dict | None = None,
+        **kwargs,
+    ):
+        """Alias for :meth:`to_rectilinear`."""
+        return self.to_rectilinear(
+            lon,
+            lat,
+            backend=backend,
+            yac_method=yac_method,
+            yac_options=yac_options,
+            **kwargs,
+        )
+
+    def to_lonlat(
+        self,
+        lon,
+        lat,
+        backend: str = "uxarray",
+        yac_method: str | None = None,
+        yac_options: dict | None = None,
+        **kwargs,
+    ):
+        """Alias for :meth:`to_rectilinear`."""
+        return self.to_rectilinear(
+            lon,
+            lat,
+            backend=backend,
+            yac_method=yac_method,
+            yac_options=yac_options,
+            **kwargs,
         )
 
     def bilinear(
