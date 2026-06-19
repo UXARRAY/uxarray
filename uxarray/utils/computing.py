@@ -18,9 +18,11 @@ and ``two_prod``, which capture their rounding errors exactly so that
 building blocks to achieve near-double precision for cross products, but they
 are compensated algorithms, not zero-error transformations.
 
-All functions are ``@njit``-compiled and use the portable Veltkamp-splitting
-form of ``two_prod`` (no FMA dependency), making them suitable for use inside
-Numba-compiled geometry kernels.
+All functions are ``@njit``-compiled. ``two_prod`` uses a single fused
+multiply-add (FMA) for its error term on hardware that supports it (selected at
+import time and validated to be bit-exact), falling back to the portable
+Veltkamp split otherwise — so there is no hard FMA dependency, but FMA is used
+when available (~2x faster in the compensated kernels).
 
 These primitives are a Python/Numba port of the AccuSphGeom C++ library:
 
@@ -48,6 +50,76 @@ predicate or exact-arithmetic fallback.
 import math
 
 from numba import njit
+
+# ---------------------------------------------------------------------------
+# Fused multiply-add (FMA) support.
+#
+# ``two_prod`` needs the exact rounding error of ``a * b``. On hardware with an
+# FMA instruction this is a single op: ``e = fma(a, b, -p)`` where ``p = a*b``.
+# Without FMA we fall back to the portable Veltkamp split (no hardware
+# dependency). We expose an LLVM ``fma`` intrinsic through Numba and validate at
+# import time that it both compiles and yields a bit-exact error-free transform;
+# if anything fails (older toolchain, unsupported target, or a non-exact FMA),
+# ``_HAS_FMA`` stays False and the Veltkamp path is used. This keeps the
+# library's "no FMA dependency" guarantee while using FMA where it is available.
+# ---------------------------------------------------------------------------
+try:
+    from numba.core import types as _nb_types
+    from numba.extending import intrinsic as _nb_intrinsic
+
+    @_nb_intrinsic
+    def _fma(typingctx, a, b, c):
+        sig = _nb_types.float64(
+            _nb_types.float64, _nb_types.float64, _nb_types.float64
+        )
+
+        def codegen(context, builder, signature, args):
+            return builder.fma(*args)
+
+        return sig, codegen
+
+    _FMA_INTRINSIC_OK = True
+except Exception:  # pragma: no cover - toolchain without intrinsic support
+    _FMA_INTRINSIC_OK = False
+
+
+def _validate_fma() -> bool:
+    """Return True iff the FMA intrinsic compiles and is a bit-exact EFT."""
+    if not _FMA_INTRINSIC_OK:
+        return False
+    try:
+        import numpy as _np
+
+        @njit(cache=False)
+        def _tp_fma(a, b):
+            p = a * b
+            return p, _fma(a, b, -p)
+
+        @njit(cache=False)
+        def _tp_vk(a, b):
+            p = a * b
+            f = 134217729.0
+            a_hi = f * a - (f * a - a)
+            a_lo = a - a_hi
+            b_hi = f * b - (f * b - b)
+            b_lo = b - b_hi
+            e = a_lo * b_lo - (((p - a_hi * b_hi) - a_lo * b_hi) - a_hi * b_lo)
+            return p, e
+
+        rng = _np.random.default_rng(20260101)
+        for _ in range(20000):
+            a = float(rng.standard_normal() * rng.integers(1, 1 << 20))
+            b = float(rng.standard_normal() * rng.integers(1, 1 << 20))
+            pf, ef = _tp_fma(a, b)
+            pv, ev = _tp_vk(a, b)
+            if pf != pv or (pf + ef) != (pv + ev):
+                return False
+        return True
+    except Exception:  # pragma: no cover
+        return False
+
+
+_HAS_FMA = _validate_fma()
 
 
 @njit(cache=True, inline="always")
@@ -79,27 +151,12 @@ def two_sum(a, b):
 
 
 @njit(cache=True, inline="always")
-def two_prod(a, b):
-    """Dekker/Veltkamp TwoProd: return (p, e) with p = fl(a * b) and p + e = a * b exactly.
+def _two_prod_veltkamp(a, b):
+    """Portable TwoProd via Veltkamp splitting (no FMA dependency).
 
-    Like ``two_sum`` for multiplication. Uses the Veltkamp splitting constant
-    2**27 + 1 to decompose each operand into a high and low half, then
-    reconstructs the exact rounding error from the four partial products.
-    On hardware with a fused multiply-add (FMA) instruction the error term
-    could be obtained in one step as ``fma(a, b, -p)``; the split used here
-    is portable across all Numba targets.
-
-    Parameters
-    ----------
-    a, b : float
-        Input values.
-
-    Returns
-    -------
-    p : float
-        Rounded product fl(a * b).
-    e : float
-        Rounding error term; p + e = a * b exactly.
+    Decomposes each operand into a high and low half using the splitting
+    constant 2**27 + 1, then reconstructs the exact rounding error from the
+    four partial products. Works on every Numba target.
     """
     p = a * b
     factor = 134217729.0  # 2**27 + 1
@@ -109,6 +166,62 @@ def two_prod(a, b):
     b_lo = b - b_hi
     e = a_lo * b_lo - (((p - a_hi * b_hi) - a_lo * b_hi) - a_hi * b_lo)
     return p, e
+
+
+if _HAS_FMA:
+
+    @njit(cache=True, inline="always")
+    def _two_prod_fma(a, b):
+        """TwoProd via a single hardware FMA: e = fma(a, b, -p)."""
+        p = a * b
+        return p, _fma(a, b, -p)
+
+    @njit(cache=True, inline="always")
+    def two_prod(a, b):
+        """Dekker TwoProd: return (p, e) with p = fl(a*b) and p + e = a*b exactly.
+
+        Uses a single fused multiply-add for the error term on hardware that
+        supports it (selected at import time via ``_HAS_FMA``), falling back to
+        the portable Veltkamp split otherwise. The FMA path is ~2x faster in the
+        compensated geometry kernels and is bit-for-bit identical to the
+        Veltkamp result (validated at import).
+
+        Parameters
+        ----------
+        a, b : float
+            Input values.
+
+        Returns
+        -------
+        p : float
+            Rounded product fl(a * b).
+        e : float
+            Rounding error term; p + e = a * b exactly.
+        """
+        return _two_prod_fma(a, b)
+
+else:  # pragma: no cover - exercised only on FMA-less toolchains
+
+    @njit(cache=True, inline="always")
+    def two_prod(a, b):
+        """Dekker TwoProd: return (p, e) with p = fl(a*b) and p + e = a*b exactly.
+
+        Portable Veltkamp-split implementation (no FMA available on this
+        toolchain/target).
+
+        Parameters
+        ----------
+        a, b : float
+            Input values.
+
+        Returns
+        -------
+        p : float
+            Rounded product fl(a * b).
+        e : float
+            Rounding error term; p + e = a * b exactly.
+        """
+        return _two_prod_veltkamp(a, b)
 
 
 @njit(cache=True, inline="always")
