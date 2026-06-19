@@ -547,23 +547,23 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
 
 
 @njit(cache=True, inline="always")
-def _accux_constlat(x1, x2, const_z):
-    """Layer 1 — pure numerical kernel (mirrors AccuSphGeom ``accux_constlat``).
+def _accux_constlat_scalar(a0, a1, a2, b0, b1, b2, const_z):
+    """Layer 1 (scalar) — allocation-free numerical kernel.
 
-    Computes the two candidate intersection points between the great-circle arc
-    defined by unit vectors *x1*, *x2* and the constant-latitude plane z = const_z.
-    No branching, no validity filtering — all operations follow the exact compensated
-    sequence from AccuSphGeom so that the error bound holds.
+    Same compensated AccuSphGeom sequence as :func:`_accux_constlat`, but takes
+    the two arc endpoints as six scalars and returns the two candidate points as
+    six scalars (``pos`` xy and ``neg`` xy; the z of both candidates is
+    ``const_z``). Returning scalars instead of ``np.empty(3)`` arrays lets Numba
+    keep everything in registers, so a batch loop over many edges does no
+    per-point heap allocation. This is the preferred entry point for hot loops.
 
     Returns
     -------
-    pos, neg : np.ndarray, shape (3,)
-        Two antipodal candidate points.  Invalid inputs propagate as non-finite
-        coordinates; the caller uses masks/status to identify validity.
+    px, py, nx_out, ny_out : float
+        ``pos = (px, py, const_z)`` and ``neg = (nx_out, ny_out, const_z)``.
+        Invalid inputs propagate as non-finite coordinates.
     """
-    nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(
-        x1[0], x1[1], x1[2], x2[0], x2[1], x2[2]
-    )
+    nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(a0, a1, a2, b0, b1, b2)
     s2_hi, s2_lo = _sum_sq_c2(nx_hi, nx_lo, ny_hi, ny_lo)
     denom = s2_hi + s2_lo
     s3_hi, s3_lo = _sum_sq_c3(nx_hi, nx_lo, ny_hi, ny_lo, nz_hi, nz_lo)
@@ -583,13 +583,39 @@ def _accux_constlat(x1, x2, const_z):
     # denom == 0 means the arc is vertical (normal has no x/y component).
     # Produce inf so the isfinite mask in the status layer rejects candidates.
     inv_denom = 1.0 / denom if denom != 0.0 else np.inf
+    px = -(xp_hi + xp_lo) * inv_denom
+    py = -(yp_hi + yp_lo) * inv_denom
+    nxo = -(xn_hi + xn_lo) * inv_denom
+    nyo = -(yn_hi + yn_lo) * inv_denom
+    return px, py, nxo, nyo
+
+
+@njit(cache=True, inline="always")
+def _accux_constlat(x1, x2, const_z):
+    """Layer 1 — pure numerical kernel (mirrors AccuSphGeom ``accux_constlat``).
+
+    Array-returning wrapper around :func:`_accux_constlat_scalar`. Computes the
+    two candidate intersection points between the great-circle arc defined by
+    unit vectors *x1*, *x2* and the constant-latitude plane z = const_z. No
+    branching, no validity filtering. For allocation-free hot loops call
+    :func:`_accux_constlat_scalar` directly.
+
+    Returns
+    -------
+    pos, neg : np.ndarray, shape (3,)
+        Two antipodal candidate points.  Invalid inputs propagate as non-finite
+        coordinates; the caller uses masks/status to identify validity.
+    """
+    px, py, nxo, nyo = _accux_constlat_scalar(
+        x1[0], x1[1], x1[2], x2[0], x2[1], x2[2], const_z
+    )
     pos = np.empty(3)
-    pos[0] = -(xp_hi + xp_lo) * inv_denom
-    pos[1] = -(yp_hi + yp_lo) * inv_denom
+    pos[0] = px
+    pos[1] = py
     pos[2] = const_z
     neg = np.empty(3)
-    neg[0] = -(xn_hi + xn_lo) * inv_denom
-    neg[1] = -(yn_hi + yn_lo) * inv_denom
+    neg[0] = nxo
+    neg[1] = nyo
     neg[2] = const_z
     return pos, neg
 
