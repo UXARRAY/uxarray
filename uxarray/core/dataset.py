@@ -570,7 +570,13 @@ class UxDataset(xr.Dataset):
         buf.write("\n".join(lines))
 
     def integrate(self, quadrature_rule="triangular", order=4):
-        """Integrates over all the faces of the givfen mesh.
+        """Integrates over all the faces of the given mesh, for every data
+        variable in the dataset.
+
+        Each data variable is integrated independently using
+        :meth:`UxDataArray.integrate`, and the results are collected into a new
+        :class:`UxDataset`. Variables whose final dimension does not map to the
+        grid (i.e. that are not face/node/edge centered) are skipped.
 
         Parameters
         ----------
@@ -581,45 +587,45 @@ class UxDataset(xr.Dataset):
 
         Returns
         -------
-        Calculated integral : float
+        uxds : UxDataset
+            Dataset containing the integrated value of each (grid-mapped) data
+            variable.
 
         Examples
         --------
-        Open a UXarray dataset
+        Open a UXarray dataset and integrate every data variable
 
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
-
-        # Compute the integral
         >>> integral = uxds.integrate()
+
+        Access the integral of a single variable
+
+        >>> integral["psi"]
         """
+        integrated_vars = {}
+        skipped = []
 
-        # TODO: Deprecation Warning
-        warn(
-            "This method currently only works when there is a single DataArray in this Dataset. For integration of a "
-            "single data variable, use the UxDataArray.integrate() method instead. This function will be deprecated and "
-            "replaced with one that can perform a Dataset-wide integration in a future release.",
-            DeprecationWarning,
-        )
+        for name, uxda in self.items():
+            try:
+                integrated_vars[name] = uxda.integrate(
+                    quadrature_rule=quadrature_rule, order=order
+                )
+            except ValueError:
+                # Variable is not mapped to the grid (or its location is not
+                # yet supported for integration); skip it rather than failing
+                # the whole dataset-wide integration.
+                skipped.append(name)
 
-        integral = 0.0
-
-        face_areas = self.uxgrid.face_areas.values
-
-        # TODO: Should we fix this requirement? Shouldn't it be applicable to
-        # TODO: all variables of dataset or a dataarray instead?
-        var_key = list(self.keys())
-        if len(var_key) > 1:
-            # warning: print message
-            print(
-                "WARNING: The dataset has more than one variable, using the first variable for integration"
+        if skipped:
+            warn(
+                "The following variables were skipped during integration because "
+                "their final dimension does not map to the grid (n_face, n_node, "
+                f"or n_edge) or is not yet supported: {skipped}.",
+                UserWarning,
             )
 
-        var_key = var_key[0]
-        face_vals = self[var_key].to_numpy()
-        integral = np.dot(face_areas, face_vals)
-
-        return integral
+        return UxDataset(integrated_vars, uxgrid=self.uxgrid)
 
     def to_array(
         self,
