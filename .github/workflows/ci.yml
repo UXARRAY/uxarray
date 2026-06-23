@@ -29,7 +29,7 @@ jobs:
           access_token: ${{ github.token }}
 
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           token: ${{ github.token }}
 
@@ -76,7 +76,7 @@ jobs:
           shell: bash -l {0}
       steps:
         - name: checkout
-          uses: actions/checkout@v6
+          uses: actions/checkout@v7
 
         - name: environment setup
           id: link-env-setup
