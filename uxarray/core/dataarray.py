@@ -164,6 +164,40 @@ class UxDataArray(xr.DataArray):
         else:
             return None
 
+    @property
+    def data_location(self):
+        """Returns where on the grid the data variable is stored.
+
+        The location is inferred from the grid dimension present in the data
+        variable, using UGRID-style names:
+
+        - ``"face_centered"`` if the data contains the ``n_face`` dimension
+        - ``"node_centered"`` if the data contains the ``n_node`` dimension
+        - ``"edge_centered"`` if the data contains the ``n_edge`` dimension
+        - ``None`` if the data is not mapped to the grid
+
+        Notes
+        -----
+        Additional locations described in the UGRID/spectral-element ecosystem
+        (e.g. ``"face_average"``, ``"edge_orthogonal"``, ``"edge_parallel"``,
+        ``"cgll"``, ``"dgll"``) cannot be inferred from a data variable's
+        dimensions alone and are not currently distinguished here.
+
+        Returns
+        -------
+        str or None
+            One of ``"face_centered"``, ``"node_centered"``,
+            ``"edge_centered"``, or ``None``.
+        """
+        if self._face_centered():
+            return "face_centered"
+        elif self._node_centered():
+            return "node_centered"
+        elif self._edge_centered():
+            return "edge_centered"
+        else:
+            return None
+
     def to_geodataframe(
         self,
         periodic_elements: str | None = "exclude",
