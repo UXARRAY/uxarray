@@ -69,9 +69,7 @@ try:
 
     @_nb_intrinsic
     def _fma(typingctx, a, b, c):
-        sig = _nb_types.float64(
-            _nb_types.float64, _nb_types.float64, _nb_types.float64
-        )
+        sig = _nb_types.float64(_nb_types.float64, _nb_types.float64, _nb_types.float64)
 
         def codegen(context, builder, signature, args):
             return builder.fma(*args)
