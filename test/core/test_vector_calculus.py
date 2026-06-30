@@ -23,13 +23,17 @@ class TestGradientQuadHex:
         assert uxds['t2m'].sizes == grad_ds.sizes
 
     def test_gradient_all_boundary_faces(self, gridpath, datasetpath):
-        """Quad hexagon grid has 4 faces, each of which are on the boundary, so the expected gradients are zero for both components"""
+        """Quad hexagon grid has 4 faces, all touching the boundary.
+
+        Each face still has some interior edges, so the gradient should
+        produce finite (small) values rather than NaN.
+        """
         uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
         grad = uxds['t2m'].gradient()
 
-        assert np.isnan(grad['meridional_gradient']).all()
-        assert np.isnan(grad['zonal_gradient']).all()
+        assert not np.isnan(grad['meridional_gradient']).any()
+        assert not np.isnan(grad['zonal_gradient']).any()
 
 
 class TestGradientMPASOcean:
