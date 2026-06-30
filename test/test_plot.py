@@ -231,27 +231,29 @@ def test_to_raster_pixel_ratio(gridpath, r1, r2):
     assert (d >= 0).all() and (d <= f - 1).all()
 
 
-def test_matplotlib_backend_does_not_clobber_mpl_state(gridpath):
-    """Regression test for #1537.
+def test_matplotlib_backend_restored_after_switch(monkeypatch):
+    """Regression test for #1537: switching HoloViews to matplotlib must restore
+    the Matplotlib backend captured beforehand.
 
-    ``plot(backend="matplotlib")`` calls ``hv.extension("matplotlib")`` which
-    switches the active Matplotlib backend and breaks subsequent native
-    Matplotlib/xarray ``.plot()`` calls. UXarray should restore the original
-    Matplotlib backend so plain Matplotlib plotting still works afterwards.
+    A bare pytest can't reproduce the Jupyter inline-hook flip, so we simulate
+    hv.extension flipping the backend and assert assign() restores it.
     """
-    mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
-    uxds = ux.open_dataset(mesh_path, mesh_path)
+    import holoviews as hv
 
-    backend_before = matplotlib.get_backend()
+    from uxarray.plot.utils import HoloviewsBackend
 
-    # UXarray plot using the matplotlib backend (the trigger in #1537)
-    uxds["bottomDepth"].plot(backend="matplotlib")
+    original = matplotlib.get_backend()
+    try:
+        matplotlib.use("svg")  # the "user's" backend before plotting
 
-    # The active matplotlib backend must be restored.
-    assert matplotlib.get_backend() == backend_before
+        # Simulate hv.extension("matplotlib") flipping the active backend to agg.
+        monkeypatch.setattr(hv.Store, "current_backend", "bokeh", raising=False)
+        monkeypatch.setattr(hv, "extension", lambda *a, **k: matplotlib.use("agg"))
 
-    # A subsequent plain xarray/matplotlib plot must still work without error.
-    fig, ax = plt.subplots()
-    xr.DataArray(np.random.rand(5, 5), dims=["y", "x"], name="plain").plot(ax=ax)
-    assert len(ax.collections) + len(ax.images) > 0
-    plt.close(fig)
+        be = HoloviewsBackend()
+        be.assign("matplotlib")
+
+        # assign() must restore the backend that was active before the switch.
+        assert matplotlib.get_backend() == "svg"
+    finally:
+        matplotlib.use(original)
