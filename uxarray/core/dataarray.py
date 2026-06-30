@@ -1493,14 +1493,14 @@ class UxDataArray(xr.DataArray):
         Returns
         -------
         gradient: UxDataset
-            Dataset containing the zonal and merdional components of the gradient.
+            Dataset containing the zonal and meridional components of the gradient.
             With the default ``scale_by_radius=True`` the components are in
             ``[data units]/m``; with ``scale_by_radius=False`` they are in
             ``[data units]/rad``.
 
         Notes
         -----
-        The Green-Gauss theorm is utilized, where a closed control volume around each cell
+        The Green-Gauss theorem is utilized, where a closed control volume around each cell
         is formed connecting centroids of the neighboring cells. The surface integral is
         approximated using the trapezoidal rule. The sum of the contributions is then
         normalized by the cell volume.
@@ -1621,7 +1621,7 @@ class UxDataArray(xr.DataArray):
         u_units = self.attrs.get("units", "")
         has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
         if scale_by_radius and has_sphere_radius:
-            curl_units = f"({u_units})/m" if u_units else "1/s"
+            curl_units = f"({u_units})/m" if u_units else "1/m"
         else:
             curl_units = f"({u_units})/rad" if u_units else "1/rad"
 
@@ -1649,7 +1649,8 @@ class UxDataArray(xr.DataArray):
         Parameters
         ----------
         other : UxDataArray
-            The second component of the vector field. This UxDataArray represents the first component.
+            The second (meridional, v) component of the vector field; ``self`` is
+            the first (zonal, u) component.
         scale_by_radius : bool, default=True
             Divide unit-sphere derivatives by ``uxgrid.sphere_radius``. When
             ``True`` (and the grid has a ``sphere_radius`` attribute) the result
@@ -1726,7 +1727,7 @@ class UxDataArray(xr.DataArray):
             u_units = self.attrs.get("units", "")
             has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
             if scale_by_radius and has_sphere_radius:
-                div_units = f"({u_units})/m" if u_units else "1/s"
+                div_units = f"({u_units})/m" if u_units else "1/m"
             else:
                 div_units = f"({u_units})/rad" if u_units else "1/rad"
 

@@ -663,9 +663,8 @@ class TestCurlDyamondSubset:
         # Default output is the unit-sphere result divided by sphere_radius.
         nt.assert_allclose(div_scaled, div_unit / radius, equal_nan=True)
 
-        # Units should reflect the scaling (per meter vs per radian) and must not
-        # be hardcoded to 1/s regardless of input.
-        assert div_scaled.attrs["units"]
+        # Units should reflect the scaling (per meter vs per radian).
+        assert div_scaled.attrs["units"].endswith("/m")
         assert div_unit.attrs["units"].endswith("/rad")
 
     def test_curl_units_and_attributes(self, gridpath, datasetpath):
