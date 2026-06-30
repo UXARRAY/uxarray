@@ -12,10 +12,27 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.grid import Grid
 
-import hvplot.pandas
-import hvplot.xarray
-
 from uxarray.plot.utils import backend as plotting_backend
+
+# import speedup trick:
+#   code here uses obj.hvplot, which requires import hvplot.pandas and/or hvplot.xarray.
+#   But, those lines are "slow", so instead of doing them at top-level here,
+#   only run them when actually creating a plot accessor, inside the code later in this file.
+# (timing test: import uxarray takes ~1.7 seconds before change; 0.7 seconds after change.)
+
+_IMPORTED_HVPLOT = False
+
+
+def _ensure_hvplot_imported() -> None:
+    """Import hvplot.pandas and hvplot.xarray if not already imported.
+    (importing hvplot.pandas may output horizontal gray bar(s) in Jupyter, so only ever do it once.)
+    """
+    global _IMPORTED_HVPLOT
+    if not _IMPORTED_HVPLOT:
+        import hvplot.pandas
+        import hvplot.xarray
+
+        _IMPORTED_HVPLOT = True
 
 
 class GridPlotAccessor:
@@ -36,6 +53,7 @@ class GridPlotAccessor:
     __slots__ = ("_uxgrid",)
 
     def __init__(self, uxgrid: Grid) -> None:
+        _ensure_hvplot_imported()
         self._uxgrid = uxgrid
 
     def __call__(self, **kwargs) -> Any:
@@ -340,6 +358,7 @@ class UxDataArrayPlotAccessor:
     __slots__ = ("_uxda",)
 
     def __init__(self, uxda: UxDataArray) -> None:
+        _ensure_hvplot_imported()
         self._uxda = uxda
 
     def __call__(self, **kwargs) -> Any:
@@ -521,6 +540,7 @@ class UxDatasetPlotAccessor:
     __slots__ = ("_uxds",)
 
     def __init__(self, uxds: UxDataset) -> None:
+        _ensure_hvplot_imported()
         self._uxds = uxds
 
     def __call__(self, **kwargs) -> Any:
