@@ -39,6 +39,54 @@ def test_open_dataset(gridpath, datasetpath, mesh_constants):
     nt.assert_equal(len(uxds_var2_ne30.uxgrid._ds.data_vars), mesh_constants['DATAVARS_outCSne30'])
     nt.assert_equal(uxds_var2_ne30.source_datasets, str(data_path))
 
+
+def test_open_dataset_single_combined_mpas_file(gridpath):
+    """Loads a combined MPAS grid-and-data file with a single argument."""
+
+    # Use a known combined grid-and-data MPAS file.
+    file_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+
+    uxds_single = ux.open_dataset(file_path)
+    uxds_pair = ux.open_dataset(file_path, file_path)
+
+    # Ensure that the single-argument path actually loads data variables
+    assert len(uxds_single.data_vars) > 0
+    nt.assert_equal(uxds_single.uxgrid.source_grid_spec, "MPAS")
+    nt.assert_equal(uxds_single.source_datasets, str(file_path))
+    nt.assert_equal(uxds_single.sizes["n_face"], uxds_pair.sizes["n_face"])
+    nt.assert_equal(set(uxds_single.data_vars), set(uxds_pair.data_vars))
+    assert "ssh" in uxds_single.data_vars
+
+
+def test_open_dataset_single_combined_xarray_dataset(gridpath):
+    """Loads a combined MPAS grid-and-data xarray.Dataset with a single argument."""
+
+    file_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+
+    with xr.open_dataset(file_path) as ds:
+        uxds = ux.open_dataset(ds)
+
+    nt.assert_equal(uxds.uxgrid.source_grid_spec, "MPAS")
+    nt.assert_equal(uxds.source_datasets, None)
+    assert "ssh" in uxds.data_vars
+
+
+def test_open_dataset_single_argument_rejects_directory_grid(tmp_path):
+    """Requires a separate data file for directory-based grids."""
+
+    with pytest.raises(ValueError, match="Directory-based grids require a separate data file"):
+        ux.open_dataset(tmp_path)
+
+
+def test_open_dataset_single_argument_rejects_invalid_combined_file(datasetpath):
+    """Rejects one-file inputs that do not contain recognizable grid metadata."""
+
+    data_path = datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc")
+
+    with pytest.raises(RuntimeError, match="Could not recognize dataset format"):
+        ux.open_dataset(data_path)
+
+
 def test_open_mf_dataset(gridpath, datasetpath, mesh_constants):
     """Loads multiple datasets with their grid topology file using
     uxarray's open_dataset call."""
