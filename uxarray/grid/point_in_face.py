@@ -1,79 +1,224 @@
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 import numpy as np
 from numba import njit, prange
 
-from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.arcs import point_within_gca
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _small_angle_of_2_vectors
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.grid.arcs import on_minor_arc, orient3d_on_sphere
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike
 
     from uxarray.grid.grid import Grid
 
+# Return codes for _point_in_polygon_sphere.
+_LOC_OUTSIDE = 0
+_LOC_INSIDE = 1
+_LOC_ON_VERTEX = 2
+_LOC_ON_EDGE = 3
+
+# Sign codes for orient3d_on_sphere results.
+_SIGN_NEG = -1
+_SIGN_ZERO = 0
+_SIGN_POS = 1
+
+_VERTEX_TOL = 1e-12
+_EDGE_TOL = 1e-10
+_RAY_EPS = 1e-8
+
+
+@njit(cache=True)
+def _ray_endpoint(q):
+    """Return a unit vector R perpendicular to q for use as the SPIP ray target.
+
+    Constructs R by projecting the coordinate axis least parallel to q onto
+    the plane perpendicular to q and normalizing.  This gives q·R = 0 exactly
+    (a 90° arc), so q×R has magnitude ≈ 1 — making orient3d_on_sphere calls
+    numerically robust regardless of q's position.
+
+    A small perturbation is added to reduce the chance that R falls exactly on
+    a polygon edge's great circle, which would trigger the -1 degenerate path.
+    """
+    ax, ay, az = abs(q[0]), abs(q[1]), abs(q[2])
+    if ax <= ay and ax <= az:
+        # Project the x-axis: (1,0,0) - q[0]*q
+        r0 = 1.0 - q[0] * q[0]
+        r1 = -q[1] * q[0]
+        r2 = -q[2] * q[0]
+    elif ay <= ax and ay <= az:
+        r0 = -q[0] * q[1]
+        r1 = 1.0 - q[1] * q[1]
+        r2 = -q[2] * q[1]
+    else:
+        r0 = -q[0] * q[2]
+        r1 = -q[1] * q[2]
+        r2 = 1.0 - q[2] * q[2]
+    r0 += _RAY_EPS
+    r1 -= _RAY_EPS * 0.7
+    r2 += _RAY_EPS * 0.3
+    n = math.sqrt(r0 * r0 + r1 * r1 + r2 * r2)
+    r = np.empty(3)
+    inv = 1.0 / n
+    r[0] = r0 * inv
+    r[1] = r1 * inv
+    r[2] = r2 * inv
+    return r
+
+
+@njit(cache=True)
+def _counts_as_crossing(A, B, q, R):
+    """Return 1 if edge AB crosses the minor arc q->R, 0 if not, -1 if degenerate.
+
+    An edge AB crosses ray q->R iff q and R lie on opposite sides of the great
+    circle plane through AB AND A and B lie on opposite sides of the great
+    circle plane through q->R. Uses orient3d_on_sphere (compensated) for all
+    side-of-plane tests. Returns -1 when R lies exactly on plane(AB), which
+    signals the caller to perturb R and retry.
+    """
+    s_AB_q = orient3d_on_sphere(A, B, q)
+    s_AB_R = orient3d_on_sphere(A, B, R)
+
+    # q on great circle AB: already caught by edge-membership check; not a crossing.
+    if s_AB_q == _SIGN_ZERO:
+        return 0
+    # R on great circle AB: degenerate ray, caller must perturb R.
+    if s_AB_R == _SIGN_ZERO:
+        return -1
+    # q and R on the same side of plane(AB): no crossing possible.
+    if s_AB_q == s_AB_R:
+        return 0
+
+    # q and R are strictly on opposite sides of plane(AB).
+    # Now check whether the intersection of the two great circles falls
+    # inside the minor arc A->B, i.e. A and B are on opposite sides of plane(qR).
+    s_qR_A = orient3d_on_sphere(q, R, A)
+    s_qR_B = orient3d_on_sphere(q, R, B)
+
+    # A or B on great circle qR: vertex lies exactly on the ray plane.
+    # Apply the half-edge rule: count the edge only if the other endpoint is
+    # strictly on the negative side, so adjacent edges sharing this vertex
+    # are not double-counted.
+    if s_qR_A == _SIGN_ZERO or s_qR_B == _SIGN_ZERO:
+        if s_qR_A == _SIGN_ZERO and s_qR_B == _SIGN_ZERO:
+            return 0  # entire edge coplanar with ray: degenerate
+        s_other = s_qR_B if s_qR_A == _SIGN_ZERO else s_qR_A
+        return 1 if s_other == _SIGN_NEG else 0
+
+    return 1 if s_qR_A != s_qR_B else 0
+
+
+@njit(cache=True)
+def _point_in_polygon_sphere(q, polygon):
+    """Spherical point-in-polygon test using the perturbed-antipode ray-casting method.
+
+    Casts a great-circle ray from q toward its perturbed antipode R and counts
+    how many polygon edges the ray crosses. Uses ``orient3d_on_sphere``
+    (compensated) for the crossing test, avoiding the ``arctan2`` calls in the
+    winding-number approach and the large number of ``np.cross`` allocations.
+
+    Returns one of _LOC_INSIDE, _LOC_OUTSIDE, _LOC_ON_VERTEX, _LOC_ON_EDGE.
+
+    Degenerate-ray handling: when R falls on a polygon edge's great circle, R
+    is nudged by a fixed perturbation and the loop restarts (up to 4 retries).
+    AccuSphGeom's Tier-3 approach instead uses Simulation of Simplicity (SoS)
+    with global vertex IDs to resolve degeneracies without any branching or
+    retries. SoS requires per-vertex IDs that are not available in the current
+    UXarray polygon representation, so it is left as future work.
+
+    Parameters
+    ----------
+    q : np.ndarray, shape (3,)
+        Query point (unit vector).
+    polygon : np.ndarray, shape (n, 3)
+        Polygon vertices on the unit sphere, ordered.
+
+    Returns
+    -------
+    int
+        Location code: _LOC_OUTSIDE (0), _LOC_INSIDE (1),
+        _LOC_ON_VERTEX (2), _LOC_ON_EDGE (3).
+    """
+    n = polygon.shape[0]
+
+    # 1. Vertex coincidence check.
+    for i in range(n):
+        dx = polygon[i, 0] - q[0]
+        dy = polygon[i, 1] - q[1]
+        dz = polygon[i, 2] - q[2]
+        if dx * dx + dy * dy + dz * dz < _VERTEX_TOL * _VERTEX_TOL:
+            return _LOC_ON_VERTEX
+
+    # 2. Edge membership check.
+    for i in range(n):
+        A = polygon[i]
+        B = polygon[(i + 1) % n]
+        if on_minor_arc(q, A, B, _EDGE_TOL):
+            return _LOC_ON_EDGE
+
+    # 3. Ray-casting crossing count.
+    # When R hits a degenerate edge, nudge and restart from i=0 so that all
+    # edges are counted with the same ray — a mid-loop nudge corrupts parity.
+    R = _ray_endpoint(q)
+    for _retry in range(4):
+        inside = False
+        need_retry = False
+        for i in range(n):
+            A = polygon[i]
+            B = polygon[(i + 1) % n]
+            c = _counts_as_crossing(A, B, q, R)
+            if c < 0:
+                R[0] += 1e-7
+                R[1] -= 1e-7
+                R[2] += 5e-8
+                n2 = R[0] * R[0] + R[1] * R[1] + R[2] * R[2]
+                inv = 1.0 / math.sqrt(n2)
+                R[0] *= inv
+                R[1] *= inv
+                R[2] *= inv
+                need_retry = True
+                break
+            if c == 1:
+                inside = not inside
+        if not need_retry:
+            return _LOC_INSIDE if inside else _LOC_OUTSIDE
+
+    return _LOC_OUTSIDE
+
 
 @njit(cache=True)
 def _face_contains_point(face_edges: np.ndarray, point: np.ndarray) -> bool:
-    """
-    Determine whether a point lies within a face using the spherical winding-number method.
+    """Determine whether a point lies within a face using spherical ray casting.
 
-    This function sums the signed central angles between successive vertices of the face
-    as seen from `point`.  If the total absolute winding exceeds π, the point is inside.
-    Points exactly on a node or edge also count as inside.
+    Delegates to ``_point_in_polygon_sphere`` after extracting the vertex
+    array from the edge array. Returns True for points strictly inside the
+    face and for points exactly on an edge or vertex.
 
     Parameters
     ----------
     face_edges : np.ndarray, shape (n_edges, 2, 3)
-        Cartesian coordinates (unit-vectors) of each great-circle edge of the face.
+        Cartesian unit-vector coordinates of each great-circle edge.
         Each row is [start_xyz, end_xyz].
     point : np.ndarray, shape (3,)
         3D unit-vector of the query point on the unit sphere.
 
     Returns
     -------
-    inside : bool
-        True if the point is inside the face or lies exactly on a node/edge; False otherwise.
+    bool
+        True if the point is inside the face or on its boundary.
     """
-    # Check for an exact hit with any of the corner nodes
-    for e in range(face_edges.shape[0]):
-        if np.allclose(
-            face_edges[e, 0], point, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
-        ):
-            return True
-        if np.allclose(
-            face_edges[e, 1], point, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
-        ):
-            return True
-        if point_within_gca(point, face_edges[e, 0], face_edges[e, 1]):
-            return True
-
     n = face_edges.shape[0]
-
-    total = 0.0
-    p = point
+    # Build the (n, 3) vertex array from the edge start points.
+    polygon = np.empty((n, 3))
     for i in range(n):
-        a = face_edges[i, 0]
-        b = face_edges[i + 1, 0] if i + 1 < n else face_edges[0, 0]
-
-        vi = a - p
-        vj = b - p
-
-        # check if you’re right on a vertex
-        if np.linalg.norm(vi) < ERROR_TOLERANCE or np.linalg.norm(vj) < ERROR_TOLERANCE:
-            return True
-
-        ang = _small_angle_of_2_vectors(vi, vj)
-
-        # determine sign from cross
-        c = np.cross(vi, vj)
-        sign = 1.0 if (c[0] * p[0] + c[1] * p[1] + c[2] * p[2]) >= 0.0 else -1.0
-
-        total += sign * ang
-
-    return np.abs(total) > np.pi
+        polygon[i, 0] = face_edges[i, 0, 0]
+        polygon[i, 1] = face_edges[i, 0, 1]
+        polygon[i, 2] = face_edges[i, 0, 2]
+    loc = _point_in_polygon_sphere(point, polygon)
+    return loc != _LOC_OUTSIDE
 
 
 @njit(cache=True)
