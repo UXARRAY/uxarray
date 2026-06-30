@@ -229,3 +229,31 @@ def test_to_raster_pixel_ratio(gridpath, r1, r2):
     f = r2 / r1
     d = np.array(raster2.shape) - f * np.array(raster1.shape)
     assert (d >= 0).all() and (d <= f - 1).all()
+
+
+def test_matplotlib_backend_restored_after_switch(monkeypatch):
+    """Regression test for #1537: switching HoloViews to matplotlib must restore
+    the Matplotlib backend captured beforehand.
+
+    A bare pytest can't reproduce the Jupyter inline-hook flip, so we simulate
+    hv.extension flipping the backend and assert assign() restores it.
+    """
+    import holoviews as hv
+
+    from uxarray.plot.utils import HoloviewsBackend
+
+    original = matplotlib.get_backend()
+    try:
+        matplotlib.use("svg")  # the "user's" backend before plotting
+
+        # Simulate hv.extension("matplotlib") flipping the active backend to agg.
+        monkeypatch.setattr(hv.Store, "current_backend", "bokeh", raising=False)
+        monkeypatch.setattr(hv, "extension", lambda *a, **k: matplotlib.use("agg"))
+
+        be = HoloviewsBackend()
+        be.assign("matplotlib")
+
+        # assign() must restore the backend that was active before the switch.
+        assert matplotlib.get_backend() == "svg"
+    finally:
+        matplotlib.use(original)
