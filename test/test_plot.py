@@ -229,3 +229,29 @@ def test_to_raster_pixel_ratio(gridpath, r1, r2):
     f = r2 / r1
     d = np.array(raster2.shape) - f * np.array(raster1.shape)
     assert (d >= 0).all() and (d <= f - 1).all()
+
+
+def test_matplotlib_backend_does_not_clobber_mpl_state(gridpath):
+    """Regression test for #1537.
+
+    ``plot(backend="matplotlib")`` calls ``hv.extension("matplotlib")`` which
+    switches the active Matplotlib backend and breaks subsequent native
+    Matplotlib/xarray ``.plot()`` calls. UXarray should restore the original
+    Matplotlib backend so plain Matplotlib plotting still works afterwards.
+    """
+    mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+
+    backend_before = matplotlib.get_backend()
+
+    # UXarray plot using the matplotlib backend (the trigger in #1537)
+    uxds["bottomDepth"].plot(backend="matplotlib")
+
+    # The active matplotlib backend must be restored.
+    assert matplotlib.get_backend() == backend_before
+
+    # A subsequent plain xarray/matplotlib plot must still work without error.
+    fig, ax = plt.subplots()
+    xr.DataArray(np.random.rand(5, 5), dims=["y", "x"], name="plain").plot(ax=ax)
+    assert len(ax.collections) + len(ax.images) > 0
+    plt.close(fig)
