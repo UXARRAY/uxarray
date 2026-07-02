@@ -553,7 +553,8 @@ class TestCurlDyamondSubset:
         # Boundary faces may have NaN values (which is expected)
         assert not np.isnan(finite_values).any(), "Found NaN in finite values"
 
-        # For a rotational field, curl should be non-zero
+        # For a rotational field, curl should be non-zero. With default radius
+        # scaling the magnitude is ~1e-7, comfortably above this lower bound.
         assert np.abs(finite_values).max() > 1e-10, "Curl values too small for rotational field"
 
     def test_curl_conservative_field(self, gridpath, datasetpath):
@@ -577,10 +578,12 @@ class TestCurlDyamondSubset:
 
         assert len(finite_values) > 0, "No finite curl values found"
 
-        # Curl of gradient should be close to zero (vector calculus identity)
-        # Allow for some numerical error in discrete computation
+        # Curl of gradient should be close to zero (vector calculus identity).
+        # With the default scale_by_radius=True the curl stencil applies a
+        # 1/radius^2 factor, so for this phi ~ O(1) field the residual is ~1e-13.
+        # Use a tight bound so a real regression is actually caught.
         max_curl = np.abs(finite_values).max()
-        assert max_curl < 10.0, f"Curl of gradient too large: {max_curl}"
+        assert max_curl < 1e-9, f"Curl of gradient too large: {max_curl}"
 
     def test_curl_identity_properties(self, gridpath, datasetpath):
         """Test vector calculus identities involving curl"""
@@ -600,8 +603,11 @@ class TestCurlDyamondSubset:
         finite_values = curl_grad.values[finite_mask]
 
         assert len(finite_values) > 0, "No finite curl values found"
+        # With default radius scaling the residual is ~1e-13 (1/radius^2 factor).
         max_curl_grad = np.abs(finite_values).max()
-        assert max_curl_grad < 10.0, f"curl(grad(f)) should be zero, got max: {max_curl_grad}"
+        assert max_curl_grad < 1e-9, (
+            f"curl(grad(f)) should be zero, got max: {max_curl_grad}"
+        )
 
         # Test 2: curl is antisymmetric: curl(u,v) = -curl(v,u)
         u_component = uxds['face_lon']
@@ -622,8 +628,12 @@ class TestCurlDyamondSubset:
             # curl(u,v) should equal -curl(v,u)
             # Note: Due to discrete computation, perfect antisymmetry may not hold
             antisymmetry_error = np.abs(curl_uv_finite + curl_vu_finite).max()
-            # Use a more relaxed tolerance for discrete computation
-            assert antisymmetry_error < 200.0, f"Curl antisymmetry violated, max error: {antisymmetry_error}"
+            # With default radius scaling the curl magnitudes are ~1e-10, so the
+            # antisymmetry residual is ~1e-5; keep a tolerance that reflects this
+            # scale rather than the old unit-sphere (~hundreds) bound.
+            assert antisymmetry_error < 1e-3, (
+                f"Curl antisymmetry violated, max error: {antisymmetry_error}"
+            )
 
     def test_curl_scales_by_radius(self, gridpath, datasetpath):
         uxds = ux.open_dataset(
@@ -641,6 +651,25 @@ class TestCurlDyamondSubset:
 
         assert curl_scaled.attrs["units"]
         assert curl_unit.attrs["units"].endswith("/rad")
+
+    def test_divergence_scales_by_radius(self, gridpath, datasetpath):
+        uxds = ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc"),
+        )
+        radius = uxds.uxgrid.sphere_radius
+        u_component = uxds["face_lon"]
+        v_component = uxds["face_lat"]
+
+        div_scaled = u_component.divergence(v_component)
+        div_unit = u_component.divergence(v_component, scale_by_radius=False)
+
+        # Default output is the unit-sphere result divided by sphere_radius.
+        nt.assert_allclose(div_scaled, div_unit / radius, equal_nan=True)
+
+        # Units should reflect the scaling (per meter vs per radian).
+        assert div_scaled.attrs["units"].endswith("/m")
+        assert div_unit.attrs["units"].endswith("/rad")
 
     def test_curl_units_and_attributes(self, gridpath, datasetpath):
         """Test that curl preserves appropriate units and attributes"""
