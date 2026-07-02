@@ -34,11 +34,14 @@ def _ensure_hvplot_imported() -> None:
         # To respect previously-setup extension value, need to remember and restore it.
         import hvplot
 
-        backend_orig = hvplot.Store.current_backend
+        _store = getattr(hvplot, "Store", None)
+        if _store is not None:
+            _backend_orig = _store.current_backend
         import hvplot.pandas
         import hvplot.xarray
 
-        hvplot.extension(backend_orig)
+        if _store is not None:
+            hvplot.extension(_backend_orig)
 
         _IMPORTED_HVPLOT = True
 
