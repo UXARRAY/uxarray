@@ -164,6 +164,40 @@ class UxDataArray(xr.DataArray):
         else:
             return None
 
+    @property
+    def data_location(self):
+        """Returns where on the grid the data variable is stored.
+
+        The location is inferred from the grid dimension present in the data
+        variable, using UGRID-style names:
+
+        - ``"face_centered"`` if the data contains the ``n_face`` dimension
+        - ``"node_centered"`` if the data contains the ``n_node`` dimension
+        - ``"edge_centered"`` if the data contains the ``n_edge`` dimension
+        - ``None`` if the data is not mapped to the grid
+
+        Notes
+        -----
+        Additional locations described in the UGRID/spectral-element ecosystem
+        (e.g. ``"face_average"``, ``"edge_orthogonal"``, ``"edge_parallel"``,
+        ``"cgll"``, ``"dgll"``) cannot be inferred from a data variable's
+        dimensions alone and are not currently distinguished here.
+
+        Returns
+        -------
+        str or None
+            One of ``"face_centered"``, ``"node_centered"``,
+            ``"edge_centered"``, or ``None``.
+        """
+        if self._face_centered():
+            return "face_centered"
+        elif self._node_centered():
+            return "node_centered"
+        elif self._edge_centered():
+            return "edge_centered"
+        else:
+            return None
+
     def to_geodataframe(
         self,
         periodic_elements: str | None = "exclude",
@@ -1483,19 +1517,32 @@ class UxDataArray(xr.DataArray):
         Parameters
         ----------
         scale_by_radius : bool, default=True
-            Divide unit-sphere derivatives by ``uxgrid.sphere_radius``.
+            Divide unit-sphere derivatives by ``uxgrid.sphere_radius`` so the
+            result carries physical, per-meter units (``[data units]/m``). When
+            ``False`` the result is left on the unit sphere with per-radian units
+            (``[data units]/rad``). If ``True`` but the grid has no
+            ``sphere_radius`` attribute, the result falls back to unit-sphere
+            output and a ``UserWarning`` is emitted.
 
         Returns
         -------
         gradient: UxDataset
-            Dataset containing the zonal and merdional components of the gradient.
+            Dataset containing the zonal and meridional components of the gradient.
+            With the default ``scale_by_radius=True`` the components are in
+            ``[data units]/m``; with ``scale_by_radius=False`` they are in
+            ``[data units]/rad``.
 
         Notes
         -----
-        The Green-Gauss theorm is utilized, where a closed control volume around each cell
+        The Green-Gauss theorem is utilized, where a closed control volume around each cell
         is formed connecting centroids of the neighboring cells. The surface integral is
         approximated using the trapezoidal rule. The sum of the contributions is then
         normalized by the cell volume.
+
+        By default the raw unit-sphere (per-radian) gradient is divided by
+        ``uxgrid.sphere_radius`` to yield physical per-meter values. For Earth
+        (radius ~6.37e6 m) this scales magnitudes down by ~1/6.37e6 relative to
+        the unit-sphere result.
 
         Example
         -------
@@ -1539,7 +1586,10 @@ class UxDataArray(xr.DataArray):
             represent the meridional (v) component, while self represents the
             zonal (u) component.
         scale_by_radius : bool, default=True
-            Divide unit-sphere derivatives by ``uxgrid.sphere_radius``.
+            Divide unit-sphere derivatives by ``uxgrid.sphere_radius`` so the
+            result carries physical, per-meter units (e.g. ``1/s`` for a velocity
+            field). When ``False`` the result is left on the unit sphere
+            (per radian).
         **kwargs : dict
             Additional keyword arguments (currently unused, reserved for future extensions).
 
@@ -1547,7 +1597,9 @@ class UxDataArray(xr.DataArray):
         -------
         curl : UxDataArray
             The curl of the vector field (u, v), computed as:
-            curl = ∂v/∂x - ∂u/∂y
+            curl = ∂v/∂x - ∂u/∂y. With the default ``scale_by_radius=True`` the
+            result is in ``([u units])/m`` (``1/s`` for velocity); with
+            ``scale_by_radius=False`` it is in ``([u units])/rad``.
 
         Notes
         -----
@@ -1603,7 +1655,7 @@ class UxDataArray(xr.DataArray):
         u_units = self.attrs.get("units", "")
         has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
         if scale_by_radius and has_sphere_radius:
-            curl_units = f"({u_units})/m" if u_units else "1/s"
+            curl_units = f"({u_units})/m" if u_units else "1/m"
         else:
             curl_units = f"({u_units})/rad" if u_units else "1/rad"
 
@@ -1622,16 +1674,26 @@ class UxDataArray(xr.DataArray):
 
         return curl_da
 
-    def divergence(self, other: "UxDataArray", **kwargs) -> "UxDataArray":
+    def divergence(
+        self, other: "UxDataArray", scale_by_radius: bool = True, **kwargs
+    ) -> "UxDataArray":
         """
         Computes the divergence of the vector field defined by this UxDataArray and other.
 
         Parameters
         ----------
         other : UxDataArray
-            The second component of the vector field. This UxDataArray represents the first component.
+            The second (meridional, v) component of the vector field; ``self`` is
+            the first (zonal, u) component.
+        scale_by_radius : bool, default=True
+            Divide unit-sphere derivatives by ``uxgrid.sphere_radius``. When
+            ``True`` (and the grid has a ``sphere_radius`` attribute) the result
+            carries physical, per-meter units (e.g. ``1/s`` for a velocity
+            field); when ``False`` the result is left on the unit sphere
+            (per radian).
         **kwargs
-            Additional keyword arguments (reserved for future use).
+            Additional keyword arguments. ``units`` may be passed to override the
+            automatically inferred units.
 
         Returns
         -------
@@ -1645,7 +1707,9 @@ class UxDataArray(xr.DataArray):
         the divergence is calculated as div(V) = ∂u/∂x + ∂v/∂y.
 
         The implementation uses edge-centered gradients and face-centered divergence calculation
-        following the discrete divergence theorem.
+        following the discrete divergence theorem. By default the underlying
+        gradients are divided by ``uxgrid.sphere_radius``; pass
+        ``scale_by_radius=False`` for per-radian (unit-sphere) output.
 
         Example
         -------
@@ -1675,8 +1739,8 @@ class UxDataArray(xr.DataArray):
             )
 
         # Compute gradients of both components
-        u_gradient = self.gradient()
-        v_gradient = other.gradient()
+        u_gradient = self.gradient(scale_by_radius=scale_by_radius)
+        v_gradient = other.gradient(scale_by_radius=scale_by_radius)
 
         # For divergence: div(V) = ∂u/∂x + ∂v/∂y
         # We use the zonal gradient (∂/∂lon) of u and meridional gradient (∂/∂lat) of v
@@ -1687,10 +1751,24 @@ class UxDataArray(xr.DataArray):
         u, v = xr.align(u, v)
         divergence = u + v
         divergence.name = "divergence"
+
+        # Infer units consistently with gradient()/curl(): a divergence is a
+        # spatial derivative of the input field, so it carries an extra 1/length
+        # factor (per meter when scaled by radius, otherwise per radian).
+        if "units" in kwargs:
+            div_units = kwargs["units"]
+        else:
+            u_units = self.attrs.get("units", "")
+            has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
+            if scale_by_radius and has_sphere_radius:
+                div_units = f"({u_units})/m" if u_units else "1/m"
+            else:
+                div_units = f"({u_units})/rad" if u_units else "1/rad"
+
         divergence.attrs.update(
             {
                 "divergence": True,
-                "units": "1/s" if "units" not in kwargs else kwargs["units"],
+                "units": div_units,
             }
         )
 
