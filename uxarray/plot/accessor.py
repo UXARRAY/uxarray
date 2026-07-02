@@ -29,8 +29,16 @@ def _ensure_hvplot_imported() -> None:
     """
     global _IMPORTED_HVPLOT
     if not _IMPORTED_HVPLOT:
+        # workaround for hvplot issue #1735;
+        #  import hvplot.pandas and hvplot.xarray always adjust the hvplot.extension().
+        # To respect previously-setup extension value, need to remember and restore it.
+        import hvplot
+
+        backend_orig = hvplot.Store.current_backend
         import hvplot.pandas
         import hvplot.xarray
+
+        hvplot.extension(backend_orig)
 
         _IMPORTED_HVPLOT = True
 
