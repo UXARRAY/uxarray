@@ -22,15 +22,23 @@ for filename in filenames:
         url = f"https://github.com/ProjectPythia/unstructured-grid-viz-cookbook/raw/main/meshfiles/{filename}"
         _, headers = urllib.request.urlretrieve(url, filename=current_path / filename)
 
+# Paths to grid files on Glade
+dyamond_path_dict = {"30km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/30km/grid.nc",
+                  "15km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/15km/grid.nc",
+                  "7.5km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/7.5km/grid.nc",
+                  "3.75km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/3.75km/grid.nc"}
 
-file_path_dict = {"480km": [current_path / grid_filename_480, current_path / data_filename_480],
+oQU_path_dict = {"480km": [current_path / grid_filename_480, current_path / data_filename_480],
                   "120km": [current_path / grid_filename_120, current_path / data_filename_120]}
+
+file_path_dict = oQU_path_dict | dyamond_path_dict
+
 
 class GridBenchmark:
     """Class used as a template for benchmarks requiring a ``Grid`` in this
     module across both resolutions."""
     param_names = ['resolution', ]
-    params = [['480km', '120km'], ]
+    params = [['480km', '120km', '30km', '15km', '7.5km', '3.75km'], ]
 
     def setup(self, resolution, *args, **kwargs):
         self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
@@ -54,7 +62,7 @@ class Connectivity(GridBenchmark):
         _ = self.uxgrid.face_edge_connectivity
 
 #   TODO: Not yet supported?
-#    def time_edge_edge(self, resolution):
+#   def time_edge_edge(self, resolution):
 #        _ = self.uxgrid.edge_edge_connectivity
 
     def time_node_edge(self, resolution):
