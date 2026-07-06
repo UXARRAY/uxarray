@@ -134,3 +134,32 @@ def test_isel_invalid_dim(gridpath, datasetpath):
         match=r"Dimensions \{'level'\} do not exist\..*Available dimensions: \('time', 'n_face'\)",
     ):
         uxda.isel(level=0)
+
+
+def test_data_location():
+    """Tests data_location for face/node/edge centered data and non-grid data."""
+    uxgrid = ux.Grid.from_healpix(zoom=1)
+
+    face_da = UxDataArray(
+        np.ones(uxgrid.n_face), dims=["n_face"], uxgrid=uxgrid
+    )
+    node_da = UxDataArray(
+        np.ones(uxgrid.n_node), dims=["n_node"], uxgrid=uxgrid
+    )
+    edge_da = UxDataArray(
+        np.ones(uxgrid.n_edge), dims=["n_edge"], uxgrid=uxgrid
+    )
+    other_da = UxDataArray(
+        np.ones(5), dims=["other_dim"], uxgrid=uxgrid
+    )
+
+    assert face_da.data_location == "face_centered"
+    assert node_da.data_location == "node_centered"
+    assert edge_da.data_location == "edge_centered"
+    assert other_da.data_location is None
+
+    # Works when an extra (non-grid) dimension is present
+    face_time = UxDataArray(
+        np.ones((3, uxgrid.n_face)), dims=["time", "n_face"], uxgrid=uxgrid
+    )
+    assert face_time.data_location == "face_centered"
