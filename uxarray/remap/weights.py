@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import xarray as xr
-from numpy.random.mtrand import f
 
 from uxarray.core.utils import _open_dataset_with_fallback
 
