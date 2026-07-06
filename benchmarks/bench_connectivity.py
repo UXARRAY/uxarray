@@ -40,29 +40,31 @@ class GridBenchmark:
 
 class Connectivity(GridBenchmark):
 
-    def time_face_node(self):
+    def time_face_node(self, resolution):
         _ = self.uxgrid.face_node_connectivity
 
-    def time_edge_node(self):
+    def time_edge_node(self, resolution):
         _ = self.uxgrid.edge_node_connectivity
 
-    def time_node_node(self):
-        _ = self.uxgrid.node_node_connectivity
+#   TODO: Not yet supported?
+#   def time_node_node(self, resolution):
+#       _ = self.uxgrid.node_node_connectivity
 
-    def time_face_edge(self):
+    def time_face_edge(self, resolution):
         _ = self.uxgrid.face_edge_connectivity
 
-    def time_edge_edge(self):
-        _ = self.uxgrid.edge_edge_connectivity
+#   TODO: Not yet supported?
+#    def time_edge_edge(self, resolution):
+#        _ = self.uxgrid.edge_edge_connectivity
 
-    def time_node_edge(self):
+    def time_node_edge(self, resolution):
         _ = self.uxgrid.node_edge_connectivity
 
-    def time_face_face(self):
+    def time_face_face(self, resolution):
         _ = self.uxgrid.face_face_connectivity
 
-    def time_edge_face(self):
+    def time_edge_face(self, resolution):
         _ = self.uxgrid.edge_face_connectivity
 
-    def time_node_face(self):
+    def time_node_face(self, resolution):
         _ = self.uxgrid.node_face_connectivity
