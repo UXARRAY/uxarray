@@ -39,7 +39,14 @@ dependencies = [
 [project.optional-dependencies]
 all = ["uxarray[dev,geo,viz]"]
 complete = ["uxarray[dev,geo,viz]"]  # alias to "all"
-dev = ['pre_commit', 'pytest', 'pytest-cov', 'ruff', 'asv']
+dev = [
+    'asv',
+    'pooch',
+    'pre_commit',
+    'pytest',
+    'pytest-cov',
+    'ruff',
+]
 geo = [
     "geopandas",
     "healpix",

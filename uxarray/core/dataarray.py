@@ -463,6 +463,8 @@ class UxDataArray(xr.DataArray):
         >>> ax.imshow(raster, origin="lower", extent=ax.get_xlim() + ax.get_ylim())
 
         """
+        from cartopy.mpl.geoaxes import GeoAxes
+
         from uxarray.constants import INT_DTYPE
         from uxarray.plot.matplotlib import (
             _ensure_dimensions,
