@@ -22,35 +22,36 @@ requires-python = ">=3.10"
 # minimal dependencies start
 dependencies = [
   "antimeridian",
-  "cartopy",
   "dask[dataframe]",
-  "datashader",
-  "geoviews",
-  "holoviews",
-  "matplotlib",
-  "matplotlib-inline",
   "netcdf4",
   "numba",
   "numpy",
   "pandas",
-  "pyarrow",
-  "requests",
   "scikit-learn",
   "scipy",
   "shapely",
-  "spatialpandas",
-  "geopandas",
   "xarray",
-  "hvplot",
-  "healpix",
+  "hvplot",  # TODO: move to viz after PR #1541 gets merged.
   "polars",
-  "pyproj"
 ]
 # minimal dependencies end
 
 [project.optional-dependencies]
-complete = ["uxarray[dev]"]
-dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov', 'ruff', 'asv']
+all = ["uxarray[dev,geo,viz]"]
+complete = ["uxarray[dev,geo,viz]"]  # alias to "all"
+dev = ['pre_commit', 'pytest', 'pytest-cov', 'ruff', 'asv']
+geo = [
+    "geopandas",
+    "healpix",
+    "pyproj",
+    "spatialpandas",
+]
+viz = [
+    "cartopy",
+    "geoviews",
+    "holoviews",
+    "matplotlib",
+]
 
 [project.urls]
 Documentation = "https://uxarray.readthedocs.io/"

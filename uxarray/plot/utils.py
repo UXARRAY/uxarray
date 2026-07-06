@@ -1,6 +1,3 @@
-import holoviews as hv
-
-
 class HoloviewsBackend:
     """Utility class to compare and set a HoloViews plotting backend for
     visualization."""
@@ -16,6 +13,7 @@ class HoloviewsBackend:
         backend : str
             Plotting backend to use, one of 'matplotlib', 'bokeh'
         """
+        import holoviews as hv
 
         if self.matplotlib_backend is None:
             import matplotlib as mpl
