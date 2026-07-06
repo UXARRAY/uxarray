@@ -250,6 +250,8 @@ Grid Accessor
    :toctree: generated/
 
    UxDataArray.uxgrid
+   UxDataArray.data_mapping
+   UxDataArray.data_location
 
 
 UxDataset
