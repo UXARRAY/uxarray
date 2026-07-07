@@ -25,6 +25,11 @@ dyamond_path_dict = {"30km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/30k
                   "7.5km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/7.5km/grid.nc",
                   "3.75km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/3.75km/grid.nc"}
 
+# Determines if all file paths exist and are accesible
+all_paths_exist = True
+for file_path in dyamond_path_dict.values():
+    all_paths_exist = all_paths_exist and os.path.exists(file_path)
+
 file_path_dict = oQU_path_dict | dyamond_path_dict
 
 
