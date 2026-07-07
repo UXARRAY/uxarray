@@ -30,14 +30,21 @@ all_paths_exist = True
 for file_path in dyamond_path_dict.values():
     all_paths_exist = all_paths_exist and os.path.exists(file_path)
 
-file_path_dict = oQU_path_dict | dyamond_path_dict
+file_path_dict = oQU_path_dict
+if all_paths_exist:
+    file_path_dict = file_path_dict | dyamond_path_dict
 
 
 class GridBenchmark:
     """Class used as a template for benchmarks requiring a ``Grid`` in this
     module across both resolutions."""
     param_names = ['resolution', ]
-    params = [['480km', '120km', '30km', '15km', '7.5km', '3.75km'], ]
+
+    # Conditionally available; could get annoying if there are downstream tools relying on it.
+    if all_paths_exist:
+        params = [['480km', '120km', '30km', '15km', '7.5km', '3.75km'], ]
+    else:
+        params = [['480km', '120km'], ]
 
     def setup(self, resolution, *args, **kwargs):
         self.uxgrid = ux.open_grid(file_path_dict[resolution])
