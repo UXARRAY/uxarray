@@ -32,16 +32,18 @@ def _ensure_hvplot_imported() -> None:
         # workaround for hvplot issue #1735;
         #  import hvplot.pandas and hvplot.xarray always adjust the hvplot.extension().
         # To respect previously-setup extension value, need to remember and restore it.
-        import hvplot
+        # NB: the active backend lives on holoviews.Store (hvplot has no ``Store``),
+        #  and we only restore a backend that was actually loaded -- on a fresh import
+        #  Store.current_backend defaults to "matplotlib" while Store.registry is empty,
+        #  and restoring that unloaded backend would break rendering.
+        from holoviews import Store as _store
 
-        _store = getattr(hvplot, "Store", None)
-        if _store is not None:
-            _backend_orig = _store.current_backend
+        _backend_orig = _store.current_backend
         import hvplot.pandas
         import hvplot.xarray
 
-        if _store is not None:
-            hvplot.extension(_backend_orig)
+        if _backend_orig in _store.registry:
+            _store.set_current_backend(_backend_orig)
 
         _IMPORTED_HVPLOT = True
 
