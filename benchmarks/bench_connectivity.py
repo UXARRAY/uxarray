@@ -6,15 +6,9 @@ import uxarray as ux
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-data_var = 'bottomDepth'
-
 grid_filename_480 = "oQU480.grid.nc"
-data_filename_480 = "oQU480.data.nc"
-
 grid_filename_120 = "oQU120.grid.nc"
-data_filename_120 = "oQU120.data.nc"
-
-filenames = [grid_filename_480, data_filename_480, grid_filename_120, data_filename_120]
+filenames = [grid_filename_480, grid_filename_120]
 
 for filename in filenames:
     if not os.path.isfile(current_path / filename):
@@ -22,14 +16,14 @@ for filename in filenames:
         url = f"https://github.com/ProjectPythia/unstructured-grid-viz-cookbook/raw/main/meshfiles/{filename}"
         _, headers = urllib.request.urlretrieve(url, filename=current_path / filename)
 
+oQU_path_dict = {"480km": current_path / grid_filename_480,
+                  "120km": current_path / grid_filename_120}
+
 # Paths to grid files on Glade
 dyamond_path_dict = {"30km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/30km/grid.nc",
                   "15km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/15km/grid.nc",
                   "7.5km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/7.5km/grid.nc",
                   "3.75km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/3.75km/grid.nc"}
-
-oQU_path_dict = {"480km": [current_path / grid_filename_480, current_path / data_filename_480],
-                  "120km": [current_path / grid_filename_120, current_path / data_filename_120]}
 
 file_path_dict = oQU_path_dict | dyamond_path_dict
 
@@ -41,7 +35,7 @@ class GridBenchmark:
     params = [['480km', '120km', '30km', '15km', '7.5km', '3.75km'], ]
 
     def setup(self, resolution, *args, **kwargs):
-        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid = ux.open_grid(file_path_dict[resolution])
 
     def teardown(self, resolution, *args, **kwargs):
         del self.uxgrid
