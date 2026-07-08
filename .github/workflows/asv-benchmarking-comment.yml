@@ -1,0 +1,82 @@
+name: ASV Benchmarking (Comment)
+
+# Runs AFTER "ASV Benchmarking (PR)" completes. Because it is triggered by
+# workflow_run, it executes from the default branch with the repository's own
+# GITHUB_TOKEN (read-write), so it CAN post a comment even when the benchmark
+# run came from a fork PR (where the token is read-only). It only downloads a
+# results artifact and posts text -- it never checks out or executes PR/fork
+# code, which keeps the write token safe. Fixes #1547.
+
+on:
+  workflow_run:
+    workflows: ["ASV Benchmarking (PR)"]
+    types:
+      - completed
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  comment:
+    name: Post benchmark comment
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Download benchmark results artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: asv-benchmark-results-Linux
+          path: asv-results
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post or update result comment
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            // PR number and results were saved by the benchmark workflow.
+            const issue_number = parseInt(
+              fs.readFileSync('asv-results/pr_number.txt', 'utf8').trim(), 10);
+            const compareResults = fs.readFileSync(
+              'asv-results/asv_compare_results.txt', 'utf8');
+            const { owner, repo } = context.repo;
+
+            const newComment = `
+            ## ASV Benchmarking
+
+            <details>
+              <summary>Benchmark Comparison Results</summary>
+
+              ${compareResults}
+            </details>
+            `;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number,
+            });
+
+            const botComment = comments.find(
+              c => c.user.login === 'github-actions[bot]'
+                && c.body.includes('## ASV Benchmarking'));
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: botComment.id,
+                body: newComment,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: newComment,
+              });
+            }
