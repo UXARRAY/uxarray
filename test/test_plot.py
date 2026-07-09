@@ -243,5 +243,5 @@ def test_plot_with_features(gridpath, datasetpath):
     plot2 = uxds2["v2"].plot(features=['coastline'])
     plot = plot1 + plot2
     # the crash associated with issue #1542 only occurs when actually trying to render:
-    renderer = hv.renderer("matplotlib")   # or "matplotlib"
+    renderer = hv.renderer("matplotlib")
     renderer.get_plot(plot)
