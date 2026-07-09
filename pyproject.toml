@@ -31,7 +31,6 @@ dependencies = [
   "scipy",
   "shapely",
   "xarray",
-  "hvplot",  # TODO: move to viz after PR #1541 gets merged.
   "polars",
 ]
 # minimal dependencies end
@@ -55,9 +54,10 @@ geo = [
 ]
 viz = [
     "cartopy",
+    "matplotlib",
     "geoviews",
     "holoviews",
-    "matplotlib",
+    "hvplot",  # TODO: move to viz after PR #1541 gets merged.
 ]
 
 [project.urls]
