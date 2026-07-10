@@ -54,7 +54,7 @@ geo = [
 ]
 viz = [
     "cartopy",
-    "matplotlib",
+    "matplotlib<3.11",  # matplotlib 3.11.0 breaks some plots but <3.11 is fine; see issue #1542.
     "geoviews",
     "holoviews",
     "hvplot",  # TODO: move to viz after PR #1541 gets merged.

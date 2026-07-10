@@ -8,7 +8,7 @@ dependencies:
   - datashader
   - geoviews
   - holoviews
-  - matplotlib-base
+  - matplotlib-base<3.11   # 3.11.0 breaks some plots but <3.11 is fine; see issue #1542.
   - matplotlib-inline
   - healpix
   - netcdf4
