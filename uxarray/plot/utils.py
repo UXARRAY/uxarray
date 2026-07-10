@@ -37,5 +37,19 @@ class HoloviewsBackend:
 
         mpl.use(self.matplotlib_backend)
 
+        if self.matplotlib_backend in (
+            "inline",
+            "module://matplotlib_inline.backend_inline",
+        ):
+            try:
+                from IPython import get_ipython
+                from matplotlib_inline.backend_inline import configure_inline_support
+            except ImportError:
+                return
+
+            shell = get_ipython()
+            if shell is not None:
+                configure_inline_support(shell, self.matplotlib_backend)
+
 
 backend = HoloviewsBackend()

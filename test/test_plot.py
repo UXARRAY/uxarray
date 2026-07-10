@@ -257,3 +257,34 @@ def test_matplotlib_backend_restored_after_switch(monkeypatch):
         assert matplotlib.get_backend() == "svg"
     finally:
         matplotlib.use(original)
+
+
+def test_inline_backend_support_reconfigured(monkeypatch):
+    """Restoring the inline backend must also re-register IPython's display hook."""
+    import sys
+    import types
+
+    from uxarray.plot.utils import HoloviewsBackend
+
+    inline_backend = "module://matplotlib_inline.backend_inline"
+    shell = object()
+    calls = []
+
+    ipython = types.ModuleType("IPython")
+    ipython.get_ipython = lambda: shell
+    matplotlib_inline = types.ModuleType("matplotlib_inline")
+    backend_inline = types.ModuleType("matplotlib_inline.backend_inline")
+    backend_inline.configure_inline_support = lambda sh, backend: calls.append(
+        (sh, backend)
+    )
+
+    monkeypatch.setitem(sys.modules, "IPython", ipython)
+    monkeypatch.setitem(sys.modules, "matplotlib_inline", matplotlib_inline)
+    monkeypatch.setitem(sys.modules, "matplotlib_inline.backend_inline", backend_inline)
+    monkeypatch.setattr(matplotlib, "use", lambda backend: calls.append(("use", backend)))
+
+    be = HoloviewsBackend()
+    be.matplotlib_backend = inline_backend
+    be.reset_mpl_backend()
+
+    assert calls == [("use", inline_backend), (shell, inline_backend)]
