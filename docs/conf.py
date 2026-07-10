@@ -17,6 +17,12 @@ import yaml
 from sphinx.application import Sphinx
 from sphinx.util import logging
 
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
+os.environ.setdefault(
+    "UXARRAY_DATA_DIR",
+    str(PROJECT_ROOT / "test" / "meshfiles"),
+)
+
 import uxarray
 
 __all__ = (uxarray, matplotlib.pyplot)
@@ -229,6 +235,17 @@ nb_execution_excludepatterns = [
     "e3sm-calc-workflow.ipynb",
     "e3sm-load-viz.ipynb",
     "parallel-load-ux-with-dask.ipynb",
+]
+
+# add links to ignore during link checking
+linkcheck_ignore = [
+    r"https://gmao.gsfc.nasa.gov/gmaoftp/*",
+    r"https://docs.xarray.dev/*",
+    r"https://seatstandards.org/*",
+    r"https://healpix.sourceforge.io/*",
+    r"https://zenodo.org/*",
+    r"https://doi.org/10.5281/zenodo*",
+    # More URLs as needed
 ]
 
 

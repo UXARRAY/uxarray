@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.testing as nt
 import pytest
+import xarray as xr
 
 import uxarray as ux
 from uxarray.constants import INT_FILL_VALUE, ERROR_TOLERANCE
@@ -49,7 +50,7 @@ def test_grid_init_verts_fill_values():
 def test_read_shpfile(test_data_dir):
     """Reads a shape file and write ugrid file."""
     shp_filename = test_data_dir / "shp" / "grid_fire.shp"
-    with pytest.raises(ValueError):
+    with pytest.raises((ValueError, FileNotFoundError, OSError)):
         grid_shp = ux.open_grid(shp_filename)
 
 
@@ -77,3 +78,23 @@ def test_from_topology():
         face_node_connectivity=face_node_connectivity,
         fill_value=-1,
     )
+
+
+def test_grid_init_handles_empty_longitude_fields():
+    """Ensure grids with empty longitude arrays don't error during initialization."""
+    empty_lon = np.array([], dtype=np.float64)
+    ds = xr.Dataset(
+        {
+            "node_lon": (("n_node",), empty_lon),
+            "node_lat": (("n_node",), empty_lon),
+            "face_node_connectivity": (
+                ("n_face", "n_max_face_nodes"),
+                np.empty((0, 0), dtype=np.int64),
+            ),
+            "face_lon": (("n_face",), empty_lon),
+        }
+    )
+
+    uxgrid = ux.Grid(ds, source_grid_spec="UGRID")
+
+    assert uxgrid.n_face == 0

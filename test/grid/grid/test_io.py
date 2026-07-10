@@ -174,3 +174,26 @@ def test_grid_ugrid_exodus_roundtrip(gridpath):
     for filepath in test_files:
         if os.path.exists(filepath):
             os.remove(filepath)
+
+
+def test_exodus_roundtrip_rll1deg_node_lonlat(gridpath, tmp_path):
+    """Check Exodus round-trip coordinate stability for the RLL1deg grid."""
+    grid = ux.open_grid(gridpath("ugrid", "outRLL1deg", "outRLL1deg.ug"))
+
+    exodus_filepath = tmp_path / "outRLL1deg.exo"
+    grid.to_xarray("Exodus").to_netcdf(exodus_filepath)
+
+    reloaded_exodus = ux.open_grid(exodus_filepath)
+
+    np.testing.assert_allclose(
+        grid.node_lon.values,
+        reloaded_exodus.node_lon.values,
+        err_msg="Exodus longitude mismatch for RLL1deg",
+        rtol=ERROR_TOLERANCE,
+    )
+    np.testing.assert_allclose(
+        grid.node_lat.values,
+        reloaded_exodus.node_lat.values,
+        err_msg="Exodus latitude mismatch for RLL1deg",
+        rtol=ERROR_TOLERANCE,
+    )

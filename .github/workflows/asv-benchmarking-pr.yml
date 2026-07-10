@@ -1,8 +1,12 @@
 name: ASV Benchmarking (PR)
 
+# This workflow runs untrusted fork code, so it only gets a read-only token and
+# no write access. It must NOT post comments itself (forks get a read-only token
+# -> 403). Instead it uploads the results + PR number as an artifact, and the
+# separate asv-benchmarking-comment.yml (triggered via workflow_run) posts the
+# comment with the repo's write token. See issue #1547.
 permissions:
-  issues: write
-  pull-requests: write
+  contents: read
 
 on:
   pull_request:
@@ -22,13 +26,13 @@ jobs:
       CONDA_ENV_FILE: ci/environment.yml
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
 
       - name: Set up Conda environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: ${{env.CONDA_ENV_FILE}}
           cache-environment: true
@@ -55,60 +59,15 @@ jobs:
           asv compare --split ${{ github.event.pull_request.base.sha }} ${GITHUB_SHA} > asv_compare_results.txt
         working-directory: ${{ env.ASV_DIR }}
 
-      - uses: actions/upload-artifact@v4
+      - name: Save PR number
+        if: always()
+        run: echo "${{ github.event.pull_request.number }}" > ${{ env.ASV_DIR }}/pr_number.txt
+
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: asv-benchmark-results-${{ runner.os }}
           path: |
             ${{ env.ASV_DIR }}/results
             ${{ env.ASV_DIR }}/asv_compare_results.txt
-
-      - name: Post or update result comment
-        id: comment
-        uses: actions/github-script@v8
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const compareResults = fs.readFileSync('${{ env.ASV_DIR }}/asv_compare_results.txt', 'utf8');
-            const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
-
-            // Customize the comment content with your action results
-            const newComment = `
-            ## ASV Benchmarking
-
-            <details>
-              <summary>Benchmark Comparison Results</summary>
-
-              ${compareResults}
-            </details>
-            `;
-
-            // Fetch existing comments on the PR
-            const { data: comments } = await github.rest.issues.listComments({
-              owner,
-              repo,
-              issue_number,
-            });
-
-            // Find if there is an existing comment by this action
-            const botComment = comments.find(comment => comment.user.login === 'github-actions[bot]');
-
-            if (botComment) {
-              // Update the existing comment
-              await github.rest.issues.updateComment({
-                owner,
-                repo,
-                comment_id: botComment.id,
-                body: newComment,
-              });
-            } else {
-              // Create a new comment
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number,
-                body: newComment,
-              });
-            }
+            ${{ env.ASV_DIR }}/pr_number.txt

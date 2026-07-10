@@ -58,8 +58,14 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Zonal Means <user-guide/zonal-average.ipynb>`_
  Compute the zonal averages across lines of constant latitude
 
+`Azimuthal Mean <user-guide/azimuthal-average.ipynb>`_
+ Compute the azimuthal average along rings of constant distance from a specified central point
+
 `Remapping <user-guide/remapping.ipynb>`_
  Remap (a.k.a Regrid) between unstructured grids
+
+`Applying External Remap Weights <user-guide/remap-weights.rst>`_
+ Apply precomputed ESMF or TempestRemap offline map files
 
 `Topological Aggregations <user-guide/topological-aggregations.ipynb>`_
  Aggregate data across grid dimensions
@@ -67,8 +73,8 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Weighted Mean <user-guide/weighted_mean.ipynb>`_
  Compute the weighted average
 
-`Gradients <user-guide/gradients.ipynb>`_
- Compute the gradient of a data variable
+`Vector Calculations <user-guide/vector_calculus.ipynb>`_
+ Compute vector field operations such as gradients, curl, and divergence
 
 `Tree Structures <user-guide/tree_structures.ipynb>`_
  Data structures for nearest neighbor queries
@@ -114,10 +120,12 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/subset.ipynb
    user-guide/cross-sections.ipynb
    user-guide/zonal-average.ipynb
+   user-guide/azimuthal-average.ipynb
    user-guide/remapping.ipynb
+   user-guide/remap-weights.rst
    user-guide/topological-aggregations.ipynb
    user-guide/weighted_mean.ipynb
-   user-guide/gradients.ipynb
+   user-guide/vector_calculus.ipynb
    user-guide/tree_structures.ipynb
    user-guide/area_calc.ipynb
    user-guide/dual-mesh.ipynb

@@ -5,8 +5,66 @@ from uxarray.conventions import ugrid
 
 
 def _icon_to_ugrid_dims(in_ds):
-    source_dims_dict = {"vertex": "n_node", "edge": "n_edge", "cell": "n_face"}
-    return source_dims_dict
+    """Parse ICON dimension names and map them to UGRID conventions."""
+    source_dims_dict = {}
+
+    # Coordinate-driven mappings
+    if "vlat" in in_ds:
+        source_dims_dict[in_ds["vlat"].dims[0]] = ugrid.NODE_DIM
+    if "vlon" in in_ds:
+        source_dims_dict[in_ds["vlon"].dims[0]] = ugrid.NODE_DIM
+
+    if "elat" in in_ds:
+        source_dims_dict[in_ds["elat"].dims[0]] = ugrid.EDGE_DIM
+    if "elon" in in_ds:
+        source_dims_dict[in_ds["elon"].dims[0]] = ugrid.EDGE_DIM
+
+    if "clat" in in_ds:
+        source_dims_dict[in_ds["clat"].dims[0]] = ugrid.FACE_DIM
+    if "clon" in in_ds:
+        source_dims_dict[in_ds["clon"].dims[0]] = ugrid.FACE_DIM
+
+    # Connectivity-driven mappings
+    if "vertex_of_cell" in in_ds:
+        n_max_face_nodes_dim, face_dim = in_ds["vertex_of_cell"].dims
+        source_dims_dict.setdefault(face_dim, ugrid.FACE_DIM)
+        source_dims_dict.setdefault(n_max_face_nodes_dim, ugrid.N_MAX_FACE_NODES_DIM)
+
+    if "edge_of_cell" in in_ds:
+        n_max_face_edges_dim, face_dim = in_ds["edge_of_cell"].dims
+        source_dims_dict.setdefault(face_dim, ugrid.FACE_DIM)
+        source_dims_dict.setdefault(
+            n_max_face_edges_dim, ugrid.FACE_EDGE_CONNECTIVITY_DIMS[1]
+        )
+
+    if "neighbor_cell_index" in in_ds:
+        n_max_face_faces_dim, face_dim = in_ds["neighbor_cell_index"].dims
+        source_dims_dict.setdefault(face_dim, ugrid.FACE_DIM)
+        source_dims_dict.setdefault(
+            n_max_face_faces_dim, ugrid.FACE_FACE_CONNECTIVITY_DIMS[1]
+        )
+
+    if "adjacent_cell_of_edge" in in_ds:
+        two_dim, edge_dim = in_ds["adjacent_cell_of_edge"].dims
+        source_dims_dict.setdefault(edge_dim, ugrid.EDGE_DIM)
+        source_dims_dict.setdefault(two_dim, ugrid.EDGE_FACE_CONNECTIVITY_DIMS[1])
+
+    if "edge_vertices" in in_ds:
+        two_dim, edge_dim = in_ds["edge_vertices"].dims
+        source_dims_dict.setdefault(edge_dim, ugrid.EDGE_DIM)
+        source_dims_dict.setdefault(two_dim, ugrid.EDGE_NODE_CONNECTIVITY_DIMS[1])
+
+    # Fall back to common ICON dimension names if they were not detected above
+    for dim, ugrid_dim in {
+        "vertex": ugrid.NODE_DIM,
+        "edge": ugrid.EDGE_DIM,
+        "cell": ugrid.FACE_DIM,
+    }.items():
+        if dim in in_ds.dims:
+            source_dims_dict.setdefault(dim, ugrid_dim)
+
+    # Keep only dims that actually exist on the dataset
+    return {dim: name for dim, name in source_dims_dict.items() if dim in in_ds.dims}
 
 
 def _primal_to_ugrid(in_ds, out_ds):

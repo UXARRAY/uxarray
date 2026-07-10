@@ -1,16 +1,10 @@
 import copy
 import os
 from html import escape
-from typing import (
-    List,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Union,
-)
+from typing import Optional, Sequence
 from warnings import warn
 
+import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
 from xarray.core.options import OPTIONS
@@ -18,6 +12,9 @@ from xarray.core.utils import UncachedAccessor
 
 from uxarray.constants import INT_FILL_VALUE
 from uxarray.conventions import ugrid
+
+# Import the utility function for opening datasets with fallback
+from uxarray.core.utils import _open_dataset_with_fallback
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.formatting_html import grid_repr
 from uxarray.grid.area import get_all_face_area_from_coords
@@ -156,10 +153,10 @@ class Grid:
     def __init__(
         self,
         grid_ds: xr.Dataset,
-        source_grid_spec: Optional[str] = None,
-        source_dims_dict: Optional[dict] = None,
+        source_grid_spec: str | None = None,
+        source_dims_dict: dict | None = None,
         is_subset: bool = False,
-        inverse_indices: Optional[xr.Dataset] = None,
+        inverse_indices: xr.Dataset | None = None,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if source_grid_spec != "HEALPix":
@@ -211,9 +208,22 @@ class Grid:
             "antimeridian_face_indices": None,
         }
 
-        # Cached matplotlib data structures
-        self._cached_poly_collection = None
-        self._cached_line_collection = None
+        # cached parameters for PolyCollection conversions
+        self._poly_collection_cached_parameters = {
+            "poly_collection": None,
+            "periodic_elements": None,
+            "projection": None,
+            "corrected_to_original_faces": None,
+            "non_nan_polygon_indices": None,
+            "antimeridian_face_indices": None,
+        }
+
+        # cached parameters for LineCollection conversions
+        self._line_collection_cached_parameters = {
+            "line_collection": None,
+            "periodic_elements": None,
+            "projection": None,
+        }
 
         self._raster_data_id = None
 
@@ -228,6 +238,9 @@ class Grid:
         # flag to track if coordinates are normalized
         self._normalized = None
 
+        # flag to ensure projected-grid warning fires only once per instance
+        self._projected_warning_issued = False
+
         # set desired longitude range to [-180, 180]
         _set_desired_longitude_range(self)
 
@@ -241,7 +254,7 @@ class Grid:
     cross_section = UncachedAccessor(GridCrossSectionAccessor)
 
     @classmethod
-    def from_dataset(cls, dataset, use_dual: Optional[bool] = False, **kwargs):
+    def from_dataset(cls, dataset, use_dual: bool | None = False, **kwargs):
         """Constructs a ``Grid`` object from a dataset.
 
         Parameters
@@ -312,7 +325,7 @@ class Grid:
     def from_file(
         cls,
         filename: str,
-        backend: Optional[str] = "geopandas",
+        backend: str | None = "geopandas",
         **kwargs,
     ):
         """Constructs a ``Grid`` object from a using the read_file method with
@@ -348,7 +361,7 @@ class Grid:
             grid_ds, source_dims_dict = _read_geodataframe(filename)
 
         elif backend == "xarray":
-            dataset = xr.open_dataset(filename, **kwargs)
+            dataset = _open_dataset_with_fallback(filename, **kwargs)
             return cls.from_dataset(dataset)
 
         else:
@@ -427,9 +440,9 @@ class Grid:
         node_lon: np.ndarray,
         node_lat: np.ndarray,
         face_node_connectivity: np.ndarray,
-        fill_value: Optional = None,
-        start_index: Optional[int] = 0,
-        dims_dict: Optional[dict] = None,
+        fill_value: int | float | None = None,
+        start_index: int | None = 0,
+        dims_dict: dict | None = None,
         **kwargs,
     ):
         """Constructs a ``Grid`` object from user-defined topology variables
@@ -447,11 +460,11 @@ class Grid:
             Latitude of node coordinates
         face_node_connectivity : np.ndarray
             Face node connectivity, mapping each face to the nodes that surround them
-        fill_value: Optional
+        fill_value: int | float | None
             Value used for padding connectivity variables when the maximum number of elements in a row is less than the maximum.
-        start_index: Optional, default=0
+        start_index: int | None, default=0
             Start index (typically 0 or 1)
-        dims_dict : Optional, dict
+        dims_dict : dict | None
             Dictionary of dimension names mapped to the ugrid conventions (i.e. {"nVertices": "n_node})
         **kwargs :
 
@@ -480,7 +493,7 @@ class Grid:
 
     @classmethod
     def from_structured(
-        cls, ds: xr.Dataset = None, lon=None, lat=None, tol: Optional[float] = 1e-10
+        cls, ds: xr.Dataset = None, lon=None, lat=None, tol: float | None = 1e-10
     ):
         """
         Converts a structured ``xarray.Dataset`` or longitude and latitude coordinates into an unstructured ``uxarray.Grid``.
@@ -527,8 +540,8 @@ class Grid:
     @classmethod
     def from_face_vertices(
         cls,
-        face_vertices: Union[list, tuple, np.ndarray],
-        latlon: Optional[bool] = True,
+        face_vertices: list | tuple | np.ndarray,
+        latlon: bool | None = True,
     ):
         """Constructs a ``Grid`` object from user-defined face vertices.
 
@@ -1716,9 +1729,9 @@ class Grid:
 
     def get_ball_tree(
         self,
-        coordinates: Optional[str] = "face centers",
-        coordinate_system: Optional[str] = "spherical",
-        distance_metric: Optional[str] = "haversine",
+        coordinates: str | None = "face centers",
+        coordinate_system: str | None = "spherical",
+        distance_metric: str | None = "haversine",
         reconstruct: bool = False,
     ):
         """Get the BallTree data structure of this Grid that allows for nearest
@@ -1765,7 +1778,7 @@ class Grid:
         return self._ball_tree
 
     def _get_scipy_kd_tree(
-        self, coordinates: Optional[str] = "face", reconstruct: bool = False
+        self, coordinates: str | None = "face", reconstruct: bool = False
     ):
         """
         Build or retrieve a KDTree for efficient nearest-neighbor searches on grid points.
@@ -1818,9 +1831,9 @@ class Grid:
 
     def get_kd_tree(
         self,
-        coordinates: Optional[str] = "face centers",
-        coordinate_system: Optional[str] = "cartesian",
-        distance_metric: Optional[str] = "minkowski",
+        coordinates: str | None = "face centers",
+        coordinate_system: str | None = "cartesian",
+        distance_metric: str | None = "minkowski",
         reconstruct: bool = False,
     ):
         """Get the KDTree data structure of this Grid that allows for nearest
@@ -1918,9 +1931,9 @@ class Grid:
 
     def calculate_total_face_area(
         self,
-        quadrature_rule: Optional[str] = "triangular",
-        order: Optional[int] = 4,
-        latitude_adjusted_area: Optional[bool] = False,
+        quadrature_rule: str | None = "triangular",
+        order: int | None = 4,
+        latitude_adjusted_area: bool | None = False,
     ) -> float:
         """Function to calculate the total surface area of all the faces in a
         mesh.
@@ -1943,9 +1956,9 @@ class Grid:
 
     def compute_face_areas(
         self,
-        quadrature_rule: Optional[str] = "triangular",
-        order: Optional[int] = 4,
-        latitude_adjusted_area: Optional[bool] = False,
+        quadrature_rule: str | None = "triangular",
+        order: int | None = 4,
+        latitude_adjusted_area: bool | None = False,
     ):
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
@@ -1987,9 +2000,9 @@ class Grid:
 
     def _compute_face_areas(
         self,
-        quadrature_rule: Optional[str] = "triangular",
-        order: Optional[int] = 4,
-        latitude_adjusted_area: Optional[bool] = False,
+        quadrature_rule: str | None = "triangular",
+        order: int | None = 4,
+        latitude_adjusted_area: bool | None = False,
     ):
         """Internal face areas calculation function for grid class, calculates area of
         all faces in the grid.
@@ -2114,7 +2127,7 @@ class Grid:
 
         self._ds.attrs["sphere_radius"] = radius
 
-    def to_xarray(self, grid_format: Optional[str] = "ugrid"):
+    def to_xarray(self, grid_format: str | None = "ugrid"):
         """Returns an ``xarray.Dataset`` with the variables stored under the
         ``Grid`` encoded in a specific grid format.
 
@@ -2160,14 +2173,14 @@ class Grid:
 
     def to_geodataframe(
         self,
-        periodic_elements: Optional[str] = "exclude",
+        periodic_elements: str | None = "exclude",
         projection=None,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        engine: Optional[str] = "spatialpandas",
-        exclude_antimeridian: Optional[bool] = None,
-        return_non_nan_polygon_indices: Optional[bool] = False,
-        exclude_nan_polygons: Optional[bool] = True,
+        cache: bool | None = True,
+        override: bool | None = False,
+        engine: str | None = "spatialpandas",
+        exclude_antimeridian: bool | None = None,
+        return_non_nan_polygon_indices: bool | None = False,
+        exclude_nan_polygons: bool | None = True,
         **kwargs,
     ):
         """Constructs a ``GeoDataFrame`` consisting of polygons representing
@@ -2289,89 +2302,147 @@ class Grid:
 
     def to_polycollection(
         self,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        return_indices: Optional[bool] = False,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
+        return_non_nan_polygon_indices: Optional[bool] = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
-        of polygons representing the faces of the unstructured grid.
+        of polygons representing the faces of the current ``Grid``
 
         Parameters
         ----------
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
+        projection: ccrs.Projection
+            Cartopy geographic projection to use
+        return_indices: bool
+            Flag to indicate whether to return the indices of corrected polygons, if any exist
+        cache: bool
+            Flag to indicate whether to cache the computed PolyCollection
+        override: bool
+            Flag to indicate whether to override a cached PolyCollection, if it exists
         **kwargs: dict
             Key word arguments to pass into the construction of a PolyCollection
         """
-        import cartopy.crs as ccrs
 
-        if "projection" in kwargs:
-            proj = kwargs.pop("projection")
-            warn(
-                (
-                    "'projection' is not a supported argument and will be ignored. "
-                    "Define the desired projection on the GeoAxes that this collection will be added to. "
-                    "Example:\n"
-                    "    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.Robinson()})\n"
-                    "    ax.add_collection(poly_collection)\n"
-                    f"(received projection={proj!r})"
-                ),
-                category=FutureWarning,
-                stacklevel=2,
+        if periodic_elements not in ["ignore", "exclude", "split"]:
+            raise ValueError(
+                f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
             )
 
-        if self._cached_poly_collection:
-            return copy.deepcopy(self._cached_poly_collection)
+        if self._poly_collection_cached_parameters["poly_collection"] is not None:
+            if (
+                self._poly_collection_cached_parameters["periodic_elements"]
+                != periodic_elements
+                or self._poly_collection_cached_parameters["projection"] != projection
+            ):
+                # cached PolyCollection has a different projection or periodic element handling method
+                override = True
+
+        if (
+            self._poly_collection_cached_parameters["poly_collection"] is not None
+            and not override
+        ):
+            # use cached PolyCollection
+            if return_indices:
+                return copy.deepcopy(
+                    self._poly_collection_cached_parameters["poly_collection"]
+                ), self._poly_collection_cached_parameters[
+                    "corrected_to_original_faces"
+                ]
+            else:
+                return copy.deepcopy(
+                    self._poly_collection_cached_parameters["poly_collection"]
+                )
 
         (
             poly_collection,
             corrected_to_original_faces,
         ) = _grid_to_matplotlib_polycollection(
-            self, periodic_elements="ignore", projection=None, **kwargs
+            self, periodic_elements, projection, **kwargs
         )
 
-        poly_collection.set_transform(ccrs.Geodetic())
-        self._cached_poly_collection = poly_collection
+        if cache:
+            # cache PolyCollection, indices, and state
+            self._poly_collection_cached_parameters["poly_collection"] = poly_collection
+            self._poly_collection_cached_parameters["corrected_to_original_faces"] = (
+                corrected_to_original_faces
+            )
+            self._poly_collection_cached_parameters["periodic_elements"] = (
+                periodic_elements
+            )
+            self._poly_collection_cached_parameters["projection"] = projection
 
-        return copy.deepcopy(poly_collection)
+        if return_indices:
+            return copy.deepcopy(poly_collection), corrected_to_original_faces
+        else:
+            return copy.deepcopy(poly_collection)
 
     def to_linecollection(
         self,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.LineCollection``` consisting
-        of lines representing the edges of the unstructured grid.
+        of lines representing the edges of the current unstructured grid.
 
         Parameters
         ----------
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
+        projection: ccrs.Projection
+            Cartopy geographic projection to use
+        cache: bool
+            Flag to indicate whether to cache the computed LineCollection
+        override: bool
+            Flag to indicate whether to override a cached LineCollection, if it exists
         **kwargs: dict
             Key word arguments to pass into the construction of a LineCollection
         """
-        import cartopy.crs as ccrs
-
-        if "projection" in kwargs:
-            proj = kwargs.pop("projection")
-            warn(
-                (
-                    "'projection' is not a supported argument and will be ignored. "
-                    "Define the desired projection on the GeoAxes that this collection will be added to. "
-                    "Example:\n"
-                    "    fig, ax = plt.subplots(subplot_kw={'projection': ccrs.Robinson()})\n"
-                    "    ax.add_collection(line_collection)\n"
-                    f"(received projection={proj!r})"
-                ),
-                category=FutureWarning,
-                stacklevel=2,
+        if periodic_elements not in ["ignore", "exclude", "split"]:
+            raise ValueError(
+                f"Invalid value for 'periodic_elements'. Expected one of ['ignore', 'exclude', 'split'] but received: {periodic_elements}"
             )
-        if self._cached_line_collection:
-            return copy.deepcopy(self._cached_line_collection)
+
+        if self._line_collection_cached_parameters["line_collection"] is not None:
+            if (
+                self._line_collection_cached_parameters["periodic_elements"]
+                != periodic_elements
+                or self._line_collection_cached_parameters["projection"] != projection
+            ):
+                override = True
+
+            if not override:
+                return self._line_collection_cached_parameters["line_collection"]
 
         line_collection = _grid_to_matplotlib_linecollection(
             grid=self,
-            periodic_elements="ingore",
-            projection=None,
+            periodic_elements=periodic_elements,
+            projection=projection,
             **kwargs,
         )
 
-        line_collection.set_transform(ccrs.Geodetic())
-
-        self._cached_line_collection = line_collection
+        if cache:
+            self._line_collection_cached_parameters["line_collection"] = line_collection
+            self._line_collection_cached_parameters["periodic_elements"] = (
+                periodic_elements
+            )
+            self._line_collection_cached_parameters["periodic_elements"] = (
+                periodic_elements
+            )
 
         return copy.deepcopy(line_collection)
 
@@ -2402,9 +2473,7 @@ class Grid:
 
         return dual
 
-    def isel(
-        self, inverse_indices: Union[List[str], Set[str], bool] = False, **dim_kwargs
-    ):
+    def isel(self, inverse_indices: list[str] | set[str] | bool = False, **dim_kwargs):
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
 
@@ -2415,7 +2484,7 @@ class Grid:
 
         Parameters
         ----------
-        inverse_indices : Union[List[str], Set[str], bool], default=False
+        inverse_indices : list[str] | set[str] | bool, default=False
             Indicates whether to store the original grids indices. Passing `True` stores the original face indices,
             other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
         **dims_kwargs: kwargs
@@ -2581,12 +2650,12 @@ class Grid:
         faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
         return faces
 
-    def get_faces_between_longitudes(self, lons: Tuple[float, float]):
+    def get_faces_between_longitudes(self, lons: tuple[float, float]):
         """Identifies the indices of faces that are strictly between two lines of constant longitude.
 
         Parameters
         ----------
-        lons: Tuple[float, float]
+        lons: tuple[float, float]
             A tuple of longitudes that define that minimum and maximum longitude.
 
         Returns
@@ -2597,12 +2666,12 @@ class Grid:
         """
         return faces_within_lon_bounds(lons, self.face_bounds_lon.values)
 
-    def get_faces_between_latitudes(self, lats: Tuple[float, float]):
+    def get_faces_between_latitudes(self, lats: tuple[float, float]):
         """Identifies the indices of faces that are strictly between two lines of constant latitude.
 
         Parameters
         ----------
-        lats: Tuple[float, float
+        lats: tuple[float, float]
             A tuple of latitudes that define that minimum and maximum latitudes.
 
         Returns
@@ -2617,7 +2686,7 @@ class Grid:
         self,
         points: Sequence[float] | np.ndarray,
         return_counts: bool = True,
-    ) -> Tuple[np.ndarray, np.ndarray] | List[List[int]]:
+    ) -> tuple[np.ndarray, np.ndarray] | list[list[int]]:
         """
         Identify which grid faces contain the given point(s).
 
@@ -2643,7 +2712,7 @@ class Grid:
               Number of valid face indices in each row of `face_indices`.
 
         If `return_counts=False`:
-          List[List[int]]
+          list[list[int]]
               Python list of length `N`, where each element is the list of face
               indices for that point (no padding, in natural order).
 
@@ -2689,7 +2758,7 @@ class Grid:
 
         # Return a list of lists if counts are not desired
         if not return_counts:
-            output: List[List[int]] = []
+            output: list[list[int]] = []
             for i, c in enumerate(counts):
                 output.append(face_indices[i, :c].tolist())
             return output

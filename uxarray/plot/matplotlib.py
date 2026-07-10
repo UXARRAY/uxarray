@@ -22,17 +22,21 @@ def _ensure_dimensions(data: UxDataArray) -> UxDataArray:
     ValueError
         If the sole dimension is not named "n_face".
     """
-    # Check dimensionality
-    if data.ndim != 1:
+    # Allow extra singleton dimensions as long as there's exactly one non-singleton dim
+    non_trivial_dims = [dim for dim, size in zip(data.dims, data.shape) if size != 1]
+
+    if len(non_trivial_dims) != 1:
         raise ValueError(
-            f"Expected a 1D DataArray over 'n_face', but got {data.ndim} dimensions: {data.dims}"
+            "Expected data with a single dimension (other axes may be length 1), "
+            f"but got dims {data.dims} with shape {data.shape}"
         )
 
-    # Check dimension name
-    if data.dims[0] != "n_face":
-        raise ValueError(f"Expected dimension 'n_face', but got '{data.dims[0]}'")
+    sole_dim = non_trivial_dims[0]
+    if sole_dim != "n_face":
+        raise ValueError(f"Expected dimension 'n_face', but got '{sole_dim}'")
 
-    return data
+    # Squeeze any singleton axes to ensure we return a true 1D array over n_face
+    return data.squeeze()
 
 
 class _RasterAxAttrs(NamedTuple):

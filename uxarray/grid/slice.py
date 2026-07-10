@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Set, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import xarray as xr
@@ -75,7 +75,7 @@ def _slice_face_indices(
     grid,
     indices,
     inclusive=True,
-    inverse_indices: Union[List[str], Set[str], bool] = False,
+    inverse_indices: list[str] | set[str] | bool = False,
 ):
     """Slices (indexes) an unstructured grid given a list/array of face
     indices, returning a new Grid composed of elements that contain the faces
@@ -90,7 +90,7 @@ def _slice_face_indices(
     inclusive: bool
         Whether to perform inclusive (i.e. elements must contain at least one desired feature from a slice) as opposed
         to exclusive (i.e elements be made up all desired features from a slice)
-    inverse_indices : Union[List[str], Set[str], bool], optional
+    inverse_indices : list[str] | set[str] | bool, optional
         Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
         other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
     """

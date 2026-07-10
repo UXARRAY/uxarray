@@ -1,5 +1,4 @@
 import math
-from typing import Union
 
 import numpy as np
 import xarray as xr
@@ -12,8 +11,8 @@ from uxarray.grid.utils import _small_angle_of_2_vectors
 
 @njit(cache=True)
 def _lonlat_rad_to_xyz(
-    lon: Union[np.ndarray, float],
-    lat: Union[np.ndarray, float],
+    lon: np.ndarray | float,
+    lat: np.ndarray | float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Converts Spherical latitude and longitude coordinates into Cartesian x,
     y, z coordinates."""
@@ -26,9 +25,9 @@ def _lonlat_rad_to_xyz(
 
 @njit(cache=True)
 def _xyz_to_lonlat_rad_no_norm(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    z: np.ndarray | float,
 ):
     """Converts a Cartesian x,y,z coordinates into Spherical latitude and
     longitude without normalization, decorated with Numba.
@@ -69,10 +68,6 @@ def _xyz_to_lonlat_rad_no_norm(
 def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
     if normalize:
         x, y, z = _normalize_xyz_scalar(x, y, z)
-        denom = abs(x * x + y * y + z * z)
-        x /= denom
-        y /= denom
-        z /= denom
 
     lon = np.arctan2(y, x)
     lat = np.asin(z)
@@ -93,9 +88,9 @@ def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
 
 
 def _xyz_to_lonlat_rad(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    z: np.ndarray | float,
     normalize: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Converts Cartesian x, y, z coordinates in Spherical longitude and
@@ -103,29 +98,25 @@ def _xyz_to_lonlat_rad(
 
     Parameters
     ----------
-    x : Union[np.ndarray, float]
+    x : np.ndarray | float
         Cartesian x coordinates
-    y: Union[np.ndarray, float]
+    y: np.ndarray | float
         Cartesiain y coordinates
-    z: Union[np.ndarray, float]
+    z: np.ndarray | float
         Cartesian z coordinates
     normalize: bool
         Flag to select whether to normalize the coordinates
 
     Returns
     -------
-    lon : Union[np.ndarray, float]
+    lon : np.ndarray | float
         Longitude in radians
-    lat: Union[np.ndarray, float]
+    lat: np.ndarray | float
         Latitude in radians
     """
 
     if normalize:
         x, y, z = _normalize_xyz(x, y, z)
-        denom = np.abs(x * x + y * y + z * z)
-        x /= denom
-        y /= denom
-        z /= denom
 
     lon = np.arctan2(y, x)
     lat = np.arcsin(z)
@@ -142,9 +133,9 @@ def _xyz_to_lonlat_rad(
 
 
 def _xyz_to_lonlat_deg(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    z: np.ndarray | float,
     normalize: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Converts Cartesian x, y, z coordinates in Spherical latitude and
@@ -152,20 +143,20 @@ def _xyz_to_lonlat_deg(
 
     Parameters
     ----------
-    x : Union[np.ndarray, float]
+    x : np.ndarray | float
         Cartesian x coordinates
-    y: Union[np.ndarray, float]
+    y: np.ndarray | float
         Cartesiain y coordinates
-    z: Union[np.ndarray, float]
+    z: np.ndarray | float
         Cartesian z coordinates
     normalize: bool
         Flag to select whether to normalize the coordinates
 
     Returns
     -------
-    lon : Union[np.ndarray, float]
+    lon : np.ndarray | float
         Longitude in degrees
-    lat: Union[np.ndarray, float]
+    lat: np.ndarray | float
         Latitude in degrees
     """
     lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z, normalize=normalize)
@@ -178,9 +169,9 @@ def _xyz_to_lonlat_deg(
 
 
 def _normalize_xyz(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    z: np.ndarray | float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Normalizes a set of Cartesian coordinates."""
     denom = np.linalg.norm(
@@ -690,13 +681,98 @@ def _construct_edge_centroids(node_x, node_y, node_z, edge_node_conn):
     return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
 
+def _is_projected_grid(uxgrid) -> bool:
+    """Return True if the grid uses projected (non-spherical) coordinates.
+
+    Detection priority (mirrors CF conventions):
+
+    1. ``standard_name = "projection_x_coordinate"`` on ``node_lon`` — the
+       clearest CF signal used by regional ocean and coastal models.
+    2. ``units`` on ``node_lon`` is a length unit (m, km, ft, …) rather than
+       angular — catches files that omit ``standard_name`` but carry units.
+    3. A ``grid_mapping`` attribute on ``node_lon`` pointing to a variable
+       whose ``grid_mapping_name`` is not ``"latitude_longitude"`` — handles
+       files that embed a full CRS variable (e.g. Lambert Conformal, Albers).
+
+    Falls back to ``False`` (geographic) when no signal is found, preserving
+    backward compatibility with all existing geographic UGRID files.
+    """
+    if "node_lon" not in uxgrid._ds:
+        return False
+
+    da = uxgrid._ds["node_lon"]
+    attrs = da.attrs
+
+    # 1. standard_name
+    stdname = attrs.get("standard_name", "") or ""
+    if stdname == "projection_x_coordinate":
+        return True
+    if stdname == "longitude":
+        return False
+
+    # 2. units — angular units mean geographic; length units mean projected.
+    # Guard against non-string values (e.g. None) before calling .lower().
+    raw_units = attrs.get("units", "")
+    units = raw_units.lower().strip() if isinstance(raw_units, str) else ""
+    _ANGULAR_UNITS = {
+        "degrees_east",
+        "degree_east",
+        "degree_e",
+        "degrees",
+        "degree",
+        "deg",
+        "rad",
+        "radians",
+    }
+    _LENGTH_UNITS = {"m", "km", "meter", "meters", "metre", "metres", "ft", "feet"}
+    if units in _LENGTH_UNITS:
+        return True
+    if units in _ANGULAR_UNITS:
+        return False
+
+    # 3. grid_mapping variable
+    gm_name = attrs.get("grid_mapping", "") or ""
+    if gm_name and gm_name in uxgrid._ds:
+        gm_attrs = uxgrid._ds[gm_name].attrs
+        gm_name_val = gm_attrs.get("grid_mapping_name", "latitude_longitude")
+        if gm_name_val != "latitude_longitude":
+            return True
+
+    return False
+
+
 def _set_desired_longitude_range(uxgrid):
-    """Sets the longitude range to [-180, 180] for all longitude variables."""
+    """Sets the longitude range to [-180, 180] for all longitude variables.
+
+    Skipped entirely for projected grids: wrapping meter-scale coordinates
+    as if they were degrees silently corrupts the geometry. A ``UserWarning``
+    is issued once per Grid instance so users know which operations are invalid.
+    """
+    if _is_projected_grid(uxgrid):
+        if not getattr(uxgrid, "_projected_warning_issued", False):
+            import warnings
+
+            warnings.warn(
+                "Projected (non-spherical) coordinates detected on this grid "
+                "(standard_name='projection_x_coordinate' or length units). "
+                "UXarray's geometry algorithms (face areas, GCA intersections, "
+                "zonal mean, bounds, cross-sections) assume a unit sphere and "
+                "will produce incorrect results on projected grids. "
+                "Loading, plotting, and connectivity operations are unaffected. "
+                "Inspect grid.node_lon.attrs to see the detected coordinate metadata.",
+                UserWarning,
+                stacklevel=3,
+            )
+            uxgrid._projected_warning_issued = True
+        return
+
     with xr.set_options(keep_attrs=True):
         for lon_name in ["node_lon", "edge_lon", "face_lon"]:
             if lon_name in uxgrid._ds:
-                if uxgrid._ds[lon_name].max() > 180:
-                    da = uxgrid._ds[lon_name]
+                da = uxgrid._ds[lon_name]
+                if da.size == 0:
+                    continue
+                if da.max() > 180:
                     wrapped = (uxgrid._ds[lon_name] + 180) % 360 - 180
                     wrapped.name = da.name
                     uxgrid._ds[lon_name] = wrapped

@@ -22,5 +22,5 @@ workflow-examples:
 
 external-examples:
   - title: Unstructured Grid Visualization Cookbook
-    path: https://projectpythia.org/unstructured-grid-viz-cookbook/README.html
+    path: https://projectpythia.org/unstructured-grid-viz-cookbook
     thumbnail: https://raw.githubusercontent.com/ProjectPythia/projectpythia.github.io/main/portal/_static/images/logos/pythia_logo-blue-btext-twocolor.svg

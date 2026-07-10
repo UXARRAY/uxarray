@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
@@ -12,10 +12,40 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.grid import Grid
 
-import hvplot.pandas
-import hvplot.xarray
-
 from uxarray.plot.utils import backend as plotting_backend
+
+# import speedup trick:
+#   code here uses obj.hvplot, which requires import hvplot.pandas and/or hvplot.xarray.
+#   But, those lines are "slow", so instead of doing them at top-level here,
+#   only run them when actually creating a plot accessor, inside the code later in this file.
+# (timing test: import uxarray takes ~1.7 seconds before change; 0.7 seconds after change.)
+
+_IMPORTED_HVPLOT = False
+
+
+def _ensure_hvplot_imported() -> None:
+    """Import hvplot.pandas and hvplot.xarray if not already imported.
+    (importing hvplot.pandas may output horizontal gray bar(s) in Jupyter, so only ever do it once.)
+    """
+    global _IMPORTED_HVPLOT
+    if not _IMPORTED_HVPLOT:
+        # workaround for hvplot issue #1735;
+        #  import hvplot.pandas and hvplot.xarray always adjust the hvplot.extension().
+        # To respect previously-setup extension value, need to remember and restore it.
+        # NB: the active backend lives on holoviews.Store (hvplot has no ``Store``),
+        #  and we only restore a backend that was actually loaded -- on a fresh import
+        #  Store.current_backend defaults to "matplotlib" while Store.registry is empty,
+        #  and restoring that unloaded backend would break rendering.
+        from holoviews import Store as _store
+
+        _backend_orig = _store.current_backend
+        import hvplot.pandas
+        import hvplot.xarray
+
+        if _backend_orig in _store.registry:
+            _store.set_current_backend(_backend_orig)
+
+        _IMPORTED_HVPLOT = True
 
 
 class GridPlotAccessor:
@@ -36,6 +66,7 @@ class GridPlotAccessor:
     __slots__ = ("_uxgrid",)
 
     def __init__(self, uxgrid: Grid) -> None:
+        _ensure_hvplot_imported()
         self._uxgrid = uxgrid
 
     def __call__(self, **kwargs) -> Any:
@@ -222,6 +253,8 @@ class GridPlotAccessor:
             kwargs["projection"] = ccrs.PlateCarree()
         if "clabel" not in kwargs:
             kwargs["clabel"] = "edges"
+        if "color" not in kwargs and "line_color" not in kwargs:
+            kwargs["color"] = "black"
         if "crs" not in kwargs:
             if "projection" in kwargs:
                 central_longitude = kwargs["projection"].proj4_params["lon_0"]
@@ -338,6 +371,7 @@ class UxDataArrayPlotAccessor:
     __slots__ = ("_uxda",)
 
     def __init__(self, uxda: UxDataArray) -> None:
+        _ensure_hvplot_imported()
         self._uxda = uxda
 
     def __call__(self, **kwargs) -> Any:
@@ -366,14 +400,14 @@ class UxDataArrayPlotAccessor:
 
     def polygons(
         self,
-        periodic_elements: Optional[str] = "exclude",
-        backend: Optional[str] = None,
-        engine: Optional[str] = "spatialpandas",
-        rasterize: Optional[bool] = True,
-        dynamic: Optional[bool] = False,
+        periodic_elements: str | None = "split",
+        backend: str | None = None,
+        engine: str | None = "spatialpandas",
+        rasterize: bool | None = True,
+        dynamic: bool | None = False,
         projection=None,
-        xlabel: Optional[str] = "Longitude",
-        ylabel: Optional[str] = "Latitude",
+        xlabel: str | None = "Longitude",
+        ylabel: str | None = "Latitude",
         *args,
         **kwargs,
     ):
@@ -386,11 +420,11 @@ class UxDataArrayPlotAccessor:
 
         Parameters
         ----------
-        periodic_elements : str, optional, default="exclude"
-            Specifies whether to include or exclude periodic elements in the grid.
+        periodic_elements : str, optional, default="split"
+            Specifies whether to split, ignore, or exclude periodic elements in the grid.
             Options are:
-            - "exclude": Exclude periodic elements,
             - "split": Split periodic elements.
+            - "exclude": Exclude periodic elements,
             - "ignore": Include periodic elements without any corrections
         backend : str or None, optional
             Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
@@ -519,6 +553,7 @@ class UxDatasetPlotAccessor:
     __slots__ = ("_uxds",)
 
     def __init__(self, uxds: UxDataset) -> None:
+        _ensure_hvplot_imported()
         self._uxds = uxds
 
     def __call__(self, **kwargs) -> Any:

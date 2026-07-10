@@ -53,9 +53,10 @@ However, this guide might still be missing case-specific details; please do
 not hesitate to reach out to us to consult any such cases.
 
 .. note::
-    Much of the information in this guide has been co-opted from the
-    `GeoCAT <https://geocat.ucar.edu/pages/contributing.html>`_ project and
-    `Project Pythia <https://projectpythia.org/contributing.html>`_.
+    Much of the information in this guide has been co-opted from `Project
+    Pythia <https://projectpythia.org/contributing>`_ and the
+    `GeoCAT-comp <https://geocat-comp.readthedocs.io/en/stable/contrib.html>`_
+    project.
 
 1.3. Project-specific Resources
 -------------------------------
@@ -607,10 +608,8 @@ As we mentioned a few times throughout this guide, UXarray has a static `documen
 repository's code structure. However, there needs to be some manual additions to the
 proper documentation index file(s) for the automation to work.
 
-The index files ``docs/user_api/index.rst`` and ``docs/internal_api/index.rst`` (paths
-relative from the root directory) are used for UXarray documentation to allow the
-`User API <user_api/index.rst>`_ and `Internal API <internal_api/index.rst>`_,
-respectively, to be automatically generated.
+The index file ``docs/user_api/index.rst`` (path relative from the root directory) is
+used for automatically generating the `User API <api.rst>`_ documentation.
 
 That being said, the code changes, which might be a new function implementation or some
 modifications to existing ones, must be added to the appropriate ``index.rst``
@@ -624,8 +623,8 @@ file so that its documentation page is automatically generated.
     needed. However, it would be a great practice to provide usage examples in the
     same PR, especially for demonstrating the use of complex UXarray functions.
 
-The UXarray documentation houses ``examples/<example-name>.ipynb`` files (paths
-relative from the root directory) to provide `Usage Examples <examples.rst>`_ to be
+The UXarray documentation houses ``docs/examples/<example-name>.ipynb`` files (paths
+relative from the root directory) to provide `Usage Examples <gallery.rst>`_ to be
 automatically generated. If you prefer to provide usage examples for the work you
 have put together, please be sure to put your notebook(s) under this same directory.
 
