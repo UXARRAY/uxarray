@@ -248,3 +248,19 @@ def test_to_raster_pixel_ratio(gridpath, r1, r2):
     f = r2 / r1
     d = np.array(raster2.shape) - f * np.array(raster1.shape)
     assert (d >= 0).all() and (d <= f - 1).all()
+
+def test_plot_with_features(gridpath, datasetpath):
+    """ensure can render a multiplot layout with geoviews features.
+    Regression test for issue #1542.
+    """
+    gridpath = gridpath("ugrid", "geoflow-small", "grid.nc")
+    uxds1 = ux.open_dataset(gridpath, datasetpath("ugrid", "geoflow-small", "v1.nc"))
+    uxds2 = ux.open_dataset(gridpath, datasetpath("ugrid", "geoflow-small", "v2.nc"))
+    uxds1 = uxds1.isel(time=0, meshLayers=0)  # plot currently expects 1D along n_node
+    uxds2 = uxds2.isel(time=0, meshLayers=0)
+    plot1 = uxds1["v1"].plot(features=['coastline'])
+    plot2 = uxds2["v2"].plot(features=['coastline'])
+    plot = plot1 + plot2
+    # the crash associated with issue #1542 only occurs when actually trying to render:
+    renderer = hv.renderer("matplotlib")
+    renderer.get_plot(plot)
