@@ -4,7 +4,7 @@ import numpy as np
 from numba import njit, prange
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE
-from uxarray.grid.arcs import on_minor_arc
+from uxarray.grid.arcs import _on_minor_arc_xyz, on_minor_arc
 from uxarray.utils.computing import (
     _cdp2,
     _cdp4,
@@ -666,55 +666,94 @@ def _snap_const_lat_endpoint(point, x1, x2, const_z):
     # to ~1e-7 in arc length (unit sphere). Candidates within this distance are
     # snapped to the exact endpoint to avoid sub-ulp drift when the arc ends
     # exactly on the latitude circle.
-    snap_sq = 1e-14
+    sx, sy = _snap_const_lat_endpoint_xy(
+        point[0], point[1], x1[0], x1[1], x1[2], x2[0], x2[1], x2[2], const_z
+    )
     out = np.empty(3)
-    out[0] = point[0]
-    out[1] = point[1]
+    out[0] = sx
+    out[1] = sy
     out[2] = point[2]
-    for xe in (x1, x2):
-        if abs(xe[2] - const_z) <= ERROR_TOLERANCE:
-            dx = out[0] - xe[0]
-            dy = out[1] - xe[1]
-            if dx * dx + dy * dy < snap_sq:
-                out[0] = xe[0]
-                out[1] = xe[1]
     return out
+
+
+@njit(cache=True, inline="always")
+def _snap_const_lat_endpoint_xy(px, py, a0, a1, a2, b0, b1, b2, const_z):
+    """Scalar-argument form of :func:`_snap_const_lat_endpoint`.
+
+    Returns the (possibly snapped) x, y of the candidate; z is always ``const_z``
+    so it is not returned. Allocation-free for use in hot loops.
+    """
+    snap_sq = 1e-14
+    ox = px
+    oy = py
+    if abs(a2 - const_z) <= ERROR_TOLERANCE:
+        dx = ox - a0
+        dy = oy - a1
+        if dx * dx + dy * dy < snap_sq:
+            ox = a0
+            oy = a1
+    if abs(b2 - const_z) <= ERROR_TOLERANCE:
+        dx = ox - b0
+        dy = oy - b1
+        if dx * dx + dy * dy < snap_sq:
+            ox = b0
+            oy = b1
+    return ox, oy
 
 
 @njit(cache=True)
 def gca_const_lat_intersection(gca_cart, const_z):
     """Layer 3 — dispatcher / convenience API.
 
-    Calls the batch/status kernel, applies endpoint snapping, and packages the
-    result in UXarray's NaN-filled (2, 3) format.  All UXarray-specific branching
-    lives here so the numerical core and status layers stay uniform.
+    Runs the numerical kernel, validity masks, endpoint snapping, and packaging
+    into UXarray's NaN-filled (2, 3) format entirely on scalars, so the only heap
+    allocation is the returned array. All UXarray-specific branching lives here so
+    the numerical core stays uniform. See ``_try_gca_const_lat_intersection`` for
+    the array-returning form used by the layer benchmarks.
     """
     res = np.empty((2, 3))
     res.fill(np.nan)
-    point, status, pos, neg = _try_gca_const_lat_intersection(gca_cart, const_z)
-    x1 = gca_cart[0]
-    x2 = gca_cart[1]
-    if status == 0:
-        point = _snap_const_lat_endpoint(point, x1, x2, const_z)
-        res[0, 0] = point[0]
-        res[0, 1] = point[1]
-        res[0, 2] = point[2]
-    elif status == 1:
-        pos = _snap_const_lat_endpoint(pos, x1, x2, const_z)
-        neg = _snap_const_lat_endpoint(neg, x1, x2, const_z)
-        dx = pos[0] - neg[0]
-        dy = pos[1] - neg[1]
+
+    a0 = gca_cart[0, 0]
+    a1 = gca_cart[0, 1]
+    a2 = gca_cart[0, 2]
+    b0 = gca_cart[1, 0]
+    b1 = gca_cart[1, 1]
+    b2 = gca_cart[1, 2]
+
+    px, py, nx, ny = _accux_constlat_scalar(a0, a1, a2, b0, b1, b2, const_z)
+
+    pos_fin = math.isfinite(px) and math.isfinite(py)
+    neg_fin = math.isfinite(nx) and math.isfinite(ny)
+    pos_valid = pos_fin and _on_minor_arc_xyz(px, py, const_z, a0, a1, a2, b0, b1, b2)
+    neg_valid = neg_fin and _on_minor_arc_xyz(nx, ny, const_z, a0, a1, a2, b0, b1, b2)
+
+    if pos_valid and not neg_valid:
+        sx, sy = _snap_const_lat_endpoint_xy(px, py, a0, a1, a2, b0, b1, b2, const_z)
+        res[0, 0] = sx
+        res[0, 1] = sy
+        res[0, 2] = const_z
+    elif neg_valid and not pos_valid:
+        sx, sy = _snap_const_lat_endpoint_xy(nx, ny, a0, a1, a2, b0, b1, b2, const_z)
+        res[0, 0] = sx
+        res[0, 1] = sy
+        res[0, 2] = const_z
+    elif pos_valid and neg_valid:
+        psx, psy = _snap_const_lat_endpoint_xy(px, py, a0, a1, a2, b0, b1, b2, const_z)
+        nsx, nsy = _snap_const_lat_endpoint_xy(nx, ny, a0, a1, a2, b0, b1, b2, const_z)
+        dx = psx - nsx
+        dy = psy - nsy
         if dx * dx + dy * dy < 1e-14:
-            res[0, 0] = pos[0]
-            res[0, 1] = pos[1]
-            res[0, 2] = pos[2]
+            res[0, 0] = psx
+            res[0, 1] = psy
+            res[0, 2] = const_z
         else:
-            res[0, 0] = pos[0]
-            res[0, 1] = pos[1]
-            res[0, 2] = pos[2]
-            res[1, 0] = neg[0]
-            res[1, 1] = neg[1]
-            res[1, 2] = neg[2]
+            res[0, 0] = psx
+            res[0, 1] = psy
+            res[0, 2] = const_z
+            res[1, 0] = nsx
+            res[1, 1] = nsy
+            res[1, 2] = const_z
     return res
 
 

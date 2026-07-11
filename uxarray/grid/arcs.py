@@ -401,12 +401,24 @@ def _orient3d_on_sphere_value(a, b, q):
     float
         Signed determinant value.
     """
-    x_hi, x_lo = diff_of_products(a[1], b[2], a[2], b[1])
-    y_hi, y_lo = diff_of_products(a[2], b[0], a[0], b[2])
-    z_hi, z_lo = diff_of_products(a[0], b[1], a[1], b[0])
-    p0 = (x_hi + x_lo) * q[0]
-    p1 = (y_hi + y_lo) * q[1]
-    p2 = (z_hi + z_lo) * q[2]
+    return _orient3d_on_sphere_value_xyz(
+        a[0], a[1], a[2], b[0], b[1], b[2], q[0], q[1], q[2]
+    )
+
+
+@njit(cache=True, inline="always")
+def _orient3d_on_sphere_value_xyz(a0, a1, a2, b0, b1, b2, q0, q1, q2):
+    """Scalar-argument form of :func:`_orient3d_on_sphere_value`.
+
+    Takes the nine vector components directly so hot loops can call it without
+    materializing ``(3,)`` arrays.
+    """
+    x_hi, x_lo = diff_of_products(a1, b2, a2, b1)
+    y_hi, y_lo = diff_of_products(a2, b0, a0, b2)
+    z_hi, z_lo = diff_of_products(a0, b1, a1, b0)
+    p0 = (x_hi + x_lo) * q0
+    p1 = (y_hi + y_lo) * q1
+    p2 = (z_hi + z_lo) * q2
     s, e = two_sum(p0, p1)
     s, e2 = two_sum(s, p2)
     return s + (e + e2)
@@ -466,19 +478,29 @@ def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
     bool
         True if q lies on the minor arc ab, False otherwise.
     """
+    return _on_minor_arc_xyz(q[0], q[1], q[2], a[0], a[1], a[2], b[0], b[1], b[2], tol)
+
+
+@njit(cache=True, inline="always")
+def _on_minor_arc_xyz(q0, q1, q2, a0, a1, a2, b0, b1, b2, tol=_ON_MINOR_ARC_TOL):
+    """Scalar-argument form of :func:`on_minor_arc`.
+
+    Same logic, but takes the nine vector components directly so hot loops can
+    test arc membership without allocating ``(3,)`` arrays for the query point.
+    """
     # Coincident endpoints: degenerate arc, no interior.
-    if a[0] == b[0] and a[1] == b[1] and a[2] == b[2]:
+    if a0 == b0 and a1 == b1 and a2 == b2:
         return False
     # Antipodal endpoints: a×b = 0, so every point on the great circle passes
     # the collinearity test and the interval conditions degenerate to 0 >= -tol,
     # causing false positives for all points on the great circle.
-    if a[0] == -b[0] and a[1] == -b[1] and a[2] == -b[2]:
+    if a0 == -b0 and a1 == -b1 and a2 == -b2:
         return False
     # Collinearity check: q must lie on the great circle through a and b.
-    if abs(_orient3d_on_sphere_value(a, b, q)) > tol:
+    if abs(_orient3d_on_sphere_value_xyz(a0, a1, a2, b0, b1, b2, q0, q1, q2)) > tol:
         return False
     # Interval check: q must lie on the minor-arc side of both endpoints.
-    qa = a[0] * q[0] + a[1] * q[1] + a[2] * q[2]
-    qb = b[0] * q[0] + b[1] * q[1] + b[2] * q[2]
-    ab = a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+    qa = a0 * q0 + a1 * q1 + a2 * q2
+    qb = b0 * q0 + b1 * q1 + b2 * q2
+    ab = a0 * b0 + a1 * b1 + a2 * b2
     return (qb - ab * qa) >= -tol and (qa - qb * ab) >= -tol
