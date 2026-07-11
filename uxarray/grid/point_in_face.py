@@ -37,8 +37,8 @@ def _ray_endpoint(q):
 
     Constructs R by projecting the coordinate axis least parallel to q onto
     the plane perpendicular to q and normalizing.  This gives q·R = 0 exactly
-    (a 90° arc), so q×R has magnitude ≈ 1 — making orient3d_on_sphere calls
-    numerically robust regardless of q's position.
+    (a 90° arc), so q×R has magnitude ≈ 1 — keeping orient3d_on_sphere calls
+    well-conditioned regardless of q's position.
 
     A small perturbation is added to reduce the chance that R falls exactly on
     a polygon edge's great circle, which would trigger the -1 degenerate path.
