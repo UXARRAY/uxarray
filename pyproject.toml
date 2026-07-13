@@ -9,6 +9,7 @@ classifiers=[
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 
 dynamic = ["version"]
@@ -30,7 +31,7 @@ dependencies = [
   "matplotlib<3.11",  # matplotlib 3.11.0 breaks some plots but <3.11 is fine; see issue #1542.
   "matplotlib-inline",
   "netcdf4",
-  "numba",
+  "numba>=0.63",  # 0.63 is the first release supporting Python 3.14 (3.10 <= py < 3.15).
   "numpy",
   "pandas",
   "pyarrow",
@@ -50,7 +51,7 @@ dependencies = [
 
 [project.optional-dependencies]
 complete = ["uxarray[dev]"]
-dev = ['pathlib', 'pre_commit', 'pytest', 'pytest-cov', 'ruff', 'asv']
+dev = ['pre_commit', 'pytest', 'pytest-cov', 'ruff', 'asv']
 
 [project.urls]
 Documentation = "https://uxarray.readthedocs.io/"
