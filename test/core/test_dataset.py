@@ -38,7 +38,40 @@ def test_integrate(gridpath, datasetpath, mesh_constants):
     """Load a dataset and calculate integrate()."""
     uxds_var2_ne30 = ux.open_dataset(gridpath("ugrid", "outCSne30", "outCSne30.ug"), datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc"))
     integrate_var2 = uxds_var2_ne30.integrate()
-    nt.assert_almost_equal(integrate_var2, mesh_constants['VAR2_INTG'], decimal=3)
+    # integrate() now returns a UxDataset with the integral of each variable
+    assert isinstance(integrate_var2, UxDataset)
+    nt.assert_almost_equal(integrate_var2["var2"].values, mesh_constants['VAR2_INTG'], decimal=3)
+
+
+def test_integrate_multiple_data_arrays(gridpath, datasetpath, mesh_constants):
+    """integrate() integrates every data variable into a new UxDataset."""
+    uxds = ux.open_dataset(gridpath("ugrid", "outCSne30", "outCSne30.ug"), datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc"))
+
+    # Add a second face-centered variable: doubling the data doubles the integral
+    uxds["var2_doubled"] = uxds["var2"] * 2.0
+
+    result = uxds.integrate()
+    assert isinstance(result, UxDataset)
+    assert set(result.data_vars) == {"var2", "var2_doubled"}
+
+    nt.assert_almost_equal(result["var2"].values, mesh_constants['VAR2_INTG'], decimal=3)
+    nt.assert_almost_equal(
+        result["var2_doubled"].values, 2.0 * result["var2"].values, decimal=10
+    )
+
+
+def test_integrate_skips_non_grid_variables(gridpath, datasetpath):
+    """Variables not mapped to the grid are skipped with a warning."""
+    uxds = ux.open_dataset(gridpath("ugrid", "outCSne30", "outCSne30.ug"), datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc"))
+
+    # A variable whose final dimension does not map to the grid
+    uxds["not_on_grid"] = xr.DataArray(np.arange(5.0), dims=["other_dim"])
+
+    with pytest.warns(UserWarning, match="skipped during integration"):
+        result = uxds.integrate()
+
+    assert "not_on_grid" not in result.data_vars
+    assert "var2" in result.data_vars
 
 def test_info(gridpath, datasetpath):
     """Tests custom info containing grid information."""
