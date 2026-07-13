@@ -105,8 +105,8 @@ def test_scrip_radians_units(gridpath):
     """SCRIP files with coordinates in radians are converted to degrees on load."""
     # scrip_radians.nc has a 2-cell grid whose lat/lon are stored in radians.
     # The expected degree values are: face_lon=[10, 20], face_lat=[30, 40].
-    grid_file = gridpath("scrip", "scrip_radians.nc")
-    grid = ux.open_grid(str(grid_file))
+    grid_file = gridpath("scrip", "scrip_radians", "scrip_radians_grid.nc")
+    grid = ux.open_grid(grid_file)
 
     expected_face_lon = np.array([10.0, 20.0])
     expected_face_lat = np.array([30.0, 40.0])
