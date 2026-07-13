@@ -259,32 +259,59 @@ def test_matplotlib_backend_restored_after_switch(monkeypatch):
         matplotlib.use(original)
 
 
-def test_inline_backend_support_reconfigured(monkeypatch):
-    """Restoring the inline backend must also re-register IPython's display hook."""
+def test_inline_backend_reactivated_via_shell(monkeypatch):
+    """Inside IPython, restoring an inline backend must re-run the shell's own
+    backend activation (the public equivalent of ``%matplotlib inline``), which
+    rebuilds the full display integration that ``hv.extension`` tore down.
+
+    Simply calling ``mpl.use`` is not enough: it restores the backend name but
+    leaves last-line figure auto-display broken (see #1537 / #1538).
+    """
     import sys
     import types
 
     from uxarray.plot.utils import HoloviewsBackend
 
     inline_backend = "module://matplotlib_inline.backend_inline"
-    shell = object()
     calls = []
 
+    class FakeShell:
+        def enable_matplotlib(self, gui):
+            calls.append(("enable_matplotlib", gui))
+
     ipython = types.ModuleType("IPython")
-    ipython.get_ipython = lambda: shell
-    matplotlib_inline = types.ModuleType("matplotlib_inline")
-    backend_inline = types.ModuleType("matplotlib_inline.backend_inline")
-    backend_inline.configure_inline_support = lambda sh, backend: calls.append(
-        (sh, backend)
-    )
+    ipython.get_ipython = lambda: FakeShell()
 
     monkeypatch.setitem(sys.modules, "IPython", ipython)
-    monkeypatch.setitem(sys.modules, "matplotlib_inline", matplotlib_inline)
-    monkeypatch.setitem(sys.modules, "matplotlib_inline.backend_inline", backend_inline)
-    monkeypatch.setattr(matplotlib, "use", lambda backend: calls.append(("use", backend)))
+    monkeypatch.setattr(
+        matplotlib, "use", lambda backend: calls.append(("use", backend))
+    )
 
     be = HoloviewsBackend()
     be.matplotlib_backend = inline_backend
     be.reset_mpl_backend()
 
-    assert calls == [("use", inline_backend), (shell, inline_backend)]
+    # The module:// inline backend must be mapped to the "inline" gui name and
+    # restored through the shell, without falling back to mpl.use.
+    assert calls == [("enable_matplotlib", "inline")]
+
+
+def test_reset_backend_falls_back_to_mpl_use_outside_ipython(monkeypatch):
+    """Outside IPython (get_ipython() is None), restoration falls back to
+    ``mpl.use`` with the stored backend."""
+    import sys
+    import types
+
+    from uxarray.plot.utils import HoloviewsBackend
+
+    calls = []
+    ipython = types.ModuleType("IPython")
+    ipython.get_ipython = lambda: None
+    monkeypatch.setitem(sys.modules, "IPython", ipython)
+    monkeypatch.setattr(matplotlib, "use", lambda backend: calls.append(("use", backend)))
+
+    be = HoloviewsBackend()
+    be.matplotlib_backend = "svg"
+    be.reset_mpl_backend()
+
+    assert calls == [("use", "svg")]

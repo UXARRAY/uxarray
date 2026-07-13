@@ -29,27 +29,44 @@ class HoloviewsBackend:
                 self.reset_mpl_backend()
 
     def reset_mpl_backend(self):
-        """Switch Matplotlib back to the backend captured before the last switch."""
+        """Restore the Matplotlib backend captured before the last switch.
+
+        ``hv.extension("matplotlib")`` does not just change the active backend;
+        in an IPython/Jupyter kernel it also tears down the display integration
+        that auto-renders figures at the end of a cell. Simply calling
+        ``mpl.use`` puts the backend name back but leaves that integration
+        broken, so subsequent native ``matplotlib``/``xarray`` ``.plot()`` calls
+        silently produce no output unless ``plt.show()`` is called explicitly.
+
+        Inside IPython we therefore re-run the shell's own backend activation
+        (the public equivalent of the ``%matplotlib`` magic), which rebuilds the
+        full integration in one step. Outside IPython we fall back to
+        ``mpl.use``.
+        """
         if self.matplotlib_backend is None:
             return
+
+        try:
+            from IPython import get_ipython
+
+            shell = get_ipython()
+        except ImportError:
+            shell = None
+
+        if shell is not None:
+            # Map the stored backend to the gui name enable_matplotlib expects.
+            gui = self.matplotlib_backend
+            if gui.startswith("module://") and "inline" in gui:
+                gui = "inline"
+            try:
+                shell.enable_matplotlib(gui)
+                return
+            except Exception:
+                pass
 
         import matplotlib as mpl
 
         mpl.use(self.matplotlib_backend)
-
-        if self.matplotlib_backend in (
-            "inline",
-            "module://matplotlib_inline.backend_inline",
-        ):
-            try:
-                from IPython import get_ipython
-                from matplotlib_inline.backend_inline import configure_inline_support
-            except ImportError:
-                return
-
-            shell = get_ipython()
-            if shell is not None:
-                configure_inline_support(shell, self.matplotlib_backend)
 
 
 backend = HoloviewsBackend()
