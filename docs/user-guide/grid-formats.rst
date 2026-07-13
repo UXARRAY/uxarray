@@ -43,8 +43,66 @@ References
 ----------
 * https://ugrid-conventions.github.io/ugrid-conventions/#ugrid-conventions-v10
 * https://github.com/ugrid-conventions/ugrid-conventions
-* https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#ugrid-conventions
-* https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#mesh-topology-variables
+* https://cf-convention.github.io/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#ugrid-conventions
+* https://cf-convention.github.io/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#mesh-topology-variables
+
+Projected (Non-Spherical) Coordinates
+--------------------------------------
+
+UGRID does not assume a sphere — some regional and coastal models write UGRID
+files with **projected coordinates** (e.g. a Lambert Conformal or Albers Equal
+Area projection) in units of meters rather than degrees. UXarray detects this
+automatically from the CF metadata already present on the coordinate variables:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - CF signal on ``node_lon``
+     - Detected as
+   * - ``standard_name = "projection_x_coordinate"``
+     - Projected
+   * - ``standard_name = "longitude"``
+     - Geographic
+   * - ``units`` is ``m``, ``km``, ``ft``, …
+     - Projected
+   * - ``units`` is ``degrees_east``, ``deg``, …
+     - Geographic
+   * - ``grid_mapping`` variable with non-latlon ``grid_mapping_name``
+     - Projected
+   * - No recognizable signal
+     - Geographic (backward-compatible default)
+
+When projected coordinates are detected, UXarray:
+
+* **Preserves coordinates as-is** — no longitude wrapping is applied.
+* **Emits a** ``UserWarning`` **on load** listing which operations are invalid.
+
+**What works on projected grids:** loading, data access, connectivity
+traversal, and plotting (coordinates are passed through as-is to the plotting
+backend).
+
+**What does not work:** UXarray's geometry algorithms assume a unit sphere —
+face areas, GCA intersections, zonal mean, face bounds, and cross-sections will
+produce incorrect results and are not supported on projected grids.
+
+.. code-block:: python
+
+    import xarray as xr
+    import uxarray as ux
+
+    # Load a projected UGRID file — coordinates are preserved, warning is issued
+    import warnings
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        grid = ux.open_grid("projected_grid.nc")
+        if w:
+            print(w[0].message)
+
+.. note::
+   ``Grid.from_topology`` accepts raw NumPy arrays with no CF attributes, so
+   projection cannot be auto-detected. Use ``Grid.from_dataset`` with a
+   properly attributed ``xr.Dataset`` for projected grids.
 
 MPAS
 ====

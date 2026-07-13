@@ -11,6 +11,8 @@ jobs:
     #   github.repository == 'UXARRAY/uxarray'
     name: Python (${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    env:
+      MPLBACKEND: Agg
     defaults:
       run:
         shell: bash -l {0}
@@ -22,17 +24,17 @@ jobs:
         python-version: [ "3.11", "3.12", "3.13"]
     steps:
       - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.12.1
+        uses: styfle/cancel-workflow-action@0.13.1
         with:
           access_token: ${{ github.token }}
 
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           token: ${{ github.token }}
 
       - name: conda_setup (x64)
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         if: matrix.os != 'macos-14'
         with:
           activate-environment: uxarray_build
@@ -44,7 +46,7 @@ jobs:
           miniforge-version: latest
 
       - name: conda_setup (ARM64)
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         if: matrix.os == 'macos-14'
         with:
           activate-environment: uxarray_build
@@ -67,18 +69,19 @@ jobs:
           python -m pytest test
 
   link-check:
+      if: github.event_name != 'pull_request'
       runs-on: ubuntu-latest
       defaults:
         run:
           shell: bash -l {0}
       steps:
         - name: checkout
-          uses: actions/checkout@v6
+          uses: actions/checkout@v7
 
         - name: environment setup
           id: link-env-setup
           continue-on-error: true
-          uses: mamba-org/setup-micromamba@0dea6379afdaffa5d528b3d1dabc45da37f443fc # v2
+          uses: mamba-org/setup-micromamba@d7c9bd84e824b79d2af72a2d4196c7f4300d3476 # v2
           with:
             environment-file: ci/docs.yml
             cache-environment: true
@@ -88,7 +91,7 @@ jobs:
 
         - name: retry environment set up if failed
           if: steps.link-env-setup.outcome == 'failure'
-          uses: mamba-org/setup-micromamba@0dea6379afdaffa5d528b3d1dabc45da37f443fc # v2
+          uses: mamba-org/setup-micromamba@d7c9bd84e824b79d2af72a2d4196c7f4300d3476 # v2
           with:
             download-micromamba: false
             environment-file: ci/docs.yml
@@ -106,7 +109,7 @@ jobs:
             conda list
 
         - name: Make docs with linkcheck
-          uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
+          uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
           with:
             timeout_minutes: 20
             max_attempts: 3
@@ -114,4 +117,5 @@ jobs:
               eval "$(micromamba shell hook --shell bash)"
               micromamba activate uxarray-docs
               cd docs
+              echo 'nb_execution_mode = "off"' >> conf.py
               make linkcheck

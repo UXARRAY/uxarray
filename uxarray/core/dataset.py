@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from html import escape
-from typing import IO, Any, Mapping
+from typing import IO, Any, Hashable, Mapping
 from warnings import warn
 
 import numpy as np
@@ -89,6 +89,24 @@ class UxDataset(xr.Dataset):
             )
         else:
             self._uxgrid = uxgrid
+
+        # As of xarray's 2026.4.0, `xr.Dataset(xr.Dataset)` is prohibited;
+        # hence this check, i.e. if we get `xr.Dataset` as input, use its `data_vars`
+        # as `dict` and handle `coords` and `attrs` properly as well
+        if args and isinstance(args[0], xr.Dataset):
+            ds = args[0]
+            # Replacee only args[0], `ds`, with `ds.data_vars` as `dict`
+            args = (dict(ds.data_vars),) + args[1:]
+            # coords not passed positionally
+            if len(args) < 2:
+                kwargs.setdefault(
+                    "coords", dict(ds.coords)
+                )  # Set it as kwarg only if not explicitly provided
+            # attrs not passed positionally
+            if len(args) < 3:
+                kwargs.setdefault(
+                    "attrs", ds.attrs
+                )  # Set it as kwarg only if not explicitly provided
 
         super().__init__(*args, **kwargs)
 
@@ -567,7 +585,7 @@ class UxDataset(xr.Dataset):
 
         Examples
         --------
-        Open a Uxarray dataset
+        Open a UXarray dataset
 
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
@@ -603,11 +621,32 @@ class UxDataset(xr.Dataset):
 
         return integral
 
-    def to_array(self) -> UxDataArray:
-        """Override to make the result an instance of
-        ``uxarray.UxDataArray``."""
+    def to_array(
+        self,
+        dim: Hashable = "variable",
+        name: Hashable = None,
+    ) -> UxDataArray:
+        """Convert this ``uxarray.UxDataset`` into a ``uxarray.UxDataArray``,
+        attaching this UxDataset's uxgrid to the result.
 
-        xarr = super().to_array()
+        Similarly to xarray.Dataset.to_array(), the data variables will be
+        broadcast against each other and stacked along the first axis of
+        the new array. All coordinates of this dataset will remain coordinates.
+
+        Parameters
+        ----------
+        dim : Hashable, optional
+            Name of the new dimension. Defaults to "variable"
+        name : Hashable or None, optional
+            Name of the new data array.
+
+        Returns
+        -------
+        UxDataArray
+            The ``uxarray.UxDataset`` represented as a ``uxarray.UxDataArray``
+        """
+
+        xarr = super().to_array(dim=dim, name=name)
         return UxDataArray(xarr, uxgrid=self.uxgrid)
 
     def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
@@ -627,9 +666,9 @@ class UxDataset(xr.Dataset):
         """
         if grid_format == "HEALPix":
             ds = self.rename_dims({"n_face": "cell"})
-            return xr.Dataset(ds)
+            return xr.Dataset(ds.data_vars, coords=ds.coords, attrs=ds.attrs)
 
-        return xr.Dataset(self)
+        return xr.Dataset(self.data_vars, coords=self.coords, attrs=self.attrs)
 
     def get_dual(self):
         """Compute the dual mesh for a dataset, returns a new dataset object.

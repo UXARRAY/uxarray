@@ -12,22 +12,25 @@ jobs:
   upstream-dev:
     name: upstream-dev
     runs-on: ubuntu-latest
+    continue-on-error: true
     defaults:
       run:
         shell: bash -l {0}
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.12" ]
+        python-version: [ "3.13" ]
+    outputs:
+      testresults: ${{ steps.tests.outcome }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           token: ${{ github.token }}
 
       - name: Set up environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: ci/environment.yml
           create-args: >-
@@ -50,5 +53,66 @@ jobs:
           conda list
 
       - name: Running Tests
+        id: tests
         run: |
           python -m pytest test -v --cov=./uxarray --cov-report=xml
+
+  failure-issue:
+    name: failure-issue
+    needs: [upstream-dev]
+    if: |
+      needs.upstream-dev.testresults != 'success'
+      && github.repository == 'UXARRAY/uxarray'
+      && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7
+
+      - name: Create or update failure issue
+        shell: bash
+        run: |
+          # Read the template
+          template=$(cat .github/upstream-failure-issue-template.md)
+
+          # Replace placeholders
+          issue_body="${template//\{\{WORKFLOW\}\}/${{ github.workflow }}}"
+          issue_body="${issue_body//\{\{RUN_ID\}\}/${{ github.run_id }}}"
+          issue_body="${issue_body//\{\{RUN_URL\}\}/${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}}"
+          issue_body="${issue_body//\{\{DATE\}\}/$(date -u)}"
+
+          # Check for existing open issue with same title
+          issue_title="🤖 Upstream testing failure"
+          existing_issue=$(gh issue list --state open --label "CI" --search "\"$issue_title\" in:title" --json number --jq '.[0].number // empty')
+
+          if [ -n "$existing_issue" ]; then
+            echo "Found existing open issue #$existing_issue, updating it..."
+            echo "$issue_body" | gh issue edit "$existing_issue" --body-file -
+            echo "Updated existing issue #$existing_issue"
+          else
+            echo "No existing open issue found, creating new one..."
+            echo "$issue_body" | gh issue create \
+              --title "$issue_title" \
+              --body-file - \
+              --label "CI"
+            echo "Created new issue"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  report-failed:
+    name: report-failed
+    needs: [ upstream-dev, failure-issue ]
+    if: ${{needs.upstream-dev.outputs.testresults != 'success'}}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: make sure to report a failed workflow
+        shell: bash
+        run: |
+          exit 1;

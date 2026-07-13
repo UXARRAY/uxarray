@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.testing as nt
 import pytest
+import xarray as xr
 
 import uxarray as ux
 from uxarray.core.dataarray import UxDataArray
@@ -196,6 +197,74 @@ def test_dataset_remap_preserves_coords(gridpath, datasetpath):
     assert "time" in ds_out.coords
 
 
+def test_to_rectilinear_native_backend():
+    """Rectilinear remap returns plain xarray output on lat/lon axes."""
+    grid = ux.Grid.from_structured(
+        lon=np.asarray([0.0, 90.0]),
+        lat=np.asarray([0.0, 45.0]),
+    )
+    da = UxDataArray(
+        np.asarray([1.0, 2.0, 3.0, 4.0]),
+        dims=["n_face"],
+        coords={
+            "n_face": [0, 1, 2, 3],
+            "face_lon": (
+                "n_face",
+                grid.face_lon.values,
+                {"standard_name": "longitude", "units": "degrees_east"},
+            ),
+            "face_lat": (
+                "n_face",
+                grid.face_lat.values,
+                {"standard_name": "latitude", "units": "degrees_north"},
+            ),
+        },
+        uxgrid=grid,
+    )
+    lon = xr.DataArray(
+        [0.0, 90.0],
+        dims=["lon"],
+        attrs={"axis": "X", "units": "degrees_east"},
+    )
+    lat = xr.DataArray(
+        [0.0, 45.0],
+        dims=["lat"],
+        attrs={"axis": "Y", "units": "degrees_north"},
+    )
+
+    out = da.remap.to_rectilinear(lon=lon, lat=lat)
+    out_structured = da.remap.to_structured(lon=lon, lat=lat)
+    out_lonlat = da.remap.to_lonlat(lon=lon, lat=lat)
+
+    assert isinstance(out, xr.DataArray)
+    assert out.dims == ("lat", "lon")
+    assert out.shape == (2, 2)
+    nt.assert_array_equal(out.values, np.asarray([[1.0, 2.0], [3.0, 4.0]]))
+    nt.assert_array_equal(out_structured.values, out.values)
+    nt.assert_array_equal(out_lonlat.values, out.values)
+    assert out["lon"].attrs["units"] == "degrees_east"
+    assert out["lat"].attrs["units"] == "degrees_north"
+
+
+def test_reshape_to_rectilinear_accepts_xarray_dataset():
+    """Rectilinear reshaping accepts an already-open xarray Dataset."""
+    from uxarray.remap.structured import (
+        _normalize_rectilinear_target,
+        _reshape_to_rectilinear,
+    )
+
+    spec = _normalize_rectilinear_target(
+        lon=np.asarray([0.0, 90.0]), lat=np.asarray([0.0, 45.0])
+    )
+    ds = xr.Dataset({"var": ("n_face", np.asarray([1.0, 2.0, 3.0, 4.0]))})
+
+    out = _reshape_to_rectilinear(ds, spec)
+
+    assert isinstance(out, xr.Dataset)
+    assert out["var"].dims == ("lat", "lon")
+    nt.assert_array_equal(out["var"].values, np.asarray([[1.0, 2.0], [3.0, 4.0]]))
+
+
 # ------------------------------------------------------------
 # Bilinear tests
 # ------------------------------------------------------------
@@ -236,6 +305,17 @@ def test_b_edge_centers_dim_change(gridpath):
     )
     assert "n_edge" in da.dims
 
+def test_b_nodes_many_faces_in_fallback(gridpath):
+    """Bilinear remap to edge centers produces an 'n_edge' dimension."""
+    source_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+    dest_path = gridpath("mpas", "QU", "480", "grid.nc")
+    uxds = ux.open_dataset(source_path, source_path)
+    dest = ux.open_grid(dest_path)
+    da = uxds["latCell"].remap.bilinear(
+        destination_grid=dest,
+        remap_to="nodes"
+    )
+    assert "n_node" in da.dims
 
 def test_b_value_errors(gridpath, datasetpath):
     """Bilinear remapping raises a value error when the source data is not on the faces"""
@@ -254,3 +334,45 @@ def test_b_quadrilateral(gridpath, datasetpath):
     out = uxds['var2'].remap.bilinear(destination_grid=dest)
 
     assert out.size > 0
+
+def test_b_coords_remap_to_faces(gridpath):
+    """Bilinear remap should change the array when remap_to != source."""
+    mesh_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+    dest = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
+
+    uxda_with_coords = ux.core.UxDataArray(
+        data=uxds["latCell"],
+        uxgrid=uxds.uxgrid,
+        coords={"Mesh2_face_lat": uxds.uxgrid.face_lat,
+                "Mesh_Face_lon": uxds.uxgrid.face_lon,
+                }
+    )
+
+    da_remap_b = uxda_with_coords.remap.bilinear(
+        destination_grid=dest, remap_to="faces"
+    )
+
+    assert (da_remap_b.Mesh_Face_lon.size == dest.face_lon.size)
+    assert np.array_equal(da_remap_b.Mesh_Face_lon.values, dest.face_lon.values)
+
+def test_b_coords_remap_to_nodes(gridpath):
+    """Bilinear remap should change the array when remap_to != source."""
+    mesh_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+    dest = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
+
+    uxda_with_coords = ux.core.UxDataArray(
+        data=uxds["latCell"],
+        uxgrid=uxds.uxgrid,
+        coords={"Mesh2_face_lat": uxds.uxgrid.face_lat,
+                "Mesh_Face_lon": uxds.uxgrid.face_lon,
+                }
+    )
+
+    da_remap_b = uxda_with_coords.remap.bilinear(
+        destination_grid=dest, remap_to="nodes"
+    )
+
+    assert (da_remap_b.Mesh_Node_lon.size == dest.node_lon.size)
+    assert np.array_equal(da_remap_b.Mesh_Node_lon.values, dest.node_lon.values)

@@ -52,7 +52,7 @@ def _idw_weights(distances, power):
 def _inverse_distance_weighted_remap(
     source: UxDataArray | UxDataset,
     destination_grid: Grid,
-    destination_dim: str = "n_face",
+    remap_to: str = "faces",
     power: int = 2,
     k: int = 8,
 ):
@@ -68,8 +68,8 @@ def _inverse_distance_weighted_remap(
         The data to be remapped.
     destination_grid : Grid
         The UXarray grid instance on which to interpolate data.
-    destination_dim : {'n_node', 'n_edge', 'n_face'}, default='n_face'
-        The spatial dimension on `destination_grid` to receive interpolated values.
+    remap_to : {'nodes', 'edges', 'faces'}, default='faces'
+        Which grid element receives the remapped values, either "nodes", "edges", or "faces"
     power : int, default=2
         Exponent in the inverse-distance weighting function. Larger values
         emphasize closer neighbors.
@@ -88,9 +88,9 @@ def _inverse_distance_weighted_remap(
     """
     # Fall back onto nearest neighbor
     if k == 1:
-        return _nearest_neighbor_remap(source, destination_grid, destination_dim)
+        return _nearest_neighbor_remap(source, destination_grid, remap_to)
 
-    _assert_dimension(destination_dim)
+    _assert_dimension(remap_to)
 
     # Perform remapping on a UxDataset
     ds, is_da, name = _to_dataset(source)
@@ -106,7 +106,7 @@ def _inverse_distance_weighted_remap(
             ds.uxgrid,
             destination_grid,
             src_dim,
-            destination_dim,
+            remap_to,
             k=k,
             return_distances=True,
         )
@@ -123,8 +123,8 @@ def _inverse_distance_weighted_remap(
             inds, w = indices_weights_map[source_dim]
 
             # pack indices & weights into tiny DataArrays:
-            indexer = xr.DataArray(inds, dims=[LABEL_TO_COORD[destination_dim], "k"])
-            weight_da = xr.DataArray(w, dims=[LABEL_TO_COORD[destination_dim], "k"])
+            indexer = xr.DataArray(inds, dims=[LABEL_TO_COORD[remap_to], "k"])
+            weight_da = xr.DataArray(w, dims=[LABEL_TO_COORD[remap_to], "k"])
 
             # gather the k neighbor values:
             da_k = da.isel({source_dim: indexer}, ignore_grid=True)
@@ -139,7 +139,7 @@ def _inverse_distance_weighted_remap(
             remapped_vars[name] = da
 
     ds_remapped = _construct_remapped_ds(
-        source, remapped_vars, destination_grid, destination_dim
+        source, remapped_vars, destination_grid, remap_to
     )
 
     return ds_remapped[name] if is_da else ds_remapped

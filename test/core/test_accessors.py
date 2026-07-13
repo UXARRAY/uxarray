@@ -1,5 +1,5 @@
 """
-Test module for UxArray accessor functionality (groupby, resample, rolling, etc.).
+Test module for UXarray accessor functionality (groupby, resample, rolling, etc.).
 
 This module tests that accessor methods properly preserve uxgrid attributes
 and return UxDataArray/UxDataset objects.

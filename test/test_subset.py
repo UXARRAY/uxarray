@@ -190,3 +190,20 @@ def test_da_subset(gridpath, datasetpath):
     res3 = uxds['t2m'].subset.nearest_neighbor(center_coord=(0, 0), k=4)
 
     assert len(res1) == len(res2) == len(res3) == 4
+
+
+def test_empty_subset(gridpath, datasetpath):
+    """ensure that subsetting methods still return a valid UXarray object even if subset is empty.
+    (The resulting object should have size=0.)
+    This test ensures issue #1285 has been fixed.
+    """
+    uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
+    arr = uxds['t2m']
+    min_lon = arr.uxgrid.face_lon.min().item()
+    definitely_out_of_bounds = (min_lon - 10, min_lon - 5)
+    # mostly just want to ensure this doesn't crash:
+    res = arr.subset.bounding_box(lon_bounds=definitely_out_of_bounds, lat_bounds=(-10, 10))
+    assert isinstance(res, ux.UxDataArray)
+    assert res.size == 0
+    # should still have all the same dim names even if resulting subset is empty:
+    assert set(res.dims) == set(arr.dims)

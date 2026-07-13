@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import warnings
 from html import escape
-from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping
+from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, Optional
 from warnings import warn
 
+import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
 from cartopy.mpl.geoaxes import GeoAxes
@@ -23,6 +24,7 @@ from uxarray.core.utils import _map_dims_to_ugrid
 from uxarray.core.zonal import (
     _compute_conservative_zonal_mean_bands,
     _compute_non_conservative_zonal_mean,
+    _compute_zonal_anomaly,
 )
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
 from uxarray.formatting_html import array_repr
@@ -162,6 +164,40 @@ class UxDataArray(xr.DataArray):
         else:
             return None
 
+    @property
+    def data_location(self):
+        """Returns where on the grid the data variable is stored.
+
+        The location is inferred from the grid dimension present in the data
+        variable, using UGRID-style names:
+
+        - ``"face_centered"`` if the data contains the ``n_face`` dimension
+        - ``"node_centered"`` if the data contains the ``n_node`` dimension
+        - ``"edge_centered"`` if the data contains the ``n_edge`` dimension
+        - ``None`` if the data is not mapped to the grid
+
+        Notes
+        -----
+        Additional locations described in the UGRID/spectral-element ecosystem
+        (e.g. ``"face_average"``, ``"edge_orthogonal"``, ``"edge_parallel"``,
+        ``"cgll"``, ``"dgll"``) cannot be inferred from a data variable's
+        dimensions alone and are not currently distinguished here.
+
+        Returns
+        -------
+        str or None
+            One of ``"face_centered"``, ``"node_centered"``,
+            ``"edge_centered"``, or ``None``.
+        """
+        if self._face_centered():
+            return "face_centered"
+        elif self._node_centered():
+            return "node_centered"
+        elif self._edge_centered():
+            return "edge_centered"
+        else:
+            return None
+
     def to_geodataframe(
         self,
         periodic_elements: str | None = "exclude",
@@ -275,6 +311,11 @@ class UxDataArray(xr.DataArray):
 
     def to_polycollection(
         self,
+        periodic_elements: Optional[str] = "exclude",
+        projection: Optional[ccrs.Projection] = None,
+        return_indices: Optional[bool] = False,
+        cache: Optional[bool] = True,
+        override: Optional[bool] = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
@@ -283,8 +324,19 @@ class UxDataArray(xr.DataArray):
 
         Parameters
         ----------
-        **kwargs: dict
-            Key word arguments to pass into the construction of a PolyCollection
+        periodic_elements : str, optional
+            Method for handling periodic elements. One of ['exclude', 'split', or 'ignore']:
+            - 'exclude': Periodic elements will be identified and excluded from the GeoDataFrame
+            - 'split': Periodic elements will be identified and split using the ``antimeridian`` package
+            - 'ignore': No processing will be applied to periodic elements.
+        projection: ccrs.Projection
+            Cartopy geographic projection to use
+        return_indices: bool
+            Flag to indicate whether to return the indices of corrected polygons, if any exist
+        cache: bool
+            Flag to indicate whether to cache the computed PolyCollection
+        override: bool
+            Flag to indicate whether to override a cached PolyCollection, if it exists
         """
         # data is multidimensional, must be a 1D slice
         if self.values.ndim > 1:
@@ -293,11 +345,53 @@ class UxDataArray(xr.DataArray):
                 f"for face-centered data."
             )
 
-        poly_collection = self.uxgrid.to_polycollection(**kwargs)
+        if self._face_centered():
+            poly_collection, corrected_to_original_faces = (
+                self.uxgrid.to_polycollection(
+                    override=override,
+                    cache=cache,
+                    periodic_elements=periodic_elements,
+                    return_indices=True,
+                    projection=projection,
+                    **kwargs,
+                )
+            )
 
-        poly_collection.set_array(self.data)
+            if periodic_elements == "exclude":
+                # index data to ignore data mapped to periodic elements
+                _data = np.delete(
+                    self.values,
+                    self.uxgrid._poly_collection_cached_parameters[
+                        "antimeridian_face_indices"
+                    ],
+                    axis=0,
+                )
+            elif periodic_elements == "split":
+                _data = self.values[corrected_to_original_faces]
+            else:
+                _data = self.values
 
-        return poly_collection
+            if (
+                self.uxgrid._poly_collection_cached_parameters[
+                    "non_nan_polygon_indices"
+                ]
+                is not None
+            ):
+                # index data to ignore NaN polygons
+                _data = _data[
+                    self.uxgrid._poly_collection_cached_parameters[
+                        "non_nan_polygon_indices"
+                    ]
+                ]
+
+            poly_collection.set_array(_data)
+
+            if return_indices:
+                return poly_collection, corrected_to_original_faces
+            else:
+                return poly_collection
+        else:
+            raise ValueError("Data variable must be face centered.")
 
     def to_raster(
         self,
@@ -406,12 +500,7 @@ class UxDataArray(xr.DataArray):
         else:
 
             def _is_default_extent() -> bool:
-                # Default extents are indicated by xlim/ylim being (0, 1)
-                # when autoscale is still on (no extent has been explicitly set)
-                if not ax.get_autoscale_on():
-                    return False
-                xlim, ylim = ax.get_xlim(), ax.get_ylim()
-                return np.allclose(xlim, (0.0, 1.0)) and np.allclose(ylim, (0.0, 1.0))
+                return ax.get_autoscale_on()
 
             if _is_default_extent():
                 try:
@@ -514,7 +603,7 @@ class UxDataArray(xr.DataArray):
 
         Examples
         --------
-        Open a Uxarray dataset and compute the integral
+        Open a UXarray dataset and compute the integral
 
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
@@ -632,10 +721,19 @@ class UxDataArray(xr.DataArray):
             dims = list(self.dims)
             dims[face_axis] = "latitudes"
 
+            # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
+            new_coords = {
+                k: v
+                for k, v in self.coords.items()
+                if self.dims[face_axis] not in v.dims
+            }
+            # Add latitudes to the resulting coords
+            new_coords["latitudes"] = latitudes
+
             return xr.DataArray(
                 res,
                 dims=dims,
-                coords={"latitudes": latitudes},
+                coords=new_coords,
                 name=self.name + "_zonal_mean"
                 if self.name is not None
                 else "zonal_mean",
@@ -677,10 +775,19 @@ class UxDataArray(xr.DataArray):
             dims = list(self.dims)
             dims[face_axis] = "latitudes"
 
+            # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
+            new_coords = {
+                k: v
+                for k, v in self.coords.items()
+                if self.dims[face_axis] not in v.dims
+            }
+            # Add latitudes to the resulting coords
+            new_coords["latitudes"] = centers
+
             return xr.DataArray(
                 res,
                 dims=dims,
-                coords={"latitudes": centers},
+                coords=new_coords,
                 name=self.name + "_zonal_mean"
                 if self.name is not None
                 else "zonal_mean",
@@ -694,6 +801,70 @@ class UxDataArray(xr.DataArray):
     def zonal_average(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
         """Alias of zonal_mean; prefer `zonal_mean` for primary API."""
         return self.zonal_mean(lat=lat, conservative=conservative, **kwargs)
+
+    def zonal_anomaly(self, lat=(-90, 90, 10), conservative: bool = False):
+        """Compute the zonal anomaly: each face value minus the mean of its latitude band.
+
+        Returns a new ``UxDataArray`` with the same dimensions as the input,
+        where each face holds its original value minus the zonal mean of the
+        latitude band it belongs to.
+
+        Parameters
+        ----------
+        lat : tuple or array-like, default=(-90, 90, 10)
+            Latitude band specification:
+                - tuple (start, end, step): band edges via np.linspace(start, end, n)
+                - array-like: explicit band edges in degrees
+        conservative : bool, default=False
+            If True, uses area-weighted band means and blends across bands for
+            faces that straddle a band boundary, reusing the face-band weight
+            matrix computed for zonal_mean so no geometry is duplicated.
+            If False, assigns each face to a band by its centroid latitude.
+
+        Returns
+        -------
+        UxDataArray
+            Same dimensions as input with per-face band mean subtracted.
+
+        Examples
+        --------
+        >>> uxds["var"].zonal_anomaly()
+        >>> uxds["var"].zonal_anomaly(lat=(-60, 60, 5), conservative=True)
+        """
+        if not self._face_centered():
+            raise ValueError(
+                "Zonal anomaly is only supported for face-centered data variables."
+            )
+
+        if isinstance(lat, tuple):
+            start, end, step = lat
+            if step <= 0:
+                raise ValueError("Step size must be positive.")
+            num_points = int(round((end - start) / step)) + 1
+            edges = np.linspace(start, end, num_points)
+            edges = np.clip(edges, -90, 90)
+        elif isinstance(lat, (list, np.ndarray)):
+            edges = np.asarray(lat, dtype=float)
+        else:
+            raise ValueError(
+                "Invalid value for 'lat'. Must be a tuple (start, end, step) or array-like band edges."
+            )
+
+        if edges.ndim != 1 or edges.size < 2:
+            raise ValueError("Band edges must be 1D with at least two values.")
+
+        res = _compute_zonal_anomaly(self, edges, conservative=conservative)
+
+        return UxDataArray(
+            res,
+            dims=self.dims,
+            coords=self.coords,
+            name=self.name + "_zonal_anomaly"
+            if self.name is not None
+            else "zonal_anomaly",
+            attrs={"zonal_anomaly": True, "conservative": conservative},
+            uxgrid=self.uxgrid,
+        )
 
     def azimuthal_mean(
         self,
@@ -794,10 +965,17 @@ class UxDataArray(xr.DataArray):
             data=hit_count, dims="radius", coords={"radius": radii_deg}
         )
 
+        # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
+        new_coords = {
+            k: v for k, v in self.coords.items() if self.dims[face_axis] not in v.dims
+        }
+        # Add radii_deg to the resulting coords
+        new_coords["radius"] = radii_deg
+
         uxda = xr.DataArray(
             means,
             dims=dims,
-            coords={"radius": radii_deg},
+            coords=new_coords,
             name=self.name + "_azimuthal_mean"
             if self.name is not None
             else "azimuthal_mean",
@@ -1332,21 +1510,39 @@ class UxDataArray(xr.DataArray):
         """
         return _uxda_grid_aggregate(self, destination, "any", **kwargs)
 
-    def gradient(self, **kwargs) -> UxDataset:
+    def gradient(self, scale_by_radius: bool = True, **kwargs) -> UxDataset:
         """
         Computes the gradient of a data variable.
+
+        Parameters
+        ----------
+        scale_by_radius : bool, default=True
+            Divide unit-sphere derivatives by ``uxgrid.sphere_radius`` so the
+            result carries physical, per-meter units (``[data units]/m``). When
+            ``False`` the result is left on the unit sphere with per-radian units
+            (``[data units]/rad``). If ``True`` but the grid has no
+            ``sphere_radius`` attribute, the result falls back to unit-sphere
+            output and a ``UserWarning`` is emitted.
 
         Returns
         -------
         gradient: UxDataset
-            Dataset containing the zonal and merdional components of the gradient.
+            Dataset containing the zonal and meridional components of the gradient.
+            With the default ``scale_by_radius=True`` the components are in
+            ``[data units]/m``; with ``scale_by_radius=False`` they are in
+            ``[data units]/rad``.
 
         Notes
         -----
-        The Green-Gauss theorm is utilized, where a closed control volume around each cell
+        The Green-Gauss theorem is utilized, where a closed control volume around each cell
         is formed connecting centroids of the neighboring cells. The surface integral is
         approximated using the trapezoidal rule. The sum of the contributions is then
         normalized by the cell volume.
+
+        By default the raw unit-sphere (per-radian) gradient is divided by
+        ``uxgrid.sphere_radius`` to yield physical per-meter values. For Earth
+        (radius ~6.37e6 m) this scales magnitudes down by ~1/6.37e6 relative to
+        the unit-sphere result.
 
         Example
         -------
@@ -1362,7 +1558,9 @@ class UxDataArray(xr.DataArray):
             )
 
         # Compute the zonal and meridional gradient components of the stored data variable
-        grad_zonal_da, grad_meridional_da = _compute_gradient(self)
+        grad_zonal_da, grad_meridional_da = _compute_gradient(
+            self, scale_by_radius=scale_by_radius
+        )
 
         # Create a dataset containing both gradient components
         return UxDataset(
@@ -1375,7 +1573,9 @@ class UxDataArray(xr.DataArray):
             coords=self.coords,
         )
 
-    def curl(self, other: "UxDataArray", **kwargs) -> "UxDataArray":
+    def curl(
+        self, other: "UxDataArray", scale_by_radius: bool = True, **kwargs
+    ) -> "UxDataArray":
         """
         Computes the curl of a vector field.
 
@@ -1385,6 +1585,11 @@ class UxDataArray(xr.DataArray):
             The second component of the vector field. This UxDataArray should
             represent the meridional (v) component, while self represents the
             zonal (u) component.
+        scale_by_radius : bool, default=True
+            Divide unit-sphere derivatives by ``uxgrid.sphere_radius`` so the
+            result carries physical, per-meter units (e.g. ``1/s`` for a velocity
+            field). When ``False`` the result is left on the unit sphere
+            (per radian).
         **kwargs : dict
             Additional keyword arguments (currently unused, reserved for future extensions).
 
@@ -1392,7 +1597,9 @@ class UxDataArray(xr.DataArray):
         -------
         curl : UxDataArray
             The curl of the vector field (u, v), computed as:
-            curl = ∂v/∂x - ∂u/∂y
+            curl = ∂v/∂x - ∂u/∂y. With the default ``scale_by_radius=True`` the
+            result is in ``([u units])/m`` (``1/s`` for velocity); with
+            ``scale_by_radius=False`` it is in ``([u units])/rad``.
 
         Notes
         -----
@@ -1435,11 +1642,22 @@ class UxDataArray(xr.DataArray):
             )
 
         # Compute gradients of both components
-        grad_u_zonal, grad_u_meridional = _compute_gradient(self)
-        grad_v_zonal, grad_v_meridional = _compute_gradient(other)
+        grad_u_zonal, grad_u_meridional = _compute_gradient(
+            self, scale_by_radius=scale_by_radius
+        )
+        grad_v_zonal, grad_v_meridional = _compute_gradient(
+            other, scale_by_radius=scale_by_radius
+        )
 
         # Compute curl = ∂v/∂x - ∂u/∂y
         curl_values = grad_v_zonal.values - grad_u_meridional.values
+
+        u_units = self.attrs.get("units", "")
+        has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
+        if scale_by_radius and has_sphere_radius:
+            curl_units = f"({u_units})/m" if u_units else "1/m"
+        else:
+            curl_units = f"({u_units})/rad" if u_units else "1/rad"
 
         # Create the result UxDataArray
         curl_da = UxDataArray(
@@ -1447,9 +1665,7 @@ class UxDataArray(xr.DataArray):
             dims=self.dims,
             attrs={
                 "long_name": f"Curl of ({self.name}, {other.name})",
-                "units": "1/s"
-                if "units" not in self.attrs
-                else f"({self.attrs.get('units', '1')})/m",
+                "units": curl_units,
                 "description": "Curl of vector field computed as ∂v/∂x - ∂u/∂y",
             },
             uxgrid=self.uxgrid,
@@ -1458,16 +1674,26 @@ class UxDataArray(xr.DataArray):
 
         return curl_da
 
-    def divergence(self, other: "UxDataArray", **kwargs) -> "UxDataArray":
+    def divergence(
+        self, other: "UxDataArray", scale_by_radius: bool = True, **kwargs
+    ) -> "UxDataArray":
         """
         Computes the divergence of the vector field defined by this UxDataArray and other.
 
         Parameters
         ----------
         other : UxDataArray
-            The second component of the vector field. This UxDataArray represents the first component.
+            The second (meridional, v) component of the vector field; ``self`` is
+            the first (zonal, u) component.
+        scale_by_radius : bool, default=True
+            Divide unit-sphere derivatives by ``uxgrid.sphere_radius``. When
+            ``True`` (and the grid has a ``sphere_radius`` attribute) the result
+            carries physical, per-meter units (e.g. ``1/s`` for a velocity
+            field); when ``False`` the result is left on the unit sphere
+            (per radian).
         **kwargs
-            Additional keyword arguments (reserved for future use).
+            Additional keyword arguments. ``units`` may be passed to override the
+            automatically inferred units.
 
         Returns
         -------
@@ -1481,7 +1707,9 @@ class UxDataArray(xr.DataArray):
         the divergence is calculated as div(V) = ∂u/∂x + ∂v/∂y.
 
         The implementation uses edge-centered gradients and face-centered divergence calculation
-        following the discrete divergence theorem.
+        following the discrete divergence theorem. By default the underlying
+        gradients are divided by ``uxgrid.sphere_radius``; pass
+        ``scale_by_radius=False`` for per-radian (unit-sphere) output.
 
         Example
         -------
@@ -1511,8 +1739,8 @@ class UxDataArray(xr.DataArray):
             )
 
         # Compute gradients of both components
-        u_gradient = self.gradient()
-        v_gradient = other.gradient()
+        u_gradient = self.gradient(scale_by_radius=scale_by_radius)
+        v_gradient = other.gradient(scale_by_radius=scale_by_radius)
 
         # For divergence: div(V) = ∂u/∂x + ∂v/∂y
         # We use the zonal gradient (∂/∂lon) of u and meridional gradient (∂/∂lat) of v
@@ -1523,10 +1751,24 @@ class UxDataArray(xr.DataArray):
         u, v = xr.align(u, v)
         divergence = u + v
         divergence.name = "divergence"
+
+        # Infer units consistently with gradient()/curl(): a divergence is a
+        # spatial derivative of the input field, so it carries an extra 1/length
+        # factor (per meter when scaled by radius, otherwise per radian).
+        if "units" in kwargs:
+            div_units = kwargs["units"]
+        else:
+            u_units = self.attrs.get("units", "")
+            has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
+            if scale_by_radius and has_sphere_radius:
+                div_units = f"({u_units})/m" if u_units else "1/m"
+            else:
+                div_units = f"({u_units})/rad" if u_units else "1/rad"
+
         divergence.attrs.update(
             {
                 "divergence": True,
-                "units": "1/s" if "units" not in kwargs else kwargs["units"],
+                "units": div_units,
             }
         )
 
@@ -1534,6 +1776,65 @@ class UxDataArray(xr.DataArray):
         divergence_da = UxDataArray(divergence, uxgrid=self.uxgrid)
 
         return divergence_da
+
+    def scalardotgradient(self, v: "UxDataArray", q: "UxDataArray") -> "UxDataArray":
+        """
+        Compute the dot product between a vector field and the gradient of a scalar field.
+
+        Parameters
+        ----------
+        v : UxDataArray
+            The meridional component of the vector field. ``self`` is treated as
+            the zonal component.
+        q : UxDataArray
+            Scalar field whose gradient is dotted with the vector field.
+
+        Returns
+        -------
+        scalar_dot_gradient : UxDataArray
+            Dot product ``self * dq/dx + v * dq/dy``.
+        """
+        if not isinstance(v, UxDataArray):
+            raise TypeError("v must be a UxDataArray")
+
+        if not isinstance(q, UxDataArray):
+            raise TypeError("q must be a UxDataArray")
+
+        if self.uxgrid != v.uxgrid or self.uxgrid != q.uxgrid:
+            raise ValueError("All UxDataArrays must have the same grid")
+
+        if self.dims != v.dims or self.dims != q.dims:
+            raise ValueError("All UxDataArrays must have the same dimensions")
+
+        if self.ndim > 1:
+            raise ValueError(
+                "Scalar dot gradient currently requires 1D face-centered data. "
+                "Consider selecting a single slice before computing."
+            )
+
+        if not (self._face_centered() and v._face_centered() and q._face_centered()):
+            raise ValueError(
+                "Computing the scalar dot gradient is only supported for face-centered data variables."
+            )
+
+        # Validate coordinate alignment up-front so a misaligned input fails
+        # before the (potentially expensive) gradient call.
+        u_aligned, v_aligned, q_aligned = xr.align(self, v, q, join="exact", copy=False)
+
+        q_gradient = q_aligned.gradient()
+        q_zonal = q_gradient["zonal_gradient"]
+        q_meridional = q_gradient["meridional_gradient"]
+
+        scalar_dot_gradient = (u_aligned * q_zonal) + (v_aligned * q_meridional)
+        scalar_dot_gradient.name = "scalar_dot_gradient"
+        scalar_dot_gradient.attrs.update(
+            {
+                "long_name": "scalar dot gradient",
+                "description": "Dot product u * (dq/dx) + v * (dq/dy).",
+            }
+        )
+
+        return UxDataArray(scalar_dot_gradient, uxgrid=self.uxgrid)
 
     def difference(self, destination: str | None = "edge"):
         """Computes the absolute difference of a data variable.
