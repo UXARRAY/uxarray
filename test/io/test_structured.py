@@ -56,3 +56,18 @@ def test_from_xarray_with_grid_from_latlon(ds_name):
     assert "lon" not in uxds.dims
     assert "lat" not in uxds.dims
     assert uxds["air"].sizes["n_face"] == ds.sizes["lon"] * ds.sizes["lat"]
+
+    # The flatten must preserve data order: each face value must equal the
+    # original (lat, lon) cell value at that face. n_face is stacked as
+    # (lat, lon) C-order, so face k corresponds to (k // n_lon, k % n_lon).
+    n_lon = ds.sizes["lon"]
+    original = ds["air"].isel(time=0).values  # (lat, lon)
+    flattened = uxds["air"].isel(time=0).values  # (n_face,)
+    for k in (0, n_lon + 1, flattened.size - 1):  # first, an interior, last
+        i, j = k // n_lon, k % n_lon
+        assert flattened[k] == original[i, j]
+
+    # End-to-end: the mapped data must be subsettable (the symptom in #1410).
+    subset = uxds["air"].isel(time=0).subset.bounding_circle((-100.0, 40.0), 5)
+    assert "n_face" in subset.dims
+    assert subset.sizes["n_face"] > 0
