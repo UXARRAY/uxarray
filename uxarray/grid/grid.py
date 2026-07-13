@@ -302,7 +302,7 @@ class Grid:
                 # custom source grid spec is provided
                 source_grid_spec = kwargs.get("source_grid_spec", None)
                 grid_ds = dataset
-                source_dims_dict = {}
+                source_dims_dict = kwargs.get("source_dims_dict") or {}
         else:
             try:
                 if os.path.isdir(dataset):
@@ -528,9 +528,18 @@ class Grid:
         if ds is not None:
             return cls.from_dataset(ds)
         if lon is not None and lat is not None:
-            grid_ds = _read_structured_grid(lon, lat, tol)
+            # Capture the source dimension names so data variables mapped over
+            # (lon, lat) can later be flattened onto ``n_face`` by
+            # ``UxDataset.from_xarray`` (see GH #1410). ``xr.DataArray`` inputs
+            # carry their dim names; plain arrays fall back to "lon"/"lat".
+            lon_name = lon.dims[0] if isinstance(lon, xr.DataArray) else "lon"
+            lat_name = lat.dims[0] if isinstance(lat, xr.DataArray) else "lat"
+
+            grid_ds = _read_structured_grid(np.asarray(lon), np.asarray(lat), tol)
             return cls.from_dataset(
-                grid_ds, source_dims_dict=None, source_grid_spec="structured"
+                grid_ds,
+                source_dims_dict={"n_face": (lon_name, lat_name)},
+                source_grid_spec="Structured",
             )
         else:
             raise ValueError(
