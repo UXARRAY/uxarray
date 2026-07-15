@@ -408,6 +408,13 @@ def open_dataset(
     uxds : uxarray.UxDataset
         Dataset with linked `uxgrid` property of type `Grid`.
 
+    Notes
+    -----
+    The grid need not be a complete or fully UGRID-compliant mesh, nor represent
+    a spherical/Earth-science domain. A partial grid can be opened; operations
+    requiring information absent from the file will raise when used, but
+    unrelated functionality remains available.
+
     Examples
     --------
     Open a dataset with a grid file and data file
