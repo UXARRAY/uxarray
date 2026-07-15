@@ -74,7 +74,9 @@ def test_open_dataset_single_combined_xarray_dataset(gridpath):
 def test_open_dataset_single_argument_rejects_directory_grid(tmp_path):
     """Requires a separate data file for directory-based grids."""
 
-    with pytest.raises(ValueError, match="Directory-based grids require a separate data file"):
+    with pytest.raises(
+        ValueError, match="single directory argument is not supported"
+    ):
         ux.open_dataset(tmp_path)
 
 

@@ -365,16 +365,21 @@ def open_dataset(
     Parameters
     ----------
     grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.Dataset
-        Strings and Path objects are interpreted as a path to a grid file. Xarray Datasets assume that
-        each member variable is in the UGRID conventions and will be used to create a ``ux.Grid``. Similarly, a dictionary
-        containing UGRID variables can be used to create a ``ux.Grid``
+        Grid information for the ``UxDataset``. Strings and Path objects are interpreted as a path to a grid
+        file. Xarray Datasets assume that each member variable is in the UGRID conventions and will be used to
+        create a ``ux.Grid``. Similarly, a dictionary containing UGRID variables can be used to create a
+        ``ux.Grid``. A path to a directory containing grid files (e.g. a FESOM2 ASCII grid) is also accepted,
+        but only when ``filename_or_obj`` is provided; directory input is not supported in the single-argument
+        form below.
     filename_or_obj : str | os.PathLike[Any] | xr.Dataset, optional
         String or Path object as a path to a netCDF file or an OpenDAP URL that
         stores the actual data set, or an already-open ``xarray.Dataset``. It
         is the same ``filename_or_obj`` in ``xarray.open_dataset``. If omitted,
-        ``grid_filename_or_obj`` is also used as the data source, allowing
-        combined grid-and-data files or ``xarray.Dataset`` objects to be
-        opened with a single argument.
+        ``grid_filename_or_obj`` is also used as the data source, allowing a
+        combined grid-and-data file or ``xarray.Dataset`` to be opened with a
+        single argument. In this single-argument form the file is used both to
+        build the grid and to load the data; any non-grid variables it contains
+        are read as data.
     chunks : int, dict, 'auto' or None, default: None
         If provided, used to load the grid into dask arrays.
 
@@ -423,7 +428,10 @@ def open_dataset(
         if isinstance(grid_filename_or_obj, (str, os.PathLike)):
             if os.path.isdir(grid_filename_or_obj):
                 raise ValueError(
-                    "Directory-based grids require a separate data file when calling ux.open_dataset()."
+                    "ux.open_dataset() with a single directory argument is not supported. "
+                    "Supply a path to a grid file instead. Directory-based grids (e.g. a "
+                    "FESOM2 ASCII grid) are only recognized when a separate data file is "
+                    "also provided, i.e. ux.open_dataset(grid_directory, data_file)."
                 )
 
             ds = _open_dataset_with_fallback(
