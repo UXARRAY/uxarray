@@ -85,8 +85,10 @@ class RemapAccessor:
         backend : {'uxarray', 'yac'}, default='uxarray'
             Remapping backend to use. When set to 'yac', requires YAC to be
             available on PYTHONPATH.
-        yac_method : {'nnn', 'average', 'conservative'}, optional
+        yac_method : {'nnn', 'dnn', 'average', 'conservative'}, optional
             YAC interpolation method. Defaults to 'nnn' when backend='yac'.
+            ``'dnn'`` (distance-nearest-neighbour, YAC >= 3.15) averages all
+            source points within a search distance of each target.
         yac_options : dict, optional
             YAC interpolation configuration options.
 
@@ -206,10 +208,12 @@ class RemapAccessor:
             remapping before reshaping the result to latitude/longitude axes.
             The YAC backend uses YAC's rectilinear grid support directly and can
             be faster for large targets when YAC is installed.
-        yac_method : {'nnn', 'average', 'conservative'}, optional
+        yac_method : {'nnn', 'dnn', 'average', 'conservative'}, optional
             YAC interpolation method. When ``backend='yac'``, defaults to ``'nnn'``
             because nearest-neighbor works for node-, edge-, and face-centered
-            source data. ``'conservative'`` requires face-centered source data.
+            source data. ``'dnn'`` (distance-nearest-neighbour) averages source
+            points within a search distance. ``'conservative'`` requires
+            face-centered source data.
         yac_options : dict, optional
             YAC interpolation configuration options forwarded to the selected
             YAC method.
