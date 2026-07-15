@@ -140,6 +140,23 @@ def test_yac_bilinear_face_remap(gridpath):
     assert out.size == dest.n_face
 
 
+def test_yac_dnn_face_remap(gridpath):
+    # distance-nearest-neighbour (YAC >= 3.15); the default CELL_AREA search
+    # distance requires a face-centered target.
+    mesh_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    uxds = ux.open_dataset(mesh_path, mesh_path)
+    dest = ux.open_grid(mesh_path)
+
+    out = uxds["latCell"].remap(
+        destination_grid=dest,
+        remap_to="faces",
+        backend="yac",
+        yac_method="dnn",
+    )
+
+    assert out.size == dest.n_face
+
+
 def test_yac_bilinear_rejects_non_average_method(gridpath):
     mesh_path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
     uxds = ux.open_dataset(mesh_path, mesh_path)
