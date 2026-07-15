@@ -17,6 +17,7 @@ from uxarray.conventions import ugrid
 from uxarray.core.utils import _open_dataset_with_fallback
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.formatting_html import grid_repr
+from uxarray.grid.angles import _compute_face_node_angles_convex
 from uxarray.grid.area import get_all_face_area_from_coords
 from uxarray.grid.bounds import _populate_face_bounds
 from uxarray.grid.connectivity import (
@@ -1928,6 +1929,82 @@ class Grid:
             source_grid_spec=self.source_grid_spec,
             source_dims_dict=self._source_dims_dict,
         )
+
+    def compute_face_node_angles(
+        self,
+        geometry: str = "spherical",
+        *,
+        degrees: bool = False,
+        assume_convex: bool = False,
+        cache: bool | None = None,
+        as_uxarray: bool = False,
+    ) -> xr.DataArray:
+        """Compute the angles at each node of each face in the grid.
+
+        Parameters
+        ----------
+        geometry : str, "spherical" or "flat", defaults to "spherical"
+            The geometry to use for angle computation.
+            If "spherical", angles are computed considering the tangent plane at each node.
+            If "flat", angles are computed in 3D Cartesian space,
+            ignoring the true spherical geometry of the grid, but may be faster to compute.
+        degrees : bool, defaults to False
+            Whether to return angles in degrees (if True) or radians (if False).
+        assume_convex : bool, defaults to False
+            Whether to assume that all faces are convex, i.e. all internal angles less than 180 degrees.
+            If True, uses a more efficient algorithm that will produce incorrect results for non-convex faces.
+        cache : None or bool, defaults to None
+            Whether to cache the computed angles in the grid's dataset, in face_node_angles (if "spherical" geometry)
+            or face_node_angles_flat (if "flat" or "euclidean" geometry). Cached angles are always in radians.
+            If None, use cached result if available, else compute but do not cache result.
+            If True, use cached result if available, else compute and cache result.
+            If False, always recompute; do not check or store in cache.
+        as_uxarray : bool, defaults to False
+            Whether to return a uxarray.DataArray (if True) instead of an xarray.DataArray (if False).
+            If True, equivalent to uxarray.DataArray(self.compute_face_node_angles(..., as_uxarray=False), uxgrid=self).
+
+        Returns
+        -------
+        face_node_angles : xr.DataArray or uxarray.UxDataArray (if as_uxarray=True)
+            The internal angles at each node, for each face in the grid.
+            Has 'n_face' and 'n_max_face_nodes' dimensions, with same size as in self.
+        """
+        from uxarray.conventions.ugrid import FACE_DIM, N_MAX_FACE_NODES_DIM
+
+        if geometry not in ("spherical", "flat"):
+            raise ValueError(
+                f"Invalid geometry {geometry!r}; expected 'spherical' or 'flat'."
+            )
+        name = "face_node_angles" if geometry == "spherical" else "face_node_angles_flat"
+        result = None
+        if cache is None or cache:
+            if name in self._ds:
+                result = self._ds[name]
+        if result is None:  # result not in cache; need to compute it
+            if assume_convex:
+                result = _compute_face_node_angles_convex(
+                    self.node_x.values, self.node_y.values, self.node_z.values,
+                    self.face_node_connectivity.values, self.n_nodes_per_face.values,
+                    geometry=geometry,
+                )
+            else:
+                raise NotImplementedError('[TODO] Non-convex face angle computation.')
+            # convert to xr.DataArray
+            result = xr.DataArray(
+                data=result,
+                dims=[FACE_DIM, N_MAX_FACE_NODES_DIM],
+                name=name,
+                attrs={"description": ("Internal angles at each node of each face. "
+                                      f"(geometry={geometry}, assume_convex={assume_convex})")},
+            )
+            if cache:
+                self._ds[name] = result
+        if degrees:
+            result = np.rad2deg(result)
+        if as_uxarray:
+            from uxarray.core.dataarray import UxDataArray  # import at runtime to avoid circular import
+            result = UxDataArray(result, uxgrid=self)
+        return result
 
     def calculate_total_face_area(
         self,
