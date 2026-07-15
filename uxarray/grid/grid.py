@@ -1955,8 +1955,21 @@ class Grid:
         -------
         Sum of area of all the faces in the mesh : float
         """
+        # Default parameters match the cached ``face_areas`` property, which also
+        # preserves the equal-area values used for HEALPix grids; reuse it to avoid
+        # recomputation. Any non-default quadrature settings require a fresh
+        # geometric computation so the requested rule/order actually take effect.
+        if (
+            quadrature_rule == "triangular"
+            and order == 4
+            and not latitude_adjusted_area
+        ):
+            return np.sum(self.face_areas.values)
 
-        return np.sum(self.face_areas.values)
+        face_areas, _ = self._compute_face_areas(
+            quadrature_rule, order, latitude_adjusted_area
+        )
+        return np.sum(face_areas)
 
     def compute_face_areas(
         self,

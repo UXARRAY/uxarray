@@ -9,6 +9,7 @@ classifiers=[
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 
 dynamic = ["version"]
@@ -24,7 +25,7 @@ dependencies = [
   "antimeridian",
   "dask[dataframe]",
   "netcdf4",
-  "numba",
+  "numba>=0.63",  # 0.63 is the first release supporting Python 3.14 (3.10 <= py < 3.15). See #1561.
   "numpy",
   "pandas",
   "scikit-learn",
