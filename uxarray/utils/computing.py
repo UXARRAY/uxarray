@@ -480,27 +480,52 @@ def _cdp4(a0, b0, a1, b1, a2, b2, a3, b3):
 
 
 @njit(cache=True, inline="always")
-def _sum_sq_c2(h0, l0, h1, l1):
-    """Compensated sum of squares for 2 (hi, lo) pairs: h0²+l0²+h1²+l1².
+def _fast_two_sum(a, b):
+    """Fast TwoSum: (x, y) with x = fl(a + b), x + y = a + b exactly.
 
-    Mirrors sum_of_squares_c<T, 2> from accusphgeom/numeric/eft.hpp, which
-    constructs lhs = rhs = [h0, l0, h1, l1] and calls compensated_dot_product.
-    Used to compute nx²+ny² accurately from the compensated normal (hi, lo).
+    Requires ``|a| >= |b|`` (or ``a == 0``) for the error term to be exact —
+    the callers here satisfy this because ``a`` is a running non-negative sum.
     """
-    return _cdp4(h0, h0, l0, l0, h1, h1, l1, l1)
+    x = a + b
+    return x, (a - x) + b
 
 
 @njit(cache=True, inline="always")
-def _sum_sq_c3(h0, l0, h1, l1, h2, l2):
-    """Compensated sum of squares for 3 (hi, lo) pairs: h0²+l0²+h1²+l1²+h2²+l2².
+def _sum_non_neg(a_hi, a_lo, b_hi, b_lo):
+    """Add two non-negative compensated values (mirrors accusphgeom ``sum_non_neg``)."""
+    hh, h = two_sum(a_hi, b_hi)
+    d = h + (a_lo + b_lo)
+    return _fast_two_sum(hh, d)
 
-    Mirrors sum_of_squares_c<T, 3> from accusphgeom/numeric/eft.hpp, which
-    constructs lhs = rhs = [h0, l0, h1, l1, h2, l2] and calls a 6-term CDP.
-    We use _cdp8 with two zero-padding pairs (adding zero products).
-    Used to compute |n|² = nx²+ny²+nz² accurately from the compensated normal.
+
+@njit(cache=True, inline="always")
+def _sum_of_squares_c(hi, lo):
+    """Compensated squared norm ``Σ (hi[i] + lo[i])²`` of a compensated vector.
+
+    Faithful port of ``sum_of_squares_c<T, N>`` from
+    accusphgeom/numeric/eft.hpp: a compensated ``Σ hi²`` plus the cross-term
+    correction ``2·Σ hi·li``.
+
+    Parameters
+    ----------
+    hi, lo : tuple of float
+        Equal-length tuples of the high and low parts of each vector component.
+        Numba specializes this per tuple length at compile time and keeps the
+        tuples register-resident (no allocation) — the direct analog of the C++
+        template. Used for both nx²+ny² (denominator) and nx²+ny²+nz² (|n|²).
     """
-    # lhs = rhs = [h0, l0, h1, l1, h2, l2, 0, 0]
-    return _cdp8(h0, l0, h1, l1, h2, l2, 0.0, 0.0, h0, l0, h1, l1, h2, l2, 0.0, 0.0)
+    n = len(hi)
+    s_hi = 0.0
+    s_lo = 0.0
+    for i in range(n):  # compensated Σ hi²
+        ph, pl = two_prod(hi[i], hi[i])
+        s_hi, s_lo = _sum_non_neg(s_hi, s_lo, ph, pl)
+    r_hi, r_lo = two_prod(hi[0], lo[0])  # accurate Σ hi·li
+    for i in range(1, n):
+        p, e = two_prod(hi[i], lo[i])
+        r_hi, e2 = two_sum(r_hi, p)
+        r_lo += e + e2
+    return _fast_two_sum(s_hi, (2.0 * (r_hi + r_lo)) + s_lo)
 
 
 @njit(cache=True, inline="always")

@@ -8,8 +8,7 @@ from uxarray.grid.arcs import _on_minor_arc_xyz, on_minor_arc
 from uxarray.utils.computing import (
     _cdp2,
     _cdp4,
-    _sum_sq_c2,
-    _sum_sq_c3,
+    _sum_of_squares_c,
     acc_sqrt_re,
     accucross,
     accucross_pair,
@@ -471,9 +470,9 @@ def _accux_constlat_scalar(a0, a1, a2, b0, b1, b2, const_z):
         Invalid inputs propagate as non-finite coordinates.
     """
     nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(a0, a1, a2, b0, b1, b2)
-    s2_hi, s2_lo = _sum_sq_c2(nx_hi, nx_lo, ny_hi, ny_lo)
+    s2_hi, s2_lo = _sum_of_squares_c((nx_hi, ny_hi), (nx_lo, ny_lo))
     denom = s2_hi + s2_lo
-    s3_hi, s3_lo = _sum_sq_c3(nx_hi, nx_lo, ny_hi, ny_lo, nz_hi, nz_lo)
+    s3_hi, s3_lo = _sum_of_squares_c((nx_hi, ny_hi, nz_hi), (nx_lo, ny_lo, nz_lo))
     zsq_hi, zsq_lo = two_prod(const_z, const_z)
     d_hi, d_lo = _cdp4(s3_hi, zsq_hi, s3_hi, zsq_lo, s3_lo, zsq_hi, s3_lo, zsq_lo)
     e_hi, e_lo = two_sum(s2_hi, -d_hi)
