@@ -90,10 +90,11 @@ def _import_yac():
 def _normalize_yac_method(yac_method: str | None) -> _YacOptions:
     if not yac_method:
         raise ValueError(
-            "backend='yac' requires yac_method to be set to 'nnn', 'average', or 'conservative'."
+            "backend='yac' requires yac_method to be set to 'nnn', 'dnn', "
+            "'average', or 'conservative'."
         )
     method = yac_method.lower()
-    if method not in {"nnn", "average", "conservative"}:
+    if method not in {"nnn", "dnn", "average", "conservative"}:
         raise ValueError(f"Unsupported YAC method: {yac_method!r}")
     return _YacOptions(method=method, kwargs={})
 
@@ -232,6 +233,30 @@ class _YacRemapper:
                 max_search_distance=yac_kwargs.get("max_search_distance", 0.0),
                 scale=yac_kwargs.get("scale", 1.0),
             )
+        elif yac_method == "dnn":
+            # Distance-nearest-neighbour (YAC >= 3.15): interpolate each target
+            # from all source points within a search distance around it.
+            weight_type = _coerce_enum(
+                yac_core.yac_interp_dnn_weight_type,
+                yac_kwargs.get("weight_type", yac_kwargs.get("reduction_type")),
+            )
+            if weight_type is None:
+                weight_type = (
+                    yac_core.yac_interp_dnn_weight_type.YAC_INTERP_DNN_WEIGHT_DIST
+                )
+            dnn_kwargs = {"weight_type": weight_type}
+            # search_distance_type default (CELL_AREA) requires a face-centered
+            # target; only forward it when explicitly provided.
+            if "search_distance_type" in yac_kwargs:
+                dnn_kwargs["search_distance_type"] = _coerce_enum(
+                    yac_core.yac_interp_dnn_search_distance_type,
+                    yac_kwargs["search_distance_type"],
+                )
+            if "search_distance" in yac_kwargs:
+                dnn_kwargs["search_distance"] = yac_kwargs["search_distance"]
+            if "scale" in yac_kwargs:
+                dnn_kwargs["scale"] = yac_kwargs["scale"]
+            stack.add_dnn(**dnn_kwargs)
         elif yac_method == "average":
             reduction_type = _coerce_enum(
                 yac_core.yac_interp_avg_weight_type,
@@ -242,7 +267,7 @@ class _YacRemapper:
                     yac_core.yac_interp_avg_weight_type.YAC_INTERP_AVG_ARITHMETIC
                 )
             stack.add_average(
-                reduction_type=reduction_type,
+                weight_type=reduction_type,
                 partial_coverage=yac_kwargs.get("partial_coverage", False),
             )
         elif yac_method == "conservative":
