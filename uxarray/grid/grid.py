@@ -17,7 +17,7 @@ from uxarray.conventions import ugrid
 from uxarray.core.utils import _open_dataset_with_fallback
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.formatting_html import grid_repr
-from uxarray.grid.angles import _compute_face_node_angles_convex
+from uxarray.grid.angles import _compute_face_node_angles_convex, _compute_face_node_angles_convex_nonumba
 from uxarray.grid.area import get_all_face_area_from_coords
 from uxarray.grid.bounds import _populate_face_bounds
 from uxarray.grid.connectivity import (
@@ -1938,6 +1938,7 @@ class Grid:
         assume_convex: bool = False,
         cache: bool | None = None,
         as_uxarray: bool = False,
+        numba: bool = True,
     ) -> xr.DataArray:
         """Compute the angles at each node of each face in the grid.
 
@@ -1982,7 +1983,8 @@ class Grid:
                 result = self._ds[name]
         if result is None:  # result not in cache; need to compute it
             if assume_convex:
-                result = _compute_face_node_angles_convex(
+                method = _compute_face_node_angles_convex if numba else _compute_face_node_angles_convex_nonumba
+                result = method(
                     self.node_x.values, self.node_y.values, self.node_z.values,
                     self.face_node_connectivity.values, self.n_nodes_per_face.values,
                     geometry=geometry,
