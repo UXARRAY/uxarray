@@ -8,7 +8,7 @@ from uxarray.grid.coordinates import (
     _normalize_xyz_scalar,
 )
 from uxarray.grid.utils import _angle_of_2_vectors
-from uxarray.utils.computing import diff_of_products, two_sum
+from uxarray.utils.computing import accucross, two_sum
 
 # Tolerance used to classify orient3d results as zero.  For double-precision
 # unit-vector inputs this covers rounding error in the compensated cross product.
@@ -407,21 +407,32 @@ def _orient3d_on_sphere_value(a, b, q):
 
 
 @njit(cache=True, inline="always")
+def _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q0, q1, q2):
+    """Compensated dot of an already-computed ``(hi, lo)`` normal with ``q``.
+
+    This is the second half of :func:`_orient3d_on_sphere_value_xyz`, split out
+    so that callers holding a normal that is invariant across many queries (e.g.
+    the ray plane ``q x R`` in the spherical point-in-polygon kernel, which is
+    the same for every edge of a face) can compute the cross product once and
+    reuse it, paying only this dot per query.
+    """
+    p0 = (nx_hi + nx_lo) * q0
+    p1 = (ny_hi + ny_lo) * q1
+    p2 = (nz_hi + nz_lo) * q2
+    s, e = two_sum(p0, p1)
+    s, e2 = two_sum(s, p2)
+    return s + (e + e2)
+
+
+@njit(cache=True, inline="always")
 def _orient3d_on_sphere_value_xyz(a0, a1, a2, b0, b1, b2, q0, q1, q2):
     """Scalar-argument form of :func:`_orient3d_on_sphere_value`.
 
     Takes the nine vector components directly so hot loops can call it without
     materializing ``(3,)`` arrays.
     """
-    x_hi, x_lo = diff_of_products(a1, b2, a2, b1)
-    y_hi, y_lo = diff_of_products(a2, b0, a0, b2)
-    z_hi, z_lo = diff_of_products(a0, b1, a1, b0)
-    p0 = (x_hi + x_lo) * q0
-    p1 = (y_hi + y_lo) * q1
-    p2 = (z_hi + z_lo) * q2
-    s, e = two_sum(p0, p1)
-    s, e2 = two_sum(s, p2)
-    return s + (e + e2)
+    nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(a0, a1, a2, b0, b1, b2)
+    return _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q0, q1, q2)
 
 
 @njit(cache=True)

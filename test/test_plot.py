@@ -249,6 +249,92 @@ def test_to_raster_pixel_ratio(gridpath, r1, r2):
     d = np.array(raster2.shape) - f * np.array(raster1.shape)
     assert (d >= 0).all() and (d <= f - 1).all()
 
+def test_matplotlib_backend_restored_after_switch(monkeypatch):
+    """Regression test for #1537: switching HoloViews to matplotlib must restore
+    the Matplotlib backend captured beforehand.
+
+    A bare pytest can't reproduce the Jupyter inline-hook flip, so we simulate
+    hv.extension flipping the backend and assert assign() restores it.
+    """
+    import holoviews as hv
+
+    from uxarray.plot.utils import HoloviewsBackend
+
+    original = matplotlib.get_backend()
+    try:
+        matplotlib.use("svg")  # the "user's" backend before plotting
+
+        # Simulate hv.extension("matplotlib") flipping the active backend to agg.
+        monkeypatch.setattr(hv.Store, "current_backend", "bokeh", raising=False)
+        monkeypatch.setattr(hv, "extension", lambda *a, **k: matplotlib.use("agg"))
+
+        be = HoloviewsBackend()
+        be.assign("matplotlib")
+
+        # assign() must restore the backend that was active before the switch.
+        assert matplotlib.get_backend() == "svg"
+    finally:
+        matplotlib.use(original)
+
+
+def test_inline_backend_reactivated_via_shell(monkeypatch):
+    """Inside IPython, restoring an inline backend must re-run the shell's own
+    backend activation (the public equivalent of ``%matplotlib inline``), which
+    rebuilds the full display integration that ``hv.extension`` tore down.
+
+    Simply calling ``mpl.use`` is not enough: it restores the backend name but
+    leaves last-line figure auto-display broken (see #1537 / #1538).
+    """
+    import sys
+    import types
+
+    from uxarray.plot.utils import HoloviewsBackend
+
+    inline_backend = "module://matplotlib_inline.backend_inline"
+    calls = []
+
+    class FakeShell:
+        def enable_matplotlib(self, gui):
+            calls.append(("enable_matplotlib", gui))
+
+    ipython = types.ModuleType("IPython")
+    ipython.get_ipython = lambda: FakeShell()
+
+    monkeypatch.setitem(sys.modules, "IPython", ipython)
+    monkeypatch.setattr(
+        matplotlib, "use", lambda backend: calls.append(("use", backend))
+    )
+
+    be = HoloviewsBackend()
+    be.matplotlib_backend = inline_backend
+    be.reset_mpl_backend()
+
+    # The module:// inline backend must be mapped to the "inline" gui name and
+    # restored through the shell, without falling back to mpl.use.
+    assert calls == [("enable_matplotlib", "inline")]
+
+
+def test_reset_backend_falls_back_to_mpl_use_outside_ipython(monkeypatch):
+    """Outside IPython (get_ipython() is None), restoration falls back to
+    ``mpl.use`` with the stored backend."""
+    import sys
+    import types
+
+    from uxarray.plot.utils import HoloviewsBackend
+
+    calls = []
+    ipython = types.ModuleType("IPython")
+    ipython.get_ipython = lambda: None
+    monkeypatch.setitem(sys.modules, "IPython", ipython)
+    monkeypatch.setattr(matplotlib, "use", lambda backend: calls.append(("use", backend)))
+
+    be = HoloviewsBackend()
+    be.matplotlib_backend = "svg"
+    be.reset_mpl_backend()
+
+    assert calls == [("use", "svg")]
+
+
 def test_plot_with_features(gridpath, datasetpath):
     """ensure can render a multiplot layout with geoviews features.
     Regression test for issue #1542.

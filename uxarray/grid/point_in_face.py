@@ -7,8 +7,13 @@ import numpy as np
 from numba import njit, prange
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.arcs import on_minor_arc, orient3d_on_sphere
+from uxarray.grid.arcs import (
+    _normal_dot_value,
+    _PREDICATE_ZERO_TOL,
+    on_minor_arc,
+)
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.utils.computing import accucross
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike
@@ -69,8 +74,27 @@ def _ray_endpoint(q):
     return r
 
 
-@njit(cache=True)
-def _counts_as_crossing(A, B, q, R):
+@njit(cache=True, inline="always")
+def _sign_from_value(v):
+    """
+    Sign of a compensated orient3d value under the standard zero tolerance.
+    """
+    if v > _PREDICATE_ZERO_TOL:
+        return _SIGN_POS
+    if v < -_PREDICATE_ZERO_TOL:
+        return _SIGN_NEG
+    return _SIGN_ZERO
+
+
+@njit(cache=True, inline="always")
+def _counts_as_crossing(
+    a0, a1, a2,
+    b0, b1, b2,
+    q0, q1, q2,
+    r0, r1, r2,
+    qr_x_hi, qr_y_hi, qr_z_hi,
+    qr_x_lo, qr_y_lo, qr_z_lo,
+):
     """Return 1 if edge AB crosses the minor arc q->R, 0 if not, -1 if degenerate.
 
     An edge AB crosses ray q->R iff q and R lie on opposite sides of the great
@@ -79,12 +103,19 @@ def _counts_as_crossing(A, B, q, R):
     side-of-plane tests. Returns -1 when R lies exactly on plane(AB), which
     signals the caller to perturb R and retry.
     """
-    s_AB_q = orient3d_on_sphere(A, B, q)
-    s_AB_R = orient3d_on_sphere(A, B, R)
+    # A x B: computed once, reused by both the q-side and R-side tests below.
+    nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(a0, a1, a2, b0, b1, b2)
 
+    s_AB_q = _sign_from_value(
+        _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q0, q1, q2)
+    )
     # q on great circle AB: already caught by edge-membership check; not a crossing.
     if s_AB_q == _SIGN_ZERO:
         return 0
+
+    s_AB_R = _sign_from_value(
+        _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, r0, r1, r2)
+    )
     # R on great circle AB: degenerate ray, caller must perturb R.
     if s_AB_R == _SIGN_ZERO:
         return -1
@@ -95,20 +126,27 @@ def _counts_as_crossing(A, B, q, R):
     # q and R are strictly on opposite sides of plane(AB).
     # Now check whether the intersection of the two great circles falls
     # inside the minor arc A->B, i.e. A and B are on opposite sides of plane(qR).
-    s_qR_A = orient3d_on_sphere(q, R, A)
-    s_qR_B = orient3d_on_sphere(q, R, B)
+    s_qR_A = _sign_from_value(
+        _normal_dot_value(qr_x_hi, qr_y_hi, qr_z_hi, qr_x_lo, qr_y_lo, qr_z_lo, a0, a1, a2)
+    )
+    s_qR_B = _sign_from_value(
+        _normal_dot_value(qr_x_hi, qr_y_hi, qr_z_hi, qr_x_lo, qr_y_lo, qr_z_lo, b0, b1, b2)
+    )
 
-    # A or B on great circle qR: vertex lies exactly on the ray plane.
-    # Apply the half-edge rule: count the edge only if the other endpoint is
-    # strictly on the negative side, so adjacent edges sharing this vertex
-    # are not double-counted.
-    if s_qR_A == _SIGN_ZERO or s_qR_B == _SIGN_ZERO:
-        if s_qR_A == _SIGN_ZERO and s_qR_B == _SIGN_ZERO:
-            return 0  # entire edge coplanar with ray: degenerate
-        s_other = s_qR_B if s_qR_A == _SIGN_ZERO else s_qR_A
-        return 1 if s_other == _SIGN_NEG else 0
+    # Common case: neither endpoint lies on the ray plane, so the edge counts
+    # iff A and B straddle it.
+    s_qR_prod = s_qR_A * s_qR_B
+    if s_qR_prod != 0:
+        return 1 if s_qR_prod < 0 else 0
 
-    return 1 if s_qR_A != s_qR_B else 0
+    # An endpoint lies exactly on the ray plane. Apply the half-edge rule there:
+    # count the edge only if the other endpoint is strictly on the negative
+    # side, so that the two edges meeting at such a vertex are not both counted.
+    if s_qR_A == _SIGN_ZERO:
+        if s_qR_B == _SIGN_ZERO:
+            return 0  # whole edge coplanar with the ray plane: degenerate
+        return 1 if s_qR_B == _SIGN_NEG else 0
+    return 1 if s_qR_A == _SIGN_NEG else 0
 
 
 @njit(cache=True)
@@ -163,13 +201,26 @@ def _point_in_polygon_sphere(q, polygon):
     # When R hits a degenerate edge, nudge and restart from i=0 so that all
     # edges are counted with the same ray — a mid-loop nudge corrupts parity.
     R = _ray_endpoint(q)
+    q0, q1, q2 = q[0], q[1], q[2]
     for _retry in range(4):
+        # The ray plane q x R is the same for every edge of the face, so it is
+        # computed once per ray pass rather than twice per edge.
+        qr_x_hi, qr_y_hi, qr_z_hi, qr_x_lo, qr_y_lo, qr_z_lo = accucross(
+            q0, q1, q2, R[0], R[1], R[2]
+        )
         inside = False
         need_retry = False
         for i in range(n):
             A = polygon[i]
             B = polygon[(i + 1) % n]
-            c = _counts_as_crossing(A, B, q, R)
+            c = _counts_as_crossing(
+                A[0], A[1], A[2],
+                B[0], B[1], B[2],
+                q0, q1, q2,
+                R[0], R[1], R[2],
+                qr_x_hi, qr_y_hi, qr_z_hi,
+                qr_x_lo, qr_y_lo, qr_z_lo,
+            )
             if c < 0:
                 R[0] += 1e-7
                 R[1] -= 1e-7

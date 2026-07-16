@@ -201,21 +201,28 @@ def _unit(v):
     return v / np.linalg.norm(v)
 
 
-def _make_cases(n, seed):
-    """Random great-circle arcs paired with a latitude their arc actually crosses."""
+def _make_cases(n, seed, frac_cross=0.7):
+
     rng = np.random.default_rng(seed)
     cases = []
     while len(cases) < n:
-        a = _unit(rng.standard_normal(3))
-        b = _unit(rng.standard_normal(3))
-        if abs(np.dot(a, b)) > 0.999:  # near-degenerate arc, skip
-            continue
-        # pick a latitude strictly between the two endpoints' z so an
-        # intersection is likely to exist
-        zlo, zhi = sorted((a[2], b[2]))
-        if zhi - zlo < 1e-6:
-            continue
-        const_z = zlo + (zhi - zlo) * rng.uniform(0.2, 0.8)
+        mid = _unit(rng.standard_normal(3))
+        tan = _unit(np.cross(mid, _unit(rng.standard_normal(3))))
+        half = 0.5 * math.radians(10.0 ** rng.uniform(math.log10(0.2), math.log10(8.0)))
+        ca, sa = math.cos(half), math.sin(half)
+        a = _unit(mid * ca - tan * sa)
+        b = _unit(mid * ca + tan * sa)
+        zlo, zhi = (a[2], b[2]) if a[2] <= b[2] else (b[2], a[2])
+        if rng.random() < frac_cross and zhi - zlo > 1e-9:
+            const_z = zlo + (zhi - zlo) * rng.uniform(0.15, 0.85)
+        else:
+            # a latitude the arc does not span -> empty-return path
+            room_above = 0.999 - zhi
+            room_below = zlo + 0.999
+            if room_above >= room_below:
+                const_z = zhi + min(room_above, rng.uniform(0.02, 0.3))
+            else:
+                const_z = zlo - min(room_below, rng.uniform(0.02, 0.3))
         cases.append((np.stack([a, b]), float(const_z)))
     return cases
 
@@ -324,10 +331,8 @@ def main():
             if np.isfinite(d):
                 max_out_diff = max(max_out_diff, d)
 
-    # ---- timing: replicate the 200 cases into a large batch (~200k points) ----
-    reps = 1000
-    big = base_cases * reps
-    A, B, Z, gcas = _pack(big)
+    # ---- timing: a large batch of DISTINCT cases (no replication) ----
+    A, B, Z, gcas = _pack(_make_cases(100_000, seed=20251105))
     n = A.shape[0]
 
     t_direct = _time_batch(_batch_fp64_kernel, (A, B, Z))
@@ -341,7 +346,7 @@ def main():
     print("Same-body FP64-vs-AccuX diagnostic — GCA/ConstLat (PR #1513)")
     print("=" * 70)
     print(f"baseline cases: {len(base_cases)}   with-result: {n_with_result}")
-    print(f"timing batch  : {n} points ({reps}x replication), best of 7")
+    print(f"timing batch  : {n} distinct points, best of 7")
     print()
     print("CORRECTNESS (same-body FP64 dispatcher vs real AccuX dispatcher)")
     print(f"  status mismatches : {status_mismatch}")
@@ -391,7 +396,7 @@ class SameBodyConstLat:
     """asv: same-body FP64 vs real AccuX at kernel (L1) and dispatch (L3) levels."""
 
     def setup(self):
-        cases = _make_cases(200, seed=20251104) * 100
+        cases = _make_cases(20_000, seed=20251104)
         self.A, self.B, self.Z, self.gcas = _pack(cases)
         _batch_fp64_kernel(self.A, self.B, self.Z)
         _batch_accux_kernel(self.A, self.B, self.Z)
