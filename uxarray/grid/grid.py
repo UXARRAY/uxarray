@@ -1496,7 +1496,9 @@ class Grid:
         Notes
         -----
         For HEALPix grids, this property returns theoretical equal areas to preserve
-        the equal-area property. For other grid types, areas are computed geometrically.
+        the equal-area property. For other grid types, areas are computed geometrically,
+        and results are equivalent to calling :py:meth:`~uxarray.Grid.compute_face_areas()`
+        with no arguments. Either way, the computed areas are cached for future use.
         """
         from uxarray.conventions.descriptors import FACE_AREAS_ATTRS, FACE_AREAS_DIMS
 
@@ -1985,7 +1987,7 @@ class Grid:
         latitude_adjusted_area: bool | None = False,
         return_jacobian: bool = False,
         as_dataarray: bool = False,
-    ):
+    ) -> np.ndarray | xr.DataArray | tuple[np.ndarray|xr.DataArray, np.ndarray]:
         """Compute the area of each face in the grid.
 
         Unlike the cached :attr:`face_areas` property (which always uses the
