@@ -8,8 +8,8 @@ from numba import njit, prange
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.arcs import (
-    _normal_dot_value,
     _PREDICATE_ZERO_TOL,
+    _normal_dot_value,
     on_minor_arc,
 )
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
@@ -88,12 +88,24 @@ def _sign_from_value(v):
 
 @njit(cache=True, inline="always")
 def _counts_as_crossing(
-    a0, a1, a2,
-    b0, b1, b2,
-    q0, q1, q2,
-    r0, r1, r2,
-    qr_x_hi, qr_y_hi, qr_z_hi,
-    qr_x_lo, qr_y_lo, qr_z_lo,
+    a0,
+    a1,
+    a2,
+    b0,
+    b1,
+    b2,
+    q0,
+    q1,
+    q2,
+    r0,
+    r1,
+    r2,
+    qr_x_hi,
+    qr_y_hi,
+    qr_z_hi,
+    qr_x_lo,
+    qr_y_lo,
+    qr_z_lo,
 ):
     """Return 1 if edge AB crosses the minor arc q->R, 0 if not, -1 if degenerate.
 
@@ -127,10 +139,14 @@ def _counts_as_crossing(
     # Now check whether the intersection of the two great circles falls
     # inside the minor arc A->B, i.e. A and B are on opposite sides of plane(qR).
     s_qR_A = _sign_from_value(
-        _normal_dot_value(qr_x_hi, qr_y_hi, qr_z_hi, qr_x_lo, qr_y_lo, qr_z_lo, a0, a1, a2)
+        _normal_dot_value(
+            qr_x_hi, qr_y_hi, qr_z_hi, qr_x_lo, qr_y_lo, qr_z_lo, a0, a1, a2
+        )
     )
     s_qR_B = _sign_from_value(
-        _normal_dot_value(qr_x_hi, qr_y_hi, qr_z_hi, qr_x_lo, qr_y_lo, qr_z_lo, b0, b1, b2)
+        _normal_dot_value(
+            qr_x_hi, qr_y_hi, qr_z_hi, qr_x_lo, qr_y_lo, qr_z_lo, b0, b1, b2
+        )
     )
 
     # Common case: neither endpoint lies on the ray plane, so the edge counts
@@ -214,12 +230,24 @@ def _point_in_polygon_sphere(q, polygon):
             A = polygon[i]
             B = polygon[(i + 1) % n]
             c = _counts_as_crossing(
-                A[0], A[1], A[2],
-                B[0], B[1], B[2],
-                q0, q1, q2,
-                R[0], R[1], R[2],
-                qr_x_hi, qr_y_hi, qr_z_hi,
-                qr_x_lo, qr_y_lo, qr_z_lo,
+                A[0],
+                A[1],
+                A[2],
+                B[0],
+                B[1],
+                B[2],
+                q0,
+                q1,
+                q2,
+                R[0],
+                R[1],
+                R[2],
+                qr_x_hi,
+                qr_y_hi,
+                qr_z_hi,
+                qr_x_lo,
+                qr_y_lo,
+                qr_z_lo,
             )
             if c < 0:
                 R[0] += 1e-7
