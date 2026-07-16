@@ -14,12 +14,10 @@ from uxarray.utils.computing import accucross, two_sum
 # unit-vector inputs this covers rounding error in the compensated cross product.
 _PREDICATE_ZERO_TOL = 1e-15
 
-# Default tolerance for the on_minor_arc collinearity and interval tests.
-# Intentionally tighter than AccuSphGeom's 1e-8 default: using 1e-10 keeps
-# borderline near-endpoint candidates out of the valid set, which produces
-# better accuracy on the AccuSphGeom baseline suite (err < 1e-15 vs ~1e-10
-# with the looser C++ default). The C++ tolerance was tuned for SIMD batch
-# throughput; the scalar Python path is more sensitive to spurious candidates.
+# Tolerance for the on_minor_arc collinearity and interval tests. Tighter than
+# AccuSphGeom's 1e-8 default: 1e-10 keeps borderline near-endpoint candidates
+# out of the valid set, which is more accurate on the baseline suite for the
+# scalar path here.
 _ON_MINOR_ARC_TOL = 1e-10
 
 

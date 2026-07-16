@@ -23,9 +23,7 @@ from uxarray.grid.utils import (
     any_close_lat,
 )
 
-# ---------------------------------------------------------------------------
 # Constants for the accurate GCA bounds path.
-# ---------------------------------------------------------------------------
 
 # Latitude snap tolerance (degrees): if the GCA arc extreme is within this
 # distance of a vertex latitude, snap to the vertex value so that the bounds
@@ -41,9 +39,7 @@ _NORTH_POLE = np.array([0.0, 0.0, 1.0])
 _SOUTH_POLE = np.array([0.0, 0.0, -1.0])
 
 
-# ---------------------------------------------------------------------------
 # Per-face GCA bounds helpers (accurate path).
-# ---------------------------------------------------------------------------
 
 
 @njit(cache=True)

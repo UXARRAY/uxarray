@@ -594,6 +594,7 @@ Intersections
 
    grid.intersections.gca_gca_intersection
    grid.intersections.gca_const_lat_intersection
+   grid.intersections.get_number_of_intersections
 
 
 Arcs
