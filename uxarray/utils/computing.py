@@ -81,45 +81,6 @@ except Exception:  # pragma: no cover - toolchain without intrinsic support
     _FMA_INTRINSIC_OK = False
 
 
-def _validate_fma() -> bool:
-    """Return True iff the FMA intrinsic compiles and is a bit-exact EFT."""
-    if not _FMA_INTRINSIC_OK:
-        return False
-    try:
-        import numpy as _np
-
-        @njit(cache=False)
-        def _tp_fma(a, b):
-            p = a * b
-            return p, _fma(a, b, -p)
-
-        @njit(cache=False)
-        def _tp_vk(a, b):
-            p = a * b
-            f = 134217729.0
-            a_hi = f * a - (f * a - a)
-            a_lo = a - a_hi
-            b_hi = f * b - (f * b - b)
-            b_lo = b - b_hi
-            e = a_lo * b_lo - (((p - a_hi * b_hi) - a_lo * b_hi) - a_hi * b_lo)
-            return p, e
-
-        rng = _np.random.default_rng(20260101)
-        for _ in range(20000):
-            a = float(rng.standard_normal() * rng.integers(1, 1 << 20))
-            b = float(rng.standard_normal() * rng.integers(1, 1 << 20))
-            pf, ef = _tp_fma(a, b)
-            pv, ev = _tp_vk(a, b)
-            if pf != pv or (pf + ef) != (pv + ev):
-                return False
-        return True
-    except Exception:  # pragma: no cover
-        return False
-
-
-_HAS_FMA = _validate_fma()
-
-
 @njit(cache=True, inline="always")
 def two_sum(a, b):
     """Knuth's TwoSum: return (s, e) with s = fl(a + b) and s + e = a + b exactly.
@@ -148,6 +109,14 @@ def two_sum(a, b):
     return s, e
 
 
+if _FMA_INTRINSIC_OK:
+
+    @njit(cache=True, inline="always")
+    def _two_prod_fma(a, b):
+        p = a * b
+        return p, _fma(a, b, -p)
+
+
 @njit(cache=True, inline="always")
 def _two_prod_veltkamp(a, b):
     """Portable TwoProd via Veltkamp splitting (no FMA dependency).
@@ -166,13 +135,36 @@ def _two_prod_veltkamp(a, b):
     return p, e
 
 
-if _HAS_FMA:
+def _validate_fma(n_samples=2000) -> bool:
+    """Return True iff the FMA intrinsic compiles and is a bit-exact EFT."""
+    if not _FMA_INTRINSIC_OK:
+        return False
+    try:
+        import numpy as _np
 
-    @njit(cache=True, inline="always")
-    def _two_prod_fma(a, b):
-        """TwoProd via a single hardware FMA: e = fma(a, b, -p)."""
-        p = a * b
-        return p, _fma(a, b, -p)
+        rng = _np.random.default_rng(20260101)
+        for _ in range(n_samples):
+            a = float(rng.standard_normal() * rng.integers(1, 1 << 20))
+            b = float(rng.standard_normal() * rng.integers(1, 1 << 20))
+            pf, ef = _two_prod_fma(a, b)
+            pv, ev = _two_prod_veltkamp(a, b)
+            # Compare the residuals *directly*. Do not compare ``pf + ef``
+            # against ``pv + ev``: both sums round straight back to the product
+            # (|e| <= ulp(p)/2 by construction), so that predicate collapses to
+            # ``pf != pv`` -- a tautology, since both are fl(a*b). The exact
+            # residual is unique and representable, so a correct FMA and the
+            # Veltkamp split must agree bit-for-bit.
+            if pf != pv or ef != ev:
+                return False
+        return True
+    except Exception:  # pragma: no cover
+        return False
+
+
+_HAS_FMA = _validate_fma()
+
+
+if _HAS_FMA:
 
     @njit(cache=True, inline="always")
     def two_prod(a, b):

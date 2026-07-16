@@ -14,7 +14,13 @@ from fractions import Fraction
 import numpy as np
 import pytest
 
-from uxarray.utils.computing import _sum_of_squares_c, accucross
+from uxarray.utils.computing import (
+    _HAS_FMA,
+    _sum_of_squares_c,
+    _two_prod_veltkamp,
+    accucross,
+    two_prod,
+)
 
 # Correct compensated result: ~1e-30 rel err.  Naive Σh²+Σl²: ~1e-15.
 _SUM_SQ_REL_TOL = 1e-24
@@ -119,3 +125,46 @@ def test_sum_of_squares_generic_any_n():
     assert worst < _SUM_SQ_REL_TOL, (
         f"N=4: _sum_of_squares_c max rel err {worst:.2e} ≥ {_SUM_SQ_REL_TOL:.0e}"
     )
+
+
+def _random_operands(rng, n):
+    for _ in range(n):
+        yield (
+            float(rng.standard_normal() * rng.integers(1, 1 << 20)),
+            float(rng.standard_normal() * rng.integers(1, 1 << 20)),
+        )
+
+
+def test_two_prod_error_term_is_the_exact_residual():
+    """``two_prod`` must return the EXACT rounding error of ``a * b``.
+
+    This is the property ``computing._validate_fma`` exists to guarantee at
+    import time, asserted here directly against exact rational arithmetic so it
+    cannot silently lapse. A non-fused FMA lowering (or a non-compliant FMA)
+    yields ``e = 0.0``, which fails this outright.
+
+    Note this is deliberately checked as ``p + e == a*b`` **exactly, over the
+    rationals** — NOT as the float expression ``p + e``, which rounds straight
+    back to ``p`` (since ``|e| <= ulp(p)/2``) and would make the assertion
+    vacuously true for any ``e`` whatsoever.
+    """
+    rng = np.random.default_rng(20260716)
+    for a, b in _random_operands(rng, 20000):
+        p, e = two_prod(a, b)
+        assert Fraction(p) + Fraction(e) == Fraction(a) * Fraction(b), (
+            f"two_prod({a!r}, {b!r}) = ({p!r}, {e!r}) is not an exact "
+            f"error-free transform"
+        )
+
+
+@pytest.mark.skipif(not _HAS_FMA, reason="no FMA path on this toolchain")
+def test_two_prod_fma_matches_veltkamp_bit_for_bit():
+    """The FMA and Veltkamp paths must agree bit-for-bit, so ``_HAS_FMA`` can
+    never change results. The exact residual is unique and representable, so
+    two correct implementations have no freedom to differ."""
+    rng = np.random.default_rng(20260717)
+    for a, b in _random_operands(rng, 20000):
+        p, e = two_prod(a, b)
+        pv, ev = _two_prod_veltkamp(a, b)
+        assert np.float64(p).view(np.int64) == np.float64(pv).view(np.int64)
+        assert np.float64(e).view(np.int64) == np.float64(ev).view(np.int64)
