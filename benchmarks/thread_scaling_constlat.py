@@ -84,7 +84,15 @@ def main():
     n_eval = edges.shape[0] * n_lat
     acc = np.empty(edges.shape[0], dtype=np.float64)
 
-    max_threads = get_num_threads()
+    # Cap the sweep at the number of fast performance cores. On heterogeneous
+    # CPUs (e.g. Apple M-series: performance + efficiency cores) adding the slow
+    # efficiency cores makes the parallel loop wait on the slowest chunk, so
+    # times go *up* past the P-core count — a scheduling artifact, not a
+    # property of the kernels. Override with the PERF_CORES env var if needed.
+    import os
+
+    perf_cores = int(os.environ.get("PERF_CORES", "8"))
+    max_threads = min(get_num_threads(), perf_cores)
     counts = []
     t = 1
     while t < max_threads:
