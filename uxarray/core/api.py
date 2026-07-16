@@ -377,9 +377,9 @@ def open_dataset(
         is the same ``filename_or_obj`` in ``xarray.open_dataset``. If omitted,
         ``grid_filename_or_obj`` is also used as the data source, allowing a
         combined grid-and-data file or ``xarray.Dataset`` to be opened with a
-        single argument. In this single-argument form the file is used both to
-        build the grid and to load the data; any non-grid variables it contains
-        are read as data.
+        single argument. In this single-argument form the file is used to build
+        the grid and also treated as data; all variables it contains, including
+        grid variables, will be included as data.
     chunks : int, dict, 'auto' or None, default: None
         If provided, used to load the grid into dask arrays.
 
