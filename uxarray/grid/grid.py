@@ -1987,7 +1987,7 @@ class Grid:
         latitude_adjusted_area: bool | None = False,
         return_jacobian: bool = False,
         as_dataarray: bool = False,
-    ) -> np.ndarray | xr.DataArray | tuple[np.ndarray|xr.DataArray, np.ndarray]:
+    ) -> np.ndarray | xr.DataArray | tuple[np.ndarray | xr.DataArray, np.ndarray]:
         """Compute the area of each face in the grid.
 
         Unlike the cached :attr:`face_areas` property (which always uses the
