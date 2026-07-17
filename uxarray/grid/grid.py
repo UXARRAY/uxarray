@@ -1986,8 +1986,8 @@ class Grid:
         order: int | None = 4,
         latitude_adjusted_area: bool | None = False,
         return_jacobian: bool = False,
-        as_dataarray: bool = False,
-    ) -> np.ndarray | xr.DataArray | tuple[np.ndarray | xr.DataArray, np.ndarray]:
+        as_uxarray: bool = False,
+    ):
         """Compute the area of each face in the grid.
 
         Unlike the cached :attr:`face_areas` property (which always uses the
@@ -2018,16 +2018,17 @@ class Grid:
         return_jacobian : bool, optional
             If True, also return the per-face Jacobian of the integration.
             Defaults to False.
-        as_dataarray : bool, optional
-            If True, return the areas as a :class:`xarray.DataArray` (usable as a
-            ``UxDataArray`` data variable, e.g. for plotting) instead of a raw
-            :class:`numpy.ndarray`. Defaults to False.
+        as_uxarray : bool, optional
+            If True, return the areas as a :class:`~uxarray.UxDataArray` paired
+            with this grid (``result.uxgrid = self``), so the result can be
+            plotted directly, instead of a raw :class:`numpy.ndarray`. Defaults
+            to False.
 
         Returns
         -------
-        numpy.ndarray or xarray.DataArray
+        numpy.ndarray or uxarray.UxDataArray
             Area of each face, shape ``(n_face,)``. Returned as a
-            :class:`xarray.DataArray` when ``as_dataarray=True``.
+            :class:`~uxarray.UxDataArray` when ``as_uxarray=True``.
         numpy.ndarray
             Per-face Jacobian, only returned when ``return_jacobian=True``.
 
@@ -2042,14 +2043,18 @@ class Grid:
             quadrature_rule, order, latitude_adjusted_area
         )
 
-        if as_dataarray:
+        if as_uxarray:
             from uxarray.conventions.descriptors import (
                 FACE_AREAS_ATTRS,
                 FACE_AREAS_DIMS,
             )
+            from uxarray.core.dataarray import UxDataArray
 
-            face_areas = xr.DataArray(
-                data=face_areas, dims=FACE_AREAS_DIMS, attrs=FACE_AREAS_ATTRS
+            face_areas = UxDataArray(
+                data=face_areas,
+                dims=FACE_AREAS_DIMS,
+                attrs=FACE_AREAS_ATTRS,
+                uxgrid=self,
             )
 
         if return_jacobian:
