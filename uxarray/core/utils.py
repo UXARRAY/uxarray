@@ -104,7 +104,11 @@ def match_chunks_to_ugrid(grid_filename_or_obj, chunks):
         # No need to rename
         return chunks
 
-    ds = _open_dataset_with_fallback(grid_filename_or_obj, chunks=chunks)
+    if isinstance(grid_filename_or_obj, xr.Dataset):
+        ds = grid_filename_or_obj
+    else:
+        ds = _open_dataset_with_fallback(grid_filename_or_obj, chunks=chunks)
+
     grid_spec, _, _ = _parse_grid_type(ds)
 
     source_dims_dict = _get_source_dims_dict(ds, grid_spec)

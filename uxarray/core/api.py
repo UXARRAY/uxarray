@@ -353,7 +353,7 @@ def list_grid_names(
 
 def open_dataset(
     grid_filename_or_obj: str | os.PathLike[Any] | dict | Dataset,
-    filename_or_obj: str | os.PathLike[Any],
+    filename_or_obj: str | os.PathLike[Any] | Dataset | None = None,
     chunks=None,
     chunk_grid: bool = True,
     use_dual: bool | None = False,
@@ -364,14 +364,22 @@ def open_dataset(
 
     Parameters
     ----------
-    grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.dataset
-        Strings and Path objects are interpreted as a path to a grid file. Xarray Datasets assume that
-        each member variable is in the UGRID conventions and will be used to create a ``ux.Grid``. Similarly, a dictionary
-        containing UGRID variables can be used to create a ``ux.Grid``
-    filename_or_obj : str | os.PathLike[Any]
+    grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.Dataset
+        Grid information for the ``UxDataset``. Strings and Path objects are interpreted as a path to a grid
+        file. Xarray Datasets assume that each member variable is in the UGRID conventions and will be used to
+        create a ``ux.Grid``. Similarly, a dictionary containing UGRID variables can be used to create a
+        ``ux.Grid``. A path to a directory containing grid files (e.g. a FESOM2 ASCII grid) is also accepted,
+        but only when ``filename_or_obj`` is provided; directory input is not supported in the single-argument
+        form below.
+    filename_or_obj : str | os.PathLike[Any] | xr.Dataset, optional
         String or Path object as a path to a netCDF file or an OpenDAP URL that
-        stores the actual data set. It is the same ``filename_or_obj`` in
-        ``xarray.open_dataset``.
+        stores the actual data set, or an already-open ``xarray.Dataset``. It
+        is the same ``filename_or_obj`` in ``xarray.open_dataset``. If omitted,
+        ``grid_filename_or_obj`` is also used as the data source, allowing a
+        combined grid-and-data file or ``xarray.Dataset`` to be opened with a
+        single argument. In this single-argument form the file is used to build
+        the grid and also treated as data; all variables it contains, including
+        grid variables, will be included as data.
     chunks : int, dict, 'auto' or None, default: None
         If provided, used to load the grid into dask arrays.
 
@@ -400,29 +408,76 @@ def open_dataset(
     uxds : uxarray.UxDataset
         Dataset with linked `uxgrid` property of type `Grid`.
 
+    Notes
+    -----
+    The grid need not be a complete or fully UGRID-compliant mesh, nor represent
+    a spherical/Earth-science domain. A partial grid can be opened; operations
+    requiring information absent from the file will raise when used, but
+    unrelated functionality remains available.
+
     Examples
     --------
     Open a dataset with a grid file and data file
 
     >>> import uxarray as ux
     >>> ux_ds = ux.open_dataset("grid_file.nc", "data_file.nc")
+
+    Open a dataset stored in a single combined grid-and-data file
+
+    >>> ux_ds = ux.open_dataset("combined_file.nc")
     """
+    import xarray as xr
+
     if grid_kwargs is None:
         grid_kwargs = {}
 
-    # Construct a Grid, validate parameters, and correct chunks
-    uxgrid, corrected_chunks = _get_grid(
-        grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
-    )
+    if filename_or_obj is None:
+        if isinstance(grid_filename_or_obj, (str, os.PathLike)):
+            if os.path.isdir(grid_filename_or_obj):
+                raise ValueError(
+                    "ux.open_dataset() with a single directory argument is not supported. "
+                    "Supply a path to a grid file instead. Directory-based grids (e.g. a "
+                    "FESOM2 ASCII grid) are only recognized when a separate data file is "
+                    "also provided, i.e. ux.open_dataset(grid_directory, data_file)."
+                )
 
-    # Load the data as a Xarray Dataset
-    ds = _open_dataset_with_fallback(filename_or_obj, chunks=corrected_chunks, **kwargs)
+            ds = _open_dataset_with_fallback(
+                grid_filename_or_obj,
+                chunks=match_chunks_to_ugrid(grid_filename_or_obj, chunks),
+                **kwargs,
+            )
+        elif isinstance(grid_filename_or_obj, xr.Dataset):
+            ds = grid_filename_or_obj
+        else:
+            raise ValueError(
+                "If filename_or_obj is omitted, grid_filename_or_obj must be a file path or xarray.Dataset."
+            )
+
+        uxgrid, _ = _get_grid(ds, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs)
+        filename_or_obj = grid_filename_or_obj
+    else:
+        # Construct a Grid, validate parameters, and correct chunks
+        uxgrid, corrected_chunks = _get_grid(
+            grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
+        )
+
+        # Load the data as a Xarray Dataset
+        if isinstance(filename_or_obj, xr.Dataset):
+            ds = filename_or_obj
+        else:
+            ds = _open_dataset_with_fallback(
+                filename_or_obj, chunks=corrected_chunks, **kwargs
+            )
 
     # Map original dimensions to the UGRID conventions
     ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
 
     # Create a UXarray Dataset by linking the Xarray Dataset with a UXarray Grid
-    return UxDataset(ds, uxgrid=uxgrid, source_datasets=str(filename_or_obj))
+    source_datasets = (
+        None if isinstance(filename_or_obj, xr.Dataset) else str(filename_or_obj)
+    )
+
+    return UxDataset(ds, uxgrid=uxgrid, source_datasets=source_datasets)
 
 
 def open_mfdataset(
