@@ -715,11 +715,8 @@ class UxDataset(xr.Dataset):
             # Get correct dimensions for the dual
             dims = [dim_map.get(dim, dim) for dim in self[var].dims]
 
-            # Get the values from the data array
-            data = np.array(self[var].values)
-
             # Construct the new data array
-            uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=var)
+            uxda = uxarray.UxDataArray(uxgrid=dual, data=self[var].data, dims=dims, name=var)
 
             # Add data array to dataset
             dataset[var] = uxda
