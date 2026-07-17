@@ -2122,6 +2122,20 @@ class Grid:
                 )
             )
 
+        # Sanity check: on the unit sphere the total area cannot exceed 4*pi.
+        # A larger total indicates a malformed grid or bad connectivity rather
+        # than a valid area (see GH #425), so warn rather than return garbage
+        # silently. A small tolerance absorbs quadrature/rounding error.
+        total_area = np.sum(self._face_areas)
+        if total_area > 4.0 * np.pi * (1.0 + 1e-6):
+            warn(
+                f"Total face area {total_area} exceeds the unit-sphere area "
+                f"{4.0 * np.pi}. This usually indicates a malformed grid or "
+                "incorrect connectivity.",
+                UserWarning,
+                stacklevel=2,
+            )
+
         return self._face_areas, self._face_jacobian
 
     def normalize_cartesian_coordinates(self):
