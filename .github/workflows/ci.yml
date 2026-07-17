@@ -69,7 +69,7 @@ jobs:
           python -m pytest test
 
   link-check:
-      if: github.event_name != 'pull_request'
+      #if: github.event_name != 'pull_request'  # commented for debugging; UNCOMMENT BEFORE MERGE
       runs-on: ubuntu-latest
       defaults:
         run:
