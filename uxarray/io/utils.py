@@ -120,7 +120,7 @@ def _parse_grid_type(dataset):
         mesh_type = "Structured"
         return mesh_type, lon_name, lat_name
     else:
-        raise RuntimeError("Could not recognize dataset format.")
+        raise RuntimeError("Failed to parse uxgrid information from xarray.Dataset.")
 
     return mesh_type, None, None
 
