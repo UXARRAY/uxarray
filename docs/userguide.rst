@@ -97,9 +97,6 @@ Supplementary Guides
 
 These user guides provide additional details about specific features in UXarray.
 
-`Accurate Spherical Geometry <user-guide/spherical-geometry-accuracy.ipynb>`_
- How UXarray uses compensated arithmetic to avoid catastrophic cancellation in cross-product and point-in-polygon operations
-
 `Working with HEALPix Grids <user-guide/healpix.ipynb>`_
  Use UXarray with HEALPix
 
@@ -134,7 +131,6 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/dual-mesh.ipynb
    user-guide/structured.ipynb
    user-guide/from-points.ipynb
-   user-guide/spherical-geometry-accuracy.ipynb
    user-guide/healpix.ipynb
    user-guide/holoviz.ipynb
    user-guide/from_file.ipynb
