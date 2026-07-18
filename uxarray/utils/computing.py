@@ -483,7 +483,7 @@ def _sum_of_squares_c(hi, lo):
     return _fast_two_sum(s_hi, (2.0 * (r_hi + r_lo)) + s_lo)
 
 
-@njit(cache=True, inline="always")
+@njit(cache=True, inline="always", error_model="numpy")
 def acc_sqrt_re(value, error=0.0):
     """Accurate square root: return (root, correction) s.t. root+correction ≈ sqrt(value+error).
 
@@ -508,14 +508,14 @@ def acc_sqrt_re(value, error=0.0):
     correction : float
         Additive correction; root + correction ≈ sqrt(value + error) to ~1 ulp.
     """
-    # Negative value means no real intersection; return NaN so that the
-    # isfinite mask in the status layer rejects this candidate without a branch.
-    if value < 0.0:
-        return math.nan, 0.0
+    # Branch-free, matching AccuSphGeom acc_sqrt_re exactly. Negative value
+    # yields nan via math.sqrt and root==0 yields nan via the 0/0 correction,
+    # both under error_model="numpy"; the isfinite mask in the status layer
+    # rejects such candidates.
     root = math.sqrt(value)
-    if root == 0.0:
-        return 0.0, 0.0
     sq_hi, sq_lo = two_prod(root, root)
-    residual = (value - sq_hi) + (error - sq_lo)
+    # Residual accumulation order matches AccuSphGeom acc_sqrt_re exactly:
+    # (value - square.hi) - square.lo + error.
+    residual = (value - sq_hi) - sq_lo + error
     correction = residual / (2.0 * root)
     return root, correction
