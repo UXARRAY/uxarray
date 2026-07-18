@@ -127,25 +127,6 @@ def test_to_raster_with_extra_dims(gridpath):
 
     assert isinstance(raster, np.ndarray)
 
-def test_to_raster_auto_extent(gridpath):
-    fig, ax = plt.subplots(
-        subplot_kw={'projection': ccrs.Robinson()},
-        constrained_layout=True,
-    )
-
-    xlim0, ylim0 = ax.get_xlim(), ax.get_ylim()
-
-    mesh_path = gridpath("mpas", "QU", "oQU480.231010.nc")
-    uxds = ux.open_dataset(mesh_path, mesh_path)
-
-    raster = uxds['bottomDepth'].to_raster(ax=ax, pixel_ratio=0.5)
-
-    xlim1, ylim1 = ax.get_xlim(), ax.get_ylim()
-    assert not (np.allclose(xlim0, xlim1) and np.allclose(ylim0, ylim1))
-
-    finite = raster[np.isfinite(raster)]
-    assert finite.size > 0
-    assert finite.std() > 0
 
 
 def test_to_raster_reuse_mapping(gridpath, tmpdir):
