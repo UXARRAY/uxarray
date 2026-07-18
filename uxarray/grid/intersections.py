@@ -301,7 +301,7 @@ def faces_within_lat_bounds(lats, face_bounds_lat):
     return candidate_faces
 
 
-@njit(cache=True, inline="always")
+@njit(cache=True, inline="always", error_model="numpy")
 def _accux_gca(w0, w1, v0, v1):
     """Compute the candidate intersection points of two great-circle arcs.
 
@@ -345,10 +345,13 @@ def _accux_gca(w0, w1, v0, v1):
     vx = vx_hi + vx_lo
     vy = vy_hi + vy_lo
     vz = vz_hi + vz_lo
-    vn = math.sqrt(vx * vx + vy * vy + vz * vz)
-    # Use np.inf safely when vn==0 (coplanar arcs): the resulting pos/neg
-    # will be non-finite, so the status layer marks them invalid without branching.
-    inv = 1.0 / vn if vn != 0.0 else np.inf
+    # Compensated norm: sum_of_squares_c over the (hi, lo) vector, then acc_sqrt_re
+    # folding the low part into the root, matching AccuSphGeom accux_gca. n = root.hi.
+    sum_hi, sum_lo = _sum_of_squares_c((vx_hi, vy_hi, vz_hi), (vx_lo, vy_lo, vz_lo))
+    vn, _ = acc_sqrt_re(sum_hi, sum_lo)
+    # vn==0 (coplanar arcs) yields inf via IEEE division under error_model="numpy",
+    # so pos/neg become non-finite and the status layer masks them out. Branch-free.
+    inv = 1.0 / vn
     pos = np.empty(3)
     pos[0] = vx * inv
     pos[1] = vy * inv
@@ -360,7 +363,7 @@ def _accux_gca(w0, w1, v0, v1):
     return pos, neg
 
 
-@njit(cache=True)
+@njit(cache=True, error_model="numpy")
 def _try_gca_gca_intersection(w0, w1, v0, v1):
     """Select the valid great-circle intersection and report a status code.
 
@@ -377,19 +380,19 @@ def _try_gca_gca_intersection(w0, w1, v0, v1):
     pos, neg = _accux_gca(w0, w1, v0, v1)
 
     pos_fin = (
-        1
-        if math.isfinite(pos[0]) and math.isfinite(pos[1]) and math.isfinite(pos[2])
-        else 0
+        int(math.isfinite(pos[0]))
+        * int(math.isfinite(pos[1]))
+        * int(math.isfinite(pos[2]))
     )
     neg_fin = (
-        1
-        if math.isfinite(neg[0]) and math.isfinite(neg[1]) and math.isfinite(neg[2])
-        else 0
+        int(math.isfinite(neg[0]))
+        * int(math.isfinite(neg[1]))
+        * int(math.isfinite(neg[2]))
     )
-    pos_on_a = 1 if (pos_fin and on_minor_arc(pos, w0, w1)) else 0
-    pos_on_b = 1 if (pos_fin and on_minor_arc(pos, v0, v1)) else 0
-    neg_on_a = 1 if (neg_fin and on_minor_arc(neg, w0, w1)) else 0
-    neg_on_b = 1 if (neg_fin and on_minor_arc(neg, v0, v1)) else 0
+    pos_on_a = pos_fin * on_minor_arc(pos, w0, w1)
+    pos_on_b = pos_fin * on_minor_arc(pos, v0, v1)
+    neg_on_a = neg_fin * on_minor_arc(neg, w0, w1)
+    neg_on_b = neg_fin * on_minor_arc(neg, v0, v1)
 
     pos_valid = pos_fin * pos_on_a * pos_on_b
     neg_valid = neg_fin * neg_on_a * neg_on_b
@@ -408,7 +411,7 @@ def _try_gca_gca_intersection(w0, w1, v0, v1):
     return point, status, pos, neg
 
 
-@njit(cache=True)
+@njit(cache=True, error_model="numpy")
 def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     """Return the intersection points of two great-circle arcs.
 
@@ -470,7 +473,7 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     return res[:count]
 
 
-@njit(cache=True, inline="always")
+@njit(cache=True, inline="always", error_model="numpy")
 def _accux_constlat_scalar(a0, a1, a2, b0, b1, b2, const_z):
     """Compute the constant-latitude intersection candidates, scalar in/out.
 
@@ -505,9 +508,10 @@ def _accux_constlat_scalar(a0, a1, a2, b0, b1, b2, const_z):
     yp_hi, yp_lo = _cdp2(ny * nz, const_z, nx, planar)
     xn_hi, xn_lo = _cdp2(nx * nz, const_z, ny, planar)
     yn_hi, yn_lo = _cdp2(ny * nz, const_z, -nx, planar)
-    # denom == 0 means the arc is vertical (normal has no x/y component).
-    # Produce inf so the isfinite mask in the status layer rejects candidates.
-    inv_denom = 1.0 / denom if denom != 0.0 else np.inf
+    # denom == 0 (vertical arc) yields inf via IEEE division under
+    # error_model="numpy", so the isfinite mask in the status layer rejects the
+    # candidates. Branch-free.
+    inv_denom = 1.0 / denom
     px = -(xp_hi + xp_lo) * inv_denom
     py = -(yp_hi + yp_lo) * inv_denom
     nxo = -(xn_hi + xn_lo) * inv_denom
@@ -553,7 +557,7 @@ def _accux_constlat(x1, x2, const_z):
     return pos, neg
 
 
-@njit(cache=True)
+@njit(cache=True, error_model="numpy")
 def _try_gca_const_lat_intersection(gca_cart, const_z):
     """Select the valid constant-latitude intersection and report a status code.
 
@@ -572,10 +576,10 @@ def _try_gca_const_lat_intersection(gca_cart, const_z):
     x2 = gca_cart[1]
     pos, neg = _accux_constlat(x1, x2, const_z)
 
-    pos_fin = int(math.isfinite(pos[0]) and math.isfinite(pos[1]))
-    neg_fin = int(math.isfinite(neg[0]) and math.isfinite(neg[1]))
-    pos_on = pos_fin * int(on_minor_arc(pos, x1, x2)) if pos_fin else 0
-    neg_on = neg_fin * int(on_minor_arc(neg, x1, x2)) if neg_fin else 0
+    pos_fin = int(math.isfinite(pos[0])) * int(math.isfinite(pos[1]))
+    neg_fin = int(math.isfinite(neg[0])) * int(math.isfinite(neg[1]))
+    pos_on = pos_fin * on_minor_arc(pos, x1, x2)
+    neg_on = neg_fin * on_minor_arc(neg, x1, x2)
 
     pos_valid = pos_fin * pos_on
     neg_valid = neg_fin * neg_on
@@ -636,7 +640,7 @@ def _snap_const_lat_endpoint_xy(px, py, a0, a1, a2, b0, b1, b2, const_z):
     return ox, oy
 
 
-@njit(cache=True)
+@njit(cache=True, error_model="numpy")
 def gca_const_lat_intersection(gca_cart, const_z):
     """Return the intersection points of a great-circle arc and a latitude.
 
