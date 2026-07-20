@@ -8,7 +8,6 @@ import xarray as xr
 from uxarray.constants import INT_DTYPE
 
 from .sample import (
-    _fill_numba,
     sample_constant_latitude,
     sample_constant_longitude,
     sample_geodesic,
@@ -114,22 +113,23 @@ class UxDataArrayCrossSectionAccessor:
         )
         face_idx = np.array([row[0] if row else -1 for row in faces], dtype=INT_DTYPE)
 
-        orig_dims = list(self.uxda.dims)
-        face_axis = orig_dims.index("n_face")
         new_dim = "steps"
-        new_dims = [new_dim if d == "n_face" else d for d in orig_dims]
-        dim_axis = new_dims.index(new_dim)
+        new_dims = [new_dim if d == "n_face" else d for d in self.uxda.dims]
 
-        arr = np.moveaxis(self.uxda.compute().values, face_axis, -1)
-        M, Nf = arr.reshape(-1, arr.shape[-1]).shape
-        flat_orig = arr.reshape(M, Nf)
+        # Gather only the sampled columns (the nearest face for each step),
+        # lazily; steps with no containing face (-1) become NaN.
+        valid = face_idx >= 0
+        valid_idx = xr.DataArray(
+            np.where(valid, face_idx, 0).astype(INT_DTYPE), dims=new_dim
+        )
 
-        # Fill along the arc with nearest‐neighbor
-        flat_filled = _fill_numba(flat_orig, face_idx, Nf, steps)
-        filled = flat_filled.reshape(*arr.shape[:-1], steps)
-
-        # Move steps axis back to its proper position
-        data = np.moveaxis(filled, -1, dim_axis)
+        data = (
+            xr.DataArray(self.uxda.data, dims=self.uxda.dims)
+            .isel(n_face=valid_idx)
+            .where(xr.DataArray(valid, dims=new_dim))
+            .transpose(*new_dims)
+            .data
+        )
 
         # Build coords dict: keep everything except 'n_face'
         coords = {
