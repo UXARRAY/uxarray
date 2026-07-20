@@ -610,8 +610,13 @@ class UxDataArray(xr.DataArray):
         >>> integral = uxds["psi"].integrate()
         """
         if self.shape[-1] == self.uxgrid.n_face:
-            # perform dot product between face areas and last dimension of data
-            integral = xr.dot(self, self.uxgrid.face_areas, dim="n_face")
+            # dot product between face areas and the face dimension of the data
+            if isinstance(self.data, np.ndarray):
+                # eager data: a direct einsum avoids xr.dot's per-call overhead
+                integral = np.einsum("i,...i", self.uxgrid.face_areas.values, self.values)
+            else:
+                # dask-backed data: xr.dot keeps the reduction lazy
+                integral = xr.dot(self, self.uxgrid.face_areas, dim="n_face")
 
         elif self.shape[-1] == self.uxgrid.n_node:
             raise ValueError("Integrating data mapped to each node not yet supported.")
