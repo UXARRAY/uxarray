@@ -6,7 +6,6 @@ from html import escape
 from typing import IO, Any, Hashable, Mapping
 from warnings import warn
 
-import numpy as np
 import xarray as xr
 from xarray.core import dtypes
 from xarray.core.options import OPTIONS
