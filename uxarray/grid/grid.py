@@ -1969,7 +1969,7 @@ class Grid:
             and order == 4
             and not latitude_adjusted_area
         ):
-            return np.sum(self.face_areas.values)
+            return float(self.face_areas.data.sum())
 
         face_areas, _ = self._compute_face_areas(
             quadrature_rule, order, latitude_adjusted_area
