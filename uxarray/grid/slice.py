@@ -35,7 +35,9 @@ def _slice_node_indices(
         raise ValueError("Exclusive slicing is not yet supported.")
 
     # faces that saddle nodes given in 'indices'
-    face_indices = np.unique(grid.node_face_connectivity.values[indices].ravel())
+    face_indices = np.unique(
+        grid.node_face_connectivity.isel(n_node=indices).values.ravel()
+    )
     face_indices = face_indices[face_indices != INT_FILL_VALUE]
 
     return _slice_face_indices(grid, face_indices)
@@ -65,7 +67,9 @@ def _slice_edge_indices(
         raise ValueError("Exclusive slicing is not yet supported.")
 
     # faces that saddle nodes given in 'indices'
-    face_indices = np.unique(grid.edge_face_connectivity.values[indices].ravel())
+    face_indices = np.unique(
+        grid.edge_face_connectivity.isel(n_edge=indices).values.ravel()
+    )
     face_indices = face_indices[face_indices != INT_FILL_VALUE]
 
     return _slice_face_indices(grid, face_indices)
@@ -103,7 +107,9 @@ def _slice_face_indices(
     face_indices = np.atleast_1d(np.asarray(indices, dtype=INT_DTYPE))
 
     # nodes of each face (inclusive)
-    node_indices = np.unique(grid.face_node_connectivity.values[face_indices].ravel())
+    node_indices = np.unique(
+        grid.face_node_connectivity.isel(n_face=face_indices).values.ravel()
+    )
     node_indices = node_indices[node_indices != INT_FILL_VALUE]
 
     # Index Node and Face variables
@@ -113,7 +119,7 @@ def _slice_face_indices(
     # Only slice edge dimension if we have the face edge connectivity
     if "face_edge_connectivity" in ds:
         edge_indices = np.unique(
-            grid.face_edge_connectivity.values[face_indices].ravel()
+            grid.face_edge_connectivity.isel(n_face=face_indices).values.ravel()
         )
         edge_indices = edge_indices[edge_indices != INT_FILL_VALUE]
         ds = ds.isel(n_edge=edge_indices)
@@ -127,36 +133,30 @@ def _slice_face_indices(
     ds["subgrid_node_indices"] = xr.DataArray(node_indices, dims=["n_node"])
     ds["subgrid_face_indices"] = xr.DataArray(face_indices, dims=["n_face"])
 
-    # Construct updated Node Index Map
-    node_indices_dict = {orig: new for new, orig in enumerate(node_indices)}
-    node_indices_dict[INT_FILL_VALUE] = INT_FILL_VALUE
+    def _build_remap(orig_indices, size):
+        remap = np.full(size, INT_FILL_VALUE, dtype=INT_DTYPE)
+        remap[orig_indices] = np.arange(len(orig_indices), dtype=INT_DTYPE)
+        return remap
 
-    # Construct updated Edge Index Map
-    if edge_indices is not None:
-        edge_indices_dict = {orig: new for new, orig in enumerate(edge_indices)}
-        edge_indices_dict[INT_FILL_VALUE] = INT_FILL_VALUE
-    else:
-        edge_indices_dict = None
+    node_remap = _build_remap(node_indices, grid.n_node)
+    edge_remap = (
+        _build_remap(edge_indices, grid.n_edge) if edge_indices is not None else None
+    )
 
-    def map_node_indices(i):
-        return node_indices_dict.get(i, INT_FILL_VALUE)
-
-    if edge_indices is not None:
-
-        def map_edge_indices(i):
-            return edge_indices_dict.get(i, INT_FILL_VALUE)
-    else:
-        map_edge_indices = None
+    def _remap_indices(conn, remap):
+        # blockwise-safe: mask fill values before the lookup, restore them after
+        is_fill = conn == INT_FILL_VALUE
+        return np.where(is_fill, INT_FILL_VALUE, remap[np.where(is_fill, 0, conn)])
 
     for conn_name in list(ds.data_vars):
         if conn_name.endswith("_node_connectivity"):
-            map_fn = map_node_indices
+            remap = node_remap
 
         elif conn_name.endswith("_edge_connectivity"):
-            if edge_indices_dict is None:
+            if edge_remap is None:
                 ds = ds.drop_vars(conn_name)
                 continue
-            map_fn = map_edge_indices
+            remap = edge_remap
 
         elif "_connectivity" in conn_name:
             # anything else we can't remap
@@ -167,11 +167,14 @@ def _slice_face_indices(
             # not a connectivity var, skip
             continue
 
-        # Apply Remapping
-        ds[conn_name] = xr.DataArray(
-            np.vectorize(map_fn, otypes=[INT_DTYPE])(ds[conn_name].values),
-            dims=ds[conn_name].dims,
-            attrs=ds[conn_name].attrs,
+        # Apply remapping (vectorized; stays lazy when the connectivity is dask)
+        ds[conn_name] = xr.apply_ufunc(
+            _remap_indices,
+            ds[conn_name],
+            kwargs={"remap": remap},
+            dask="parallelized",
+            output_dtypes=[INT_DTYPE],
+            keep_attrs=True,
         )
 
     if inverse_indices:
