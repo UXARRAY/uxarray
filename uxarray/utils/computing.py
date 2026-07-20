@@ -208,7 +208,7 @@ def diff_of_products(a, b, c, d):
     w, e_w = two_prod(c, d)
     x, e_x = two_prod(a, b)
     s, e_s = two_sum(x, -w)
-    lo = (e_x - e_w) + e_s
+    lo = e_x + (e_s - e_w)
     return s, lo
 
 
