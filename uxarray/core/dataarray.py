@@ -613,7 +613,9 @@ class UxDataArray(xr.DataArray):
             # dot product between face areas and the face dimension of the data
             if isinstance(self.data, np.ndarray):
                 # eager data: a direct einsum avoids xr.dot's per-call overhead
-                integral = np.einsum("i,...i", self.uxgrid.face_areas.values, self.values)
+                integral = np.einsum(
+                    "i,...i", self.uxgrid.face_areas.values, self.values
+                )
             else:
                 # dask-backed data: xr.dot keeps the reduction lazy
                 integral = xr.dot(self, self.uxgrid.face_areas, dim="n_face")
@@ -2181,7 +2183,9 @@ class UxDataArray(xr.DataArray):
         dims = [dim_map.get(dim, dim) for dim in self.dims]
 
         # Construct the new data array
-        uxda = uxarray.UxDataArray(uxgrid=dual, data=self.data, dims=dims, name=self.name)
+        uxda = uxarray.UxDataArray(
+            uxgrid=dual, data=self.data, dims=dims, name=self.name
+        )
 
         return uxda
 

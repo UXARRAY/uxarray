@@ -715,7 +715,9 @@ class UxDataset(xr.Dataset):
             dims = [dim_map.get(dim, dim) for dim in self[var].dims]
 
             # Construct the new data array
-            uxda = uxarray.UxDataArray(uxgrid=dual, data=self[var].data, dims=dims, name=var)
+            uxda = uxarray.UxDataArray(
+                uxgrid=dual, data=self[var].data, dims=dims, name=var
+            )
 
             # Add data array to dataset
             dataset[var] = uxda
