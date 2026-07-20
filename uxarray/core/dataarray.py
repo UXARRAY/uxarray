@@ -1653,7 +1653,7 @@ class UxDataArray(xr.DataArray):
         )
 
         # Compute curl = ∂v/∂x - ∂u/∂y
-        curl_values = grad_v_zonal.values - grad_u_meridional.values
+        curl_values = grad_v_zonal.data - grad_u_meridional.data
 
         u_units = self.attrs.get("units", "")
         has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs

@@ -1241,7 +1241,7 @@ class Grid:
             _populate_healpix_boundaries(self._ds)
 
         if self._ds["face_node_connectivity"].ndim == 1:
-            face_node_connectivity_1d = self._ds["face_node_connectivity"].values
+            face_node_connectivity_1d = self._ds["face_node_connectivity"].data
             face_node_connectivity_2d = np.expand_dims(
                 face_node_connectivity_1d, axis=0
             )
@@ -2490,7 +2490,7 @@ class Grid:
 
         # Construct dual mesh
         dual = self.from_topology(
-            self.face_lon.values, self.face_lat.values, dual_node_face_conn
+            self.face_lon.data, self.face_lat.data, dual_node_face_conn
         )
 
         return dual

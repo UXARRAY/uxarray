@@ -165,7 +165,7 @@ def _reshape_array_to_rectilinear(
     coords[spec.lon_name] = spec.lon
 
     return xr.DataArray(
-        np.asarray(da.values).reshape(shape),
+        da.data.reshape(shape),
         dims=dims,
         coords=coords,
         name=da.name,
