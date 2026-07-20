@@ -10,7 +10,7 @@ from uxarray.grid.connectivity import _replace_fill_values
 
 
 def _values_in_degrees(data_array):
-    """Return data_array.values, converting to degrees if necessary,
+    """Return data_array's backing array, converting to degrees if necessary,
     i.e., if data_array.attrs["units"] in ["radians", "radian", "rad"].
 
     Parameters
@@ -22,10 +22,11 @@ def _values_in_degrees(data_array):
 
     Returns
     -------
-    numpy.ndarray
-        data_array.values, converted to degrees if necessary.
+    numpy.ndarray or dask.array.Array
+        data_array's backing array (``.data``, so a lazily-opened array stays
+        lazy), converted to degrees if necessary.
     """
-    values = data_array.values
+    values = data_array.data
     units = data_array.attrs.get("units", "").lower()
 
     # Check if units indicate radians
@@ -49,8 +50,9 @@ def _to_ugrid(in_ds, out_ds):
         # Create node_lon & node_lat variables from grid_corner_lat/lon
         # Turn latitude and longitude scrip arrays into 1D
         # Convert to degrees if needed
-        corner_lat = _values_in_degrees(in_ds["grid_corner_lat"]).ravel()
-        corner_lon = _values_in_degrees(in_ds["grid_corner_lon"]).ravel()
+        # materialized here: fed to polars and numpy fancy-indexing below
+        corner_lat = np.asarray(_values_in_degrees(in_ds["grid_corner_lat"])).ravel()
+        corner_lon = np.asarray(_values_in_degrees(in_ds["grid_corner_lon"])).ravel()
 
         # Use Polars to find unique coordinate pairs
         df = pl.DataFrame({"lon": corner_lon, "lat": corner_lat}).with_row_count(
