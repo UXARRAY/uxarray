@@ -1940,9 +1940,9 @@ class Grid:
 
     def calculate_total_face_area(
         self,
-        quadrature_rule: str | None = "triangular",
-        order: int | None = 4,
-        latitude_adjusted_area: bool | None = False,
+        quadrature_rule: str = "triangular",
+        order: int = 4,
+        latitude_adjusted_area: bool = False,
     ) -> float:
         """Function to calculate the total surface area of all the faces in a
         mesh.
@@ -1978,10 +1978,10 @@ class Grid:
 
     def compute_face_areas(
         self,
-        quadrature_rule: str | None = "triangular",
-        order: int | None = 4,
-        latitude_adjusted_area: bool | None = False,
-    ):
+        quadrature_rule: str = "triangular",
+        order: int = 4,
+        latitude_adjusted_area: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
 
@@ -2022,10 +2022,10 @@ class Grid:
 
     def _compute_face_areas(
         self,
-        quadrature_rule: str | None = "triangular",
-        order: int | None = 4,
-        latitude_adjusted_area: bool | None = False,
-    ):
+        quadrature_rule: str = "triangular",
+        order: int = 4,
+        latitude_adjusted_area: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Internal face areas calculation function for grid class, calculates area of
         all faces in the grid.
 
