@@ -25,7 +25,7 @@ def test_face_area_coords(mesh_constants):
     face_nodes = np.array([[0, 1, 2]])
     face_dimension = np.array([3], dtype=INT_DTYPE)
 
-    area, _ = ux.grid.area.get_all_face_area_from_coords(
+    area, _ = ux.grid.area._get_all_face_area_from_coords(
         x, y, z, face_nodes, face_dimension)
     nt.assert_almost_equal(area, mesh_constants['TRI_AREA'], decimal=5)
 
@@ -60,7 +60,7 @@ def test_calculate_face_area(mesh_constants):
         fill_value=-1,
     )
 
-    area, _ = grid._compute_face_areas()
+    area, _ = grid._compute_face_areas_and_jacobian()
     nt.assert_almost_equal(area, mesh_constants['TRI_AREA'], decimal=5)
 
 def test_quadrature():
