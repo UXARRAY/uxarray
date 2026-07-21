@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence, TypeAlias
 from warnings import warn
 
 import numpy as np
+import xarray as xr
 
 from uxarray.core.dataset import UxDataset
 from uxarray.core.utils import (
@@ -22,9 +23,6 @@ from uxarray.io._scrip import (
     _stack_cell_dims,
 )
 
-if TYPE_CHECKING:
-    from xarray import Dataset
-
 __all__ = [
     "open_grid",
     "open_multigrid",
@@ -35,7 +33,7 @@ __all__ = [
 
 
 def open_grid(
-    grid_filename_or_obj: str | os.PathLike[Any] | dict | Dataset,
+    grid_filename_or_obj: str | os.PathLike[Any] | dict | xr.Dataset,
     chunks=None,
     use_dual: bool | None = False,
     **kwargs: dict[str, Any],
@@ -85,8 +83,6 @@ def open_grid(
 
     >>> uxgrid = ux.open_grid("grid_filename.nc", chunks=-1)
     """
-    import xarray as xr
-
     # Handle chunk-related kwargs first.
     data_chunks = kwargs.pop("data_chunks", None)
     if data_chunks is not None:
@@ -144,9 +140,9 @@ MaskActiveValue: TypeAlias = MaskValue | Mapping[str, MaskValue] | None
 
 
 def open_multigrid(
-    grid_filename_or_obj: str | Path | "Dataset",
+    grid_filename_or_obj: str | Path | xr.Dataset,
     gridnames: list[str] | None = None,
-    mask_filename: str | Path | "Dataset" | None = None,
+    mask_filename: str | Path | xr.Dataset | None = None,
     mask_active_value: MaskActiveValue = 1,
     **kwargs: dict[str, Any],
 ) -> dict[str, Grid]:
@@ -175,8 +171,6 @@ def open_multigrid(
     dict[str, Grid]
         Dictionary mapping grid names to ``Grid`` objects.
     """
-    import xarray as xr
-
     grid_ds_opened = False
     if isinstance(grid_filename_or_obj, xr.Dataset):
         grid_ds = grid_filename_or_obj
@@ -314,7 +308,7 @@ def open_multigrid(
 
 
 def list_grid_names(
-    grid_filename_or_obj: str | Path | "Dataset", **kwargs: dict[str, Any]
+    grid_filename_or_obj: str | Path | xr.Dataset, **kwargs: dict[str, Any]
 ) -> list[str]:
     """List all grid names available within a grid file.
 
@@ -331,8 +325,6 @@ def list_grid_names(
         ``['grid']`` for single-grid files or the detected grid names for
         multi-grid files.
     """
-    import xarray as xr
-
     grid_ds_opened = False
     if isinstance(grid_filename_or_obj, xr.Dataset):
         grid_ds = grid_filename_or_obj
@@ -352,8 +344,8 @@ def list_grid_names(
 
 
 def open_dataset(
-    grid_filename_or_obj: str | os.PathLike[Any] | dict | Dataset,
-    filename_or_obj: str | os.PathLike[Any] | Dataset | None = None,
+    grid_filename_or_obj: str | os.PathLike[Any] | dict | xr.Dataset,
+    filename_or_obj: str | os.PathLike[Any] | xr.Dataset | None = None,
     chunks=None,
     chunk_grid: bool = True,
     use_dual: bool | None = False,
@@ -426,8 +418,6 @@ def open_dataset(
 
     >>> ux_ds = ux.open_dataset("combined_file.nc")
     """
-    import xarray as xr
-
     if grid_kwargs is None:
         grid_kwargs = {}
 
@@ -481,7 +471,7 @@ def open_dataset(
 
 
 def open_mfdataset(
-    grid_filename_or_obj: str | os.PathLike[Any] | dict | Dataset,
+    grid_filename_or_obj: str | os.PathLike[Any] | dict | xr.Dataset,
     paths: str | os.PathLike,
     chunks=None,
     chunk_grid: bool = True,
@@ -546,8 +536,6 @@ def open_mfdataset(
 
     >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_*.nc")
     """
-    import xarray as xr
-
     if grid_kwargs is None:
         grid_kwargs = {}
 
@@ -588,8 +576,6 @@ def _get_grid(
 
 def concat(objs, *args, **kwargs):
     # Ensure there is at least one object to concat.
-    import xarray as xr
-
     if not objs:
         raise ValueError("No objects provided for concatenation.")
 
