@@ -1,7 +1,7 @@
 import copy
 import os
 from html import escape
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING, Optional, Sequence
 from warnings import warn
 
 import cartopy.crs as ccrs
@@ -98,6 +98,9 @@ from uxarray.io._voronoi import _spherical_voronoi_from_points
 from uxarray.io.utils import _parse_grid_type
 from uxarray.plot.accessor import GridPlotAccessor
 from uxarray.subset import GridSubsetAccessor
+
+if TYPE_CHECKING:
+    from uxarray.core.dataarray import UxDataArray
 
 
 class Grid:
@@ -1944,9 +1947,9 @@ class Grid:
 
     def calculate_total_face_area(
         self,
-        quadrature_rule: str | None = "triangular",
-        order: int | None = 4,
-        latitude_adjusted_area: bool | None = False,
+        quadrature_rule: str = "triangular",
+        order: int = 4,
+        latitude_adjusted_area: bool = False,
     ) -> float:
         """Calculate the total surface area of all the faces in a mesh.
 
@@ -1991,12 +1994,12 @@ class Grid:
 
     def compute_face_areas(
         self,
-        quadrature_rule: str | None = "triangular",
-        order: int | None = 4,
-        latitude_adjusted_area: bool | None = False,
+        quadrature_rule: str = "triangular",
+        order: int = 4,
+        latitude_adjusted_area: bool = False,
         return_jacobian: bool = False,
         as_uxarray: bool = False,
-    ):
+    ) -> "np.ndarray | UxDataArray | tuple[np.ndarray | UxDataArray, np.ndarray]":
         """Compute the area of each face in the grid.
 
         Unlike the cached :attr:`face_areas` property (which always uses the
@@ -2072,10 +2075,10 @@ class Grid:
 
     def _compute_face_areas_and_jacobian(
         self,
-        quadrature_rule: str | None = "triangular",
-        order: int | None = 4,
-        latitude_adjusted_area: bool | None = False,
-    ):
+        quadrature_rule: str = "triangular",
+        order: int = 4,
+        latitude_adjusted_area: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Internal worker: compute per-face areas and Jacobians.
 
         Returns both the areas and the Jacobians; :meth:`compute_face_areas` is
