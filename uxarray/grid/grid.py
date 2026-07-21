@@ -1,8 +1,8 @@
 import copy
 import os
+import warnings
 from html import escape
 from typing import Optional, Sequence
-import warnings
 
 import cartopy.crs as ccrs
 import numpy as np
