@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 
 import uxarray as ux
+from ._memsize import grid_nbytes
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -60,16 +61,25 @@ class Gradient(DatasetBenchmark):
     def time_gradient(self, resolution):
         self.uxds[data_var].gradient()
 
-    def peakmem_gradient(self, resolution):
-        grad = self.uxds[data_var].gradient()
+    def track_nbytes_gradient(self, resolution):
+        """Size of the gradient result."""
+        return self.uxds[data_var].gradient().nbytes
+
+    track_nbytes_gradient.unit = "bytes"
 
 
 class Integrate(DatasetBenchmark):
     def time_integrate(self, resolution):
         self.uxds[data_var].integrate()
 
-    def peakmem_integrate(self, resolution):
-        integral = self.uxds[data_var].integrate()
+    def track_nbytes_integrate(self, resolution):
+        """Grid footprint after integrating. ``integrate`` returns a scalar, so
+        the memory that matters is what it caches onto the ``Grid`` (face
+        areas) to get there."""
+        self.uxds[data_var].integrate()
+        return grid_nbytes(self.uxds.uxgrid)
+
+    track_nbytes_integrate.unit = "bytes"
 
 
 class GeoDataFrame(DatasetBenchmark):
