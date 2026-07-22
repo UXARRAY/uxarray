@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 
 import uxarray as ux
+from .helpers._memsize import grid_nbytes
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -60,16 +61,44 @@ class Gradient(DatasetBenchmark):
     def time_gradient(self, resolution):
         self.uxds[data_var].gradient()
 
-    def peakmem_gradient(self, resolution):
-        grad = self.uxds[data_var].gradient()
+    def track_nbytes_gradient(self, resolution):
+        """Size of the gradient result."""
+        return self.uxds[data_var].gradient().nbytes
+
+    track_nbytes_gradient.unit = "bytes"
 
 
 class Integrate(DatasetBenchmark):
     def time_integrate(self, resolution):
         self.uxds[data_var].integrate()
 
-    def peakmem_integrate(self, resolution):
-        integral = self.uxds[data_var].integrate()
+    def track_nbytes_integrate(self, resolution):
+        """Grid footprint after integrating."""
+        self.uxds[data_var].integrate()
+        return grid_nbytes(self.uxds.uxgrid)
+
+    track_nbytes_integrate.unit = "bytes"
+
+
+class GradientPeakMem:
+    """Peak memory of a cold start: import uxarray, open a dataset, take a gradient.
+
+    Not a :class:`DatasetBenchmark` subclass -- that would open the dataset in
+    ``setup``, and asv counts setup memory towards ``peakmem_*``.
+    """
+
+    param_names = ["resolution"]
+    params = [["480km", "120km"]]
+
+    def setup_cache(self):
+        """Compile the njit kernels before anything is measured."""
+        for resolution in self.params[0]:
+            grid, data = file_path_dict[resolution]
+            ux.open_dataset(grid, data)[data_var].gradient()
+
+    def peakmem_gradient(self, resolution):
+        grid, data = file_path_dict[resolution]
+        ux.open_dataset(grid, data)[data_var].gradient()
 
 
 class GeoDataFrame(DatasetBenchmark):
