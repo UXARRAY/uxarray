@@ -245,14 +245,14 @@ class UxDataArray(xr.DataArray):
             same name as the ``UxDataArray`` (or named ``var`` if no name exists)
         """
 
-        if self.values.ndim > 1:
+        if self.ndim > 1:
             # data is multidimensional, must be a 1D slice
             raise ValueError(
                 f"Data Variable must be 1-dimensional, with shape {self.uxgrid.n_face} "
                 f"for face-centered data."
             )
 
-        if self.values.size == self.uxgrid.n_face:
+        if self.size == self.uxgrid.n_face:
             gdf, non_nan_polygon_indices = self.uxgrid.to_geodataframe(
                 periodic_elements=periodic_elements,
                 projection=projection,
@@ -289,21 +289,21 @@ class UxDataArray(xr.DataArray):
 
             gdf[var_name] = _data
 
-        elif self.values.size == self.uxgrid.n_node:
+        elif self.size == self.uxgrid.n_node:
             raise ValueError(
-                f"Data Variable with size {self.values.size} does not match the number of faces "
+                f"Data Variable with size {self.size} does not match the number of faces "
                 f"({self.uxgrid.n_face}. Current size matches the number of nodes. Consider running "
                 f"``UxDataArray.topological_mean(destination='face') to aggregate the data onto the faces."
             )
-        elif self.values.size == self.uxgrid.n_edge:
+        elif self.size == self.uxgrid.n_edge:
             raise ValueError(
-                f"Data Variable with size {self.values.size} does not match the number of faces "
+                f"Data Variable with size {self.size} does not match the number of faces "
                 f"({self.uxgrid.n_face}. Current size matches the number of edges."
             )
         else:
             # data is not mapped to
             raise ValueError(
-                f"Data Variable with size {self.values.size} does not match the number of faces "
+                f"Data Variable with size {self.size} does not match the number of faces "
                 f"({self.uxgrid.n_face}."
             )
 
@@ -339,7 +339,7 @@ class UxDataArray(xr.DataArray):
             Flag to indicate whether to override a cached PolyCollection, if it exists
         """
         # data is multidimensional, must be a 1D slice
-        if self.values.ndim > 1:
+        if self.ndim > 1:
             raise ValueError(
                 f"Data Variable must be 1-dimensional, with shape {self.uxgrid.n_face} "
                 f"for face-centered data."
@@ -609,16 +609,21 @@ class UxDataArray(xr.DataArray):
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
         >>> integral = uxds["psi"].integrate()
         """
-        if self.values.shape[-1] == self.uxgrid.n_face:
-            face_areas = self.uxgrid.face_areas.values
+        if self.shape[-1] == self.uxgrid.n_face:
+            # dot product between face areas and the face dimension of the data
+            if isinstance(self.data, np.ndarray):
+                # eager data: a direct einsum avoids xr.dot's per-call overhead
+                integral = np.einsum(
+                    "i,...i", self.uxgrid.face_areas.values, self.values
+                )
+            else:
+                # dask-backed data: xr.dot keeps the reduction lazy
+                integral = xr.dot(self, self.uxgrid.face_areas, dim="n_face")
 
-            # perform dot product between face areas and last dimension of data
-            integral = np.einsum("i,...i", face_areas, self.values)
-
-        elif self.values.shape[-1] == self.uxgrid.n_node:
+        elif self.shape[-1] == self.uxgrid.n_node:
             raise ValueError("Integrating data mapped to each node not yet supported.")
 
-        elif self.values.shape[-1] == self.uxgrid.n_edge:
+        elif self.shape[-1] == self.uxgrid.n_edge:
             raise ValueError("Integrating data mapped to each edge not yet supported.")
 
         else:
@@ -626,7 +631,7 @@ class UxDataArray(xr.DataArray):
                 f"The final dimension of the data variable does not match the number of nodes, edges, "
                 f"or faces. Expected one of "
                 f"{self.uxgrid.n_node}, {self.uxgrid.n_edge}, or {self.uxgrid.n_face}, "
-                f"but received {self.values.shape[-1]}"
+                f"but received {self.shape[-1]}"
             )
 
         # construct a uxda with integrated quantity
@@ -1650,7 +1655,7 @@ class UxDataArray(xr.DataArray):
         )
 
         # Compute curl = ∂v/∂x - ∂u/∂y
-        curl_values = grad_v_zonal.values - grad_u_meridional.values
+        curl_values = grad_v_zonal.data - grad_u_meridional.data
 
         u_units = self.attrs.get("units", "")
         has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
@@ -2177,11 +2182,10 @@ class UxDataArray(xr.DataArray):
         # Get correct dimensions for the dual
         dims = [dim_map.get(dim, dim) for dim in self.dims]
 
-        # Get the values from the data array
-        data = np.array(self.values)
-
         # Construct the new data array
-        uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=self.name)
+        uxda = uxarray.UxDataArray(
+            uxgrid=dual, data=self.data, dims=dims, name=self.name
+        )
 
         return uxda
 

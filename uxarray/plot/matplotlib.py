@@ -202,7 +202,11 @@ def _nearest_neighbor_resample(
     # build an array of values for each valid point
     flat_vals = np.full(first_face.shape, np.nan, dtype=float)
     mask_has_face = first_face >= 0
-    flat_vals[mask_has_face] = data.values[first_face[mask_has_face]]
+    # gather only the sampled faces (lazily for dask data): many pixels share a
+    # face, so deduplicate to materialize the minimal set rather than the whole
+    # field, then scatter back via the inverse map
+    unique_faces, inverse = np.unique(first_face[mask_has_face], return_inverse=True)
+    flat_vals[mask_has_face] = np.asarray(data.data[unique_faces])[inverse]
 
     # scatter back into a full raster via the valid mask
     res = np.full((ny, nx), np.nan, dtype=float)

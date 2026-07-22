@@ -58,9 +58,10 @@ def _apply_weights(
 ):
     """Apply a sparse remap operator to UXarray data.
 
-    Note: this path materializes dask-backed inputs eagerly when applying
-    the sparse operator. For lazy/chunked execution, use one of the other
-    remap methods (e.g., ``nearest_neighbor``, ``inverse_distance_weighted``).
+    Dask-backed inputs are remapped lazily: the sparse operator is applied
+    blockwise over the leading (non-source) dimensions via ``apply_ufunc``, with
+    the source dimension kept in a single chunk. Numpy-backed inputs are applied
+    eagerly.
     """
     _assert_dimension(remap_to)
 
@@ -87,7 +88,23 @@ def _apply_weights(
         remapped_any = True
         other_dims = [dim for dim in da.dims if dim != variable_source_dim]
         da_t = da.transpose(*other_dims, variable_source_dim)
-        remapped_values = weights_obj._apply(np.asarray(da_t.values))
+        if isinstance(da_t.data, np.ndarray):
+            # eager: apply the sparse operator directly
+            remapped_values = weights_obj._apply(np.asarray(da_t.values))
+        else:
+            # dask: apply blockwise over the leading dims; the sparse multiply
+            # spans the whole source dimension, so keep it in a single chunk
+            remapped_values = xr.apply_ufunc(
+                weights_obj._apply,
+                da_t.chunk({variable_source_dim: -1}),
+                input_core_dims=[[variable_source_dim]],
+                output_core_dims=[[destination_dim]],
+                dask="parallelized",
+                output_dtypes=[np.result_type(weights_obj.matrix.dtype, da_t.dtype)],
+                dask_gufunc_kwargs={
+                    "output_sizes": {destination_dim: weights_obj.destination_size}
+                },
+            ).data
 
         other_dims_set = set(other_dims)
         coords = {
