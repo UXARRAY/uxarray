@@ -1,6 +1,5 @@
 from typing import Any
 
-import healpix as hp
 import numpy as np
 import polars as pl
 import xarray as xr
@@ -68,6 +67,8 @@ def pix2corner_ang(
     ----
     This will be updated when https://github.com/ntessore/healpix/issues/66 is implemented.
     """
+    import healpix as hp
+
     if nest:
         fu = hp._chp.nest2ang_uv
     else:
@@ -102,6 +103,8 @@ def _pixels_to_ugrid(zoom, nest):
         A dataset containing pixel longitude and latitude coordinates along with related attributes.
 
     """
+    import healpix as hp
+
     ds = xr.Dataset()
 
     nside = hp.order2nside(zoom)

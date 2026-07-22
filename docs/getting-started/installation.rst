@@ -23,8 +23,8 @@ To install UXarray with its recommended dependencies using the conda command lin
 
 .. note::
 
-   Conda automatically installs Xarray and every other required
-   dependency (including non‑Python libraries).
+   Conda automatically installs Xarray, all other required depdencies,
+   and all optional dependencies too (including non‑Python libraries).
 
 Installing with pip
 -------------------
@@ -37,10 +37,15 @@ This installs the *minimal* required dependencies. UXarray also provides optiona
 .. code-block:: bash
 
    pip install "uxarray[dev]"       # development tools
+   pip install "uxarray[geo]"       # geospatial tools (e.g. geopandas, healpix)
+   pip install "uxarray[viz]"       # plotting tools (e.g. matplotlib, hvplot)
    pip install "uxarray[complete]"  # all optional features
 
-A complete list of extras lives in the ``[project.optional-dependencies]``
+A complete list of optional dependencies lives in the ``[project.optional-dependencies]``
 section of our `pyproject.toml <https://github.com/UXARRAY/uxarray/blob/main/pyproject.toml>`_
+
+Optional extras can also be combined, e.g. ``pip install "uxarray[geo,viz]"`` installs with
+all required dependencies plus all optional dependencies for geospatial and plotting tools.
 
 
 Installing from source
@@ -67,7 +72,7 @@ Installing from source is intended mainly for developers.
 
    .. code-block:: bash
 
-      pip install .
+      pip install ".[complete]"   # test suite relies on optional dependencies
 
 #. **Run the test suite**
 
