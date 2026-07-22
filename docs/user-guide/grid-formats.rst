@@ -242,13 +242,13 @@ Coordinates
 
    <style>
    .yes-cell {
-     background-color: green;
+     background-color: #6aa84f; /* Light green color */
      color: white;
      text-align: center;
    }
 
    .no-cell {
-     background-color: red;
+     background-color: #e06666; /* Light red color */
      color: white;
      text-align: center;
    }
