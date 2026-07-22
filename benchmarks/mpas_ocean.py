@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 
 import uxarray as ux
-from ._memsize import grid_nbytes
+from .helpers._memsize import grid_nbytes
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -80,6 +80,31 @@ class Integrate(DatasetBenchmark):
         return grid_nbytes(self.uxds.uxgrid)
 
     track_nbytes_integrate.unit = "bytes"
+
+
+class GradientPeakMem:
+    """Peak memory of a cold start: import uxarray, open a dataset, take a gradient.
+
+    Not a :class:`DatasetBenchmark` subclass -- that would open the dataset in
+    ``setup``, and asv counts setup memory towards ``peakmem_*``.
+    """
+
+    param_names = ["resolution"]
+    params = [["480km", "120km"]]
+
+    def setup_cache(self):
+        """Compile the njit kernels before anything is measured.
+
+        See :meth:`face_bounds.FaceBoundsPeakMem.setup_cache` -- asv runs this in
+        its own process, keeping LLVM's footprint out of the measured ones.
+        """
+        for resolution in self.params[0]:
+            grid, data = file_path_dict[resolution]
+            ux.open_dataset(grid, data)[data_var].gradient()
+
+    def peakmem_gradient(self, resolution):
+        grid, data = file_path_dict[resolution]
+        ux.open_dataset(grid, data)[data_var].gradient()
 
 
 class GeoDataFrame(DatasetBenchmark):

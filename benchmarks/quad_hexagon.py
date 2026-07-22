@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 import uxarray as ux
-from ._memsize import dataset_nbytes, grid_nbytes
+from .helpers._memsize import dataset_nbytes, grid_nbytes
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__))).parents[0]
 
