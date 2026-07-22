@@ -73,9 +73,7 @@ class Integrate(DatasetBenchmark):
         self.uxds[data_var].integrate()
 
     def track_nbytes_integrate(self, resolution):
-        """Grid footprint after integrating. ``integrate`` returns a scalar, so
-        the memory that matters is what it caches onto the ``Grid`` (face
-        areas) to get there."""
+        """Grid footprint after integrating."""
         self.uxds[data_var].integrate()
         return grid_nbytes(self.uxds.uxgrid)
 
@@ -93,11 +91,7 @@ class GradientPeakMem:
     params = [["480km", "120km"]]
 
     def setup_cache(self):
-        """Compile the njit kernels before anything is measured.
-
-        See :meth:`face_bounds.FaceBoundsPeakMem.setup_cache` -- asv runs this in
-        its own process, keeping LLVM's footprint out of the measured ones.
-        """
+        """Compile the njit kernels before anything is measured."""
         for resolution in self.params[0]:
             grid, data = file_path_dict[resolution]
             ux.open_dataset(grid, data)[data_var].gradient()

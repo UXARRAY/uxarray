@@ -42,26 +42,13 @@ class FaceBounds:
 
 
 class FaceBoundsPeakMem:
-    """Peak memory of a cold start: import uxarray, open a grid, get its bounds.
-
-    Deliberately defines no ``setup``. asv counts setup memory towards
-    ``peakmem_*``, and asv gives each parameter its own process, so with the JIT
-    warmed in ``setup_cache`` the measured process does exactly the work named in
-    the benchmark and nothing else.
-    """
+    """Peak memory of a cold start: import uxarray, open a grid, get its bounds."""
 
     params = FaceBounds.params
     param_names = ["grid_path"]
 
     def setup_cache(self):
-        """Compile the njit kernels before anything is measured.
-
-        asv runs this in its own process, so LLVM's few hundred MB stays out of
-        the measured ones -- they load from numba's on-disk cache instead.
-        Without it the first measured process compiles and the rest do not, which
-        is what made the old ``peakmem_*`` swing ~2x with run order. All params
-        are warmed; the grids do not reach the same njit signatures.
-        """
+        """Compile the njit kernels before anything is measured."""
         for grid_path in self.params:
             ux.open_grid(grid_path).bounds
 
