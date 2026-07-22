@@ -1,8 +1,8 @@
 import copy
 import os
+import warnings
 from html import escape
 from typing import Optional, Sequence
-from warnings import warn
 
 import cartopy.crs as ccrs
 import numpy as np
@@ -169,7 +169,7 @@ class Grid:
 
         # grid spec not provided, check if grid_ds is a minimum representable UGRID dataset
         if source_grid_spec is None:
-            warn(
+            warnings.warn(
                 "Attempting to construct a Grid without passing in source_grid_spec. Direct use of Grid constructor"
                 "is only advised if grid_ds is following the internal unstructured grid definition, including"
                 "variable and dimension names. Using ux.open_grid() or ux.from_dataset() is suggested.",
@@ -817,7 +817,7 @@ class Grid:
     @property
     def parsed_attrs(self) -> dict:
         """Dictionary of parsed attributes from the source grid."""
-        warn(
+        warnings.warn(
             "Grid.parsed_attrs will be deprecated in a future release. Please use Grid.attrs instead.",
             DeprecationWarning,
         )
@@ -2011,8 +2011,6 @@ class Grid:
         ``face_areas`` property instead, which ensures mathematical correctness by using
         theoretical equal areas.
         """
-        import warnings
-
         warnings.warn(
             "compute_face_areas() is deprecated. Use the face_areas property instead for better performance and caching.",
             DeprecationWarning,
@@ -2264,7 +2262,7 @@ class Grid:
                 )
 
         if exclude_antimeridian is not None:
-            warn(
+            warnings.warn(
                 DeprecationWarning(
                     "The parameter ``exclude_antimeridian`` will be deprecated in a future release. Please "
                     "use ``periodic_elements='exclude'`` or ``periodic_elements='split'`` instead."
