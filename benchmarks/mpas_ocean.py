@@ -229,3 +229,46 @@ class ZonalAverage(DatasetBenchmark):
     def time_zonal_average(self, resolution):
         lat_step = 10
         self.uxds['bottomDepth'].zonal_mean(lat=(-45, 45, lat_step))
+
+
+class ZonalAveragePeakMem:
+    """Peak memory of a cold-start non-conservative zonal-mean sweep."""
+
+    param_names = ["resolution"]
+    params = [["480km", "120km"]]
+
+    def setup_cache(self):
+        """Compile the njit kernels before anything is measured."""
+        for resolution in self.params[0]:
+            grid, data = file_path_dict[resolution]
+            uxds = ux.open_dataset(grid, data)
+            uxds.uxgrid.bounds
+            uxds[data_var].zonal_mean(lat=(-45, 45, 10))
+
+    def peakmem_zonal_average(self, resolution):
+        grid, data = file_path_dict[resolution]
+        uxds = ux.open_dataset(grid, data)
+        uxds.uxgrid.bounds
+        uxds[data_var].zonal_mean(lat=(-45, 45, 10))
+
+
+class CrossSectionsPeakMem:
+    """Peak memory of a cold-start constant-latitude cross-section sweep."""
+
+    param_names = ["resolution", "lat_step"]
+    params = [["480km", "120km"], [1, 2, 4]]
+
+    def setup_cache(self):
+        """Compile the njit kernels before anything is measured."""
+        for resolution in self.params[0]:
+            uxgrid = ux.open_grid(file_path_dict[resolution][0])
+            uxgrid.normalize_cartesian_coordinates()
+            uxgrid.bounds
+            uxgrid.cross_section.constant_latitude(0.0)
+
+    def peakmem_const_lat(self, resolution, lat_step):
+        uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        uxgrid.normalize_cartesian_coordinates()
+        uxgrid.bounds
+        for lat in np.arange(-45, 45, lat_step):
+            uxgrid.cross_section.constant_latitude(lat)
