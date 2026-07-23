@@ -2574,9 +2574,14 @@ class Grid:
                 "is not yet supported."
             )
         else:
-            edges = constant_lat_intersections_no_extreme(
-                lat, self.edge_node_z.values, self.n_edge
-            )
+            # Gather per-edge z-coords positionally, mirroring the longitude
+            # sibling. A concrete connectivity indexer against node_z.data keeps
+            # node coords lazy on a chunked grid (dask indexed by a numpy array)
+            # and — unlike xarray indexing with a dask connectivity — does not
+            # raise. The screener then reduces the gathered array to candidates.
+            edge_nodes = self.edge_node_connectivity.values
+            edge_node_z = self.node_z.data[edge_nodes.ravel()].reshape(edge_nodes.shape)
+            edges = constant_lat_intersections_no_extreme(lat, edge_node_z)
 
         return edges.squeeze()
 
@@ -2606,7 +2611,7 @@ class Grid:
 
         faces = constant_lat_intersections_face_bounds(
             lat=lat,
-            face_bounds_lat=self.face_bounds_lat.values,
+            face_bounds_lat=self.face_bounds_lat.data,
         )
         return faces
 
@@ -2641,11 +2646,14 @@ class Grid:
                 "is not yet supported."
             )
         else:
-            edge_node_x = self.node_x[self.edge_node_connectivity].values
-            edge_node_y = self.node_y[self.edge_node_connectivity].values
-            edges = constant_lon_intersections_no_extreme(
-                lon, edge_node_x, edge_node_y, self.n_edge
-            )
+            # Positional gather of edge endpoint coords: a concrete connectivity
+            # indexer against node_[xy].data keeps node coords lazy on a chunked
+            # grid and does not raise (xarray vindex rejects a dask indexer).
+            edge_nodes = self.edge_node_connectivity.values
+            flat = edge_nodes.ravel()
+            edge_node_x = self.node_x.data[flat].reshape(edge_nodes.shape)
+            edge_node_y = self.node_y.data[flat].reshape(edge_nodes.shape)
+            edges = constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y)
             return edges.squeeze()
 
     def get_faces_at_constant_longitude(self, lon: float):
@@ -2669,7 +2677,7 @@ class Grid:
                 f"Longitude must be between -180 and 180 degrees. Received {lon}"
             )
 
-        faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
+        faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.data)
         return faces
 
     def get_faces_between_longitudes(self, lons: tuple[float, float]):
@@ -2686,7 +2694,7 @@ class Grid:
             An array of face indices that are strictly between two lines of constant longitude.
 
         """
-        return faces_within_lon_bounds(lons, self.face_bounds_lon.values)
+        return faces_within_lon_bounds(lons, self.face_bounds_lon.data)
 
     def get_faces_between_latitudes(self, lats: tuple[float, float]):
         """Identifies the indices of faces that are strictly between two lines of constant latitude.
@@ -2702,7 +2710,7 @@ class Grid:
             An array of face indices that are strictly between two lines of constant latitude.
 
         """
-        return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
+        return faces_within_lat_bounds(lats, self.face_bounds_lat.data)
 
     def get_faces_containing_point(
         self,
