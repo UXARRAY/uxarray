@@ -61,5 +61,5 @@ def test_parse_grid_type_detects_structured_grid():
     ],
 )
 def test_parse_grid_type_rejects_incomplete_format_signals(dataset):
-    with pytest.raises(RuntimeError, match="Could not recognize dataset format"):
+    with pytest.raises(RuntimeError, match="Failed to parse uxgrid information from xarray.Dataset."):
         _parse_grid_type(dataset)

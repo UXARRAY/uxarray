@@ -35,18 +35,6 @@ _X1 = _unit(np.array([1.0, 0.0, 0.3]))
 _X2 = _unit(np.array([0.0, 1.0, 0.3]))
 _CONST_Z = 0.3
 
-# Polygon for point-in-polygon (spherical triangle)
-_POLY = np.array(
-    [
-        _unit(np.array([1.0, 0.0, 0.1])),
-        _unit(np.array([0.0, 1.0, 0.1])),
-        _unit(np.array([-1.0, 0.0, 0.5])),
-    ],
-    dtype=np.float64,
-)
-_Q_INSIDE = _unit(np.array([0.1, 0.3, 0.9]))
-_Q_OUTSIDE = _unit(np.array([-0.5, -0.5, -0.7]))
-
 
 class EFTPrimitives:
     """Benchmark the low-level EFT building blocks: two_sum, two_prod,
@@ -217,21 +205,3 @@ class GCAConstLatIntersection:
     def time_gca_const_lat_intersection(self):
         """Layer 3: dispatcher (full public API)."""
         self.gca_const_lat_intersection(self.gca_cart, _CONST_Z)
-
-
-class PointInPolygonSphere:
-    """Benchmark the spherical point-in-polygon kernel."""
-
-    def setup(self):
-        from uxarray.grid.point_in_face import _point_in_polygon_sphere
-
-        self._point_in_polygon_sphere = _point_in_polygon_sphere
-
-        _point_in_polygon_sphere(_Q_INSIDE, _POLY)
-        _point_in_polygon_sphere(_Q_OUTSIDE, _POLY)
-
-    def time_point_inside(self):
-        self._point_in_polygon_sphere(_Q_INSIDE, _POLY)
-
-    def time_point_outside(self):
-        self._point_in_polygon_sphere(_Q_OUTSIDE, _POLY)

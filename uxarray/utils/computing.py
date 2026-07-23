@@ -1,68 +1,32 @@
 """Compensated floating-point primitives for accurate spherical geometry.
 
-In spherical-geometry computations the critical operations are cross products
-and dot products over unit vectors. When two vectors are nearly parallel, the
-difference of products that forms each cross-product component suffers
-catastrophic cancellation: both products round to the same floating-point
-value and their difference carries no significant bits. This affects
-GCA-GCA intersection of nearly tangent arcs, constant-latitude intersection
-near arc endpoints, and the ray-crossing test in point-in-polygon near polygon
-edges.
+Cross and dot products over nearly-parallel unit vectors suffer catastrophic
+cancellation in double precision, which degrades GCA-GCA and constant-latitude
+intersections and the point-in-polygon ray test. These ``@njit`` primitives
+recover near-double precision using error-free transformations (``two_sum``,
+``two_prod``) and compensated algorithms built on them. ``two_prod`` uses a
+hardware FMA when one is available (validated bit-exact at import time) and
+falls back to the Veltkamp split otherwise, so there is no hard FMA dependency.
 
-Naming note
------------
-The term "error-free transformation" (EFT) strictly applies to ``two_sum``
-and ``two_prod``, which capture their rounding errors exactly so that
-``hi + lo`` equals the mathematical result with zero information loss.
-``diff_of_products``, ``accucross``, and ``accucross_pair`` use those EFT
-building blocks to achieve near-double precision for cross products, but they
-are compensated algorithms, not zero-error transformations.
-
-All functions are ``@njit``-compiled. ``two_prod`` uses a single fused
-multiply-add (FMA) for its error term on hardware that supports it (selected at
-import time and validated to be bit-exact), falling back to the portable
-Veltkamp split otherwise — so there is no hard FMA dependency, but FMA is used
-when available (~2x faster in the compensated kernels).
-
-These primitives are a Python/Numba port of the AccuSphGeom C++ library:
+Python/Numba port of the AccuSphGeom C++ library (EFT tier only; the adaptive
+Shewchuk predicate and exact-arithmetic fallback tiers are not ported):
 
     Chen, H. (2026). Accurate and Robust Algorithms for Spherical Polygon
-    Operations. EGUsphere preprint.
-    https://egusphere.copernicus.org/preprints/2026/egusphere-2026-636/
-
-    Chen, H. Accurate and Robust Great Circle Arc Intersection and Great
-    Circle Arc Constant Latitude Intersection on the Sphere. SIAM J. Sci.
-    Comput. https://doi.org/10.1137/25M1737614
-
-AccuSphGeom reference implementation (C++):
-    https://github.com/hongyuchen1030/AccuSphGeom
-
-What this module omits: AccuSphGeom's full robustness stack has three
-tiers — an EFT filter (what this module implements), Shewchuk adaptive
-predicates for results that fall inside the filter threshold, and a geogram
-exact-arithmetic fallback. This port implements only the EFT tier. The
-compensated cross-product routines are roughly twice as accurate as direct
-floating-point cross products while retaining the same vectorizable operation
-structure; callers that need the full robustness stack should add an adaptive
-predicate or exact-arithmetic fallback.
+    Operations. EGUsphere preprint egusphere-2026-636.
+    Chen, H. Great Circle Arc Intersection and Constant Latitude Intersection
+    on the Sphere. SIAM J. Sci. Comput. https://doi.org/10.1137/25M1737614
+    Reference implementation: https://github.com/hongyuchen1030/AccuSphGeom
 """
 
 import math
 
 from numba import njit
 
-# ---------------------------------------------------------------------------
-# Fused multiply-add (FMA) support.
-#
-# ``two_prod`` needs the exact rounding error of ``a * b``. On hardware with an
-# FMA instruction this is a single op: ``e = fma(a, b, -p)`` where ``p = a*b``.
-# Without FMA we fall back to the portable Veltkamp split (no hardware
-# dependency). We expose an LLVM ``fma`` intrinsic through Numba and validate at
-# import time that it both compiles and yields a bit-exact error-free transform;
-# if anything fails (older toolchain, unsupported target, or a non-exact FMA),
-# ``_HAS_FMA`` stays False and the Veltkamp path is used. This keeps the
-# library's "no FMA dependency" guarantee while using FMA where it is available.
-# ---------------------------------------------------------------------------
+# Fused multiply-add (FMA) support. ``two_prod`` needs the exact rounding error
+# of ``a * b``; with hardware FMA this is ``e = fma(a, b, -p)``, otherwise we
+# fall back to the portable Veltkamp split. The LLVM ``fma`` intrinsic is
+# validated at import time; if it is unavailable or non-exact, ``_HAS_FMA``
+# stays False and the Veltkamp path is used.
 try:
     from numba.core import types as _nb_types
     from numba.extending import intrinsic as _nb_intrinsic
@@ -244,7 +208,7 @@ def diff_of_products(a, b, c, d):
     w, e_w = two_prod(c, d)
     x, e_x = two_prod(a, b)
     s, e_s = two_sum(x, -w)
-    lo = (e_x - e_w) + e_s
+    lo = e_x + (e_s - e_w)
     return s, lo
 
 
@@ -433,14 +397,8 @@ def accucross_pair(
     return x_hi, y_hi, z_hi, x_lo, y_lo, z_lo
 
 
-# ---------------------------------------------------------------------------
-# Compensated dot products and sum-of-squares (fixed small sizes)
-#
-# These port accusphgeom::numeric::compensated_dot_product and
-# accusphgeom::numeric::sum_of_squares_c from eft.hpp, using our Veltkamp-
-# splitting two_prod instead of FMA.  Fixed-size variants are used because
-# Numba does not support generic runtime-length accumulations inside @njit.
-# ---------------------------------------------------------------------------
+# Compensated dot products and sum-of-squares, fixed small sizes (Numba does not
+# support generic runtime-length accumulations inside @njit).
 
 
 @njit(cache=True, inline="always")
@@ -505,6 +463,11 @@ def _sum_of_squares_c(hi, lo):
         Numba specializes this per tuple length at compile time and keeps the
         tuples register-resident (no allocation) — the direct analog of the C++
         template. Used for both nx²+ny² (denominator) and nx²+ny²+nz² (|n|²).
+
+    Returns
+    -------
+    tuple of float
+        The compensated squared norm as a ``(hi, lo)`` pair.
     """
     n = len(hi)
     s_hi = 0.0
@@ -520,7 +483,7 @@ def _sum_of_squares_c(hi, lo):
     return _fast_two_sum(s_hi, (2.0 * (r_hi + r_lo)) + s_lo)
 
 
-@njit(cache=True, inline="always")
+@njit(cache=True, inline="always", error_model="numpy")
 def acc_sqrt_re(value, error=0.0):
     """Accurate square root: return (root, correction) s.t. root+correction ≈ sqrt(value+error).
 
@@ -545,14 +508,14 @@ def acc_sqrt_re(value, error=0.0):
     correction : float
         Additive correction; root + correction ≈ sqrt(value + error) to ~1 ulp.
     """
-    # Negative value means no real intersection; return NaN so that the
-    # isfinite mask in the status layer rejects this candidate without a branch.
-    if value < 0.0:
-        return math.nan, 0.0
+    # Branch-free, matching AccuSphGeom acc_sqrt_re exactly. Negative value
+    # yields nan via math.sqrt and root==0 yields nan via the 0/0 correction,
+    # both under error_model="numpy"; the isfinite mask in the status layer
+    # rejects such candidates.
     root = math.sqrt(value)
-    if root == 0.0:
-        return 0.0, 0.0
     sq_hi, sq_lo = two_prod(root, root)
-    residual = (value - sq_hi) + (error - sq_lo)
+    # Residual accumulation order matches AccuSphGeom acc_sqrt_re exactly:
+    # (value - square.hi) - square.lo + error.
+    residual = (value - sq_hi) - sq_lo + error
     correction = residual / (2.0 * root)
     return root, correction
