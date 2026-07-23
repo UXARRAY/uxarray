@@ -19,13 +19,13 @@ navigated predictably because it follows a repeatable pattern.
 Example
 -------
 
-A grid point with a center at (20°N, 20°E) always has four neighboring grid
-points: (21°N, 20°E), (19°N, 20°E), (20°N, 21°E), and (20°N, 19°E).
+A cell with a center at (20°N, 20°E) always has four neighboring cells:
+(21°N, 20°E), (19°N, 20°E), (20°N, 21°E), and (20°N, 19°E).
 
 .. image:: ../_static/examples/grids/structured_grid.png
   :width: 300
   :align: center
-  :alt: A structured grid with a regular, matrix-like arrangement of grid points
+  :alt: A structured grid with a regular, matrix-like arrangement of cells
 
 Moving along a structured grid has predictable outcomes and observations.
 There are many assumptions you can make about a different cell that is 1 degree East.
@@ -37,27 +37,32 @@ Unstructured Grids - How They're Designed
 
 Unstructured grids do not follow a repeated, predictable pattern, and instead
 can vary in shape and organization. Because of this, unstructured grids are
-built like network graphs. Grid points store information about which faces,
-edges, and nodes they are connected to, and can be traversed using that
-information.
+built like network graphs.
+
+.. image:: ../_static/examples/grids/face_node_edge.png
+  :width: 300
+  :align: center
+  :alt: A visual of the components of a grid
+
+Each grid face will be made of nodes and edges. Those nodes and edges can be shared with
+other faces to make connected faces. All the connected faces together make up the grid.
 
 Example
 -------
 
 Here we have a grid made from hexagons. While it appears to be a repeated
-pattern, it is harder to navigate than a traditional grid because you cannot
-simply move right by one unit and guarantee you'll be at the center of another valid grid point.
-Holes can exist, the relative size can change, and more.
+pattern, it is harder to make assumptions about what the neighboring faces may
+be or what characteristics they may have. Holes can exist in the grid, different
+shapes like hexagons and pentagons can exist on the same grid, and more.
 
 .. image:: ../_static/examples/grids/unstructured_grid.png
   :width: 300
   :align: center
   :alt: An unstructured grid made from hexagons
 
-Similar assumptions can't be made when moving 1 degree in any direction on a grid like this. The neighboring cell
-may be a different shape, it may be smaller, it may not even exist. Not all models are this
-variable, but they still may break expectations in certain ways to make a beneficial trade
-off in other ways.
+When you move one degree on a grid like the one above, you may end up in a hole,
+a face of a different shape, or something entirely unexpected. That's why
+the data is traversed by looking at its neighbors from connected edges.
 
 Use Cases
 =========
@@ -78,13 +83,13 @@ Others are allowed to have holes that cut out regions that aren't of interest in
   :align: center
   :alt: An unstructured ocean grid with holes cut out over land regions
 
-Here a grid changes the size and shape of its grid points to provide higher
+Here a grid changes the size and shape of its cells to provide higher
 resolution in a region of interest and coarser resolution elsewhere:
 
 .. image:: ../_static/examples/grids/cam_se.png
   :width: 300
   :align: center
-  :alt: A CAM-SE grid with variable-resolution grid points refined over a region of interest
+  :alt: A CAM-SE grid with variable-resolution cells refined over a region of interest
 
 .. note::
 
@@ -93,16 +98,27 @@ resolution in a region of interest and coarser resolution elsewhere:
 Specialization & Efficiency
 ===========================
 
+Structured grids face scalability limits due to several reasons such as global refinement, polar singularity,
+land-ocean boundary fitting, etc. For instance, as the grid resolution scales, a global lat-lon rectilinear grid
+creates too many cells near the poles, wasting massive storage/memory and compute resources for both model generation
+and post-processing & analysis.
+
+Models focused on the equator, like tropical cyclone models, will have a much higher density of cells near the poles
+where they don't need data from, and a much lower density of cells near the equator, due to how the lat-lon grid scales.
+
+On the other hand, models focused on the polar region tend to want more uniform shapes in this region, like the icosahedral
+grid, which is an unstructured grid that contains hexagons of similar size uniformly across the whole grid.
+
 Some of the value of unstructured grids comes from researchers being able to build or adopt
 models that are tailored to their use case. For example, a researcher studying
 measurements made across the planet's many oceans does not want to consider
-grid points on land. They can use a model that has no grid points on land,
+cells on land. They can use a model that has no cells on land,
 which creates large holes that structured grids could not run calculations on.
 
-In a traditional lat/lon grid, ~30% of the grid points in the previous example would be
+In a traditional lat/lon grid, ~30% of the grid cells in the previous example would be
 unused, meaning the data footprint could be roughly 30% smaller. Many
 calculations will likely require noticeably fewer resources, and less time will be required to
 compute. Many nodes, edges, and faces are eliminated by the removal of the
-land, and even the grid points over the sea have fewer connected faces, nodes,
+land, and even the cells over the sea have fewer connected faces, nodes,
 and edges as a result. These efficiency improvements matter a lot in
 geospatial models, which tend to already be very resource intensive.
