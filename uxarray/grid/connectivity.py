@@ -125,9 +125,7 @@ def _populate_n_nodes_per_face(grid):
     it within the internal (``Grid._ds``) and through the attribute
     (``Grid.n_nodes_per_face``)."""
 
-    n_nodes_per_face = _build_n_nodes_per_face(
-        grid.face_node_connectivity.values, grid.n_face, grid.n_max_face_nodes
-    )
+    n_nodes_per_face = (grid.face_node_connectivity != INT_FILL_VALUE).sum(axis=1)
 
     if n_nodes_per_face.ndim == 0:
         # convert scalar value into a [1, 1] array
@@ -141,98 +139,85 @@ def _populate_n_nodes_per_face(grid):
     )
 
 
-@njit(cache=True)
-def _build_n_nodes_per_face(face_nodes, n_face, n_max_face_nodes):
-    """Constructs ``n_nodes_per_face``, which contains the number of non-fill-
-    value nodes for each face in ``face_node_connectivity``"""
-
-    n_face, n_max_face_nodes = face_nodes.shape
-    n_nodes_per_face = np.empty(n_face, dtype=INT_DTYPE)
-    for i in range(n_face):
-        c = 0
-        for j in range(n_max_face_nodes):
-            if face_nodes[i, j] != INT_FILL_VALUE:
-                c += 1
-        n_nodes_per_face[i] = c
-    return n_nodes_per_face
-
-
 def _populate_edge_node_connectivity(grid):
     """Constructs the UGRID connectivity variable (``edge_node_connectivity``)
     and stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.edge_node_connectivity``)."""
 
-    edge_nodes, inverse_indices, fill_value_mask = _build_edge_node_connectivity(
-        grid.face_node_connectivity.values, grid.n_face, grid.n_max_face_nodes
+    # Check edge coordinates already exist, if they do this might cause issues
+
+    if "n_edge" in grid.sizes:
+        # TODO: raise a warning or exception?
+        pass
+
+    edge_nodes, face_edges = _build_edge_node_connectivity(
+        grid.face_node_connectivity.values, grid.n_nodes_per_face.values
     )
 
-    edge_node_attrs = ugrid.EDGE_NODE_CONNECTIVITY_ATTRS
-    edge_node_attrs["inverse_indices"] = inverse_indices
-
-    # add edge_node_connectivity to internal dataset
     grid._ds["edge_node_connectivity"] = xr.DataArray(
-        edge_nodes, dims=ugrid.EDGE_NODE_CONNECTIVITY_DIMS, attrs=edge_node_attrs
+        edge_nodes,
+        dims=ugrid.EDGE_NODE_CONNECTIVITY_DIMS,
+        attrs=ugrid.EDGE_NODE_CONNECTIVITY_ATTRS,
+    )
+
+    grid._ds["face_edge_connectivity"] = xr.DataArray(
+        face_edges,
+        dims=ugrid.FACE_EDGE_CONNECTIVITY_DIMS,
+        attrs=ugrid.FACE_EDGE_CONNECTIVITY_ATTRS,
     )
 
 
-def _build_edge_node_connectivity(face_nodes, n_face, n_max_face_nodes):
-    """Constructs the UGRID connectivity variable (``edge_node_connectivity``)
-    and stores it within the internal (``Grid._ds``) and through the attribute
-    (``Grid.edge_node_connectivity``).
+@njit(cache=True)
+def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face):
+    """Constructs the ``edge_node_connectivity`` variable, which represents the indices of the two nodes that make up
+    each edge. Additionally, the ``face_edge_connectivity`` is derived during construction,  which represents the
+    indices of the edges that make up each face.
 
-    Additionally, the attributes (``inverse_indices``) and
-    (``fill_value_mask``) are stored for constructing other
-    connectivity variables.
 
     Parameters
     ----------
-    repopulate : bool, optional
-        Flag used to indicate if we want to overwrite the existed `edge_node_connectivity` and generate a new
-        inverse_indices, default is False
+    face_node_connectivity : np.ndarray
+        Face Node Connectivity
+    n_nodes_per_face : np.ndarray
+        Number of nodes/edges per face
+
+    Returns
+    -------
+    edge_node_connectivity : np.ndarray
+        Edge Node Connectivity with shape (n_edge, 2)
+    face_edge_connectivity : np.ndarray
+        Face Edge Connectivity with shape (n_face, n_max_face_edges)
+
     """
 
-    padded_face_nodes = close_face_nodes(face_nodes, n_face, n_max_face_nodes)
+    # Dictionary to keep track of unique edges
+    unique_edge_dict = {}
 
-    # array of empty edge nodes where each entry is a pair of indices
-    edge_nodes = np.empty((n_face * n_max_face_nodes, 2), dtype=INT_DTYPE)
+    edge_idx = 0
 
-    # first index includes starting node up to non-padded value
-    edge_nodes[:, 0] = padded_face_nodes[:, :-1].ravel()
-
-    # second index includes second node up to padded value
-    edge_nodes[:, 1] = padded_face_nodes[:, 1:].ravel()
-
-    # sorted edge nodes
-    edge_nodes.sort(axis=1)
-
-    # unique edge nodes
-    edge_nodes_unique, inverse_indices = np.unique(
-        edge_nodes, return_inverse=True, axis=0
-    )
-    # find all edge nodes that contain a fill value
-    fill_value_mask = np.logical_or(
-        edge_nodes_unique[:, 0] == INT_FILL_VALUE,
-        edge_nodes_unique[:, 1] == INT_FILL_VALUE,
+    # Keep track of face_edge_connectivity
+    face_edge_connectivity = np.full_like(
+        face_node_connectivity, INT_FILL_VALUE, dtype=INT_DTYPE
     )
 
-    # all edge nodes that do not contain a fill value
-    non_fill_value_mask = np.logical_not(fill_value_mask)
-    edge_nodes_unique = edge_nodes_unique[non_fill_value_mask]
+    for i, n_edges in enumerate(n_nodes_per_face):
+        for current_node in range(n_edges):
+            start_node = face_node_connectivity[i, current_node]
+            end_node = face_node_connectivity[i, (current_node + 1) % n_edges]
 
-    # Update inverse_indices accordingly
-    indices_to_update = np.where(fill_value_mask)[0]
+            edge = (min(start_node, end_node), max(start_node, end_node))
 
-    remove_mask = np.isin(inverse_indices, indices_to_update)
-    inverse_indices[remove_mask] = INT_FILL_VALUE
+            if edge not in unique_edge_dict:
+                # Only store unique edges
+                unique_edge_dict[edge] = edge_idx
+                edge_idx += 1
 
-    # Compute the indices where inverse_indices exceeds the values in indices_to_update
-    indexes = np.searchsorted(indices_to_update, inverse_indices, side="right")
-    # subtract the corresponding indexes from `inverse_indices`
-    for i in range(len(inverse_indices)):
-        if inverse_indices[i] != INT_FILL_VALUE:
-            inverse_indices[i] -= indexes[i]
+            face_edge_connectivity[i, current_node] = unique_edge_dict[edge]
 
-    return edge_nodes_unique, inverse_indices, fill_value_mask
+    # TODO: maybe sort these, but I don't think it's necessary
+    edge_node_connectivity = np.asarray(list(unique_edge_dict.keys()), dtype=INT_DTYPE)
+
+    return edge_node_connectivity, face_edge_connectivity
 
 
 def _populate_edge_face_connectivity(grid):
@@ -252,8 +237,8 @@ def _populate_edge_face_connectivity(grid):
 
 @njit(cache=True)
 def _build_edge_face_connectivity(face_edges, n_nodes_per_face, n_edge):
-    """Helper for (``edge_face_connectivity``) construction."""
-    edge_faces = np.ones(shape=(n_edge, 2), dtype=face_edges.dtype) * INT_FILL_VALUE
+    """Helper for (``edge_faces``) construction."""
+    edge_faces = np.full((n_edge, 2), INT_FILL_VALUE, dtype=INT_DTYPE)
 
     for face_idx, (cur_face_edges, n_edges) in enumerate(
         zip(face_edges, n_nodes_per_face)
@@ -274,29 +259,10 @@ def _populate_face_edge_connectivity(grid):
     and stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.face_edge_connectivity``)."""
 
-    if (
-        "edge_node_connectivity" not in grid._ds
-        or "inverse_indices" not in grid._ds["edge_node_connectivity"].attrs
-    ):
+    # TODO: Check if "edge_edge_connectivity" is already present
+
+    if "edge_node_connectivity" not in grid._ds:
         _populate_edge_node_connectivity(grid)
-
-    face_edges = _build_face_edge_connectivity(
-        grid.edge_node_connectivity.attrs["inverse_indices"],
-        grid.n_face,
-        grid.n_max_face_nodes,
-    )
-
-    grid._ds["face_edge_connectivity"] = xr.DataArray(
-        data=face_edges,
-        dims=ugrid.FACE_EDGE_CONNECTIVITY_DIMS,
-        attrs=ugrid.FACE_EDGE_CONNECTIVITY_ATTRS,
-    )
-
-
-def _build_face_edge_connectivity(inverse_indices, n_face, n_max_face_nodes):
-    """Helper for (``face_edge_connectivity``) construction."""
-    inverse_indices = inverse_indices.reshape(n_face, n_max_face_nodes)
-    return inverse_indices
 
 
 def _populate_node_face_connectivity(grid):
@@ -304,7 +270,7 @@ def _populate_node_face_connectivity(grid):
     and stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.node_face_connectivity``)."""
 
-    node_faces, n_max_faces_per_node = _build_node_faces_connectivity(
+    node_faces, n_max_faces_per_node = _build_node_face_connectivity(
         grid.face_node_connectivity.values, grid.n_node
     )
 
@@ -315,7 +281,7 @@ def _populate_node_face_connectivity(grid):
     )
 
 
-def _build_node_faces_connectivity(face_nodes, n_node):
+def _build_node_face_connectivity(face_nodes, n_node):
     """Builds the `Grid.node_faces_connectivity`: integer DataArray of size
     (n_node, n_max_faces_per_node) (optional) A DataArray of indices indicating
     faces that are neighboring each node.
@@ -419,7 +385,9 @@ def _populate_face_face_connectivity(grid):
     """Constructs the UGRID connectivity variable (``face_face_connectivity``)
     and stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.face_face_connectivity``)."""
-    face_face = _build_face_face_connectivity(grid)
+    face_face = _build_face_face_connectivity(
+        grid.edge_face_connectivity.values, grid.n_face, grid.n_max_face_nodes
+    )
 
     grid._ds["face_face_connectivity"] = xr.DataArray(
         data=face_face,
@@ -428,31 +396,23 @@ def _populate_face_face_connectivity(grid):
     )
 
 
-def _build_face_face_connectivity(grid):
-    """Returns face-face connectivity."""
+@njit(cache=True)
+def _build_face_face_connectivity(edge_face_connectivity, n_face, n_max_face_nodes):
+    face_face_connectivity = np.full(
+        (n_face, n_max_face_nodes), INT_FILL_VALUE, INT_DTYPE
+    )
+    face_index_position = np.zeros(n_face, dtype=INT_DTYPE)
 
-    # Dictionary to store each faces adjacent faces
-    face_neighbors = {i: [] for i in range(grid.n_face)}
+    for edge_faces in edge_face_connectivity:
+        face_a, face_b = edge_faces
+        if face_a != INT_FILL_VALUE and face_b != INT_FILL_VALUE:
+            face_face_connectivity[face_a, face_index_position[face_a]] = face_b
+            face_index_position[face_a] += 1
 
-    # Loop through each edge_face and add to the dictionary every face that shares an edge
-    for edge_face in grid.edge_face_connectivity.values:
-        face1, face2 = edge_face
-        if face1 != INT_FILL_VALUE and face2 != INT_FILL_VALUE:
-            # Append to each face's dictionary index the opposite face index
-            face_neighbors[face1].append(face2)
-            face_neighbors[face2].append(face1)
-
-    # Convert to an array and pad it with fill values
-    face_face_conn = list(face_neighbors.values())
-    face_face_connectivity = [
-        np.pad(
-            arr, (0, grid.n_max_face_edges - len(arr)), constant_values=INT_FILL_VALUE
-        )
-        for arr in face_face_conn
-    ]
+            face_face_connectivity[face_b, face_index_position[face_b]] = face_a
+            face_index_position[face_b] += 1
 
     return face_face_connectivity
-
 
 def _populate_node_edge_connectivity(grid):
     """Constructs the UGRID connectivity variable (``edge_node_connectivity``)
