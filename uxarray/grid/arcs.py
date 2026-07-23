@@ -8,6 +8,17 @@ from uxarray.grid.coordinates import (
     _normalize_xyz_scalar,
 )
 from uxarray.grid.utils import _angle_of_2_vectors
+from uxarray.utils.computing import accucross, two_sum
+
+# Magnitude below which orient3d_on_sphere classifies a result as zero. For
+# double-precision unit-vector inputs this covers rounding error in the
+# compensated cross product.
+_PREDICATE_ZERO_TOL = 1e-15
+
+# Tolerance for the on_minor_arc collinearity and interval tests. Matches
+# AccuSphGeom's gca_*_minor_arc_tol (1e-8) so the Python predicate accepts the
+# same candidate set as the C++ reference.
+_ON_MINOR_ARC_TOL = 1e-8
 
 
 def _to_list(obj):
@@ -364,3 +375,153 @@ def compute_arc_length(pt_a, pt_b):
     delta_theta = np.arctan2(cross_2d, dot_2d)
 
     return rho * abs(delta_theta)
+
+
+@njit(cache=True, inline="always")
+def _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q0, q1, q2):
+    """Compensated dot of an already-computed ``(hi, lo)`` normal with ``q``.
+
+    This is the second half of :func:`_orient3d_on_sphere_value_xyz`, split out
+    so that callers holding a normal that is invariant across many queries (e.g.
+    the ray plane ``q x R`` in the spherical point-in-polygon kernel, which is
+    the same for every edge of a face) can compute the cross product once and
+    reuse it, paying only this dot per query.
+    """
+    p0 = (nx_hi + nx_lo) * q0
+    p1 = (ny_hi + ny_lo) * q1
+    p2 = (nz_hi + nz_lo) * q2
+    s, e = two_sum(p0, p1)
+    s, e2 = two_sum(s, p2)
+    return s + (e + e2)
+
+
+@njit(cache=True, inline="always")
+def _orient3d_on_sphere_value_xyz(a0, a1, a2, b0, b1, b2, q0, q1, q2):
+    """Accurate value of the orient3d-on-sphere predicate: ``(a x b) . q``.
+
+    Takes the nine vector components directly so hot loops can call it without
+    materializing ``(3,)`` arrays. Uses a compensated cross product, so for
+    unit-vector inputs it provides roughly double the effective precision of a
+    naive evaluation. Positive when q is left of the directed arc a->b, negative
+    when right, near zero when q is on the great circle through a and b.
+    """
+    nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(a0, a1, a2, b0, b1, b2)
+    return _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q0, q1, q2)
+
+
+@njit(cache=True)
+def _orient3d_on_sphere_value(a, b, q):
+    """Array form of :func:`_orient3d_on_sphere_value_xyz`: value of ``(a x b) . q``.
+
+    Convenience wrapper taking three ``(3,)`` unit vectors. Positive when q is
+    left of the directed arc a->b, negative when right, near zero when q is on
+    the great circle through a and b.
+    """
+    return _orient3d_on_sphere_value_xyz(
+        a[0], a[1], a[2], b[0], b[1], b[2], q[0], q[1], q[2]
+    )
+
+
+@njit(cache=True)
+def orient3d_on_sphere(a, b, q, tol=_PREDICATE_ZERO_TOL):
+    """Sign of the orient3d predicate on the unit sphere: -1, 0, or +1.
+
+    Evaluates the sign of ``(a x b) . q`` using compensated arithmetic to
+    avoid false zero results from floating-point cancellation near great-circle
+    boundaries. The sign determines which side of the great circle through a
+    and b the point q lies on. This is a public spatial predicate (used by
+    point-in-face, bounds, antimeridian handling and available for custom
+    geometry code); it is not part of the AccuXGCA/AccuXConstLat batch kernels.
+
+    Parameters
+    ----------
+    a, b, q : np.ndarray, shape (3,)
+        Unit vectors on the unit sphere.
+    tol : float, optional
+        Magnitude below which the result is classified as zero.
+
+    Returns
+    -------
+    int
+        +1 if q is to the left of a->b, -1 if to the right, 0 if collinear
+        within ``tol``.
+    """
+    v = _orient3d_on_sphere_value(a, b, q)
+    if v > tol:
+        return 1
+    if v < -tol:
+        return -1
+    return 0
+
+
+@njit(cache=True)
+def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
+    """Return True if q lies on the minor great-circle arc from a to b.
+
+    Uses ``_orient3d_on_sphere_value_xyz`` (a compensated cross product) for the
+    collinearity test and dot products for the interval check. Compared to
+    ``point_within_gca``, this avoids the ``arctan2`` call that guards against
+    180-degree arcs and avoids the separate plane-membership check via
+    ``np.cross`` + ``np.dot``.
+
+    Parameters
+    ----------
+    q : np.ndarray, shape (3,)
+        Query point (unit vector).
+    a, b : np.ndarray, shape (3,)
+        Endpoints of the great-circle arc (unit vectors).
+    tol : float, optional
+        Tolerance for the collinearity and interval checks.
+
+    Returns
+    -------
+    int
+        1 if q lies on the minor arc ab, 0 otherwise. Returned as an integer
+        mask (not bool) so callers can multiply it into branch-free validity
+        products, mirroring AccuSphGeom's ``on_minor_arc_tol_ptr``.
+    """
+    return _on_minor_arc_xyz(q[0], q[1], q[2], a[0], a[1], a[2], b[0], b[1], b[2], tol)
+
+
+@njit(cache=True, inline="always")
+def _on_minor_arc_xyz(q0, q1, q2, a0, a1, a2, b0, b1, b2, tol=_ON_MINOR_ARC_TOL):
+    """Scalar-argument form of :func:`on_minor_arc`, returning a 0/1 int mask.
+
+    Same logic, but takes the nine vector components directly so hot loops can
+    test arc membership without allocating ``(3,)`` arrays for the query point.
+    """
+    # Branch-free mask form, mirroring AccuSphGeom on_minor_arc_tol_ptr: the
+    # result is a product of 0/1 masks so the hot path has no data-dependent
+    # branches.
+    #
+    # Coincident/antipodal degeneracy (a == b or a == -b) is detected via
+    # |a x b|^2 rather than exact component equality. Endpoints computed
+    # through independent trig paths (e.g. one via (lon, lat), the other via
+    # (lon + pi, -lat)) land coincident/antipodal to 1-2 ulp, not bit-exact --
+    # an exact ``==`` check misses them, and when missed, a x b ~= 0 makes the
+    # collinearity test pass for every point on the great circle and the
+    # interval checks degenerate to 0 >= -tol, producing false positives for
+    # arbitrary query points. |a x b|^2 cleanly separates true degeneracy
+    # (~1e-32, the squared rounding-noise floor for unit vectors) from even
+    # sub-millimeter real edges (~1e-28 at 1e-12 degree separation) -- unlike
+    # comparing dot(a, b) to +-1, which suffers the same cancellation this PR
+    # exists to avoid and cannot make that distinction. The C++ reference's
+    # ``on_minor_arc_tol_ptr`` only guards exact coincidence and assumes
+    # non-antipodal mesh edges, so this widening is a UXarray-side addition,
+    # not a port of the reference.
+    cx = a1 * b2 - a2 * b1
+    cy = a2 * b0 - a0 * b2
+    cz = a0 * b1 - a1 * b0
+    cross_sq = cx * cx + cy * cy + cz * cz
+    degenerate = 1 if cross_sq < 1e-30 else 0
+    orient_ok = (
+        1
+        if abs(_orient3d_on_sphere_value_xyz(a0, a1, a2, b0, b1, b2, q0, q1, q2)) <= tol
+        else 0
+    )
+    qa = a0 * q0 + a1 * q1 + a2 * q2
+    qb = b0 * q0 + b1 * q1 + b2 * q2
+    ab = a0 * b0 + a1 * b1 + a2 * b2
+    s1_ok = 1 if (qb - ab * qa) >= -tol else 0
+    s2_ok = 1 if (qa - qb * ab) >= -tol else 0
+    return (1 - degenerate) * orient_ok * s1_ok * s2_ok

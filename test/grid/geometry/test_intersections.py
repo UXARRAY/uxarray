@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
-from uxarray.grid.arcs import extreme_gca_z
+from uxarray.grid.arcs import extreme_gca_z, on_minor_arc
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad,_xyz_to_lonlat_rad_scalar
-from uxarray.grid.intersections import gca_gca_intersection, gca_const_lat_intersection, _gca_gca_intersection_cartesian, get_number_of_intersections
+from uxarray.grid.intersections import gca_gca_intersection, gca_const_lat_intersection, get_number_of_intersections
 
 def test_get_GCA_GCA_intersections_antimeridian():
     GCA1 = _lonlat_rad_to_xyz(np.deg2rad(170.0), np.deg2rad(89.99))
@@ -16,7 +16,7 @@ def test_get_GCA_GCA_intersections_antimeridian():
         _lonlat_rad_to_xyz(np.deg2rad(70.0), 0.0),
         _lonlat_rad_to_xyz(np.deg2rad(179.0), 0.0)
     ])
-    res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
+    res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
 
     assert len(res_cart) == 0
 
@@ -30,7 +30,7 @@ def test_get_GCA_GCA_intersections_antimeridian():
         _lonlat_rad_to_xyz(np.deg2rad(175.0), 0.0)
     ])
 
-    res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
+    res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
     res_cart = res_cart[0]
 
     assert np.allclose(np.linalg.norm(res_cart, axis=0), 1.0, atol=ERROR_TOLERANCE)
@@ -47,7 +47,7 @@ def test_get_GCA_GCA_intersections_parallel():
         _lonlat_rad_to_xyz(0.5 * np.pi, 0.0),
         _lonlat_rad_to_xyz(-0.5 * np.pi - 0.01, 0.0)
     ])
-    res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
+    res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
     res_cart = res_cart[0]
     expected_res = np.array(_lonlat_rad_to_xyz(0.5 * np.pi, 0.0))
 
@@ -65,7 +65,7 @@ def test_get_GCA_GCA_intersections_perpendicular():
         _lonlat_rad_to_xyz(*[0.5 * np.pi - 0.01, 0.0]),
         _lonlat_rad_to_xyz(*[-0.5 * np.pi + 0.01, 0.0])
     ])
-    res_cart = _gca_gca_intersection_cartesian(GCR1_cart, GCR2_cart)
+    res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
 
     # rest_cart should be empty since these two GCAs are not intersecting
     assert(len(res_cart) == 0)
@@ -254,3 +254,63 @@ def test_GCA_constLat_intersections_two_pts():
 
     res = gca_const_lat_intersection(GCR1_cart, np.sin(query_lat))
     assert res.shape[0] == 2
+
+def test_on_minor_arc_near_antipodal_degeneracy():
+    # Endpoints computed via independent (lon, lat) and (lon + pi, -lat) trig
+    # paths land antipodal to within 1-2 ulp, not bit-exact. A query point
+    # nowhere near the arc must not be classified as on it.
+    lon_a, lat_a = np.deg2rad(12.345), np.deg2rad(6.789)
+    a = np.array(_lonlat_rad_to_xyz(lon_a, lat_a))
+    b = np.array(_lonlat_rad_to_xyz(lon_a + np.pi, -lat_a))
+    assert not np.array_equal(b, -a)  # confirms the degeneracy is not bit-exact
+
+    q = np.array(_lonlat_rad_to_xyz(lon_a, lat_a + np.deg2rad(20)))
+    assert on_minor_arc(q, a, b) == 0
+
+def test_on_minor_arc_near_coincident_degeneracy():
+    # Same class of degeneracy as the antipodal case above, but for
+    # near-coincident (not bit-exact) endpoints.
+    lon_a, lat_a = np.deg2rad(12.345), np.deg2rad(6.789)
+    a = np.array(_lonlat_rad_to_xyz(lon_a, lat_a))
+    b = np.array(_lonlat_rad_to_xyz(lon_a + 1e-16, lat_a))
+    assert not np.array_equal(a, b)
+
+    q = np.array(_lonlat_rad_to_xyz(lon_a + np.deg2rad(50), lat_a + np.deg2rad(30)))
+    assert on_minor_arc(q, a, b) == 0
+
+def test_on_minor_arc_tiny_valid_edge_not_flagged_degenerate():
+    # A genuinely short but non-degenerate edge (~1e-4 degrees, ~11m on Earth,
+    # well within realistic mesh resolution) must still validate its own
+    # midpoint and reject distant points -- guards against an overly-wide
+    # degeneracy tolerance in the |a x b|^2 check added for the antipodal /
+    # coincident fix. Note: on_minor_arc's absolute orient tolerance (1e-8,
+    # matching the AccuSphGeom C++ constant) stops discriminating for arcs
+    # shorter than roughly 1e-7 degrees (~1cm) -- that is a pre-existing
+    # limitation of the fixed-tolerance predicate shared with the C++
+    # reference, not something this test targets.
+    lon_a, lat_a = np.deg2rad(10.0), np.deg2rad(10.0)
+    a = np.array(_lonlat_rad_to_xyz(lon_a, lat_a))
+    b = np.array(_lonlat_rad_to_xyz(lon_a + 1e-4 * np.pi / 180.0, lat_a))
+
+    midpoint = (a + b) / 2.0
+    midpoint = midpoint / np.linalg.norm(midpoint)
+    far_point = np.array(_lonlat_rad_to_xyz(np.deg2rad(-50), np.deg2rad(30)))
+
+    assert on_minor_arc(midpoint, a, b) == 1
+    assert on_minor_arc(far_point, a, b) == 0
+
+def test_GCA_GCA_intersection_near_antipodal_arc_no_false_positive():
+    # Regression test: gca_gca_intersection against an arc with near-antipodal
+    # (not bit-exact) endpoints must not report an intersection with an
+    # unrelated, geometrically distant GCA.
+    lon_a, lat_a = np.deg2rad(12.345), np.deg2rad(6.789)
+    a = np.array(_lonlat_rad_to_xyz(lon_a, lat_a))
+    b = np.array(_lonlat_rad_to_xyz(lon_a + np.pi, -lat_a))
+    gca_near_antipodal = np.array([a, b])
+
+    c0 = np.array(_lonlat_rad_to_xyz(np.deg2rad(-100.0), np.deg2rad(-40.0)))
+    c1 = np.array(_lonlat_rad_to_xyz(np.deg2rad(-99.0), np.deg2rad(-40.0)))
+    gca_unrelated = np.array([c0, c1])
+
+    res = gca_gca_intersection(gca_near_antipodal, gca_unrelated)
+    assert len(res) == 0
