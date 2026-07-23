@@ -35,7 +35,7 @@ __all__ = [
 def open_grid(
     grid_filename_or_obj: str | os.PathLike[Any] | dict | xr.Dataset,
     chunks=None,
-    use_dual: bool | None = False,
+    use_dual: bool = False,
     **kwargs: dict[str, Any],
 ):
     """Constructs and returns a ``Grid`` from a grid file.
@@ -348,7 +348,7 @@ def open_dataset(
     filename_or_obj: str | os.PathLike[Any] | xr.Dataset | None = None,
     chunks=None,
     chunk_grid: bool = True,
-    use_dual: bool | None = False,
+    use_dual: bool = False,
     grid_kwargs: dict[str, Any] | None = None,
     **kwargs: dict[str, Any],
 ) -> UxDataset:
@@ -475,7 +475,7 @@ def open_mfdataset(
     paths: str | os.PathLike,
     chunks=None,
     chunk_grid: bool = True,
-    use_dual: bool | None = False,
+    use_dual: bool = False,
     grid_kwargs: dict[str, Any] | None = None,
     **kwargs: dict[str, Any],
 ) -> UxDataset:
