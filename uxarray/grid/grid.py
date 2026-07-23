@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import copy
 import os
 import warnings
 from html import escape
-from typing import Optional, Sequence
+from typing import TYPE_CHECKING, Optional, Sequence
 
-import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
 from xarray.core.options import OPTIONS
@@ -98,6 +99,9 @@ from uxarray.io._voronoi import _spherical_voronoi_from_points
 from uxarray.io.utils import _parse_grid_type
 from uxarray.plot.accessor import GridPlotAccessor
 from uxarray.subset import GridSubsetAccessor
+
+if TYPE_CHECKING:
+    import cartopy.crs as ccrs
 
 
 class Grid:
