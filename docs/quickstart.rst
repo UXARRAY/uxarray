@@ -15,4 +15,5 @@ and Usage Example sections.
    getting-started/overview.rst
    getting-started/installation.rst
    getting-started/quick-overview.ipynb
+   getting-started/unstructured-grids.rst
    getting-started/freq-asked-questions.rst
