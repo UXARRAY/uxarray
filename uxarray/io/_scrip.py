@@ -9,6 +9,33 @@ from uxarray.conventions import ugrid
 from uxarray.grid.connectivity import _replace_fill_values
 
 
+def _values_in_degrees(data_array):
+    """Return data_array.values, converting to degrees if necessary,
+    i.e., if data_array.attrs["units"] in ["radians", "radian", "rad"].
+
+    Parameters
+    ----------
+    data_array : xr.DataArray
+        Array containing values to be extracted and converted to degrees.
+        Values assumed to be in degrees already unless data_array.attrs["units"]
+        is present and is one of ["radians", "radian", "rad"].
+
+    Returns
+    -------
+    numpy.ndarray
+        data_array.values, converted to degrees if necessary.
+    """
+    values = data_array.values
+    units = data_array.attrs.get("units", "").lower()
+
+    # Check if units indicate radians
+    if units in ["radians", "radian", "rad"]:
+        return np.rad2deg(values)
+
+    # Otherwise assume degrees (or no units means degrees for SCRIP)
+    return values
+
+
 def _to_ugrid(in_ds, out_ds):
     """If input dataset (``in_ds``) file is an unstructured SCRIP file,
     function will reassign SCRIP variables to UGRID conventions in output file
@@ -21,8 +48,9 @@ def _to_ugrid(in_ds, out_ds):
     if any(key in in_ds for key in ["grid_imask", "grid_rank", "grid_area"]):
         # Create node_lon & node_lat variables from grid_corner_lat/lon
         # Turn latitude and longitude scrip arrays into 1D
-        corner_lat = in_ds["grid_corner_lat"].values.ravel()
-        corner_lon = in_ds["grid_corner_lon"].values.ravel()
+        # Convert to degrees if needed
+        corner_lat = _values_in_degrees(in_ds["grid_corner_lat"]).ravel()
+        corner_lon = _values_in_degrees(in_ds["grid_corner_lon"]).ravel()
 
         # Use Polars to find unique coordinate pairs
         df = pl.DataFrame({"lon": corner_lon, "lat": corner_lat}).with_row_count(
@@ -62,14 +90,15 @@ def _to_ugrid(in_ds, out_ds):
         )
 
         # Create face_lon & face_lat from grid_center_lat/lon
+        # Convert to degrees if needed
         out_ds[ugrid.FACE_COORDINATES[0]] = xr.DataArray(
-            in_ds["grid_center_lon"].values,
+            _values_in_degrees(in_ds["grid_center_lon"]),
             dims=[ugrid.FACE_DIM],
             attrs=ugrid.FACE_LON_ATTRS,
         )
 
         out_ds[ugrid.FACE_COORDINATES[1]] = xr.DataArray(
-            in_ds["grid_center_lat"].values,
+            _values_in_degrees(in_ds["grid_center_lat"]),
             dims=[ugrid.FACE_DIM],
             attrs=ugrid.FACE_LAT_ATTRS,
         )
@@ -465,12 +494,17 @@ def _extract_single_grid(
         grid_corner_lat = grid_corner_lat.rename({corner_dim: "grid_corners"})
         grid_corner_lon = grid_corner_lon.rename({corner_dim: "grid_corners"})
 
-    grid_corner_lat = grid_corner_lat.copy()
-    grid_corner_lon = grid_corner_lon.copy()
+    # Convert to degrees if needed and create copies with correct units
+    grid_corner_lat_values = _values_in_degrees(grid_corner_lat)
+    grid_corner_lon_values = _values_in_degrees(grid_corner_lon)
 
     result = xr.Dataset()
-    result["grid_corner_lat"] = grid_corner_lat
-    result["grid_corner_lon"] = grid_corner_lon
+    result["grid_corner_lat"] = xr.DataArray(
+        grid_corner_lat_values, dims=grid_corner_lat.dims, attrs={"units": "degrees"}
+    )
+    result["grid_corner_lon"] = xr.DataArray(
+        grid_corner_lon_values, dims=grid_corner_lon.dims, attrs={"units": "degrees"}
+    )
 
     n_cells = grid_corner_lat.sizes["grid_size"]
 
@@ -481,26 +515,40 @@ def _extract_single_grid(
     computed_lat_lon = None
 
     if center_lat and center_lat in ds:
-        center_lat_da = _stack_cell_dims(
+        stacked_lat = _stack_cell_dims(
             ds[center_lat],
             _resolve_cell_dims(metadata, ds[center_lat].dims),
             "grid_size",
-        ).copy()
+        )
+        center_lat_da = xr.DataArray(
+            _values_in_degrees(stacked_lat),
+            dims=["grid_size"],
+            attrs={"units": "degrees"},
+        )
     else:
         if computed_lat_lon is None:
             computed_lat_lon = grid_center_lat_lon(result)
-        center_lat_da = xr.DataArray(computed_lat_lon[0], dims=["grid_size"])
+        center_lat_da = xr.DataArray(
+            computed_lat_lon[0], dims=["grid_size"], attrs={"units": "degrees"}
+        )
 
     if center_lon and center_lon in ds:
-        center_lon_da = _stack_cell_dims(
+        stacked_lon = _stack_cell_dims(
             ds[center_lon],
             _resolve_cell_dims(metadata, ds[center_lon].dims),
             "grid_size",
-        ).copy()
+        )
+        center_lon_da = xr.DataArray(
+            _values_in_degrees(stacked_lon),
+            dims=["grid_size"],
+            attrs={"units": "degrees"},
+        )
     else:
         if computed_lat_lon is None:
             computed_lat_lon = grid_center_lat_lon(result)
-        center_lon_da = xr.DataArray(computed_lat_lon[1], dims=["grid_size"])
+        center_lon_da = xr.DataArray(
+            computed_lat_lon[1], dims=["grid_size"], attrs={"units": "degrees"}
+        )
 
     result["grid_center_lat"] = center_lat_da
     result["grid_center_lon"] = center_lon_da

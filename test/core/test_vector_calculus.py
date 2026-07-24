@@ -23,13 +23,17 @@ class TestGradientQuadHex:
         assert uxds['t2m'].sizes == grad_ds.sizes
 
     def test_gradient_all_boundary_faces(self, gridpath, datasetpath):
-        """Quad hexagon grid has 4 faces, each of which are on the boundary, so the expected gradients are zero for both components"""
+        """Quad hexagon grid has 4 faces, all touching the boundary.
+
+        Each face still has some interior edges, so the gradient should
+        produce finite (small) values rather than NaN.
+        """
         uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
         grad = uxds['t2m'].gradient()
 
-        assert np.isnan(grad['meridional_gradient']).all()
-        assert np.isnan(grad['zonal_gradient']).all()
+        assert not np.isnan(grad['meridional_gradient']).any()
+        assert not np.isnan(grad['zonal_gradient']).any()
 
 
 class TestGradientMPASOcean:
@@ -87,7 +91,7 @@ class TestGradientDyamondSubset:
             gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
             datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
         )
-        grad = uxds['gaussian'].gradient()
+        grad = uxds['gaussian'].gradient(scale_by_radius=False)
         zg, mg = grad.zonal_gradient, grad.meridional_gradient
         mag = np.hypot(zg, mg)
         angle = np.arctan2(mg, zg)
@@ -118,7 +122,7 @@ class TestGradientDyamondSubset:
             gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
             datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
         )
-        grad = uxds['inverse_gaussian'].gradient()
+        grad = uxds['inverse_gaussian'].gradient(scale_by_radius=False)
         zg, mg = grad.zonal_gradient, grad.meridional_gradient
         mag = np.hypot(zg, mg)
         angle = np.arctan2(mg, zg)
@@ -140,6 +144,30 @@ class TestGradientDyamondSubset:
         assert angle[self.right_fidx] < 0
         assert angle[self.top_fidx] > 0
         assert angle[self.bottom_fidx] < 0
+
+    def test_gradient_scales_by_radius(self, gridpath, datasetpath):
+        uxds = ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc"),
+        )
+        radius = uxds.uxgrid.sphere_radius
+
+        grad_scaled = uxds["gaussian"].gradient()
+        grad_unit = uxds["gaussian"].gradient(scale_by_radius=False)
+
+        nt.assert_allclose(
+            grad_scaled["zonal_gradient"],
+            grad_unit["zonal_gradient"] / radius,
+            equal_nan=True,
+        )
+        nt.assert_allclose(
+            grad_scaled["meridional_gradient"],
+            grad_unit["meridional_gradient"] / radius,
+            equal_nan=True,
+        )
+
+        assert grad_scaled["zonal_gradient"].attrs["units"].endswith("/m")
+        assert grad_unit["zonal_gradient"].attrs["units"].endswith("/rad")
 
 
 class TestDivergenceQuadHex:
@@ -191,6 +219,79 @@ class TestDivergenceMPASOcean:
         # Check that we get finite values where expected
         assert not np.isnan(div_field.values).all()
         assert np.isfinite(div_field.values).any()
+
+
+class TestScalarDotGradientMPASOcean:
+
+    def test_scalardotgradient_uses_known_gradient_components(
+        self, gridpath, datasetpath, monkeypatch
+    ):
+        """Test scalar dot gradient against independently supplied gradients."""
+        uxds = ux.open_dataset(
+            gridpath("mpas", "QU", "480", "grid.nc"),
+            datasetpath("mpas", "QU", "480", "data.nc"),
+        )
+
+        n_face = uxds.uxgrid.n_face
+        dims = ["n_face"]
+        scalar = ux.UxDataArray(
+            np.zeros(n_face), dims=dims, uxgrid=uxds.uxgrid, name="scalar"
+        )
+        u_component = ux.UxDataArray(
+            np.full(n_face, 2.0), dims=dims, uxgrid=uxds.uxgrid, name="u"
+        )
+        v_component = ux.UxDataArray(
+            np.full(n_face, -0.5), dims=dims, uxgrid=uxds.uxgrid, name="v"
+        )
+
+        def mock_gradient(self):
+            return ux.UxDataset(
+                {
+                    "zonal_gradient": ux.UxDataArray(
+                        np.full(n_face, 3.0), dims=dims, uxgrid=self.uxgrid
+                    ),
+                    "meridional_gradient": ux.UxDataArray(
+                        np.full(n_face, -4.0), dims=dims, uxgrid=self.uxgrid
+                    ),
+                },
+                uxgrid=self.uxgrid,
+            )
+
+        monkeypatch.setattr(ux.UxDataArray, "gradient", mock_gradient)
+
+        result = u_component.scalardotgradient(v_component, scalar)
+
+        expected = np.full(n_face, 8.0)
+        nt.assert_allclose(result.values, expected, rtol=0.0, atol=0.0)
+
+        assert isinstance(result, ux.UxDataArray)
+        assert result.name == "scalar_dot_gradient"
+        assert result.attrs["long_name"] == "scalar dot gradient"
+        assert result.sizes == u_component.sizes
+
+    def test_scalardotgradient_rejects_misaligned_indexes(self, gridpath, datasetpath):
+        """Test scalar dot gradient fails instead of silently realigning faces."""
+        uxds = ux.open_dataset(
+            gridpath("mpas", "QU", "480", "grid.nc"),
+            datasetpath("mpas", "QU", "480", "data.nc"),
+        )
+
+        scalar = uxds["bottomDepth"]
+        u_component = ux.UxDataArray(
+            np.ones(scalar.size),
+            dims=["n_face"],
+            coords={"n_face": np.arange(scalar.size)},
+            uxgrid=uxds.uxgrid,
+        )
+        v_component = ux.UxDataArray(
+            np.ones(scalar.size),
+            dims=["n_face"],
+            coords={"n_face": np.arange(scalar.size) + 1},
+            uxgrid=uxds.uxgrid,
+        )
+
+        with pytest.raises(ValueError):
+            u_component.scalardotgradient(v_component, scalar)
 
 
 class TestDivergenceDyamondSubset:
@@ -452,7 +553,8 @@ class TestCurlDyamondSubset:
         # Boundary faces may have NaN values (which is expected)
         assert not np.isnan(finite_values).any(), "Found NaN in finite values"
 
-        # For a rotational field, curl should be non-zero
+        # For a rotational field, curl should be non-zero. With default radius
+        # scaling the magnitude is ~1e-7, comfortably above this lower bound.
         assert np.abs(finite_values).max() > 1e-10, "Curl values too small for rotational field"
 
     def test_curl_conservative_field(self, gridpath, datasetpath):
@@ -476,10 +578,12 @@ class TestCurlDyamondSubset:
 
         assert len(finite_values) > 0, "No finite curl values found"
 
-        # Curl of gradient should be close to zero (vector calculus identity)
-        # Allow for some numerical error in discrete computation
+        # Curl of gradient should be close to zero (vector calculus identity).
+        # With the default scale_by_radius=True the curl stencil applies a
+        # 1/radius^2 factor, so for this phi ~ O(1) field the residual is ~1e-13.
+        # Use a tight bound so a real regression is actually caught.
         max_curl = np.abs(finite_values).max()
-        assert max_curl < 10.0, f"Curl of gradient too large: {max_curl}"
+        assert max_curl < 1e-9, f"Curl of gradient too large: {max_curl}"
 
     def test_curl_identity_properties(self, gridpath, datasetpath):
         """Test vector calculus identities involving curl"""
@@ -499,8 +603,11 @@ class TestCurlDyamondSubset:
         finite_values = curl_grad.values[finite_mask]
 
         assert len(finite_values) > 0, "No finite curl values found"
+        # With default radius scaling the residual is ~1e-13 (1/radius^2 factor).
         max_curl_grad = np.abs(finite_values).max()
-        assert max_curl_grad < 10.0, f"curl(grad(f)) should be zero, got max: {max_curl_grad}"
+        assert max_curl_grad < 1e-9, (
+            f"curl(grad(f)) should be zero, got max: {max_curl_grad}"
+        )
 
         # Test 2: curl is antisymmetric: curl(u,v) = -curl(v,u)
         u_component = uxds['face_lon']
@@ -521,8 +628,48 @@ class TestCurlDyamondSubset:
             # curl(u,v) should equal -curl(v,u)
             # Note: Due to discrete computation, perfect antisymmetry may not hold
             antisymmetry_error = np.abs(curl_uv_finite + curl_vu_finite).max()
-            # Use a more relaxed tolerance for discrete computation
-            assert antisymmetry_error < 200.0, f"Curl antisymmetry violated, max error: {antisymmetry_error}"
+            # With default radius scaling the curl magnitudes are ~1e-10, so the
+            # antisymmetry residual is ~1e-5; keep a tolerance that reflects this
+            # scale rather than the old unit-sphere (~hundreds) bound.
+            assert antisymmetry_error < 1e-3, (
+                f"Curl antisymmetry violated, max error: {antisymmetry_error}"
+            )
+
+    def test_curl_scales_by_radius(self, gridpath, datasetpath):
+        uxds = ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc"),
+        )
+        radius = uxds.uxgrid.sphere_radius
+        u_component = uxds["face_lon"]
+        v_component = uxds["face_lat"]
+
+        curl_scaled = u_component.curl(v_component)
+        curl_unit = u_component.curl(v_component, scale_by_radius=False)
+
+        nt.assert_allclose(curl_scaled, curl_unit / radius, equal_nan=True)
+
+        assert curl_scaled.attrs["units"]
+        assert curl_unit.attrs["units"].endswith("/rad")
+
+    def test_divergence_scales_by_radius(self, gridpath, datasetpath):
+        uxds = ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc"),
+        )
+        radius = uxds.uxgrid.sphere_radius
+        u_component = uxds["face_lon"]
+        v_component = uxds["face_lat"]
+
+        div_scaled = u_component.divergence(v_component)
+        div_unit = u_component.divergence(v_component, scale_by_radius=False)
+
+        # Default output is the unit-sphere result divided by sphere_radius.
+        nt.assert_allclose(div_scaled, div_unit / radius, equal_nan=True)
+
+        # Units should reflect the scaling (per meter vs per radian).
+        assert div_scaled.attrs["units"].endswith("/m")
+        assert div_unit.attrs["units"].endswith("/rad")
 
     def test_curl_units_and_attributes(self, gridpath, datasetpath):
         """Test that curl preserves appropriate units and attributes"""

@@ -101,6 +101,25 @@ def test_open_multigrid_mask_active_value_default(gridpath):
     assert grids["atm"].n_face == expected_atm
 
 
+def test_scrip_radians_units(gridpath):
+    """SCRIP files with coordinates in radians are converted to degrees on load."""
+    # scrip_radians.nc has a 2-cell grid whose lat/lon are stored in radians.
+    # The expected degree values are: face_lon=[10, 20], face_lat=[30, 40].
+    grid_file = gridpath("scrip", "scrip_radians", "scrip_radians_grid.nc")
+    grid = ux.open_grid(grid_file)
+
+    expected_face_lon = np.array([10.0, 20.0])
+    expected_face_lat = np.array([30.0, 40.0])
+    # 7 unique nodes: the two cells share only one corner point (15, 35)
+    expected_node_lon = np.array([5., 5., 15., 15., 15., 25., 25.])
+    expected_node_lat = np.array([25., 35., 25., 35., 45., 35., 45.])
+
+    nt.assert_allclose(np.sort(grid.face_lon.values), np.sort(expected_face_lon), atol=1e-10)
+    nt.assert_allclose(np.sort(grid.face_lat.values), np.sort(expected_face_lat), atol=1e-10)
+    nt.assert_allclose(np.sort(grid.node_lon.values), np.sort(expected_node_lon), atol=1e-10)
+    nt.assert_allclose(np.sort(grid.node_lat.values), np.sort(expected_node_lat), atol=1e-10)
+
+
 def test_open_multigrid_mask_active_value_per_grid_override(gridpath):
     """Per-grid override supports masks with different active values."""
     grid_file = gridpath("scrip", "oasis", "grids.nc")

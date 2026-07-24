@@ -30,6 +30,29 @@ def test_face_areas_calculate_total_face_area_triangle(mesh_constants):
     nt.assert_almost_equal(area_gaussian, mesh_constants['CORRECTED_TRI_AREA'], decimal=3)
 
 
+def test_calculate_total_face_area_respects_quadrature_kwargs(mesh_constants):
+    """calculate_total_face_area must honor its quadrature_rule/order/
+    latitude_adjusted_area kwargs instead of always returning the cached
+    default-parameter face areas."""
+    verts = [
+    [[0.02974582, -0.74469018, 0.66674712],
+    [0.1534193, -0.88744577, 0.43462917],
+    [0.18363692, -0.72230586, 0.66674712]]
+    ]
+
+    grid_verts = ux.open_grid(verts, latlon=False)
+
+    area_default = grid_verts.calculate_total_face_area(
+        quadrature_rule="triangular", order=4)
+    area_corrected = grid_verts.calculate_total_face_area(
+        quadrature_rule="gaussian", order=5, latitude_adjusted_area=True)
+
+    # the corrected result must actually differ from the uncorrected one
+    assert not np.isclose(area_default, area_corrected)
+    nt.assert_almost_equal(area_default, mesh_constants['TRI_AREA'], decimal=6)
+    nt.assert_almost_equal(area_corrected, mesh_constants['CORRECTED_TRI_AREA'], decimal=6)
+
+
 def test_face_areas_compute_face_areas_geoflow_small(gridpath):
     """Checks if the GeoFlow Small can generate a face areas output."""
     grid_geoflow = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))

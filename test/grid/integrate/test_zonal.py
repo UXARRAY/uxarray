@@ -242,3 +242,161 @@ class TestConservativeZonalMean:
         # Check they are in the same ballpark
         assert np.all(np.abs(conservative.values - non_conservative.values) <
                      np.abs(non_conservative.values) * 0.5)
+
+
+class TestZonalAnomaly:
+    """Tests for UxDataArray.zonal_anomaly."""
+
+    def _open(self, gridpath, datasetpath):
+        grid_path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
+        data_path = datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc")
+        return ux.open_dataset(grid_path, data_path)
+
+    def test_output_dims_match_input(self, gridpath, datasetpath):
+        """Output shape and dims must equal input (face axis preserved)."""
+        uxds = self._open(gridpath, datasetpath)
+        psi = uxds["psi"]
+        res = psi.zonal_anomaly(lat=(-90, 90, 30))
+        assert res.shape == psi.shape
+        assert res.dims == psi.dims
+        assert "n_face" in res.dims
+
+    def test_conservative_anomaly_band_mean_small(self, gridpath, datasetpath):
+        """Conservative anomaly: per-band area-weighted mean is small.
+
+        Faces that straddle a band boundary are intentionally blended across
+        neighbouring band means (sharing the same weight kernel as
+        zonal_mean), so the per-band mean is not exactly zero — but it must
+        be small relative to the raw signal magnitude.
+        """
+        uxds = self._open(gridpath, datasetpath)
+        bands = np.array([-90.0, -30.0, 30.0, 90.0])
+        anom = uxds["psi"].zonal_anomaly(lat=bands, conservative=True)
+
+        raw_std = float(uxds["psi"].values.std())
+        per_band = _compute_face_band_weights(uxds["psi"].uxgrid, bands)
+        for overlapping, w in per_band:
+            if overlapping.size == 0:
+                continue
+            vals = anom.isel(n_face=overlapping, ignore_grid=True).values
+            weighted = abs((w * vals).sum() / w.sum())
+            assert weighted < raw_std * 0.05
+
+    def test_band_anomaly_centroid_sums_to_zero(self, gridpath, datasetpath):
+        """Non-conservative anomaly: simple mean within each band ≈ 0."""
+        uxds = self._open(gridpath, datasetpath)
+        bands = np.array([-90.0, -30.0, 30.0, 90.0])
+        psi = uxds["psi"]
+        anom = psi.zonal_anomaly(lat=bands, conservative=False)
+
+        face_lats = psi.uxgrid.face_lat.values
+        for bi in range(len(bands) - 1):
+            mask = (face_lats >= bands[bi]) & (face_lats < bands[bi + 1])
+            if bi == len(bands) - 2:
+                mask |= face_lats == bands[bi + 1]
+            if not mask.any():
+                continue
+            assert anom.values[mask].mean() == pytest.approx(0.0, abs=1e-12)
+
+    def test_multidim_face_not_last_axis(self):
+        """Works when n_face is not the last axis and preserves other dims."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        # shape (T, n_face, L); face is axis=1
+        T, L = 3, 4
+        rng = np.random.default_rng(0)
+        data = rng.standard_normal((T, uxgrid.n_face, L))
+        uxda = ux.UxDataArray(
+            data, dims=["time", "n_face", "level"], uxgrid=uxgrid
+        )
+
+        anom = uxda.zonal_anomaly(lat=(-90, 90, 30))
+        assert anom.shape == uxda.shape
+        assert anom.dims == uxda.dims
+
+        # Per band, per (t, l), the anomaly mean should be ~0.
+        face_lats = uxgrid.face_lat.values
+        bands = np.linspace(-90, 90, int(round(180 / 30)) + 1)
+        for bi in range(len(bands) - 1):
+            mask = (face_lats >= bands[bi]) & (face_lats < bands[bi + 1])
+            if bi == len(bands) - 2:
+                mask |= face_lats == bands[bi + 1]
+            if not mask.any():
+                continue
+            band_vals = anom.values[:, mask, :]
+            # Mean across face dim per (t, l) should be ~0
+            nt.assert_allclose(band_vals.mean(axis=1), 0.0, atol=1e-12)
+
+    def test_dask_input_stays_lazy(self, gridpath, datasetpath):
+        """Centroid path keeps dask laziness when input is chunked."""
+        uxds = self._open(gridpath, datasetpath)
+        uxds["psi"] = uxds["psi"].chunk()
+        res = uxds["psi"].zonal_anomaly(lat=(-90, 90, 30))
+        assert isinstance(res.data, da.Array)
+        # Verify computation still produces finite numbers
+        computed = res.compute()
+        assert np.all(np.isfinite(computed.values))
+
+    def test_dask_input_conservative_lazy(self, gridpath, datasetpath):
+        """Conservative path keeps dask laziness for the subtract step."""
+        uxds = self._open(gridpath, datasetpath)
+        uxds["psi"] = uxds["psi"].chunk()
+        res = uxds["psi"].zonal_anomaly(lat=(-90, 90, 30), conservative=True)
+        assert isinstance(res.data, da.Array)
+        computed = res.compute()
+        assert np.all(np.isfinite(computed.values))
+
+    def test_conservative_vs_centroid_close(self, gridpath, datasetpath):
+        """Conservative and centroid anomalies should be comparable in magnitude."""
+        uxds = self._open(gridpath, datasetpath)
+        bands = np.array([-90.0, -30.0, 30.0, 90.0])
+        a_cons = uxds["psi"].zonal_anomaly(lat=bands, conservative=True)
+        a_cent = uxds["psi"].zonal_anomaly(lat=bands, conservative=False)
+        # Same shape
+        assert a_cons.shape == a_cent.shape
+        # Same order of magnitude (allow generous tolerance — methods differ)
+        std_cons = float(np.nanstd(a_cons.values))
+        std_cent = float(np.nanstd(a_cent.values))
+        assert std_cons > 0 and std_cent > 0
+        assert 0.25 < std_cons / std_cent < 4.0
+
+    def test_int_input_promotes_dtype(self):
+        """Integer inputs are promoted so NaN-bearing anomalies fit."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        uxda = ux.UxDataArray(
+            np.ones(uxgrid.n_face, dtype=np.int32),
+            dims=["n_face"],
+            uxgrid=uxgrid,
+        )
+        res = uxda.zonal_anomaly(lat=(-90, 90, 30))
+        assert np.issubdtype(res.dtype, np.floating)
+        # All-ones input → all-zero anomalies wherever defined
+        finite = res.values[np.isfinite(res.values)]
+        assert finite.size > 0
+        nt.assert_allclose(finite, 0.0, atol=1e-12)
+
+    def test_non_face_centered_raises(self, gridpath, datasetpath):
+        """Only face-centered data is supported."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        uxda = ux.UxDataArray(
+            np.zeros(uxgrid.n_node), dims=["n_node"], uxgrid=uxgrid
+        )
+        with pytest.raises(ValueError, match="face-centered"):
+            uxda.zonal_anomaly()
+
+    def test_invalid_lat_input_raises(self):
+        """Invalid lat specs raise ValueError."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        uxda = ux.UxDataArray(
+            np.zeros(uxgrid.n_face), dims=["n_face"], uxgrid=uxgrid
+        )
+        with pytest.raises(ValueError, match="Step size"):
+            uxda.zonal_anomaly(lat=(-90, 90, 0))
+        with pytest.raises(ValueError, match="Step size"):
+            uxda.zonal_anomaly(lat=(-90, 90, -1))
+        with pytest.raises(ValueError):
+            uxda.zonal_anomaly(lat=[42.0])  # too few edges
+        with pytest.raises(ValueError, match="monotonic"):
+            uxda.zonal_anomaly(lat=[10.0, -10.0, 30.0])
+
+
+from uxarray.core.zonal import _compute_face_band_weights  # noqa: E402

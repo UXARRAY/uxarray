@@ -1,8 +1,8 @@
 import copy
 import os
+import warnings
 from html import escape
 from typing import Optional, Sequence
-from warnings import warn
 
 import cartopy.crs as ccrs
 import numpy as np
@@ -169,7 +169,7 @@ class Grid:
 
         # grid spec not provided, check if grid_ds is a minimum representable UGRID dataset
         if source_grid_spec is None:
-            warn(
+            warnings.warn(
                 "Attempting to construct a Grid without passing in source_grid_spec. Direct use of Grid constructor"
                 "is only advised if grid_ds is following the internal unstructured grid definition, including"
                 "variable and dimension names. Using ux.open_grid() or ux.from_dataset() is suggested.",
@@ -238,6 +238,9 @@ class Grid:
         # flag to track if coordinates are normalized
         self._normalized = None
 
+        # flag to ensure projected-grid warning fires only once per instance
+        self._projected_warning_issued = False
+
         # set desired longitude range to [-180, 180]
         _set_desired_longitude_range(self)
 
@@ -299,7 +302,7 @@ class Grid:
                 # custom source grid spec is provided
                 source_grid_spec = kwargs.get("source_grid_spec", None)
                 grid_ds = dataset
-                source_dims_dict = {}
+                source_dims_dict = kwargs.get("source_dims_dict") or {}
         else:
             try:
                 if os.path.isdir(dataset):
@@ -525,9 +528,18 @@ class Grid:
         if ds is not None:
             return cls.from_dataset(ds)
         if lon is not None and lat is not None:
-            grid_ds = _read_structured_grid(lon, lat, tol)
+            # Capture the source dimension names so data variables mapped over
+            # (lon, lat) can later be flattened onto ``n_face`` by
+            # ``UxDataset.from_xarray`` (see GH #1410). ``xr.DataArray`` inputs
+            # carry their dim names; plain arrays fall back to "lon"/"lat".
+            lon_name = lon.dims[0] if isinstance(lon, xr.DataArray) else "lon"
+            lat_name = lat.dims[0] if isinstance(lat, xr.DataArray) else "lat"
+
+            grid_ds = _read_structured_grid(np.asarray(lon), np.asarray(lat), tol)
             return cls.from_dataset(
-                grid_ds, source_dims_dict=None, source_grid_spec="structured"
+                grid_ds,
+                source_dims_dict={"n_face": (lon_name, lat_name)},
+                source_grid_spec="Structured",
             )
         else:
             raise ValueError(
@@ -805,7 +817,7 @@ class Grid:
     @property
     def parsed_attrs(self) -> dict:
         """Dictionary of parsed attributes from the source grid."""
-        warn(
+        warnings.warn(
             "Grid.parsed_attrs will be deprecated in a future release. Please use Grid.attrs instead.",
             DeprecationWarning,
         )
@@ -1928,9 +1940,9 @@ class Grid:
 
     def calculate_total_face_area(
         self,
-        quadrature_rule: str | None = "triangular",
-        order: int | None = 4,
-        latitude_adjusted_area: bool | None = False,
+        quadrature_rule: str = "triangular",
+        order: int = 4,
+        latitude_adjusted_area: bool = False,
     ) -> float:
         """Function to calculate the total surface area of all the faces in a
         mesh.
@@ -1948,15 +1960,28 @@ class Grid:
         -------
         Sum of area of all the faces in the mesh : float
         """
+        # Default parameters match the cached ``face_areas`` property, which also
+        # preserves the equal-area values used for HEALPix grids; reuse it to avoid
+        # recomputation. Any non-default quadrature settings require a fresh
+        # geometric computation so the requested rule/order actually take effect.
+        if (
+            quadrature_rule == "triangular"
+            and order == 4
+            and not latitude_adjusted_area
+        ):
+            return np.sum(self.face_areas.values)
 
-        return np.sum(self.face_areas.values)
+        face_areas, _ = self._compute_face_areas(
+            quadrature_rule, order, latitude_adjusted_area
+        )
+        return np.sum(face_areas)
 
     def compute_face_areas(
         self,
-        quadrature_rule: str | None = "triangular",
-        order: int | None = 4,
-        latitude_adjusted_area: bool | None = False,
-    ):
+        quadrature_rule: str = "triangular",
+        order: int = 4,
+        latitude_adjusted_area: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
 
@@ -1986,8 +2011,6 @@ class Grid:
         ``face_areas`` property instead, which ensures mathematical correctness by using
         theoretical equal areas.
         """
-        import warnings
-
         warnings.warn(
             "compute_face_areas() is deprecated. Use the face_areas property instead for better performance and caching.",
             DeprecationWarning,
@@ -1997,10 +2020,10 @@ class Grid:
 
     def _compute_face_areas(
         self,
-        quadrature_rule: str | None = "triangular",
-        order: int | None = 4,
-        latitude_adjusted_area: bool | None = False,
-    ):
+        quadrature_rule: str = "triangular",
+        order: int = 4,
+        latitude_adjusted_area: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Internal face areas calculation function for grid class, calculates area of
         all faces in the grid.
 
@@ -2239,7 +2262,7 @@ class Grid:
                 )
 
         if exclude_antimeridian is not None:
-            warn(
+            warnings.warn(
                 DeprecationWarning(
                     "The parameter ``exclude_antimeridian`` will be deprecated in a future release. Please "
                     "use ``periodic_elements='exclude'`` or ``periodic_elements='split'`` instead."

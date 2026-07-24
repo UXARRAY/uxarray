@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 from numba import njit, prange
 
@@ -88,7 +90,7 @@ def _check_node_on_boundary_and_gather_node_neighbors(
     return bool_bdy, node_neighbors[0:num_node_neighbors]
 
 
-def _compute_gradient(data):
+def _compute_gradient(data, scale_by_radius=True):
     from uxarray import UxDataArray
 
     uxgrid = data.uxgrid
@@ -186,15 +188,38 @@ def _compute_gradient(data):
             "Computing the gradient is only supported for face-centered data variables."
         )
 
+    has_sphere_radius = "sphere_radius" in uxgrid._ds.attrs
+    if scale_by_radius:
+        if has_sphere_radius:
+            radius = uxgrid.sphere_radius
+            grad_zonal = grad_zonal / radius
+            grad_meridional = grad_meridional / radius
+        else:
+            warnings.warn(
+                "scale_by_radius=True but the grid has no 'sphere_radius' "
+                "attribute; result is left on the unit sphere. Set "
+                "uxgrid.sphere_radius or pass scale_by_radius=False.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+    base_units = data.attrs.get("units", "")
+    if scale_by_radius and has_sphere_radius:
+        grad_units = f"{base_units}/m" if base_units else "1/m"
+    else:
+        grad_units = f"{base_units}/rad" if base_units else "1/rad"
+
     # Zonal
     grad_zonal_da = UxDataArray(
         data=grad_zonal, name="zonal_gradient", dims=data.dims, uxgrid=uxgrid
     )
+    grad_zonal_da.attrs["units"] = grad_units
 
     # Meridional
     grad_meridional_da = UxDataArray(
         data=grad_meridional, name="meridional_gradient", dims=data.dims, uxgrid=uxgrid
     )
+    grad_meridional_da.attrs["units"] = grad_units
 
     return grad_zonal_da, grad_meridional_da
 
@@ -270,59 +295,58 @@ def _compute_gradients_on_faces(
     # Parallel across faces
     for face_idx in prange(n_face):
         gradient = np.zeros(3)
+        has_contribution = False
 
-        if not _check_face_on_boundary(
-            face_idx,
-            face_node_connectivity,
-            node_edge_connectivity,
-            edge_face_connectivity,
-        ):  # check face is not on boundary
-            for node_idx in face_node_connectivity[
-                face_idx
-            ]:  # take each node on that face
-                if node_idx != INT_FILL_VALUE:
-                    for edge_idx in node_edge_connectivity[
-                        node_idx
-                    ]:  # grab each edge connected to that node
-                        if edge_idx != INT_FILL_VALUE:
-                            if (
-                                face_idx not in edge_face_connectivity[edge_idx]
-                            ):  # check if edge connected to original face
-                                face1_idx = edge_face_connectivity[edge_idx][0]
-                                face2_idx = edge_face_connectivity[edge_idx][1]
+        for node_idx in face_node_connectivity[face_idx]:  # take each node on that face
+            if node_idx != INT_FILL_VALUE:
+                for edge_idx in node_edge_connectivity[
+                    node_idx
+                ]:  # grab each edge connected to that node
+                    if edge_idx != INT_FILL_VALUE:
+                        # Skip edges that lack a second face neighbor
+                        # instead of NaN-ing the entire face.  Fixes
+                        # grids where edge_face_connectivity has
+                        # spurious INT_FILL_VALUE entries (e.g. SCRIP-
+                        # derived SE grids like ne120np4).  See #1452.
+                        if INT_FILL_VALUE in edge_face_connectivity[edge_idx]:
+                            continue
 
-                                face1_coords = face_coords[face1_idx]
-                                face2_coords = face_coords[face2_idx]
+                        if (
+                            face_idx not in edge_face_connectivity[edge_idx]
+                        ):  # check if edge connected to original face
+                            face1_idx = edge_face_connectivity[edge_idx][0]
+                            face2_idx = edge_face_connectivity[edge_idx][1]
 
-                                # compute normal pointing outwards from face
-                                cross = np.cross(face1_coords, face2_coords)
-                                norm = np.linalg.norm(cross)
-                                if (
-                                    np.dot(cross, face1_coords - face_coords[face_idx])
-                                    > 0
-                                ):
-                                    normal = cross / norm
-                                else:
-                                    normal = -cross / norm
+                            face1_coords = face_coords[face1_idx]
+                            face2_coords = face_coords[face2_idx]
 
-                                # compute arc length between the two faces
-                                arc_length = _compute_arc_length(
-                                    face_lat[face1_idx],
-                                    face_lat[face2_idx],
-                                    face_lon[face1_idx],
-                                    face_lon[face2_idx],
-                                )
+                            # compute normal pointing outwards from face
+                            cross = np.cross(face1_coords, face2_coords)
+                            norm = np.linalg.norm(cross)
+                            if np.dot(cross, face1_coords - face_coords[face_idx]) > 0:
+                                normal = cross / norm
+                            else:
+                                normal = -cross / norm
 
-                                # compute trapezoidal rule
-                                trapz = (data[face1_idx] + data[face2_idx]) / 2
+                            # compute arc length between the two faces
+                            arc_length = _compute_arc_length(
+                                face_lat[face1_idx],
+                                face_lat[face2_idx],
+                                face_lon[face1_idx],
+                                face_lon[face2_idx],
+                            )
 
-                                # add to the gradient (subtract correction term)
-                                gradient = (
-                                    gradient
-                                    + (trapz - data[face_idx]) * arc_length * normal
-                                )
+                            # compute trapezoidal rule
+                            trapz = (data[face1_idx] + data[face2_idx]) / 2
 
-        else:
+                            # add to the gradient (subtract correction term)
+                            gradient = (
+                                gradient
+                                + (trapz - data[face_idx]) * arc_length * normal
+                            )
+                            has_contribution = True
+
+        if not has_contribution:
             gradient = np.full(3, np.nan)
 
         node_neighbors = face_node_connectivity[face_idx]
