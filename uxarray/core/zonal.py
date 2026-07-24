@@ -1,8 +1,8 @@
 import numpy as np
 from numba import njit
 
-from uxarray.grid.area import calculate_face_area
 from uxarray.errors import DimensionError
+from uxarray.grid.area import calculate_face_area
 from uxarray.grid.geometry import _unique_points
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
 from uxarray.grid.intersections import (

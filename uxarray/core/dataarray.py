@@ -620,10 +620,14 @@ class UxDataArray(xr.DataArray):
             integral = np.einsum("i,...i", face_areas, self.values)
 
         elif self.values.shape[-1] == self.uxgrid.n_node:
-            raise DataCenteringError("Integrating data mapped to each node not yet supported.")
+            raise DataCenteringError(
+                "Integrating data mapped to each node not yet supported."
+            )
 
         elif self.values.shape[-1] == self.uxgrid.n_edge:
-            raise DataCenteringError("Integrating data mapped to each edge not yet supported.")
+            raise DataCenteringError(
+                "Integrating data mapped to each edge not yet supported."
+            )
 
         else:
             raise DimensionError(

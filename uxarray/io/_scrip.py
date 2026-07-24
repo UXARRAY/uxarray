@@ -483,7 +483,9 @@ def _extract_single_grid(
 
     dims = list(corner_lat.dims)
     if len(dims) < 2:
-        raise DimensionError(f"Corner variable for grid '{grid_name}' must be at least 2D.")
+        raise DimensionError(
+            f"Corner variable for grid '{grid_name}' must be at least 2D."
+        )
 
     corner_dim = metadata.get("corner_dim", dims[-1])
     cell_dims = _resolve_cell_dims(metadata, dims, corner_dim)

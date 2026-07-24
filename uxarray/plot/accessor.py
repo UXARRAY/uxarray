@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from uxarray.errors import DataCenteringError
 import uxarray.plot.utils
+from uxarray.errors import DataCenteringError
 
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
