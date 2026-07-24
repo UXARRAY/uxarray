@@ -1772,7 +1772,12 @@ class Grid:
             BallTree instance
         """
 
-        if self._ball_tree is None or reconstruct:
+        if (
+            self._ball_tree is None
+            or coordinates != self._ball_tree._coordinates
+            or coordinate_system != self._ball_tree.coordinate_system
+            or reconstruct
+        ):
             self._ball_tree = BallTree(
                 self,
                 coordinates=coordinates,
@@ -1780,9 +1785,6 @@ class Grid:
                 coordinate_system=coordinate_system,
                 reconstruct=reconstruct,
             )
-        else:
-            if coordinates != self._ball_tree._coordinates:
-                self._ball_tree.coordinates = coordinates
 
         return self._ball_tree
 
@@ -1872,7 +1874,12 @@ class Grid:
             KDTree instance
         """
 
-        if self._kd_tree is None or reconstruct:
+        if (
+            self._kd_tree is None
+            or coordinates != self._kd_tree._coordinates
+            or coordinate_system != self._kd_tree.coordinate_system
+            or reconstruct
+        ):
             self._kd_tree = KDTree(
                 self,
                 coordinates=coordinates,
@@ -1880,10 +1887,6 @@ class Grid:
                 coordinate_system=coordinate_system,
                 reconstruct=reconstruct,
             )
-
-        else:
-            if coordinates != self._kd_tree._coordinates:
-                self._kd_tree.coordinates = coordinates
 
         return self._kd_tree
 

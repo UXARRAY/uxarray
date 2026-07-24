@@ -660,15 +660,26 @@ class UxDataset(xr.Dataset):
         self,
         func: Callable = np.mean,
         r: float = 1.0,
-    ):
-        """Neighborhood function implementation for ``UxDataset``.
+    ) -> UxDataset:
+        """Apply a neighborhood filter, replacing the value at each grid
+        element of every data variable with ``func`` applied to all elements
+        within a circular neighborhood of radius ``r``.
+
         Parameters
-        ---------
-        func : Callable = np.mean
-            Apply this function to neighborhood
+        ----------
+        func: Callable, default=np.mean
+            Apply this function to neighborhood. Must accept an ``axis`` keyword
+            argument (as ``np.mean``, ``np.median``, and similar NumPy reductions
+            do). Use ``functools.partial`` to supply additional arguments, e.g.
+            ``functools.partial(np.percentile, q=90)``.
         r : float, default=1.
             Radius of neighborhood. For spherical coordinates, the radius is in units of degrees,
             and for cartesian coordinates, the radius is in meters.
+
+        Returns
+        -------
+        destination_uxds : UxDataset
+            Filtered dataset.
         """
 
         destination_uxds = self._copy()

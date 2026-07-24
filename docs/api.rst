@@ -565,6 +565,19 @@ Azimuthal aggregations apply an aggregation (i.e. averaging) along circles of co
    UxDataArray.azimuthal_mean
 
 
+Neighborhood
+~~~~~~~~~~~~
+
+Neighborhood filters apply an aggregation (i.e. averaging) to all grid elements within a circular
+neighborhood of a specified radius around each grid element.
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.neighborhood_filter
+   UxDataset.neighborhood_filter
+
+
 Zonal Average
 ~~~~~~~~~~~~~
 .. autosummary::

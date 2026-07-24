@@ -163,3 +163,96 @@ def test_data_location():
         np.ones((3, uxgrid.n_face)), dims=["time", "n_face"], uxgrid=uxgrid
     )
     assert face_time.data_location == "face_centered"
+
+
+class TestNeighborhoodFilter:
+    """Tests for ``UxDataArray.neighborhood_filter``."""
+
+    def test_face_centered(self, gridpath, datasetpath):
+        """A large enough radius should average every face together."""
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+        )
+        uxda = uxds["psi"]
+
+        # radius of 0 should select each face's own coordinate, leaving the
+        # data unchanged
+        filtered = uxda.neighborhood_filter(func=np.mean, r=0.0)
+        np.testing.assert_allclose(filtered.values, uxda.values)
+
+        # a large enough radius should include the entire grid in the
+        # neighborhood of every face, so every filtered value should match
+        # the global mean of the field
+        filtered_all = uxda.neighborhood_filter(func=np.mean, r=360.0)
+        np.testing.assert_allclose(filtered_all.values, uxda.values.mean())
+
+        assert isinstance(filtered, UxDataArray)
+        assert filtered.uxgrid == uxda.uxgrid
+        assert filtered.dims == uxda.dims
+        assert filtered.shape == uxda.shape
+
+    def test_node_centered(self):
+        """Neighborhood filter should work for node-centered data."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        data = np.arange(uxgrid.n_node, dtype=float)
+        uxda = UxDataArray(data, dims=["n_node"], uxgrid=uxgrid, name="node_var")
+
+        filtered = uxda.neighborhood_filter(func=np.mean, r=0.0)
+        np.testing.assert_allclose(filtered.values, data)
+
+        filtered_all = uxda.neighborhood_filter(func=np.mean, r=360.0)
+        np.testing.assert_allclose(filtered_all.values, data.mean())
+
+    def test_edge_centered(self):
+        """Neighborhood filter should work for edge-centered data."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        data = np.arange(uxgrid.n_edge, dtype=float)
+        uxda = UxDataArray(data, dims=["n_edge"], uxgrid=uxgrid, name="edge_var")
+
+        filtered = uxda.neighborhood_filter(func=np.mean, r=0.0)
+        np.testing.assert_allclose(filtered.values, data)
+
+    def test_custom_func_with_partial(self, gridpath, datasetpath):
+        """A user-defined function (i.e. ``functools.partial``) should work."""
+        from functools import partial
+
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+        )
+        uxda = uxds["psi"]
+
+        filtered_max = uxda.neighborhood_filter(func=np.max, r=5.0)
+        filtered_percentile = uxda.neighborhood_filter(
+            func=partial(np.percentile, q=100), r=5.0
+        )
+
+        np.testing.assert_allclose(filtered_max.values, filtered_percentile.values)
+
+    def test_extra_dimension_preserved(self, gridpath, datasetpath):
+        """An extra leading (i.e. time) dimension should be preserved."""
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+        )
+        uxda = uxds["psi"]
+
+        data = np.stack([uxda.values, uxda.values * 2.0])
+        uxda_time = UxDataArray(
+            data, dims=["time", "n_face"], uxgrid=uxda.uxgrid, name="psi_time"
+        )
+
+        filtered = uxda_time.neighborhood_filter(func=np.mean, r=0.0)
+
+        assert filtered.dims == uxda_time.dims
+        assert filtered.shape == uxda_time.shape
+        np.testing.assert_allclose(filtered.values, data)
+
+    def test_invalid_data_location(self):
+        """Data that is not mapped to a grid element should raise an error."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        uxda = UxDataArray(np.ones(5), dims=["other_dim"], uxgrid=uxgrid)
+
+        with pytest.raises(ValueError):
+            uxda.neighborhood_filter(func=np.mean, r=1.0)
