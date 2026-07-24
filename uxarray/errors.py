@@ -1,10 +1,15 @@
 """
-File Purpose: custom error types in uxarray
+File Purpose: all custom error types in uxarray
 
 Defining custom error types helps with:
     - quickly presenting relevant info
     - cleaner error handling within uxarray
     - cleaner error handling for packages using uxarray
+
+Defining all such custom error types in this file, instead of throughout the codebase,
+    helps with maintainability, discoverability, and convenience,
+    as the import syntax will always be "import uxarray.errors.CustomError",
+    and help(uxarray.errors) will list all custom error types in one place.
 
 For more details, see: https://github.com/UXARRAY/uxarray/issues/1556
 """
@@ -26,3 +31,10 @@ class GridInvalidError(ValueError):
 
 class GridsMismatchError(ValueError):
     """attempted to perform an operation involving two incompatible uxarray.Grid objects"""
+
+
+# # # ----- Io-type-specific Errors ----- # # #
+
+
+class YacNotAvailableError(RuntimeError):
+    """Raised when the YAC backend is requested but unavailable."""

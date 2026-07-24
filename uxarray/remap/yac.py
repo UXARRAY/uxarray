@@ -13,7 +13,7 @@ import numpy as np
 import xarray as xr
 
 import uxarray.core.dataarray
-from uxarray.errors import DataCenteringError, DimensionError
+from uxarray.errors import DataCenteringError, DimensionError, YacNotAvailableError
 from uxarray.remap.structured import (
     RectilinearGridSpec,
     _normalize_rectilinear_target,
@@ -27,10 +27,6 @@ from uxarray.remap.utils import (
     _get_remap_dims,
     _to_dataset,
 )
-
-
-class YacNotAvailableError(RuntimeError):
-    """Raised when the YAC backend is requested but unavailable."""
 
 
 @dataclass
