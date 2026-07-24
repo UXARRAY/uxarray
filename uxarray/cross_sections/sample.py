@@ -1,10 +1,12 @@
 import numpy as np
-from pyproj import Geod
+from numba import njit, prange
 
 
 def sample_geodesic(
     start: tuple[float, float], end: tuple[float, float], steps: int
 ) -> tuple[np.ndarray, np.ndarray]:
+    from pyproj import Geod
+
     lon0, lat0 = start
     lon1, lat1 = end
 

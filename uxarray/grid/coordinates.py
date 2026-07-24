@@ -1,4 +1,5 @@
 import math
+import warnings
 
 import numpy as np
 import xarray as xr
@@ -750,8 +751,6 @@ def _set_desired_longitude_range(uxgrid):
     """
     if _is_projected_grid(uxgrid):
         if not getattr(uxgrid, "_projected_warning_issued", False):
-            import warnings
-
             warnings.warn(
                 "Projected (non-spherical) coordinates detected on this grid "
                 "(standard_name='projection_x_coordinate' or length units). "
