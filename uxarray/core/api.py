@@ -14,6 +14,7 @@ from uxarray.core.utils import (
     _open_dataset_with_fallback,
     match_chunks_to_ugrid,
 )
+from uxarray.errors import GridInvalidError
 from uxarray.grid import Grid
 from uxarray.io._scrip import (
     _detect_multigrid,
@@ -248,7 +249,7 @@ def open_multigrid(
             }
 
         if not grids_dict:
-            raise ValueError(f"No grids detected in file: {grid_filename_or_obj}")
+            raise GridInvalidError(f"No grids detected in file: {grid_filename_or_obj}")
 
         available_grids = list(grids_dict.keys())
 

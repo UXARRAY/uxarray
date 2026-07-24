@@ -13,6 +13,7 @@ import numpy as np
 import xarray as xr
 
 import uxarray.core.dataarray
+from uxarray.errors import DataCenteringError, DimensionError
 from uxarray.remap.structured import (
     RectilinearGridSpec,
     _normalize_rectilinear_target,
@@ -327,11 +328,11 @@ class _YacRemapper:
         if values.ndim == 1:
             values = values.reshape(1, -1)
         elif values.ndim != 2:
-            raise ValueError(
+            raise DimensionError(
                 f"YAC remap expects a 1-D or 2-D array, got {values.ndim}-D input."
             )
         if values.shape[1] != self._src_size:
-            raise ValueError(
+            raise DimensionError(
                 f"YAC remap expects {self._src_size} values, got {values.shape[1]}."
             )
 
@@ -340,12 +341,12 @@ class _YacRemapper:
             if frac_mask.ndim == 1:
                 frac_mask = frac_mask.reshape(1, -1)
             elif frac_mask.ndim != 2:
-                raise ValueError(
+                raise DimensionError(
                     "YAC fractional mask expects a 1-D or 2-D array, "
                     f"got {frac_mask.ndim}-D input."
                 )
             if frac_mask.shape != values.shape:
-                raise ValueError(
+                raise DimensionError(
                     "YAC fractional mask must match remap input shape. "
                     f"Got mask shape {frac_mask.shape} and value shape {values.shape}."
                 )
@@ -376,7 +377,7 @@ def _prepare_frac_mask(frac_mask, da_t, src_values, src_dim: str) -> np.ndarray:
         frac_mask_values = np.asarray(frac_mask)
 
     if frac_mask_values.shape != src_values.shape:
-        raise ValueError(
+        raise DimensionError(
             "YAC fractional mask must match the remapped source variable shape. "
             f"Got mask shape {frac_mask_values.shape} and source shape {src_values.shape}."
         )
@@ -401,14 +402,14 @@ def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwa
 
     if options.method == "conservative":
         if destination_dim != "n_face":
-            raise ValueError(
+            raise ValueError(  # not DataCenteringError; the issue here is the remap_to kwarg.
                 "YAC conservative remapping requires the destination to be "
                 "face-centered (remap_to='faces'). "
                 f"Got remap_to={remap_to!r} which maps to dimension {destination_dim!r}."
             )
         non_face_src = dims_to_remap - {"n_face"}
         if non_face_src:
-            raise ValueError(
+            raise DataCenteringError(
                 "YAC conservative remapping requires all source data to be "
                 f"face-centered (dimension 'n_face'). "
                 f"Found non-face source dimension(s): {non_face_src}. "
@@ -481,7 +482,7 @@ def _yac_remap_to_rectilinear(source, lon, lat, yac_method: str, yac_kwargs):
     if options.method == "conservative":
         non_face_src = dims_to_remap - {"n_face"}
         if non_face_src:
-            raise ValueError(
+            raise DataCenteringError(
                 "YAC conservative remapping to a rectilinear grid requires all "
                 "source data to be face-centered (dimension 'n_face'). "
                 f"Found non-face source dimension(s): {non_face_src}. "

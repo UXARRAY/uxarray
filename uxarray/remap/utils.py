@@ -1,6 +1,7 @@
 import numpy as np
 
 import uxarray.core.dataset
+from uxarray.errors import DimensionError
 
 # To preserve old names for remapping
 KDTREE_DIM_MAP: dict[str, str] = {
@@ -48,11 +49,11 @@ def _assert_dimension(dim):
 
     Raises
     ------
-    ValueError
+    DimensionError (subclass of ValueError)
         If `dim` is not a key in `LABEL_TO_COORD`.
     """
     if dim not in LABEL_TO_COORD:
-        raise ValueError(f"Invalid spatial dimension: {dim!r}")
+        raise DimensionError(f"Invalid spatial dimension: {dim!r}")
 
 
 def _construct_remapped_ds(source, remapped_vars, destination_grid, remap_to):
@@ -143,7 +144,7 @@ def _get_remap_dims(ds):
 
     Raises
     ------
-    ValueError
+    DimensionError (subclass of ValueError)
         If no spatial dimensions are detected in the dataset.
     """
     dims_to_remap: set[str] = set()
@@ -151,7 +152,7 @@ def _get_remap_dims(ds):
         dims_to_remap |= set(da.dims) & SPATIAL_DIMS
 
     if not dims_to_remap:
-        raise ValueError(
+        raise DimensionError(
             "No spatial dimensions (n_node, n_edge, or n_face) found in source to remap."
         )
 
