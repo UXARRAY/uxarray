@@ -46,10 +46,22 @@ References
 * https://cf-convention.github.io/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#ugrid-conventions
 * https://cf-convention.github.io/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#mesh-topology-variables
 
+
+Additional Assumptions of UXarray
+=================================
+
+UXarray additionally assumes that the unstructured parts of a grid
+span some or all of a 2D spherical surface, and that all faces are convex.
+Additional dimensions such as time or elevation can be represented easily enough
+by including corresponding extra dimensions on the data variables.
+However, the faces, nodes, and edges of each unstructured grid must lie entirely
+on the surface of a sphere.
+
+
 Projected (Non-Spherical) Coordinates
 --------------------------------------
 
-UGRID does not assume a sphere — some regional and coastal models write UGRID
+UGRID itself does not assume a sphere — some regional and coastal models write UGRID
 files with **projected coordinates** (e.g. a Lambert Conformal or Albers Equal
 Area projection) in units of meters rather than degrees. UXarray detects this
 automatically from the CF metadata already present on the coordinate variables:

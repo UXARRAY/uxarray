@@ -34,6 +34,12 @@ defined by the 2D Flexible Mesh Topology in the UGRID conventions, which can con
 mix of triangles, quadrilaterals, or other geometric faces. These types of Unstructured
 Grids may have structured vertical levels.
 
+.. note::
+   UXarray focuses on 2D unstructured grids which lie entirely on the surface of a sphere,
+   and contain only convex faces. Data spanning extra dimensions such as time or elevation
+   can be represented easily enough, as long as the grid does not vary across them.
+   Other types of grids are not supported.
+
 
 Core Data Structures
 ====================
