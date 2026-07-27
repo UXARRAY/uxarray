@@ -2205,8 +2205,7 @@ class UxDataArray(xr.DataArray):
             do). Use ``functools.partial`` to supply additional arguments, e.g.
             ``functools.partial(np.percentile, q=90)``.
         r : float, default=1.
-            Radius of neighborhood. For spherical coordinates, the radius is in units of degrees,
-            and for cartesian coordinates, the radius is in meters.
+            Radius of the neighborhood, in degrees.
 
         Returns
         -------

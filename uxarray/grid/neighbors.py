@@ -1211,9 +1211,7 @@ def _neighborhood_filter(
         and similar NumPy reductions do) so that any extra, non-grid
         dimensions (e.g. ``time``) are preserved rather than being collapsed.
     r : float, default=1.
-        Radius of the neighborhood. For spherical coordinates, the radius is
-        in units of degrees, and for cartesian coordinates, the radius is in
-        meters.
+        Radius of the neighborhood, in degrees.
 
     Returns
     -------
