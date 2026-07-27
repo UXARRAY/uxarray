@@ -5,10 +5,8 @@ from html import escape
 from typing import TYPE_CHECKING, Any, Callable, Hashable, Literal, Mapping, Optional
 from warnings import warn
 
-import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
-from cartopy.mpl.geoaxes import GeoAxes
 from xarray.core import dtypes
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
@@ -39,6 +37,9 @@ from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
 
 if TYPE_CHECKING:
+    import cartopy.crs as ccrs
+    from cartopy.mpl.geoaxes import GeoAxes
+
     from uxarray.core.dataset import UxDataset
 
 
@@ -464,6 +465,8 @@ class UxDataArray(xr.DataArray):
         >>> ax.imshow(raster, origin="lower", extent=ax.get_xlim() + ax.get_ylim())
 
         """
+        from cartopy.mpl.geoaxes import GeoAxes
+
         from uxarray.constants import INT_DTYPE
         from uxarray.plot.matplotlib import (
             _ensure_dimensions,
