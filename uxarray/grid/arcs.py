@@ -510,9 +510,10 @@ def _on_minor_arc_xyz(q0, q1, q2, a0, a1, a2, b0, b1, b2, tol=_ON_MINOR_ARC_TOL)
     Same logic, but takes the nine vector components directly so hot loops can
     test arc membership without allocating ``(3,)`` arrays for the query point.
     """
-    # Branch-free mask form, mirroring AccuSphGeom on_minor_arc_tol_ptr: the
-    # result is a product of 0/1 masks so the hot path has no data-dependent
-    # branches.
+    # Mask-arithmetic form, mirroring AccuSphGeom on_minor_arc_tol_ptr: the
+    # result is a product of 0/1 masks. Note the branches below (still
+    # `if/else`) are a known gap versus a true branch-free form; tracked
+    # separately for a future fix.
     #
     # Coincident/antipodal degeneracy (a == b or a == -b) is detected via
     # |a x b|^2 rather than exact component equality. Endpoints computed
@@ -521,14 +522,14 @@ def _on_minor_arc_xyz(q0, q1, q2, a0, a1, a2, b0, b1, b2, tol=_ON_MINOR_ARC_TOL)
     # an exact ``==`` check misses them, and when missed, a x b ~= 0 makes the
     # collinearity test pass for every point on the great circle and the
     # interval checks degenerate to 0 >= -tol, producing false positives for
-    # arbitrary query points. |a x b|^2 cleanly separates true degeneracy
-    # (~1e-32, the squared rounding-noise floor for unit vectors) from even
-    # sub-millimeter real edges (~1e-28 at 1e-12 degree separation) -- unlike
-    # comparing dot(a, b) to +-1, which suffers the same cancellation this PR
-    # exists to avoid and cannot make that distinction. The C++ reference's
-    # ``on_minor_arc_tol_ptr`` only guards exact coincidence and assumes
-    # non-antipodal mesh edges, so this widening is a UXarray-side addition,
-    # not a port of the reference.
+    # arbitrary query points. |a x b|^2 < 1e-30 is a heuristic threshold, not
+    # a proven-robust degeneracy predicate -- rigorously handling coplanar/
+    # collinear degeneracies is an open problem in computational geometry,
+    # and the established robust approach (used by AccuSphGeom and
+    # S2Geometry) is Simulation of Simplicity, which this threshold does not
+    # implement. The C++ reference's ``on_minor_arc_tol_ptr`` only guards
+    # exact coincidence and assumes non-antipodal mesh edges, so this
+    # widening is a UXarray-side addition, not a port of the reference.
     cx = a1 * b2 - a2 * b1
     cy = a2 * b0 - a0 * b2
     cz = a0 * b1 - a1 * b0
