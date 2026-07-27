@@ -8,7 +8,7 @@ from uxarray.grid.coordinates import (
     _normalize_xyz_scalar,
 )
 from uxarray.grid.utils import _angle_of_2_vectors
-from uxarray.utils.computing import accucross, two_sum
+from uxarray.utils.computing import _cdp8, accucross
 
 # Magnitude below which orient3d_on_sphere classifies a result as zero. For
 # double-precision unit-vector inputs this covers rounding error in the
@@ -386,13 +386,33 @@ def _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q0, q1, q2):
     the ray plane ``q x R`` in the spherical point-in-polygon kernel, which is
     the same for every edge of a face) can compute the cross product once and
     reuse it, paying only this dot per query.
+
+    Keeps the normal's ``hi``/``lo`` parts separate through the dot product
+    (via ``_cdp8``, treating this as a 6-term compensated sum with two
+    zero-padded terms) instead of collapsing each component to a single float
+    first -- ``fl(nx_hi + nx_lo)`` typically just rounds back to ``nx_hi``,
+    discarding the compensated cross product's extra precision before it is
+    used.
     """
-    p0 = (nx_hi + nx_lo) * q0
-    p1 = (ny_hi + ny_lo) * q1
-    p2 = (nz_hi + nz_lo) * q2
-    s, e = two_sum(p0, p1)
-    s, e2 = two_sum(s, p2)
-    return s + (e + e2)
+    s, lo = _cdp8(
+        q0,
+        q0,
+        q1,
+        q1,
+        q2,
+        q2,
+        0.0,
+        0.0,
+        nx_hi,
+        nx_lo,
+        ny_hi,
+        ny_lo,
+        nz_hi,
+        nz_lo,
+        0.0,
+        0.0,
+    )
+    return s + lo
 
 
 @njit(cache=True, inline="always")
