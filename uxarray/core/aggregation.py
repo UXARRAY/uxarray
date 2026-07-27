@@ -1,4 +1,6 @@
 import numpy as np
+import xarray as xr
+import dask.array as da
 
 import uxarray.core.dataarray
 from uxarray.grid.connectivity import get_face_node_partitions
@@ -70,7 +72,6 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
 
 def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
     """Applies a Node to Face Topological aggregation."""
-    import dask.array as da
 
     if not uxda._node_centered():
         raise ValueError(
@@ -80,15 +81,9 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
 
     if isinstance(uxda.data, np.ndarray):
         # apply aggregation using numpy
-        aggregated_var = _apply_node_to_face_aggregation_numpy(
+        return _apply_node_to_face_aggregation_numpy(
             uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
         )
-        return uxarray.core.dataarray.UxDataArray(
-            uxgrid=uxda.uxgrid,
-            data=aggregated_var,
-            dims=uxda.dims,
-            name=uxda.name,
-        ).rename({"n_node": "n_face"})
     elif isinstance(uxda.data, da.Array):
         # apply aggregation lazily on a dask array
         return _apply_node_to_face_aggregation_dask(
@@ -140,7 +135,7 @@ def _apply_node_to_face_aggregation_numpy(
     uxda, aggregation_func, aggregation_func_kwargs
 ):
     """Applies a Node to Face Topological aggregation on a Numpy array."""
-    return _node_to_face_kernel(
+    aggregated_var = _node_to_face_kernel(
         uxda.values,
         uxda.uxgrid.face_node_connectivity.values,
         uxda.uxgrid.n_nodes_per_face.values,
@@ -148,13 +143,18 @@ def _apply_node_to_face_aggregation_numpy(
         aggregation_func,
         aggregation_func_kwargs,
     )
+    return uxarray.core.dataarray.UxDataArray(
+        uxgrid=uxda.uxgrid,
+        data=aggregated_var,
+        dims=uxda.dims,
+        name=uxda.name,
+    ).rename({"n_node": "n_face"})
 
 
 def _apply_node_to_face_aggregation_dask(
     uxda, aggregation_func, aggregation_func_kwargs
 ):
     """Applies a Node to Face Topological aggregation on a Dask array, lazily"""
-    import xarray as xr
 
     uxgrid = uxda.uxgrid
     n_face = uxgrid.n_face
@@ -189,7 +189,6 @@ def _apply_node_to_face_aggregation_dask(
 
 def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
     """Applies a Node to Edge Topological aggregation."""
-    import dask.array as da
 
     if not uxda._node_centered():
         raise ValueError(
@@ -201,15 +200,9 @@ def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
 
     if isinstance(uxda.data, np.ndarray):
         # apply aggregation using numpy
-        aggregation_var = _apply_node_to_edge_aggregation_numpy(
+        return _apply_node_to_edge_aggregation_numpy(
             uxda, aggregation_func, aggregation_func_kwargs
         )
-        return uxarray.core.dataarray.UxDataArray(
-            uxgrid=uxda.uxgrid,
-            data=aggregation_var,
-            dims=uxda.dims,
-            name=uxda.name,
-        ).rename({"n_node": "n_edge"})
     elif isinstance(uxda.data, da.Array):
         # apply aggregation lazily on a dask array
         return _apply_node_to_edge_aggregation_dask(
@@ -238,12 +231,18 @@ def _apply_node_to_edge_aggregation_numpy(
     uxda, aggregation_func, aggregation_func_kwargs
 ):
     """Applies a Node to Edge topological aggregation on a numpy array."""
-    return _node_to_edge_kernel(
+    aggregated_var = _node_to_edge_kernel(
         uxda.values,
         uxda.uxgrid.edge_node_connectivity.values,
         aggregation_func,
         aggregation_func_kwargs,
     )
+    return uxarray.core.dataarray.UxDataArray(
+        uxgrid=uxda.uxgrid,
+        data=aggregated_var,
+        dims=uxda.dims,
+        name=uxda.name,
+    ).rename({"n_node": "n_edge"})
 
 
 def _apply_node_to_edge_aggregation_dask(
@@ -257,7 +256,6 @@ def _apply_node_to_edge_aggregation_dask(
     dimensions are processed blockwise. Each edge reduces over its two endpoint
     nodes.
     """
-    import xarray as xr
 
     uxgrid = uxda.uxgrid
     n_edge = uxgrid.n_edge
