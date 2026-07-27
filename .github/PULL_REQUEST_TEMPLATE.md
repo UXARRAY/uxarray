@@ -30,28 +30,29 @@ other_output = uxds.some_function(some_param = True)
 ```
 
 ## PR Checklist
-<!-- Please mark any checkboxes that do not apply to this PR as [N/A]. If an entire section doesn't
-apply to this PR, comment it out or delete it. -->
+<!-- Please mark any checkboxes that do not apply to this PR as [N/A]. -->
 
 **General**
 - [ ] An issue is created and linked
-- [ ] Added appropriate labels (if you have label edit permissions)
+- [ ] Added appropriate labels (if your uxarray repo permissions allow it)
 - [ ] Filled out Overview and Expected Usage (if applicable) sections
 
 **Testing**
+<!--  If this PR does not update any functionality or tests, remove this section (Testing) -->
 - [ ] Adequate tests are created if there is new functionality
 - [ ] Tests cover all possible logical paths in your function
 - [ ] Tests are not too basic (such as simply calling a function and nothing else)
 
 **Documentation**
+<!--  If this PR does not update any functionality or docstrings, remove this section (Documentation) -->
 - [ ] Docstrings have been added to all new functions
 - [ ] Docstrings have been updated with any function changes
 - [ ] User (public) functions have been added to `docs/api.rst`
 - [ ] Internal (private) function names start with an underscore (`_`)
 
-
 **Examples**
-- [ ] New notebook examples cleared the output of all cells before committing
+<!--  If this PR does not update any examples, remove this section (Examples) -->
+- [ ] **All** notebook examples cleared the output of all cells before committing
 - [ ] New notebook examples added to appropriate folder (gallery: `docs/examples/`; guide: `docs/user-guide/`; quickstart: `docs/getting-started/`)
 - [ ] New notebook examples referenced in appropriate .rst file (gallery: `docs/gallery.rst`; guide: `docs/userguide.rst`; quickstart: `docs/quickstart.rst`)
 - [ ] New notebook gallery examples added entry in `docs/gallery.yml` with appropriate thumbnail photo in `docs/_static/thumbnails/`
