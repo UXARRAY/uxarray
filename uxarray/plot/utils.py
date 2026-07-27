@@ -1,6 +1,3 @@
-import holoviews as hv
-
-
 class HoloviewsBackend:
     """Compare and set the HoloViews plotting backend."""
 
@@ -9,6 +6,8 @@ class HoloviewsBackend:
 
     def assign(self, backend: str):
         """Assign a HoloViews backend, one of 'matplotlib', 'bokeh'."""
+        import holoviews as hv
+
         if backend not in ["bokeh", "matplotlib", None]:
             raise ValueError(
                 f"Unsupported backend. Expected one of ['bokeh', 'matplotlib'], but received {backend}"

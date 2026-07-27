@@ -1,3 +1,6 @@
+from datetime import datetime
+
+import numpy as np
 import xarray as xr
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
@@ -119,10 +122,6 @@ def _encode_esmf(ds: xr.Dataset) -> xr.Dataset:
     xr.Dataset
         An xarray.Dataset formatted according to ESMF Unstructured Grid conventions.
     """
-    from datetime import datetime
-
-    import numpy as np
-
     out_ds = xr.Dataset()
 
     # Node Coordinates (nodeCoords)
