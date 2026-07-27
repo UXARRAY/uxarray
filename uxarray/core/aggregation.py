@@ -1,6 +1,6 @@
+import dask.array as da
 import numpy as np
 import xarray as xr
-import dask.array as da
 
 import uxarray.core.dataarray
 from uxarray.grid.connectivity import get_face_node_partitions
