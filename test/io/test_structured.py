@@ -2,6 +2,9 @@ import uxarray as ux
 import xarray as xr
 import pytest
 
+# import pooch  # not necessary to actually import, but tests would likely fail if this fails.
+# (commented here for future reference, since pooch is included in uxarray[dev]
+#    dependencies, but not imported explicitly anywhere in uxarray.)
 
 @pytest.mark.parametrize("ds_name", ["air_temperature", "ersstv5"])
 def test_read_structured_grid_from_ds(ds_name):
