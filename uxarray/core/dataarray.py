@@ -2227,7 +2227,7 @@ class UxDataArray(xr.DataArray):
 
         # Assert last dimension is a GRID dimension.
         assert self.dims[-1] in GRID_DIMS, (
-            f"expected last dimension of uxDataArray {self.data.dims[-1]} "
+            f"expected last dimension of uxDataArray {self.dims[-1]!r} "
             f"to be one of {GRID_DIMS}"
         )
 
