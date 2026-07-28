@@ -120,7 +120,8 @@ class UxDataArray(xr.DataArray):
         ``uxarray.UxDataArray``."""
         copied = super()._copy(**kwargs)
 
-        deep = kwargs.get("deep", None)
+        # Match xarray's default: deep=True when not specified
+        deep = kwargs.get("deep", True)
 
         if deep:
             # Reinitialize the uxgrid assessor
@@ -2242,9 +2243,12 @@ class UxDataArray(xr.DataArray):
             self.uxgrid, uxda_work.data, data_mapping, func=func, r=r
         )
 
-        # Construct UxDataArray for filtered variable.
-        uxda_filter = uxda_work._copy()
-        uxda_filter.data = destination_data
+        # Construct UxDataArray for filtered variable, reusing metadata
+        # (name, coords, attrs, uxgrid) from the working copy.
+        # deep=False keeps a reference to the same uxgrid (the filtered data
+        # lives on the identical grid topology) and avoids a redundant deep
+        # copy of the now-discarded original data array.
+        uxda_filter = uxda_work._copy(data=destination_data, deep=False)
 
         # Restore original dimension order if we transposed.
         if needs_transpose:
