@@ -35,7 +35,7 @@ def test_node_to_edge_aggs(gridpath):
         assert 'n_edge' in grid_reduction.dims
 
 
-def test_node_to_face_numpy_dask_allclose(gridpath):
+def test_node_to_face_dask_reproduces_numpy(gridpath):
     # the numpy (eager) and dask (chunked) branches must agree
     pytest.importorskip("dask")  # dask-backed branch requires dask
     uxds = ux.open_dataset(gridpath("mpas", "QU", "oQU480.231010.nc"), gridpath("mpas", "QU", "oQU480.231010.nc"))
@@ -49,7 +49,7 @@ def test_node_to_face_numpy_dask_allclose(gridpath):
         assert np.allclose(numpy_result.values, dask_result.values, equal_nan=True)
 
 
-def test_node_to_edge_numpy_dask_allclose(gridpath):
+def test_node_to_edge_dask_reproduces_numpy(gridpath):
     # the numpy (eager) and dask (chunked) branches must agree
     pytest.importorskip("dask")  # dask-backed branch requires dask
     uxds = ux.open_dataset(gridpath("mpas", "QU", "oQU480.231010.nc"), gridpath("mpas", "QU", "oQU480.231010.nc"))
