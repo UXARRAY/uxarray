@@ -50,12 +50,14 @@ References
 Additional Assumptions of UXarray
 =================================
 
-UXarray additionally assumes that the unstructured parts of a grid
-span some or all of a 2D spherical surface, and that all faces are convex.
-Additional dimensions such as time or elevation can be represented easily enough
-by including corresponding extra dimensions on the data variables.
-However, the faces, nodes, and edges of each unstructured grid must lie entirely
-on the surface of a sphere.
+UXarray assumes horizontally unstructured grids, consistent with the
+UGRID conventions' 2D flexible mesh topology,
+with the extra assumption that all grid faces/cells are convex (all angles less than 180 degrees).
+Fully 3D unstructured topology is not supported, but grids with vertical levels are supported
+as described by the UGRID conventions' 3D layered mesh topology.
+
+UXarray's geometry algorithms also assume the horizontal portion of the grid lies on a spherical surface.
+The sphere radius can be adjusted but a unit sphere is assumed by default.
 
 
 Projected (Non-Spherical) Coordinates
