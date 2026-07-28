@@ -16,17 +16,13 @@ from uxarray.utils.computing import (
     two_sum,
 )
 
-# Edge/face screeners: O(n) elementwise passes used by Grid.get_edges_at_constant_*
-# and get_faces_* to identify candidate edges/faces before the expensive GCA
-# intersection. "no_extreme" means arc z-extrema along the great circle are not
-# considered.
+# Edge screeners: fast O(n) passes used by Grid.get_edges_at_constant_* to
+# identify candidate edges before the expensive GCA intersection. "no_extreme"
+# means arc z-extrema along the great circle are not considered.
 #
 # These are deliberately plain NumPy (no @njit): they are memory-bound elementwise
-# predicates where NumPy is ~2x faster than a Numba prange loop, and — unlike an
-# njit kernel, which forces a full ``.values`` materialization at the call site —
-# they compose with dask. When handed a dask array they reduce block-by-block via
-# :func:`_flatnonzero`, so peak memory is one chunk plus the (small) index result
-# rather than the whole coordinate array.
+# predicates where NumPy is ~2x faster than a Numba prange loop,
+
 
 
 def _flatnonzero(mask):
