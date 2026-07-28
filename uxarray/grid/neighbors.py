@@ -1227,7 +1227,10 @@ def _neighborhood_filter(
 
     neighbor_indices = tree.query_radius(dest_coords, r=r)
 
-    destination_data = np.empty(data.shape)
+    # Initialize with NaN so that any element whose neighborhood is empty
+    # (e.g. an isolated point queried with a very small radius) yields NaN
+    # rather than uninitialized garbage memory.
+    destination_data = np.full(data.shape, np.nan)
 
     # Apply func along the last (grid) axis only, so any extra leading
     # dimensions (e.g. time) are preserved rather than being collapsed.

@@ -2218,29 +2218,37 @@ class UxDataArray(xr.DataArray):
 
         if self._face_centered():
             data_mapping = "face centers"
+            grid_dim = "n_face"
         elif self._node_centered():
             data_mapping = "nodes"
+            grid_dim = "n_node"
         elif self._edge_centered():
             data_mapping = "edge centers"
+            grid_dim = "n_edge"
         else:
             raise ValueError(
-                "Data_mapping is not face, node, or edge. Could not define data_mapping."
+                f"neighborhood_filter requires data mapped to nodes, edges, or faces, "
+                f"but the last dimension {self.dims!r} does not match any grid dimension "
+                f"{GRID_DIMS}."
             )
 
-        # Assert last dimension is a GRID dimension.
-        assert self.dims[-1] in GRID_DIMS, (
-            f"expected last dimension of uxDataArray {self.dims[-1]!r} "
-            f"to be one of {GRID_DIMS}"
-        )
+        # Ensure the grid dimension is the last axis, transposing if necessary.
+        # This mirrors the behaviour of UxDataset.neighborhood_filter so that
+        # calling the method directly on a (time, n_face) UxDataArray works.
+        needs_transpose = self.dims[-1] != grid_dim
+        uxda_work = self.transpose(..., grid_dim) if needs_transpose else self
 
         destination_data = _neighborhood_filter(
-            self.uxgrid, self.data, data_mapping, func=func, r=r
+            self.uxgrid, uxda_work.data, data_mapping, func=func, r=r
         )
 
         # Construct UxDataArray for filtered variable.
-        uxda_filter = self._copy()
-
+        uxda_filter = uxda_work._copy()
         uxda_filter.data = destination_data
+
+        # Restore original dimension order if we transposed.
+        if needs_transpose:
+            uxda_filter = uxda_filter.transpose(*self.dims)
 
         return uxda_filter
 

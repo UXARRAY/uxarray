@@ -682,22 +682,19 @@ class UxDataset(xr.Dataset):
         """
 
         destination_uxds = self._copy()
-        # Loop through uxDataArrays in uxDataset
+        # Loop through UxDataArrays in UxDataset and apply the filter to every
+        # variable that is mapped to a grid element (node, edge, or face).
+        # Variables without a grid dimension are left unchanged.
         for var_name in self.data_vars:
             uxda = self[var_name]
 
-            # Skip if uxDataArray has no GRID dimension.
-            grid_dims = [dim for dim in uxda.dims if dim in GRID_DIMS]
-            if len(grid_dims) == 0:
+            # Skip if UxDataArray has no GRID dimension.
+            if not any(dim in GRID_DIMS for dim in uxda.dims):
                 continue
 
-            # Put GRID dimension last for UxDataArray.neighborhood_filter.
-            remember_dim_order = uxda.dims
-            uxda = uxda.transpose(..., grid_dims[0])
-            # Filter uxDataArray.
-            uxda = uxda.neighborhood_filter(func, r)
-            # Restore old dimension order.
-            destination_uxds[var_name] = uxda.transpose(*remember_dim_order)
+            # UxDataArray.neighborhood_filter handles the transpose internally,
+            # so dimension order is always preserved.
+            destination_uxds[var_name] = uxda.neighborhood_filter(func, r)
 
         return destination_uxds
 
