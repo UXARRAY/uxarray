@@ -22,10 +22,11 @@ models have their own grid format (e.g. MPAS, ICON). Below is a list of support 
 * FESOM2
 * HEALPix
 
-UGRID
-=====
+UGRID in UXarray
+================
 
-The UGRID conventions are a standard for for storing unstructured grid (a.k.a. unstructured mesh,
+The `UGRID conventions <http://ugrid-conventions.github.io/ugrid-conventions/>`_
+are a standard for for storing unstructured grid (a.k.a. unstructured mesh,
 flexible mesh) model data in a Unidata Network Common Data Form (NetCDF) file.
 
 These conventions are focussed on representing data for environmental applications, hence the motivation for
@@ -39,25 +40,23 @@ The standard was developed over a period of several years through the UGRID Goog
 different unstructured grid modeling communities (including SELFE, ELCIRC, FVCOM, ADCIRC). From these discussions Bert
 Jagers (Deltares) created the first draft of this document, and the community worked to develop version 1.0.
 
-References
-----------
+UXarray in particular assumes horizontally unstructured grids, consistent with the
+UGRID conventions' 2D flexible mesh topology,
+with the extra assumption that all grid faces/cells are convex (all angles less than 180 degrees).
+UXarray also supports grids with vertical levels as described by the
+UGRID conventions' 3D layered mesh topology,
+but it does not support fully 3D unstructured topology.
+
+.. note::
+   UXarray's geometry algorithms also assume the horizontal portion of the grid lies on a spherical surface.
+   The sphere radius can be adjusted but a unit sphere is assumed by default.
+
+UGRID References
+----------------
 * https://ugrid-conventions.github.io/ugrid-conventions/#ugrid-conventions-v10
 * https://github.com/ugrid-conventions/ugrid-conventions
 * https://cf-convention.github.io/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#ugrid-conventions
 * https://cf-convention.github.io/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#mesh-topology-variables
-
-
-Additional Assumptions of UXarray
-=================================
-
-UXarray assumes horizontally unstructured grids, consistent with the
-UGRID conventions' 2D flexible mesh topology,
-with the extra assumption that all grid faces/cells are convex (all angles less than 180 degrees).
-Fully 3D unstructured topology is not supported, but grids with vertical levels are supported
-as described by the UGRID conventions' 3D layered mesh topology.
-
-UXarray's geometry algorithms also assume the horizontal portion of the grid lies on a spherical surface.
-The sphere radius can be adjusted but a unit sphere is assumed by default.
 
 
 Projected (Non-Spherical) Coordinates

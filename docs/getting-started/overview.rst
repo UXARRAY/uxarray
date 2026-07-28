@@ -29,11 +29,11 @@ single convention for our grid representation instead of having separate ones fo
 grid format, meaning that we encode all supported unstructured grid formats in the
 UGRID conventions at the data loading step.
 
-Specifically, our core functionality is built around horizontally Unstructured Grids as
-defined by the 2D Flexible Mesh Topology in the UGRID conventions, which can contain a
-mix of triangles, quadrilaterals, or other geometric faces. These types of Unstructured
+Specifically, our core functionality is built around horizontally Unstructured Grids as defined by the
+`UGRID conventions' 2D flexible mesh topology <https://ugrid-conventions.github.io/ugrid-conventions/#2d-flexible-mesh-mixed-triangles-quadrilaterals-etc-topology>`_,
+which can contain a mix of triangles, quadrilaterals, or other geometric faces. These types of Unstructured
 Grids may have structured vertical levels, as described by the
-3D Layered Mesh Toplogy in the UGRID conventions.
+`UGRID conventions' 3D layered mesh topology <https://ugrid-conventions.github.io/ugrid-conventions/#3d-layered-mesh-topology>`_.
 
 .. note::
    While 3D grids with vertical levels are supported, fully 3D unstructured topology is not.
