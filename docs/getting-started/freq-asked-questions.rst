@@ -14,7 +14,7 @@ For example, grids with vertical levels are treated as per the
 `UGRID conventions' 3D layered mesh topology <https://ugrid-conventions.github.io/ugrid-conventions/#3d-layered-mesh-topology>`_.
 Fully 3D unstructured topology is not supported.
 
-UXarray's geometry algorithms assume the horizontal portion of the grid lies on a spherical surface,
+UXarray's geometry algorithms assume the grid lies on a spherical surface,
 spanning either globally (the entire sphere) or regionally (only a portion of the sphere).
 The sphere radius can be adjusted but a unit sphere is assumed by default.
 Coordinates default to spherical (latitude/longitude), but Cartesian coordinates (x, y, z) are supported as well.

@@ -37,7 +37,7 @@ Grids may have structured vertical levels, as described by the
 
 .. note::
    While 3D grids with vertical levels are supported, fully 3D unstructured topology is not.
-   Also, UXarray additionally assumes the horizontal portion of the grid lies on a spherical surface,
+   Also, UXarray additionally assumes the grid lies on a spherical surface,
    and that all grid faces/cells are convex (all angles less than 180 degrees).
 
 

@@ -48,7 +48,7 @@ UGRID conventions' 3D layered mesh topology,
 but it does not support fully 3D unstructured topology.
 
 .. note::
-   UXarray's geometry algorithms also assume the horizontal portion of the grid lies on a spherical surface.
+   UXarray's geometry algorithms also assume the grid lies on a spherical surface.
    The sphere radius can be adjusted but a unit sphere is assumed by default.
 
 UGRID References
