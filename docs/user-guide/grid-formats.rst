@@ -22,11 +22,11 @@ models have their own grid format (e.g. MPAS, ICON). Below is a list of support 
 * FESOM2
 * HEALPix
 
-UGRID in UXarray
-================
+UGRID
+=====
 
 The `UGRID conventions <http://ugrid-conventions.github.io/ugrid-conventions/>`_
-are a standard for for storing unstructured grid (a.k.a. unstructured mesh,
+are a standard for storing unstructured grid (a.k.a. unstructured mesh,
 flexible mesh) model data in a Unidata Network Common Data Form (NetCDF) file.
 
 These conventions are focussed on representing data for environmental applications, hence the motivation for
@@ -51,8 +51,8 @@ but it does not support fully 3D unstructured topology.
    UXarray's geometry algorithms also assume the grid lies on a spherical surface.
    The sphere radius can be adjusted but a unit sphere is assumed by default.
 
-UGRID References
-----------------
+References
+----------
 * https://ugrid-conventions.github.io/ugrid-conventions/#ugrid-conventions-v10
 * https://github.com/ugrid-conventions/ugrid-conventions
 * https://cf-convention.github.io/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#ugrid-conventions
