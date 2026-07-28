@@ -679,6 +679,21 @@ class UxDataset(xr.Dataset):
         -------
         destination_uxds : UxDataset
             Filtered dataset.
+
+        Examples
+        --------
+        Apply a mean filter to all grid-mapped variables in a dataset:
+
+        >>> import numpy as np
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
+        >>> uxds_smooth = uxds.neighborhood_filter(func=np.mean, r=5.0)
+
+        See Also
+        --------
+        UxDataArray.neighborhood_filter : Filter a single data variable.
+        UxDataArray.zonal_mean : Average over latitude bands.
+        UxDataArray.azimuthal_mean : Average over rings of constant great-circle distance.
         """
 
         destination_uxds = self._copy()

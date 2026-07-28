@@ -2215,6 +2215,27 @@ class UxDataArray(xr.DataArray):
         -------
         uxda_filter : UxDataArray
             Filtered data.
+
+        Examples
+        --------
+        Apply a mean filter with a 5-degree radius:
+
+        >>> import numpy as np
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
+        >>> uxda = uxds["psi"]
+        >>> smoothed = uxda.neighborhood_filter(func=np.mean, r=5.0)
+
+        Use ``functools.partial`` for functions requiring extra arguments:
+
+        >>> from functools import partial
+        >>> p90 = uxda.neighborhood_filter(func=partial(np.percentile, q=90), r=5.0)
+
+        See Also
+        --------
+        UxDataArray.topological_mean : Aggregate values across neighboring grid element types.
+        UxDataArray.zonal_mean : Average over latitude bands.
+        UxDataArray.azimuthal_mean : Average over rings of constant great-circle distance.
         """
 
         if self._face_centered():
