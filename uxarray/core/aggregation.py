@@ -1,4 +1,3 @@
-import dask.array as da
 import numpy as np
 import xarray as xr
 
@@ -72,6 +71,7 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
 
 def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
     """Applies a Node to Face Topological aggregation."""
+    import dask.array as da
 
     if not uxda._node_centered():
         raise ValueError(
@@ -189,6 +189,7 @@ def _apply_node_to_face_aggregation_dask(
 
 def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
     """Applies a Node to Edge Topological aggregation."""
+    import dask.array as da
 
     if not uxda._node_centered():
         raise ValueError(
