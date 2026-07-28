@@ -497,8 +497,9 @@ def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
     -------
     int
         1 if q lies on the minor arc ab, 0 otherwise. Returned as an integer
-        mask (not bool) so callers can multiply it into branch-free validity
-        products, mirroring AccuSphGeom's ``on_minor_arc_tol_ptr``.
+        mask (not bool) so callers can multiply it into validity products. An
+        attempt to implement a similar Python function that provides the same
+        functionality as AccuSphGeom's ``on_minor_arc_tol_ptr``.
     """
     return _on_minor_arc_xyz(q[0], q[1], q[2], a[0], a[1], a[2], b[0], b[1], b[2], tol)
 
@@ -510,10 +511,11 @@ def _on_minor_arc_xyz(q0, q1, q2, a0, a1, a2, b0, b1, b2, tol=_ON_MINOR_ARC_TOL)
     Same logic, but takes the nine vector components directly so hot loops can
     test arc membership without allocating ``(3,)`` arrays for the query point.
     """
-    # Mask-arithmetic form, mirroring AccuSphGeom on_minor_arc_tol_ptr: the
-    # result is a product of 0/1 masks. Note the branches below (still
-    # `if/else`) are a known gap versus a true branch-free form; tracked
-    # separately for a future fix.
+    # An attempt to implement a similar Python function that provides the
+    # same functionality as AccuSphGeom's on_minor_arc_tol_ptr: the result is
+    # a product of 0/1 masks. Note the branches below (still `if/else`) are a
+    # known gap versus a true branch-free form; tracked separately for a
+    # future fix.
     #
     # Coincident/antipodal degeneracy (a == b or a == -b) is detected via
     # |a x b|^2 rather than exact component equality. Endpoints computed
