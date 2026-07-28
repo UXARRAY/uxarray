@@ -24,7 +24,6 @@ from uxarray.utils.computing import (
 # predicates where NumPy is ~2x faster than a Numba prange loop,
 
 
-
 def _flatnonzero(mask):
     """Sorted indices where a 1-D boolean mask is True, numpy- or dask-backed."""
     return np.asarray(np.flatnonzero(mask))
@@ -158,7 +157,9 @@ def constant_lon_intersections_face_bounds(lon: float, face_bounds_lon: np.ndarr
     normal = face_bounds_lon_min < face_bounds_lon_max
     in_normal = normal & (lon >= face_bounds_lon_min) & (lon <= face_bounds_lon_max)
     # Antimeridian faces (min >= max): lon >= min OR lon <= max.
-    in_antimeridian = (~normal) & ((lon >= face_bounds_lon_min) | (lon <= face_bounds_lon_max))
+    in_antimeridian = (~normal) & (
+        (lon >= face_bounds_lon_min) | (lon <= face_bounds_lon_max)
+    )
 
     return _flatnonzero(in_normal | in_antimeridian).astype(INT_DTYPE, copy=False)
 
