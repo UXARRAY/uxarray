@@ -306,4 +306,3 @@ class TestNeighborhoodFilter:
         # Dim order must be restored to (n_face, time)
         assert filtered2.dims == ("n_face", "time")
         assert filtered2.shape == (uxda.shape[0], 2)
-
