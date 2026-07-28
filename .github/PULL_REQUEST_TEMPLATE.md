@@ -37,11 +37,13 @@ other_output = uxds.some_function(some_param = True)
 - [ ] Added appropriate labels (if your uxarray repo permissions allow it)
 - [ ] Filled out Overview and Expected Usage (if applicable) sections
 
-**Testing**
-<!--  If this PR does not update any functionality or tests, remove this section (Testing) -->
+**Testing & Benchmarking**
+<!--  If this PR does not update any functionality or tests and is not intended to improve efficiency,
+    e.g. by reducing computation time or memory usage, remove this section (Testing & Benchmarking) -->
 - [ ] Adequate tests are created if there is new functionality
 - [ ] Tests cover all possible logical paths in your function
 - [ ] Tests are not too basic (such as simply calling a function and nothing else)
+- [ ] At least one ASV benchmark demonstrates improvements, if expected (add a new benchmark if necessary)
 
 **Documentation**
 <!--  If this PR does not update any functionality or docstrings, remove this section (Documentation) -->
