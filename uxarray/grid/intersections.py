@@ -676,18 +676,20 @@ def gca_const_lat_intersection(gca_cart, const_z):
 
     px, py, nx, ny = _accux_constlat_scalar(a0, a1, a2, b0, b1, b2, const_z)
 
-    pos_fin = math.isfinite(px) and math.isfinite(py)
-    neg_fin = math.isfinite(nx) and math.isfinite(ny)
-    pos_valid = pos_fin and _on_minor_arc_xyz(px, py, const_z, a0, a1, a2, b0, b1, b2)
-    neg_valid = neg_fin and _on_minor_arc_xyz(nx, ny, const_z, a0, a1, a2, b0, b1, b2)
+    pos_fin = int(math.isfinite(px)) * int(math.isfinite(py))
+    neg_fin = int(math.isfinite(nx)) * int(math.isfinite(ny))
+    pos_valid = pos_fin * _on_minor_arc_xyz(px, py, const_z, a0, a1, a2, b0, b1, b2)
+    neg_valid = neg_fin * _on_minor_arc_xyz(nx, ny, const_z, a0, a1, a2, b0, b1, b2)
 
-    if pos_valid and not neg_valid:
-        sx, sy = _snap_const_lat_endpoint_xy(px, py, a0, a1, a2, b0, b1, b2, const_z)
-        res[0, 0] = sx
-        res[0, 1] = sy
-        res[0, 2] = const_z
-    elif neg_valid and not pos_valid:
-        sx, sy = _snap_const_lat_endpoint_xy(nx, ny, a0, a1, a2, b0, b1, b2, const_z)
+    if pos_valid ^ neg_valid:
+        if pos_valid:
+            sx, sy = _snap_const_lat_endpoint_xy(
+                px, py, a0, a1, a2, b0, b1, b2, const_z
+            )
+        else:
+            sx, sy = _snap_const_lat_endpoint_xy(
+                nx, ny, a0, a1, a2, b0, b1, b2, const_z
+            )
         res[0, 0] = sx
         res[0, 1] = sy
         res[0, 2] = const_z

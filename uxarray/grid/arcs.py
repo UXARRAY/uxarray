@@ -8,7 +8,7 @@ from uxarray.grid.coordinates import (
     _normalize_xyz_scalar,
 )
 from uxarray.grid.utils import _angle_of_2_vectors
-from uxarray.utils.computing import accucross, two_sum
+from uxarray.utils.computing import _cdp8, accucross
 
 # Magnitude below which orient3d_on_sphere classifies a result as zero. For
 # double-precision unit-vector inputs this covers rounding error in the
@@ -386,13 +386,33 @@ def _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q0, q1, q2):
     the ray plane ``q x R`` in the spherical point-in-polygon kernel, which is
     the same for every edge of a face) can compute the cross product once and
     reuse it, paying only this dot per query.
+
+    Keeps the normal's ``hi``/``lo`` parts separate through the dot product
+    (via ``_cdp8``, treating this as a 6-term compensated sum with two
+    zero-padded terms) instead of collapsing each component to a single float
+    first -- ``fl(nx_hi + nx_lo)`` typically just rounds back to ``nx_hi``,
+    discarding the compensated cross product's extra precision before it is
+    used.
     """
-    p0 = (nx_hi + nx_lo) * q0
-    p1 = (ny_hi + ny_lo) * q1
-    p2 = (nz_hi + nz_lo) * q2
-    s, e = two_sum(p0, p1)
-    s, e2 = two_sum(s, p2)
-    return s + (e + e2)
+    s, lo = _cdp8(
+        q0,
+        q0,
+        q1,
+        q1,
+        q2,
+        q2,
+        0.0,
+        0.0,
+        nx_hi,
+        nx_lo,
+        ny_hi,
+        ny_lo,
+        nz_hi,
+        nz_lo,
+        0.0,
+        0.0,
+    )
+    return s + lo
 
 
 @njit(cache=True, inline="always")
@@ -477,8 +497,9 @@ def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
     -------
     int
         1 if q lies on the minor arc ab, 0 otherwise. Returned as an integer
-        mask (not bool) so callers can multiply it into branch-free validity
-        products, mirroring AccuSphGeom's ``on_minor_arc_tol_ptr``.
+        mask (not bool) so callers can multiply it into validity products. An
+        attempt to implement a similar Python function that provides the same
+        functionality as AccuSphGeom's ``on_minor_arc_tol_ptr``.
     """
     return _on_minor_arc_xyz(q[0], q[1], q[2], a[0], a[1], a[2], b[0], b[1], b[2], tol)
 
@@ -490,16 +511,32 @@ def _on_minor_arc_xyz(q0, q1, q2, a0, a1, a2, b0, b1, b2, tol=_ON_MINOR_ARC_TOL)
     Same logic, but takes the nine vector components directly so hot loops can
     test arc membership without allocating ``(3,)`` arrays for the query point.
     """
-    # Branch-free mask form, mirroring AccuSphGeom on_minor_arc_tol_ptr: the
-    # result is a product of 0/1 masks so the hot path has no data-dependent
-    # branches. Coincident-endpoint degeneracy is folded in as (1 - degenerate),
-    # exactly as in the C++ reference.
-    coincident = 1 if (a0 == b0 and a1 == b1 and a2 == b2) else 0
-    # Antipodal endpoints (a = -b): a×b = 0 so the collinearity test passes for
-    # every point on the great circle and the interval conditions degenerate to
-    # 0 >= -tol, yielding false positives. Not present in the C++ tol path (which
-    # assumes non-antipodal mesh edges); kept here as a mask factor, not a branch.
-    antipodal = 1 if (a0 == -b0 and a1 == -b1 and a2 == -b2) else 0
+    # An attempt to implement a similar Python function that provides the
+    # same functionality as AccuSphGeom's on_minor_arc_tol_ptr: the result is
+    # a product of 0/1 masks. Note the branches below (still `if/else`) are a
+    # known gap versus a true branch-free form; tracked separately for a
+    # future fix.
+    #
+    # Coincident/antipodal degeneracy (a == b or a == -b) is detected via
+    # |a x b|^2 rather than exact component equality. Endpoints computed
+    # through independent trig paths (e.g. one via (lon, lat), the other via
+    # (lon + pi, -lat)) land coincident/antipodal to 1-2 ulp, not bit-exact --
+    # an exact ``==`` check misses them, and when missed, a x b ~= 0 makes the
+    # collinearity test pass for every point on the great circle and the
+    # interval checks degenerate to 0 >= -tol, producing false positives for
+    # arbitrary query points. |a x b|^2 < 1e-30 is a heuristic threshold, not
+    # a proven-robust degeneracy predicate -- rigorously handling coplanar/
+    # collinear degeneracies is an open problem in computational geometry,
+    # and the established robust approach (used by AccuSphGeom and
+    # S2Geometry) is Simulation of Simplicity, which this threshold does not
+    # implement. The C++ reference's ``on_minor_arc_tol_ptr`` only guards
+    # exact coincidence and assumes non-antipodal mesh edges, so this
+    # widening is a UXarray-side addition, not a port of the reference.
+    cx = a1 * b2 - a2 * b1
+    cy = a2 * b0 - a0 * b2
+    cz = a0 * b1 - a1 * b0
+    cross_sq = cx * cx + cy * cy + cz * cz
+    degenerate = 1 if cross_sq < 1e-30 else 0
     orient_ok = (
         1
         if abs(_orient3d_on_sphere_value_xyz(a0, a1, a2, b0, b1, b2, q0, q1, q2)) <= tol
@@ -510,4 +547,4 @@ def _on_minor_arc_xyz(q0, q1, q2, a0, a1, a2, b0, b1, b2, tol=_ON_MINOR_ARC_TOL)
     ab = a0 * b0 + a1 * b1 + a2 * b2
     s1_ok = 1 if (qb - ab * qa) >= -tol else 0
     s2_ok = 1 if (qa - qb * ab) >= -tol else 0
-    return (1 - coincident) * (1 - antipodal) * orient_ok * s1_ok * s2_ok
+    return (1 - degenerate) * orient_ok * s1_ok * s2_ok

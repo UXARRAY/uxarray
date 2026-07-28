@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import copy
 import os
+import warnings
 from html import escape
-from typing import Optional, Sequence
-from warnings import warn
+from typing import TYPE_CHECKING, Optional, Sequence
 
-import cartopy.crs as ccrs
 import numpy as np
 import xarray as xr
 from xarray.core.options import OPTIONS
@@ -99,6 +100,9 @@ from uxarray.io.utils import _parse_grid_type
 from uxarray.plot.accessor import GridPlotAccessor
 from uxarray.subset import GridSubsetAccessor
 
+if TYPE_CHECKING:
+    import cartopy.crs as ccrs
+
 
 class Grid:
     """Represents a two-dimensional unstructured grid encoded following the
@@ -169,7 +173,7 @@ class Grid:
 
         # grid spec not provided, check if grid_ds is a minimum representable UGRID dataset
         if source_grid_spec is None:
-            warn(
+            warnings.warn(
                 "Attempting to construct a Grid without passing in source_grid_spec. Direct use of Grid constructor"
                 "is only advised if grid_ds is following the internal unstructured grid definition, including"
                 "variable and dimension names. Using ux.open_grid() or ux.from_dataset() is suggested.",
@@ -817,7 +821,7 @@ class Grid:
     @property
     def parsed_attrs(self) -> dict:
         """Dictionary of parsed attributes from the source grid."""
-        warn(
+        warnings.warn(
             "Grid.parsed_attrs will be deprecated in a future release. Please use Grid.attrs instead.",
             DeprecationWarning,
         )
@@ -1940,9 +1944,9 @@ class Grid:
 
     def calculate_total_face_area(
         self,
-        quadrature_rule: str | None = "triangular",
-        order: int | None = 4,
-        latitude_adjusted_area: bool | None = False,
+        quadrature_rule: str = "triangular",
+        order: int = 4,
+        latitude_adjusted_area: bool = False,
     ) -> float:
         """Function to calculate the total surface area of all the faces in a
         mesh.
@@ -1978,10 +1982,10 @@ class Grid:
 
     def compute_face_areas(
         self,
-        quadrature_rule: str | None = "triangular",
-        order: int | None = 4,
-        latitude_adjusted_area: bool | None = False,
-    ):
+        quadrature_rule: str = "triangular",
+        order: int = 4,
+        latitude_adjusted_area: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Face areas calculation function for grid class, calculates area of
         all faces in the grid.
 
@@ -2011,8 +2015,6 @@ class Grid:
         ``face_areas`` property instead, which ensures mathematical correctness by using
         theoretical equal areas.
         """
-        import warnings
-
         warnings.warn(
             "compute_face_areas() is deprecated. Use the face_areas property instead for better performance and caching.",
             DeprecationWarning,
@@ -2022,10 +2024,10 @@ class Grid:
 
     def _compute_face_areas(
         self,
-        quadrature_rule: str | None = "triangular",
-        order: int | None = 4,
-        latitude_adjusted_area: bool | None = False,
-    ):
+        quadrature_rule: str = "triangular",
+        order: int = 4,
+        latitude_adjusted_area: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Internal face areas calculation function for grid class, calculates area of
         all faces in the grid.
 
@@ -2264,7 +2266,7 @@ class Grid:
                 )
 
         if exclude_antimeridian is not None:
-            warn(
+            warnings.warn(
                 DeprecationWarning(
                     "The parameter ``exclude_antimeridian`` will be deprecated in a future release. Please "
                     "use ``periodic_elements='exclude'`` or ``periodic_elements='split'`` instead."
