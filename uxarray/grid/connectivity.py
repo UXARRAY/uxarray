@@ -5,6 +5,10 @@ from numba import njit
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
 
+# Largest number of edges incident to a single node that ``_build_edge_node_connectivity``
+# will insertion sort before falling back to a comparison sort
+MAX_INSERTION_SORT_SIZE = 64
+
 
 def close_face_nodes(face_node_connectivity, n_face, n_max_face_nodes):
     """Closes (``face_node_connectivity``) by inserting the first node index
@@ -125,7 +129,9 @@ def _populate_n_nodes_per_face(grid):
     it within the internal (``Grid._ds``) and through the attribute
     (``Grid.n_nodes_per_face``)."""
 
-    n_nodes_per_face = (grid.face_node_connectivity != INT_FILL_VALUE).sum(axis=1)
+    n_nodes_per_face = (
+        (grid.face_node_connectivity != INT_FILL_VALUE).sum(axis=1).astype(INT_DTYPE)
+    )
 
     if n_nodes_per_face.ndim == 0:
         # convert scalar value into a [1, 1] array
@@ -151,7 +157,7 @@ def _populate_edge_node_connectivity(grid):
         pass
 
     edge_nodes, face_edges = _build_edge_node_connectivity(
-        grid.face_node_connectivity.values, grid.n_nodes_per_face.values
+        grid.face_node_connectivity.values, grid.n_nodes_per_face.values, grid.n_node
     )
 
     grid._ds["edge_node_connectivity"] = xr.DataArray(
@@ -167,12 +173,102 @@ def _populate_edge_node_connectivity(grid):
     )
 
 
+@njit(cache=True, inline="always")
+def _other_node(face_node_connectivity, n_nodes_per_face, n_max_face_nodes, flat_idx):
+    """Returns the larger of the two nodes of the half edge stored at a flat
+    ``face_node_connectivity`` index."""
+    face_idx = flat_idx // n_max_face_nodes
+    current_node = flat_idx % n_max_face_nodes
+    n_edges = n_nodes_per_face[face_idx]
+
+    start_node = face_node_connectivity[face_idx, current_node]
+    end_node = face_node_connectivity[face_idx, (current_node + 1) % n_edges]
+
+    return max(start_node, end_node)
+
+
 @njit(cache=True)
-def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face):
+def _sift_down(
+    order, bucket_start, root, size, face_node_connectivity, n_nodes_per_face, n_max
+):
+    """Restores the max-heap property at ``root`` for a bucket keyed on ``node_b``."""
+    while True:
+        child = 2 * root + 1
+        if child >= size:
+            break
+
+        if child + 1 < size and _other_node(
+            face_node_connectivity, n_nodes_per_face, n_max, order[bucket_start + child]
+        ) < _other_node(
+            face_node_connectivity,
+            n_nodes_per_face,
+            n_max,
+            order[bucket_start + child + 1],
+        ):
+            child += 1
+
+        if _other_node(
+            face_node_connectivity, n_nodes_per_face, n_max, order[bucket_start + root]
+        ) >= _other_node(
+            face_node_connectivity, n_nodes_per_face, n_max, order[bucket_start + child]
+        ):
+            break
+
+        tmp = order[bucket_start + root]
+        order[bucket_start + root] = order[bucket_start + child]
+        order[bucket_start + child] = tmp
+        root = child
+
+
+@njit(cache=True)
+def _heap_sort_bucket(
+    order, bucket_start, size, face_node_connectivity, n_nodes_per_face, n_max
+):
+    """Sorts a bucket by ``node_b`` in place, in ``O(size * log(size))`` and without
+    scratch space, for the rare bucket too large to insertion sort."""
+    for root in range(size // 2 - 1, -1, -1):
+        _sift_down(
+            order,
+            bucket_start,
+            root,
+            size,
+            face_node_connectivity,
+            n_nodes_per_face,
+            n_max,
+        )
+
+    for end in range(size - 1, 0, -1):
+        tmp = order[bucket_start]
+        order[bucket_start] = order[bucket_start + end]
+        order[bucket_start + end] = tmp
+        _sift_down(
+            order,
+            bucket_start,
+            0,
+            end,
+            face_node_connectivity,
+            n_nodes_per_face,
+            n_max,
+        )
+
+
+@njit(cache=True)
+def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face, n_node):
     """Constructs the ``edge_node_connectivity`` variable, which represents the indices of the two nodes that make up
     each edge. Additionally, the ``face_edge_connectivity`` is derived during construction,  which represents the
     indices of the edges that make up each face.
 
+    Each edge is stored as an ascending ``(node_a, node_b)`` pair, and the edges are numbered in lexicographic
+    order of that pair. Since node indices are dense integers in ``[0, n_node)``, that ordering is obtained
+    with a counting sort that buckets the half edges by ``node_a``, after which each bucket is sorted by
+    ``node_b``. Buckets hold one entry per edge incident to a node, so for a real mesh they are tiny (node
+    degree, typically under ten) and an insertion sort is the cheapest way to finish them; the rare bucket
+    above ``MAX_INSERTION_SORT_SIZE`` is heap sorted instead so that a degenerate mesh cannot degrade the
+    build quadratically. Sorting also groups the duplicate half edges, so the dedup falls out of the same walk.
+
+    Half edges are identified throughout by their flat ``face_node_connectivity`` index, which is also the
+    ``face_edge_connectivity`` slot they are written back to. That keeps the scratch space to a single
+    permutation array, and node pairs are recomputed on demand rather than materialized.
 
     Parameters
     ----------
@@ -180,6 +276,8 @@ def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face):
         Face Node Connectivity
     n_nodes_per_face : np.ndarray
         Number of nodes/edges per face
+    n_node : int
+        Total number of nodes, used as the number of buckets for the counting sort
 
     Returns
     -------
@@ -190,32 +288,124 @@ def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face):
 
     """
 
-    # Dictionary to keep track of unique edges
-    unique_edge_dict = {}
-
-    edge_idx = 0
+    n_face, n_max_face_nodes = face_node_connectivity.shape
 
     # Keep track of face_edge_connectivity
     face_edge_connectivity = np.full_like(
         face_node_connectivity, INT_FILL_VALUE, dtype=INT_DTYPE
     )
 
-    for i, n_edges in enumerate(n_nodes_per_face):
+    n_half_edge = 0
+    for i in range(n_face):
+        n_half_edge += n_nodes_per_face[i]
+
+    if n_half_edge == 0:
+        return np.empty((0, 2), dtype=INT_DTYPE), face_edge_connectivity
+
+    # Count how many half edges fall into each ``node_a`` bucket, then prefix sum so that
+    # ``bucket_bounds[a]`` is where bucket ``a`` starts
+    bucket_bounds = np.zeros(n_node + 1, dtype=INT_DTYPE)
+    for face_idx in range(n_face):
+        n_edges = n_nodes_per_face[face_idx]
         for current_node in range(n_edges):
-            start_node = face_node_connectivity[i, current_node]
-            end_node = face_node_connectivity[i, (current_node + 1) % n_edges]
+            start_node = face_node_connectivity[face_idx, current_node]
+            end_node = face_node_connectivity[face_idx, (current_node + 1) % n_edges]
+            bucket_bounds[min(start_node, end_node) + 1] += 1
+    for i in range(n_node):
+        bucket_bounds[i + 1] += bucket_bounds[i]
 
-            edge = (min(start_node, end_node), max(start_node, end_node))
+    # Scatter the half edges into their buckets. This advances each entry of
+    # ``bucket_bounds`` to the *end* of its bucket, so afterwards bucket ``a`` spans
+    # ``bucket_bounds[a - 1]`` up to ``bucket_bounds[a]``, with bucket 0 starting at 0
+    order = np.empty(n_half_edge, dtype=INT_DTYPE)
+    for face_idx in range(n_face):
+        n_edges = n_nodes_per_face[face_idx]
+        for current_node in range(n_edges):
+            start_node = face_node_connectivity[face_idx, current_node]
+            end_node = face_node_connectivity[face_idx, (current_node + 1) % n_edges]
 
-            if edge not in unique_edge_dict:
+            node_a = min(start_node, end_node)
+            order[bucket_bounds[node_a]] = face_idx * n_max_face_nodes + current_node
+            bucket_bounds[node_a] += 1
+
+    # Sort each bucket by ``node_b`` and count the unique edges while the bucket is in
+    # cache, which gives the exact allocation size for the walk below
+    n_edge = 0
+    bucket_start = 0
+    for node_a in range(n_node):
+        bucket_end = bucket_bounds[node_a]
+
+        if bucket_end - bucket_start > MAX_INSERTION_SORT_SIZE:
+            # A node this well connected is not expected of a real mesh, but insertion
+            # sort degrades quadratically, so fall back to a heap sort
+            _heap_sort_bucket(
+                order,
+                bucket_start,
+                bucket_end - bucket_start,
+                face_node_connectivity,
+                n_nodes_per_face,
+                n_max_face_nodes,
+            )
+        else:
+            for i in range(bucket_start + 1, bucket_end):
+                flat_idx = order[i]
+                node_b = _other_node(
+                    face_node_connectivity, n_nodes_per_face, n_max_face_nodes, flat_idx
+                )
+
+                j = i - 1
+                while j >= bucket_start and (
+                    _other_node(
+                        face_node_connectivity,
+                        n_nodes_per_face,
+                        n_max_face_nodes,
+                        order[j],
+                    )
+                    > node_b
+                ):
+                    order[j + 1] = order[j]
+                    j -= 1
+                order[j + 1] = flat_idx
+
+        prev_b = INT_FILL_VALUE
+        for i in range(bucket_start, bucket_end):
+            node_b = _other_node(
+                face_node_connectivity, n_nodes_per_face, n_max_face_nodes, order[i]
+            )
+            if node_b != prev_b:
+                n_edge += 1
+                prev_b = node_b
+
+        bucket_start = bucket_end
+
+    # Duplicate half edges are now adjacent, so a single walk assigns each unique edge its
+    # index and populates the face edge connectivity
+    edge_node_connectivity = np.empty((n_edge, 2), dtype=INT_DTYPE)
+    edge_idx = -1
+    bucket_start = 0
+
+    for node_a in range(n_node):
+        bucket_end = bucket_bounds[node_a]
+        prev_b = INT_FILL_VALUE
+
+        for i in range(bucket_start, bucket_end):
+            flat_idx = order[i]
+            node_b = _other_node(
+                face_node_connectivity, n_nodes_per_face, n_max_face_nodes, flat_idx
+            )
+
+            if node_b != prev_b:
                 # Only store unique edges
-                unique_edge_dict[edge] = edge_idx
                 edge_idx += 1
+                edge_node_connectivity[edge_idx, 0] = node_a
+                edge_node_connectivity[edge_idx, 1] = node_b
+                prev_b = node_b
 
-            face_edge_connectivity[i, current_node] = unique_edge_dict[edge]
+            face_edge_connectivity[
+                flat_idx // n_max_face_nodes, flat_idx % n_max_face_nodes
+            ] = edge_idx
 
-    # TODO: maybe sort these, but I don't think it's necessary
-    edge_node_connectivity = np.asarray(list(unique_edge_dict.keys()), dtype=INT_DTYPE)
+        bucket_start = bucket_end
 
     return edge_node_connectivity, face_edge_connectivity
 
@@ -413,6 +603,7 @@ def _build_face_face_connectivity(edge_face_connectivity, n_face, n_max_face_nod
             face_index_position[face_b] += 1
 
     return face_face_connectivity
+
 
 def _populate_node_edge_connectivity(grid):
     """Constructs the UGRID connectivity variable (``edge_node_connectivity``)
