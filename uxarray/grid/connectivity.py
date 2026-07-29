@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-from numba import njit
+from numba import njit, prange
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
@@ -157,8 +157,16 @@ def _populate_edge_node_connectivity(grid):
         # TODO: raise a warning or exception?
         pass
 
+    # HACK: this is lieu of an xarray equivalent to `da.compute(a, b)`
+    computed = xr.Dataset(
+        {
+            "face_nodes": grid.face_node_connectivity.variable,
+            "n_nodes_per_face": grid.n_nodes_per_face.variable,
+        }
+    ).compute()
+
     edge_nodes, face_edges = _build_edge_node_connectivity(
-        grid.face_node_connectivity.values, grid.n_nodes_per_face.values, grid.n_node
+        computed.face_nodes.data, computed.n_nodes_per_face.data, grid.n_node
     )
 
     grid._ds["edge_node_connectivity"] = xr.DataArray(
@@ -174,7 +182,7 @@ def _populate_edge_node_connectivity(grid):
     )
 
 
-@njit(cache=True)
+@njit(cache=True, parallel=True)
 def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face, n_node):
     """Constructs the ``edge_node_connectivity`` variable, which represents the indices of the two nodes that make up
     each edge. Additionally, the ``face_edge_connectivity`` is derived during construction,  which represents the
@@ -208,14 +216,12 @@ def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face, n_no
         face_node_connectivity, INT_FILL_VALUE, dtype=INT_DTYPE
     )
 
-    n_half_edge = 0
-    for i in range(n_face):
-        n_half_edge += n_nodes_per_face[i]
+    n_half_edge = np.sum(n_nodes_per_face)
 
     if n_half_edge == 0:
         return np.empty((0, 2), dtype=INT_DTYPE), face_edge_connectivity
 
-    # Count how many half edges fall into each ``node_a`` bucket, then prefix sum so that
+    # Count how many half edges fall into each ``start_node`` bucket, then prefix sum so that
     # ``bucket_bounds[a]`` is where bucket ``a`` starts
     bucket_bounds = np.zeros(n_node + 1, dtype=INT_DTYPE)
     for face_idx in range(n_face):
@@ -246,11 +252,11 @@ def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face, n_no
             end_node_keys[slot] = end_node
             bucket_bounds[start_node] = slot + 1
 
-    # Sort each bucket by ``node_b`` and count the unique edges while the bucket is in
-    # cache, which gives the exact allocation size for the walk below
-    n_edge = 0
-    bucket_start = 0
-    for n in range(n_node):
+    # Sort each bucket by ``node_b`` and count its unique edges while the bucket is in
+    # cache. Buckets are disjoint, so this runs one bucket per thread.
+    unique_per_bucket = np.empty(n_node, dtype=INT_DTYPE)
+    for n in prange(n_node):
+        bucket_start = bucket_bounds[n - 1] if n > 0 else 0
         bucket_end = bucket_bounds[n]
 
         size = bucket_end - bucket_start
@@ -261,22 +267,31 @@ def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face, n_no
         elif size > 1:
             _insertion_sort_bucket(end_node_keys, order, bucket_start, size)
 
+        n_unique = 0
         prev_b = INT_FILL_VALUE
         for i in range(bucket_start, bucket_end):
             if end_node_keys[i] != prev_b:
-                n_edge += 1
+                n_unique += 1
                 prev_b = end_node_keys[i]
 
-        bucket_start = bucket_end
+        unique_per_bucket[n] = n_unique
+
+    edge_offset = np.empty(n_node + 1, dtype=INT_DTYPE)
+    n_edge = 0
+    for n in range(n_node):
+        edge_offset[n] = n_edge
+        n_edge += unique_per_bucket[n]
+    edge_offset[n_node] = n_edge
 
     # Duplicate half edges are now adjacent, so a single walk assigns each unique edge its
-    # index and populates the face edge connectivity
+    # index and populates the face edge connectivity.
     edge_node_connectivity = np.empty((n_edge, 2), dtype=INT_DTYPE)
-    edge_idx = -1
-    bucket_start = 0
 
-    for n in range(n_node):
+    for n in prange(n_node):
+        bucket_start = bucket_bounds[n - 1] if n > 0 else 0
         bucket_end = bucket_bounds[n]
+
+        edge_idx = edge_offset[n] - 1
         prev_b = INT_FILL_VALUE
 
         for i in range(bucket_start, bucket_end):
@@ -293,8 +308,6 @@ def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face, n_no
             face_edge_connectivity[
                 flat_idx // n_max_face_nodes, flat_idx % n_max_face_nodes
             ] = edge_idx
-
-        bucket_start = bucket_end
 
     return edge_node_connectivity, face_edge_connectivity
 
