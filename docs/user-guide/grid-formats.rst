@@ -25,19 +25,32 @@ models have their own grid format (e.g. MPAS, ICON). Below is a list of support 
 UGRID
 =====
 
-The UGRID conventions are a standard for for storing unstructured grid (a.k.a. unstructured mesh,
+The `UGRID conventions <http://ugrid-conventions.github.io/ugrid-conventions/>`_
+are a standard for storing unstructured grid (a.k.a. unstructured mesh,
 flexible mesh) model data in a Unidata Network Common Data Form (NetCDF) file.
 
-These conventions are focussed on representing data for environmental applications, hence the motivation for
-starting from the Climate & Forecasting (CF) Metadata Conventions,
-The CF Conventions have been the standard in climate rx`earch for many years, and are being adopted by others as the metadata
+These conventions are focused on representing data for environmental applications, hence the motivation for
+starting from the Climate & Forecasting (CF) Metadata Conventions.
+The CF conventions have been the standard in climate research for many years, and are being adopted by others as the metadata
 standard (e.g. NASA, Open Geospatial Consortium). The CF conventions allow you to provide the geospatial and temporal coordinates
-for scientific data, but currently assumes that the horizontal topology may be inferred from the i,j indices of structured
-grids. The UGRID Conventions outline how to specify the topology of unstructured grids.
+for scientific data, but currently assume that the horizontal topology may be inferred from the i,j indices of structured
+grids. The UGRID conventions outline how to specify the topology of unstructured grids.
 
 The standard was developed over a period of several years through the UGRID Google Group which had members from many
-different unstructured grid modeling communities (including SELFE, ELCIRC, FVCOM, ADCIRC). From these discussions Bert
+different unstructured grid modeling communities (including SELFE, ELCIRC, FVCOM, ADCIRC). From these discussions, Bert
 Jagers (Deltares) created the first draft of this document, and the community worked to develop version 1.0.
+CF conventions versions 1.11 and later include the UGRID conventions by reference.
+
+UXarray in particular assumes horizontally unstructured grids, consistent with the
+UGRID conventions' 2D flexible mesh topology,
+with the extra assumption that all grid faces/cells are convex (all angles less than 180 degrees).
+UXarray also supports grids with vertical levels as described by the
+UGRID conventions' 3D layered mesh topology,
+but it does not support fully 3D unstructured topology.
+
+.. note::
+   UXarray's geometry algorithms also assume the grid lies on a spherical surface.
+   The sphere radius can be adjusted but a unit sphere is assumed by default.
 
 References
 ----------
@@ -46,10 +59,11 @@ References
 * https://cf-convention.github.io/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#ugrid-conventions
 * https://cf-convention.github.io/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#mesh-topology-variables
 
+
 Projected (Non-Spherical) Coordinates
 --------------------------------------
 
-UGRID does not assume a sphere — some regional and coastal models write UGRID
+UGRID itself does not assume a sphere — some regional and coastal models write UGRID
 files with **projected coordinates** (e.g. a Lambert Conformal or Albers Equal
 Area projection) in units of meters rather than degrees. UXarray detects this
 automatically from the CF metadata already present on the coordinate variables:
