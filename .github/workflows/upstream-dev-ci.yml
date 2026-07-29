@@ -84,13 +84,22 @@ jobs:
           issue_body="${issue_body//\{\{RUN_URL\}\}/${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}}"
           issue_body="${issue_body//\{\{DATE\}\}/$(date -u)}"
 
-          # Check for existing open issue with same title
-          issue_title="🤖 Upstream testing failure"
-          existing_issue=$(gh issue list --state open --label "CI" --search "\"$issue_title\" in:title" --json number --jq '.[0].number // empty')
+          # Prefix used for identity/matching; date suffix is for display only
+          title_prefix="🤖 Upstream testing failure"
+          issue_title="${title_prefix} ($(date -u +%Y-%m-%d))"
+
+          # Find existing open issue whose title starts with the fixed prefix.
+          # Uses --label to narrow the API call, then a rigorous client-side
+          # startswith check (not GitHub's fuzzy --search) for the actual match.
+          existing_issue=$(gh issue list --state open --label "CI" --json number,title \
+            --jq --arg prefix "$title_prefix" \
+            '[.[] | select(.title | startswith($prefix))] | .[0].number // empty')
 
           if [ -n "$existing_issue" ]; then
             echo "Found existing open issue #$existing_issue, updating it..."
-            echo "$issue_body" | gh issue edit "$existing_issue" --body-file -
+            echo "$issue_body" | gh issue edit "$existing_issue" \
+              --title "$issue_title"
+              --body-file -
             echo "Updated existing issue #$existing_issue"
           else
             echo "No existing open issue found, creating new one..."
