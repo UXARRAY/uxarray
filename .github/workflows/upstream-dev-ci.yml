@@ -61,7 +61,7 @@ jobs:
     name: failure-issue
     needs: [upstream-dev]
     if: |
-      needs.upstream-dev.testresults != 'success'
+      needs.upstream-dev.outputs.testresults != 'success'
       && github.repository == 'UXARRAY/uxarray'
       && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
