@@ -98,7 +98,7 @@ jobs:
           if [ -n "$existing_issue" ]; then
             echo "Found existing open issue #$existing_issue, updating it..."
             echo "$issue_body" | gh issue edit "$existing_issue" \
-              --title "$issue_title"
+              --title "$issue_title" \
               --body-file -
             echo "Updated existing issue #$existing_issue"
           else
