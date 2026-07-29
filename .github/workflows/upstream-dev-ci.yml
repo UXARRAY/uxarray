@@ -88,12 +88,10 @@ jobs:
           title_prefix="🤖 Upstream testing failure"
           issue_title="${title_prefix} ($(date -u +%Y-%m-%d))"
 
-          # Find existing open issue whose title starts with the fixed prefix.
-          # Uses --label to narrow the API call, then a rigorous client-side
-          # startswith check (not GitHub's fuzzy --search) for the actual match.
+          # Find existing open issue whose title starts with the fixed prefix
           existing_issue=$(gh issue list --state open --label "CI" --json number,title \
-            --jq --arg prefix "$title_prefix" \
-            '[.[] | select(.title | startswith($prefix))] | .[0].number // empty')
+            --jq '.[] | select(.title | startswith("'"$title_prefix"'")) | .number' \
+            | head -n1)
 
           if [ -n "$existing_issue" ]; then
             echo "Found existing open issue #$existing_issue, updating it..."
