@@ -6,7 +6,9 @@ import uxarray as ux
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
 from uxarray.grid.connectivity import (_populate_face_edge_connectivity, _build_edge_face_connectivity,
                                       _build_edge_node_connectivity, _build_face_face_connectivity,
-                                      _populate_face_face_connectivity, MAX_INSERTION_SORT_SIZE)
+                                      _populate_face_face_connectivity)
+from uxarray.grid.utils import (_adaptive_sort_bucket, _insertion_sort_bucket,
+                                MIN_ADAPTIVE_SORT_SIZE)
 
 
 def test_connectivity_build_n_nodes_per_face(gridpath):
@@ -79,37 +81,46 @@ def test_connectivity_edge_node_canonical_order(gridpath, grid_parts):
     nt.assert_array_equal(lexicographic_order, np.arange(uxgrid.n_edge))
     assert len(np.unique(edge_nodes, axis=0)) == uxgrid.n_edge
 
-@pytest.mark.parametrize("n_spoke", [MAX_INSERTION_SORT_SIZE - 1, MAX_INSERTION_SORT_SIZE + 1, 500])
-def test_connectivity_edge_node_high_degree_node(n_spoke):
-    """Test edge construction for a node shared by more faces than the bucket sort will
-    insertion sort, which takes the heap sort path."""
-    # A fan of triangles around node 0, with the spokes numbered in descending order so
-    # that they reach the sort already reversed
-    spokes = np.arange(n_spoke, 0, -1, dtype=INT_DTYPE)
-    face_node_connectivity = np.stack(
-        [np.zeros(n_spoke, dtype=INT_DTYPE), spokes, np.roll(spokes, -1)], axis=1
-    )
+@pytest.mark.parametrize("sort", [_insertion_sort_bucket, _adaptive_sort_bucket],
+                         ids=["insertion", "adaptive"])
+def test_connectivity_bucket_sort(sort):
+    """Test that each bucket sort orders its own slice and nothing else.
 
-    edge_nodes, face_edges = _build_edge_node_connectivity(
-        face_node_connectivity, np.full(n_spoke, 3, dtype=INT_DTYPE), n_spoke + 1
-    )
+    The bucket sizes straddle ``MIN_ADAPTIVE_SORT_SIZE``: the small ones cannot accumulate
+    enough shifts to exhaust the budget, so the metered sort stays on its insertion path,
+    while the 500 element bucket is shuffled far past the budget and falls back to the heap
+    sort. Keys repeat, since an interior edge reaches its bucket once per adjacent face.
+    """
+    rng = np.random.default_rng(0)
 
-    # Same invariants as any other mesh: ascending pairs, lexicographic numbering
-    assert np.all(edge_nodes[:, 0] < edge_nodes[:, 1])
-    nt.assert_array_equal(
-        np.lexsort((edge_nodes[:, 1], edge_nodes[:, 0])), np.arange(len(edge_nodes))
-    )
-    assert len(np.unique(edge_nodes, axis=0)) == len(edge_nodes)
+    sizes = [5, MIN_ADAPTIVE_SORT_SIZE, MIN_ADAPTIVE_SORT_SIZE + 1, 500]
+    bounds = np.cumsum([0] + sizes)
+    n_half_edge = int(bounds[-1])
+    buckets = list(zip(bounds[:-1], bounds[1:]))
 
-    # The hub is shared by every face, so it has one edge per spoke
-    assert np.count_nonzero(edge_nodes == 0) == n_spoke
+    keys = rng.integers(0, 40, n_half_edge).astype(INT_DTYPE)
+    order = rng.permutation(n_half_edge).astype(INT_DTYPE)
 
-    # And face_edge_connectivity still points at the right node pairs
-    for face_idx in range(n_spoke):
-        for cur in range(3):
-            expected = sorted((face_node_connectivity[face_idx, cur],
-                               face_node_connectivity[face_idx, (cur + 1) % 3]))
-            assert sorted(edge_nodes[face_edges[face_idx, cur]]) == expected
+    # the key each half edge must still be paired with once the permutation has moved it
+    key_for = np.empty(n_half_edge, dtype=INT_DTYPE)
+    key_for[order] = keys
+
+    expected_keys = np.concatenate([np.sort(keys[start:end]) for start, end in buckets])
+
+    got_keys, got_order = keys.copy(), order.copy()
+    for start, end in buckets:
+        shuffle = rng.permutation(end - start)
+        got_keys[start:end] = got_keys[start:end][shuffle]
+        got_order[start:end] = got_order[start:end][shuffle]
+
+        sort(got_keys, got_order, start, end - start)
+
+    nt.assert_array_equal(got_keys, expected_keys)
+
+    # sorted keys alone would pass even if the permutation had been scrambled independently
+    nt.assert_array_equal(key_for[got_order], got_keys)
+    nt.assert_array_equal(np.sort(got_order), np.arange(n_half_edge))
+
 
 def test_connectivity_face_edge_positional_alignment(gridpath):
     """Test that face_edge_connectivity[i, j] is the edge between face nodes j and j+1."""

@@ -443,3 +443,107 @@ def make_setter(key: str):
         self._ds[key] = value
 
     return setter
+
+
+# Bucket sorts for the counting sort in ``connectivity._build_edge_node_connectivity``. Each
+# sorts one contiguous ``[bucket_start, bucket_start + size)`` slice of ``node_b`` in place,
+# applying the same permutation to ``order`` so the two stay aligned.
+
+# Smallest bucket worth watching for pathological input. A bucket of ``size`` holds at most
+# ``size * (size - 1) / 2`` inversions, so at or below this size it cannot exceed the shift
+# budget below and the bookkeeping would never pay for itself
+MIN_ADAPTIVE_SORT_SIZE = 16
+
+# Shifts per edge an insertion sort may spend on a bucket before it is abandoned for a heap
+# sort. Insertion sort costs ``O(size + shifts)``, so a constant budget per edge keeps the
+# adaptive path linear while leaving ample room for the near-sorted input it is chosen for
+MAX_SHIFTS_PER_EDGE = 8
+
+
+@njit(cache=True)
+def _sift_down(node_b, order, bucket_start, root, size):
+    """Restores the max-heap property at ``root`` for a bucket keyed on ``node_b``."""
+    while True:
+        child = 2 * root + 1
+        if child >= size:
+            break
+
+        if (
+            child + 1 < size
+            and node_b[bucket_start + child] < node_b[bucket_start + child + 1]
+        ):
+            child += 1
+
+        if node_b[bucket_start + root] >= node_b[bucket_start + child]:
+            break
+
+        node_b[bucket_start + root], node_b[bucket_start + child] = (
+            node_b[bucket_start + child],
+            node_b[bucket_start + root],
+        )
+        order[bucket_start + root], order[bucket_start + child] = (
+            order[bucket_start + child],
+            order[bucket_start + root],
+        )
+        root = child
+
+
+@njit(cache=True)
+def _heap_sort_bucket(node_b, order, bucket_start, size):
+    """Sorts a bucket by ``node_b`` in place, in ``O(size * log(size))`` and without
+    scratch space, for the rare bucket an insertion sort cannot finish cheaply."""
+    for root in range(size // 2 - 1, -1, -1):
+        _sift_down(node_b, order, bucket_start, root, size)
+
+    for end in range(size - 1, 0, -1):
+        node_b[bucket_start], node_b[bucket_start + end] = (
+            node_b[bucket_start + end],
+            node_b[bucket_start],
+        )
+        order[bucket_start], order[bucket_start + end] = (
+            order[bucket_start + end],
+            order[bucket_start],
+        )
+        _sift_down(node_b, order, bucket_start, 0, end)
+
+
+@njit(cache=True)
+def _insertion_sort_bucket(node_b, order, bucket_start, size):
+    """Sorts a bucket by ``node_b`` in place, in ``O(size + inversions)``."""
+    for i in range(bucket_start + 1, bucket_start + size):
+        key = node_b[i]
+        flat_idx = order[i]
+
+        j = i - 1
+        while j >= bucket_start and node_b[j] > key:
+            node_b[j + 1] = node_b[j]
+            order[j + 1] = order[j]
+            j -= 1
+        node_b[j + 1] = key
+        order[j + 1] = flat_idx
+
+
+@njit(cache=True)
+def _adaptive_sort_bucket(node_b, order, bucket_start, size):
+    """Sorts a large bucket by ``node_b`` in place, insertion sorting it unless it turns out
+    to be badly ordered, in which case the partial work is abandoned for a heap sort.
+    """
+    budget = MAX_SHIFTS_PER_EDGE * size
+    shifts = 0
+
+    for i in range(bucket_start + 1, bucket_start + size):
+        key = node_b[i]
+        flat_idx = order[i]
+
+        j = i - 1
+        while j >= bucket_start and node_b[j] > key:
+            node_b[j + 1] = node_b[j]
+            order[j + 1] = order[j]
+            j -= 1
+        node_b[j + 1] = key
+        order[j + 1] = flat_idx
+
+        shifts += i - 1 - j
+        if shifts > budget:
+            _heap_sort_bucket(node_b, order, bucket_start, size)
+            return
