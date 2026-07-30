@@ -6,6 +6,8 @@ import numpy as np
 import xarray as xr
 from numba import njit, prange
 
+from uxarray.errors import DataCenteringError
+
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
     from uxarray.core.dataset import UxDataset
@@ -62,7 +64,7 @@ def _bilinear(
 
     for src_dim in dims_to_remap:
         if src_dim != "n_face":
-            raise ValueError(
+            raise DataCenteringError(
                 "Bilinear remapping is not supported for non-face centered variables"
             )
 

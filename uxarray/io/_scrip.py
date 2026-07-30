@@ -6,6 +6,7 @@ import xarray as xr
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
+from uxarray.errors import DimensionError, GridInvalidError
 from uxarray.grid.connectivity import _replace_fill_values
 
 
@@ -422,7 +423,7 @@ def _resolve_cell_dims(
         cell_dims = [dim for dim in data_dims if dim != corner_dim]
 
     if not cell_dims:
-        raise ValueError("Unable to determine cell dimensions for grid variable.")
+        raise DimensionError("Unable to determine cell dimensions for grid variable.")
 
     return cell_dims
 
@@ -436,7 +437,7 @@ def _stack_cell_dims(
     if not dims_in_array:
         if new_dim in data_array.dims:
             return data_array
-        raise ValueError(
+        raise DimensionError(
             f"Unable to stack dimensions {cell_dims}; none are present in {data_array.dims}"
         )
 
@@ -475,14 +476,16 @@ def _extract_single_grid(
     """
 
     if "corner_lat" not in metadata or "corner_lon" not in metadata:
-        raise ValueError(f"Grid '{grid_name}' is missing corner variables.")
+        raise GridInvalidError(f"Grid '{grid_name}' is missing corner variables.")
 
     corner_lat = ds[metadata["corner_lat"]]
     corner_lon = ds[metadata["corner_lon"]]
 
     dims = list(corner_lat.dims)
     if len(dims) < 2:
-        raise ValueError(f"Corner variable for grid '{grid_name}' must be at least 2D.")
+        raise DimensionError(
+            f"Corner variable for grid '{grid_name}' must be at least 2D."
+        )
 
     corner_dim = metadata.get("corner_dim", dims[-1])
     cell_dims = _resolve_cell_dims(metadata, dims, corner_dim)

@@ -15,6 +15,7 @@ from xarray.core.utils import UncachedAccessor
 import uxarray
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.utils import _map_dims_to_ugrid, _open_dataset_with_fallback
+from uxarray.errors import DimensionError
 from uxarray.formatting_html import dataset_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
@@ -347,7 +348,7 @@ class UxDataset(xr.Dataset):
             ds = _open_dataset_with_fallback(ds, **kwargs)
 
         if face_dim not in ds.dims:
-            raise ValueError(
+            raise DimensionError(
                 f"The provided face dimension '{face_dim}' is not present in the provided healpix dataset."
                 f"Please set 'face_dim' to the dimension corresponding to the healpix face dimension."
             )
