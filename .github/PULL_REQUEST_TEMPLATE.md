@@ -38,12 +38,14 @@ other_output = uxds.some_function(some_param = True)
 - [ ] Filled out Overview and Expected Usage (if applicable) sections
 
 **Testing & Benchmarking**
-<!--  If this PR does not update any functionality or tests and is not intended to improve efficiency,
-    e.g. by reducing computation time or memory usage, remove this section (Testing & Benchmarking) -->
+<!--  If this PR does not update any functionality or tests and is unlikely to affect efficiency,
+    e.g. by affecting computation time or memory usage, remove this section (Testing & Benchmarking) -->
 - [ ] Adequate tests are created if there is new functionality
-- [ ] Tests cover all possible logical paths in your function
 - [ ] Tests are not too basic (such as simply calling a function and nothing else)
-- [ ] At least one ASV benchmark demonstrates improvements, if expected (add a new benchmark if necessary)
+- [ ] Tests cover all major paths in your new functions
+- [ ] If this PR could affect performance, ran ASV benchmarks and confirmed they show expected behavior (add a new benchmark if necessary)
+<!-- Adding the run-benchmark label (if your uxarray repo permissions allow it) will run ASV benchmarks.
+    If you need benchmarks to be run but don't have permissions, leave this item unchecked for now. -->
 
 **Documentation**
 <!--  If this PR does not update any functionality or docstrings, remove this section (Documentation) -->
@@ -53,7 +55,7 @@ other_output = uxds.some_function(some_param = True)
 - [ ] Internal (private) function names start with an underscore (`_`)
 
 **Examples**
-<!--  If this PR does not update any examples, remove this section (Examples) -->
+<!--  If this PR does not affect any example notebooks, remove this section (Examples) -->
 - [ ] **All** notebook examples cleared the output of all cells before committing
 - [ ] New notebook examples added to appropriate folder (gallery: `docs/examples/`; guide: `docs/user-guide/`; quickstart: `docs/getting-started/`)
 - [ ] New notebook examples referenced in appropriate .rst file (gallery: `docs/gallery.rst`; guide: `docs/userguide.rst`; quickstart: `docs/quickstart.rst`)
