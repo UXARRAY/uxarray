@@ -25,7 +25,7 @@ from uxarray.utils.computing import (
 
 
 def _flatnonzero(mask):
-    """Sorted indices where a 1-D boolean mask is True, numpy- or dask-backed."""
+    """Sorted indices where a 1-D boolean mask is True"""
     return np.asarray(np.flatnonzero(mask))
 
 
