@@ -1,6 +1,7 @@
 import numpy as np
 from numba import njit
 
+from uxarray.errors import DimensionError
 from uxarray.grid.area import calculate_face_area
 from uxarray.grid.geometry import _unique_points
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
@@ -252,7 +253,7 @@ def _compute_face_band_weights(uxgrid, bands):
     """
     bands = np.asarray(bands, dtype=float)
     if bands.ndim != 1 or bands.size < 2:
-        raise ValueError("bands must be 1D with at least two edges")
+        raise DimensionError("bands must be 1D with at least two edges")
     if np.any(np.diff(bands) < 0):
         raise ValueError(
             f"bands must be monotonic non-decreasing; got diff(bands)={np.diff(bands)}"
@@ -393,7 +394,7 @@ def _compute_zonal_anomaly(uxda, bands, conservative=False):
 
     bands = np.asarray(bands, dtype=float)
     if bands.ndim != 1 or bands.size < 2:
-        raise ValueError("Band edges must be 1D with at least two values.")
+        raise DimensionError("Band edges must be 1D with at least two values.")
     if np.any(np.diff(bands) < 0):
         raise ValueError(
             "Band edges must be monotonic non-decreasing; got "

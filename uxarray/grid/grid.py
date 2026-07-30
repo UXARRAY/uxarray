@@ -17,6 +17,7 @@ from uxarray.conventions import ugrid
 # Import the utility function for opening datasets with fallback
 from uxarray.core.utils import _open_dataset_with_fallback
 from uxarray.cross_sections import GridCrossSectionAccessor
+from uxarray.errors import DataCenteringError, GridInvalidError
 from uxarray.formatting_html import grid_repr
 from uxarray.grid.area import get_all_face_area_from_coords
 from uxarray.grid.bounds import _populate_face_bounds
@@ -165,7 +166,7 @@ class Grid:
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if source_grid_spec != "HEALPix":
             if not _validate_minimum_ugrid(grid_ds):
-                raise ValueError(
+                raise GridInvalidError(
                     "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
                     "at least the following variables: ['node_lon',"
                     "'node_lat', and 'face_node_connectivity']"
@@ -301,7 +302,7 @@ class Grid:
                         "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
                     )
                 else:
-                    raise ValueError("Unsupported Grid Format")
+                    raise GridInvalidError("Unsupported Grid Format")
             else:
                 # custom source grid spec is provided
                 source_grid_spec = kwargs.get("source_grid_spec", None)
@@ -315,7 +316,7 @@ class Grid:
                     source_grid_spec = "FESOM2"
                     return cls(grid_ds, source_grid_spec, source_dims_dict)
             except TypeError:
-                raise ValueError("Unsupported Grid Format")
+                raise GridInvalidError("Unsupported Grid Format")
 
         return cls(
             grid_ds,
@@ -2526,14 +2527,14 @@ class Grid:
 
         if "n_node" in dim_kwargs:
             if inverse_indices:
-                raise Exception(
+                raise DataCenteringError(
                     "Inverse indices are not yet supported for node selection, please use face centers"
                 )
             return _slice_node_indices(self, dim_kwargs["n_node"])
 
         elif "n_edge" in dim_kwargs:
             if inverse_indices:
-                raise Exception(
+                raise DataCenteringError(
                     "Inverse indices are not yet supported for edge selection, please use face centers"
                 )
             return _slice_edge_indices(self, dim_kwargs["n_edge"])
@@ -2544,7 +2545,7 @@ class Grid:
             )
 
         else:
-            raise ValueError(
+            raise ValueError(  # intentionally not DataCenteringError; issue is with kwargs, not data.
                 "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
             )
 

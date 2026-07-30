@@ -4,6 +4,7 @@ from typing import Dict, Literal, Optional, Tuple
 import xarray as xr
 
 from uxarray.core.dataarray import UxDataArray
+from uxarray.errors import DimensionError
 from uxarray.grid.grid import Grid
 
 COORD_TYPES = {
@@ -278,7 +279,7 @@ class SpatialCoordsRemapper:
         # Get the dimension that `source` is defined on
         source_dims = list(self.source.dims)
         if len(source_dims) == 0:
-            raise ValueError("Source data has no dimensions")
+            raise DimensionError("Source data has no dimensions")
 
         # Find the primary spatial dimension (should be n_face, n_node, or n_edge)
         source_spatial_dim = None
@@ -288,7 +289,7 @@ class SpatialCoordsRemapper:
                 break
 
         if source_spatial_dim is None:
-            raise ValueError(
+            raise DimensionError(
                 f"Could not identify spatial dimension in `source` dims: {source_dims}"
             )
 
