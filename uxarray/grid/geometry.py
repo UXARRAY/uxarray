@@ -397,8 +397,6 @@ def _build_corrected_polygon_shells(polygon_shells):
     _corrected_shells_to_original_faces : np.ndarray
         Original indices used to map the corrected polygon shells to their entries in face nodes
     """
-
-    # import optional dependencies
     import antimeridian
     from shapely import Polygon
 

@@ -1,6 +1,5 @@
 import numpy as np
 from numba import njit, prange
-from pyproj import Geod
 
 
 @njit(parallel=True)
@@ -17,6 +16,8 @@ def _fill_numba(flat_orig, face_idx, n_face, n_steps):
 def sample_geodesic(
     start: tuple[float, float], end: tuple[float, float], steps: int
 ) -> tuple[np.ndarray, np.ndarray]:
+    from pyproj import Geod
+
     lon0, lat0 = start
     lon1, lat1 = end
 
