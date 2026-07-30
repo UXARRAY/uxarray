@@ -2,6 +2,7 @@ import numpy as np
 import xarray as xr
 
 from uxarray.conventions import ugrid
+from uxarray.errors import DimensionError
 from uxarray.grid.geometry import stereographic_projection
 
 
@@ -16,7 +17,7 @@ def _spherical_delaunay_from_points(points, boundary_points=None):
     if boundary_points is not None:
         boundary_points = np.asarray(boundary_points)
         if boundary_points.ndim != 1:
-            raise ValueError(
+            raise DimensionError(
                 "boundary_points must be a 1D array-like of point indices."
             )
         if np.any(boundary_points < 0) or np.any(boundary_points >= len(points)):
@@ -77,7 +78,7 @@ def _regional_delaunay_from_points(points, boundary_points=None):
     if boundary_points is not None:
         boundary_points = np.asarray(boundary_points)
         if boundary_points.ndim != 1:
-            raise ValueError(
+            raise DimensionError(
                 "boundary_points must be a 1D array-like of point indices."
             )
         if np.any(boundary_points < 0) or np.any(boundary_points >= len(points)):

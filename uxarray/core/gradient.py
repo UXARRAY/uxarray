@@ -4,6 +4,7 @@ import numpy as np
 from numba import njit, prange
 
 from uxarray.constants import INT_FILL_VALUE
+from uxarray.errors import DataCenteringError, DimensionError
 from uxarray.grid.area import calculate_face_area
 
 
@@ -96,7 +97,7 @@ def _compute_gradient(data, scale_by_radius=True):
     uxgrid = data.uxgrid
 
     if data.ndim > 1:
-        raise ValueError(
+        raise DimensionError(
             "Gradient currently requires 1D face-centered data. Consider "
             "reducing the dimension by selecting data across leading dimensions (e.g., `.isel(time=0)`, "
             "`.sel(lev=500)`, or `.mean('time')`). "
@@ -184,7 +185,7 @@ def _compute_gradient(data, scale_by_radius=True):
     #         normal_lon,
     #     )
     else:
-        raise ValueError(
+        raise DataCenteringError(
             "Computing the gradient is only supported for face-centered data variables."
         )
 
