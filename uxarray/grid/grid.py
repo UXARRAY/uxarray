@@ -1540,6 +1540,13 @@ class Grid:
         -------
         bounds: :py:class:`xr.DataArray`
             An array of shape (:py:attr:`~uxarray.Grid.n_face`, `two`, `two`)
+
+        References
+        ----------
+        Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+        Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+        algorithms for regridding on the sphere. Geoscientific Model
+        Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
         """
         if "bounds" not in self._ds:
             _populate_face_bounds(self)
@@ -1549,7 +1556,15 @@ class Grid:
 
     @property
     def face_bounds_lon(self):
-        """Longitude bounds for each face in degrees."""
+        """Longitude bounds for each face in degrees.
+
+        References
+        ----------
+        Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+        Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+        algorithms for regridding on the sphere. Geoscientific Model
+        Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
+        """
 
         if "face_bounds_lon" not in self._ds:
             bounds = self.bounds.values
@@ -1569,7 +1584,15 @@ class Grid:
 
     @property
     def face_bounds_lat(self):
-        """Latitude bounds for each face in degrees."""
+        """Latitude bounds for each face in degrees.
+
+        References
+        ----------
+        Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+        Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+        algorithms for regridding on the sphere. Geoscientific Model
+        Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
+        """
 
         if "face_bounds_lat" not in self._ds:
             bounds = self.bounds.values

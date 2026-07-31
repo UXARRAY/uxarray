@@ -66,6 +66,12 @@ def two_sum(a, b):
         Rounded sum fl(a + b).
     e : float
         Rounding error term; s + e = a + b exactly.
+
+    References
+    ----------
+    Knuth, D. E. (1997). The Art of Computer Programming, Volume 2:
+    Seminumerical Algorithms (3rd ed.). Addison-Wesley, Section 4.2.2,
+    Theorem B.
     """
     s = a + b
     bp = s - a
@@ -151,6 +157,12 @@ if _HAS_FMA:
             Rounded product fl(a * b).
         e : float
             Rounding error term; p + e = a * b exactly.
+
+        References
+        ----------
+        Dekker, T. J. (1971). A floating-point technique for extending the
+        available precision. Numerische Mathematik, 18, 224-242.
+        https://doi.org/10.1007/BF01397083
         """
         return _two_prod_fma(a, b)
 
@@ -174,6 +186,12 @@ else:  # pragma: no cover - exercised only on FMA-less toolchains
             Rounded product fl(a * b).
         e : float
             Rounding error term; p + e = a * b exactly.
+
+        References
+        ----------
+        Dekker, T. J. (1971). A floating-point technique for extending the
+        available precision. Numerische Mathematik, 18, 224-242.
+        https://doi.org/10.1007/BF01397083
         """
         return _two_prod_veltkamp(a, b)
 
@@ -204,6 +222,17 @@ def diff_of_products(a, b, c, d):
         High-order part of the accurate result.
     lo : float
         Low-order correction term; hi + lo equals the accurate value.
+
+    References
+    ----------
+    Higham, N. J. (2002). Accuracy and Stability of Numerical Algorithms
+    (2nd ed.). Society for Industrial and Applied Mathematics.
+    https://doi.org/10.1137/1.9780898718027
+
+    Jeannerod, C.-P., Louvet, N., and Muller, J.-M. (2013). Further analysis
+    of Kahan's algorithm for the accurate computation of 2 x 2 determinants.
+    Mathematics of Computation, 82, 2245-2264.
+    https://doi.org/10.1090/S0025-5718-2013-02679-8
     """
     w, e_w = two_prod(c, d)
     x, e_x = two_prod(a, b)
@@ -235,6 +264,13 @@ def accucross(a0, a1, a2, b0, b1, b2):
     -------
     x_hi, y_hi, z_hi, x_lo, y_lo, z_lo : float
         High and low parts of each cross-product component.
+
+    References
+    ----------
+    Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+    Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+    algorithms for regridding on the sphere. Geoscientific Model
+    Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
     """
     x_hi, x_lo = diff_of_products(a1, b2, a2, b1)
     y_hi, y_lo = diff_of_products(a2, b0, a0, b2)
@@ -336,6 +372,13 @@ def accucross_pair(
     -------
     x_hi, y_hi, z_hi, x_lo, y_lo, z_lo : float
         Compensated cross-product components.
+
+    References
+    ----------
+    Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+    Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+    algorithms for regridding on the sphere. Geoscientific Model
+    Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
     """
     # x = (ay*bz) - (az*by), expanded over all four hi/lo cross-terms
     x_hi, x_lo = _cdp8(
@@ -507,6 +550,12 @@ def acc_sqrt_re(value, error=0.0):
         Rounded sqrt, fl(sqrt(value)).
     correction : float
         Additive correction; root + correction ≈ sqrt(value + error) to ~1 ulp.
+
+    References
+    ----------
+    Rump, S. M. (2023). Fast and accurate computation of the Euclidean norm
+    of a vector. Japan Journal of Industrial and Applied Mathematics, 40.
+    https://doi.org/10.1007/s13160-023-00593-8
     """
     # Branch-free, matching AccuSphGeom acc_sqrt_re exactly. Negative value
     # yields nan via math.sqrt and root==0 yields nan via the 0/0 correction,
