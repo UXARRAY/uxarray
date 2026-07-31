@@ -35,11 +35,15 @@ Algorithm-Level Citations
 
 .. note::
 
-   In addition to the package-level Zenodo citation above, several of the spherical
-   geometry and regridding algorithms implemented in UXarray are associated with
-   peer-reviewed methodological publications. If your work makes use of the APIs
-   listed in the table below, please also cite the corresponding publication(s)
-   alongside the UXarray software citation.
+   In addition to the package-level Zenodo citation, several spherical geometry and
+   regridding algorithms in UXarray implement methods from peer-reviewed publications.
+   If a result you report in an academic work (paper, thesis, preprint, technical
+   report) depends on one of these algorithms — e.g., you use computed face areas or
+   regridding weights as an input to your analysis — please also cite the
+   corresponding publication listed below, in addition to the UXarray software
+   citation. This does not apply to incidental use of these APIs in code that isn't
+   producing a citable scientific result (e.g., tutorials, internal tools, or
+   software that merely depends on UXarray).
 
 The definitions and geometric conventions for nodes, edges, and faces used
 throughout UXarray are based on:
