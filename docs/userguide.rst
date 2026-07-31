@@ -14,9 +14,6 @@ Introductory Guides
 
 These user guides provide the necessary background information for understanding concepts in UXarray.
 
-`Structured vs Unstructured Grids <user-guide/unstructured-grids.rst>`_
- Introduction to the concept of unstructured grids
-
 `Terminology <user-guide/terminology.rst>`_
  Core concepts and terminology for working with unstructured grids
 
@@ -29,7 +26,7 @@ These user guides provide the necessary background information for understanding
 Core Guides
 ------------
 
-These user guides provide detailed explanations of the core functionality in UXarray
+These user guides provide detailed explanations of the core functionality in UXarray.
 
 `Data Structures <user-guide/data-structures.ipynb>`_
  Core data structures for working with unstructured grid and data files
@@ -112,7 +109,6 @@ These user guides provide additional details about specific features in UXarray.
 .. toctree::
    :hidden:
 
-   user-guide/unstructured-grids.rst
    user-guide/terminology.rst
    user-guide/representation.rst
    user-guide/grid-formats.rst

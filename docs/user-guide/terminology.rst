@@ -27,11 +27,6 @@ made up of nodes and edges. Below is an example of an unstructured grid used in 
 
 **Node**: A point within a spherical grid, representing the vertices of the elements (such as the corners of triangles or quadrilaterals)
 
-.. image:: ../_static/examples/grids/face_node_edge.png
-  :width: 300
-  :align: center
-  :alt: A visual of the components of a grid
-
 **Edge**: A segment that connects two nodes within a grid.
 
 **Face**: An individual polygon that is defined by nodes connected by edges.

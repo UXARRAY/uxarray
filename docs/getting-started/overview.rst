@@ -13,6 +13,10 @@ used formats such as UGRID, SCRIP, and Exodus. Furthermore, UXarray provides bas
 for generating unstructured grid topology from structured grid or point-cloud inputs to
 enable model intercomparison workflows.
 
+.. note::
+  For new users interested in learning from our documented coding examples, notebooks, geospatial
+  lessons, and more, check out `Project Pythia <https://projectpythia.org/unstructured-grid-viz-cookbook>`_
+  where additional documentation can be found.
 
 Unstructured Grids
 ==================
