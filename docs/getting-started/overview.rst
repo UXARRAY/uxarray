@@ -3,63 +3,80 @@
 ============
 Why UXarray?
 ============
-UXarray aims to address the geoscience community need for tools that enable standard
-data analysis techniques to operate directly on unstructured grids. It extends upon
-and inherits from the commonly used Xarray Python package to provide a powerful and
-familiar interface for working with unstructured grids in Python. UXarray provides
-Xarray styled functions to better read in and use unstructured grid datasets that
-follow standard conventions, including UGRID, MPAS, SCRIP, and Exodus formats.
+UXarray aims to address the geoscience community's need for tools that enable foundational
+data analysis techniques to operate directly on unstructured grids. It extends upon and
+inherits from the commonly used Xarray Python package to provide a powerful and familiar
+interface for working with unstructured grids in Python. UXarray provides Xarray-styled
+functions to better read in and use unstructured grid datasets from the most common model
+outputs, including MPAS, CAM-SE, ICON, ESMF, GEOS, and HEALPix, which follow the commonly
+used formats such as UGRID, SCRIP, and Exodus. Furthermore, UXarray provides basic support
+for generating unstructured grid topology from structured grid or point-cloud inputs to
+enable model intercomparison workflows.
 
 
 Unstructured Grids
 ==================
 The "U" in UXarray stands for "Unstructured Grids". These types of grids differ from
-typical Structured Grids in terms of complexity, requiring additional overhead to
-store and represent their geometry and topology. However, these types of
-grids are extremely flexible and scalable.
+typical Structured Grids in terms of complexity, requiring explicit information to be
+stored to represent the geometry, e.g. cell to node connectivity. However, these types
+of grids are extremely flexible and scalable.
 
 UXarray uses the `UGRID <http://ugrid-conventions.github.io/ugrid-conventions/>`_
-conventions as a
-foundation to represent Unstructured Grids. These conventions
+conventions as a foundation to represent Unstructured Grids. These conventions
 are intended to describe how these grids should be stored within a NetCDF file, with
 a particular focus on environmental and geoscience applications. We chose to use a
 single convention for our grid representation instead of having separate ones for each
 grid format, meaning that we encode all supported unstructured grid formats in the
 UGRID conventions at the data loading step.
 
-Specifically, our core functionality is build around two-dimension
-Unstructured Grids as defined by the 2D Flexible Mesh Topology in the
-UGRID conventions, which can contain a mix of triangles, quadrilaterals, or
-other geometric faces.
+Specifically, our core functionality is built around horizontally Unstructured Grids as defined by the
+`UGRID conventions' 2D flexible mesh topology <https://ugrid-conventions.github.io/ugrid-conventions/#2d-flexible-mesh-mixed-triangles-quadrilaterals-etc-topology>`_,
+which can contain a mix of triangles, quadrilaterals, or other geometric faces. These types of Unstructured
+Grids may have structured vertical levels, as described by the
+`UGRID conventions' 3D layered mesh topology <https://ugrid-conventions.github.io/ugrid-conventions/#3d-layered-mesh-topology>`_.
+
+.. note::
+   While 3D grids with vertical levels are supported, fully 3D unstructured topology is not.
+   Also, UXarray additionally assumes the grid lies on a spherical surface,
+   and that all grid faces/cells are convex (all angles less than 180 degrees).
 
 
 Core Data Structures
 ====================
 
-The functionality of UXarray is built around three core data structures which provide
-an Unstructured Grid aware implementation of many Xarray functions and use cases.
+UXarray’s core API revolves around three primary types, which extend Xarray for
+unstructured-grid workflows:
 
-* ``Grid`` is used to represent our Unstructured Grid, housing grid-specific methods
-  and topology variables.
-* ``UxDataset`` inherits from the ``xarray.Dataset`` class, providing much of the same
-  functionality but extended to operate on Unstructured Grids. Other than new and
-  overloaded methods, it is linked to a ``Grid`` object through the use of a class
-  property (``UxDataset.uxgrid``) to provide a grid-aware implementation. An instance
-  of ``UxDataset`` can be thought of as a collection of Data Variables that reside on
-  some Unstructured Grid as defined in the ``uxgrid`` property.
-* ``UxDataArray`` similarly inherits from the ``xarray.DataArray`` class and contains
-  a ``Grid`` property (``UxDataArray.uxgrid``) just like ``UxDataset``.
+.. list-table::
+   :widths: 20 80
+   :header-rows: 0
+
+   * - :py:class:`uxarray.Grid`
+     - Represents the unstructured grid itself, housing grid-specific methods and topology variables. Encapsulates a :py:class:`xarray.Dataset` for storing the grid definition.
+
+   * - :py:class:`uxarray.UxDataset`
+     - Extends :py:class:`xarray.Dataset` to operate on unstructured grids; linked to a :py:class:`~uxarray.Grid` instance via its ``uxgrid`` property.
+
+   * - :py:class:`uxarray.UxDataArray`
+     - Similarly extends :py:class:`xarray.DataArray` and exposes a ``uxgrid`` accessor for grid-aware operations.
+
 
 Core Functionality
 ==================
 
-In addition to providing a way to load in and interface with Unstructured Grids, we
-also aim to provide computational and analysis operators that directly operate on
-Unstructured Grids. Some of these include:
+In addition to loading and interfacing with Unstructured Grids, UXarray provides
+computational and analysis operators that operate directly on those grids. Some of
+these include:
+
 * Visualization
 * Remapping
-* Subsetting & Selection
+* Subsetting
+* Cross-sections
 * Aggregations
+* Zonal averaging
+* Vector calculus
 
-A more detailed overview of supported functionality can be found in our `API Reference <https://uxarray.readthedocs.io/en/latest/api.html>`_
-and `User Guide <https://uxarray.readthedocs.io/en/latest/userguide.html>`_ sections.
+A more detailed overview of supported functionality can be found in our
+`API Reference <https://uxarray.readthedocs.io/en/latest/api.html>`_
+and `User Guide <https://uxarray.readthedocs.io/en/latest/userguide.html>`_
+sections.

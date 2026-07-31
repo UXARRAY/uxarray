@@ -53,9 +53,10 @@ However, this guide might still be missing case-specific details; please do
 not hesitate to reach out to us to consult any such cases.
 
 .. note::
-    Much of the information in this guide has been co-opted from the
-    `GeoCAT <https://geocat.ucar.edu/pages/contributing.html>`_ project and
-    `Project Pythia <https://projectpythia.org/contributing.html>`_.
+    Much of the information in this guide has been co-opted from `Project
+    Pythia <https://projectpythia.org/contributing>`_ and the
+    `GeoCAT-comp <https://geocat-comp.readthedocs.io/en/stable/contrib.html>`_
+    project.
 
 1.3. Project-specific Resources
 -------------------------------
@@ -69,8 +70,9 @@ Some important UXarray resources are as follows:
 
 * `UXarray documentation <https://uxarray.readthedocs.io/>`_
   houses significant documentation such as :ref:`quickstart`, :ref:`installation`,
-  :ref:`contributing` (i.e. this document), :ref:`examples`, :ref:`tutorials`,
-  and :ref:`api`.
+  :ref:`contributing` (i.e. this document),
+  examples (:ref:`gallery` or :ref:`userguide`),
+  :ref:`tutorials`, and :ref:`api`.
 
 * `UXarray Milestones <https://github.com/UXARRAY/uxarray/milestones>`_ and
   `UXarray Roadmap <https://github.com/orgs/UXARRAY/projects/2/views/17>`_ shows
@@ -515,24 +517,24 @@ as follows:
   into your Conda environment for UXarray development).
 
 * Test scripts themselves are not intended to use ``pytest`` through implementation.
-Instead, ``pytest`` should be used only for running test scripts as follows::
+  Instead, ``pytest`` should be used only for running test scripts as follows::
 
     $ pytest test/<test_script_name>.py
 
-, or::
+  , or::
 
     $ python -m pytest test/<test_script_name>.py
 
-, the latter of which will also add the current directory to ``sys.path``.
+  , the latter of which will also add the current directory to ``sys.path``.
 
-Not using ``pytest`` for implementation allows the unit tests to be also run
-by using (a number of benefits/conveniences coming from using ``pytest`` can be
-seen `here <https://docs.pytest.org/en/7.1.x/how-to/unittest.html#how-to-use-unittest-based-tests-with-pytest>`_
-though)::
+  Not using ``pytest`` for implementation allows the unit tests to be also run
+  by using (a number of benefits/conveniences coming from using ``pytest`` can be
+  seen `here <https://docs.pytest.org/en/7.1.x/how-to/unittest.html#how-to-use-unittest-based-tests-with-pytest>`_
+  though)::
 
     $ python -m unittest test/<test_script_name>.py
 
-Also, all of the test scripts can be run at once with the following command::
+  Also, all of the test scripts can be run at once with the following command::
 
     $ pytest test
 
@@ -541,7 +543,7 @@ Also, all of the test scripts can be run at once with the following command::
   the test scripts.
 
 * Reference results (i.e. expected output or ground truth for not all but the most cases)
-should not be magic values (i.e. they need to be justified and/or documented).
+  should not be magic values (i.e. they need to be justified and/or documented).
 
 * Recommended, but not mandatory, implementation approach is as follows:
 
@@ -602,14 +604,12 @@ The docstrings must contain:
 ~~~~~~~~~~~~~~~~~~~~~~
 
 As we mentioned a few times throughout this guide, UXarray has a static `documentation
-<https://uxarray.readthedocs.io/>`_ :ref:`index` page that is being generated automatically from the
+<https://uxarray.readthedocs.io/>`_ page that is being generated automatically from the
 repository's code structure. However, there needs to be some manual additions to the
 proper documentation index file(s) for the automation to work.
 
-The index files ``docs/user_api/index.rst`` and ``docs/internal_api/index.rst`` (paths
-relative from the root directory) are used for UXarray documentation to allow the
-`User API <user_api/index.rst>`_ and `Internal API <internal_api/index.rst>`_,
-respectively, to be automatically generated.
+The index file ``docs/user_api/index.rst`` (path relative from the root directory) is
+used for automatically generating the `User API <api.rst>`_ documentation.
 
 That being said, the code changes, which might be a new function implementation or some
 modifications to existing ones, must be added to the appropriate ``index.rst``
@@ -623,8 +623,8 @@ file so that its documentation page is automatically generated.
     needed. However, it would be a great practice to provide usage examples in the
     same PR, especially for demonstrating the use of complex UXarray functions.
 
-The UXarray documentation houses ``examples/<example-name>.ipynb`` files (paths
-relative from the root directory) to provide `Usage Examples <examples.rst>`_ to be
+The UXarray documentation houses ``docs/examples/<example-name>.ipynb`` files (paths
+relative from the root directory) to provide `Usage Examples <gallery.rst>`_ to be
 automatically generated. If you prefer to provide usage examples for the work you
 have put together, please be sure to put your notebook(s) under this same directory.
 

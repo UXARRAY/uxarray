@@ -1,8 +1,8 @@
 import xarray as xr
 
 import uxarray.conventions.ugrid as ugrid
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.connectivity import _replace_fill_values
-from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
 
 
 def _read_topology(

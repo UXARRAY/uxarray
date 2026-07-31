@@ -1,18 +1,24 @@
-import numpy as np
 import math
 
+import numpy as np
+from numba import njit
 
+from uxarray.constants import ERROR_TOLERANCE, MACHINE_EPSILON
 from uxarray.grid.coordinates import (
     _normalize_xyz_scalar,
 )
-
 from uxarray.grid.utils import _angle_of_2_vectors
+from uxarray.utils.computing import _cdp8, accucross
 
-from uxarray.constants import ERROR_TOLERANCE, MACHINE_EPSILON
+# Magnitude below which orient3d_on_sphere classifies a result as zero. For
+# double-precision unit-vector inputs this covers rounding error in the
+# compensated cross product.
+_PREDICATE_ZERO_TOL = 1e-15
 
-from uxarray.utils.computing import isclose, dot
-
-from numba import njit
+# Tolerance for the on_minor_arc collinearity and interval tests. Matches
+# AccuSphGeom's gca_*_minor_arc_tol (1e-8) so the Python predicate accepts the
+# same candidate set as the C++ reference.
+_ON_MINOR_ARC_TOL = 1e-8
 
 
 def _to_list(obj):
@@ -83,7 +89,7 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     # Return True if the point lies within the interval (smaller arc)
     if cos_theta < 0:
         return True
-    elif isclose(cos_theta, 0.0, atol=MACHINE_EPSILON):
+    elif np.isclose(cos_theta, 0.0, atol=MACHINE_EPSILON):
         # set error tolerance to 0.0
         return True
     else:
@@ -218,7 +224,7 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     n2 = gca_cart[1]
 
     # Compute dot product
-    dot_n1_n2 = dot(n1, n2)
+    dot_n1_n2 = np.dot(n1, n2)
 
     # Compute denominator
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
@@ -232,7 +238,7 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
         d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
 
         # Handle cases where d_a_max is very close to 0 or 1
-        if isclose(d_a_max, 0.0, atol=ERROR_TOLERANCE) or isclose(
+        if np.isclose(d_a_max, 0.0, atol=ERROR_TOLERANCE) or np.isclose(
             d_a_max, 1.0, atol=ERROR_TOLERANCE
         ):
             d_a_max = clip_scalar(d_a_max, 0.0, 1.0)
@@ -299,7 +305,7 @@ def extreme_gca_z(gca_cart, extreme_type):
     n2 = gca_cart[1]
 
     # Compute dot product
-    dot_n1_n2 = dot(n1, n2)
+    dot_n1_n2 = np.dot(n1, n2)
 
     # Compute denominator
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
@@ -313,7 +319,7 @@ def extreme_gca_z(gca_cart, extreme_type):
         d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
 
         # Handle cases where d_a_max is very close to 0 or 1
-        if isclose(d_a_max, 0.0, atol=ERROR_TOLERANCE) or isclose(
+        if np.isclose(d_a_max, 0.0, atol=ERROR_TOLERANCE) or np.isclose(
             d_a_max, 1.0, atol=ERROR_TOLERANCE
         ):
             d_a_max = clip_scalar(d_a_max, 0.0, 1.0)
@@ -366,6 +372,179 @@ def compute_arc_length(pt_a, pt_b):
     rho = np.sqrt(1.0 - z1 * z2)
     cross_2d = x1 * y2 - y1 * x2
     dot_2d = x1 * x2 + y1 * y2
-    delta_theta = np.atan2(cross_2d, dot_2d)
+    delta_theta = np.arctan2(cross_2d, dot_2d)
 
     return rho * abs(delta_theta)
+
+
+@njit(cache=True, inline="always")
+def _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q0, q1, q2):
+    """Compensated dot of an already-computed ``(hi, lo)`` normal with ``q``.
+
+    This is the second half of :func:`_orient3d_on_sphere_value_xyz`, split out
+    so that callers holding a normal that is invariant across many queries (e.g.
+    the ray plane ``q x R`` in the spherical point-in-polygon kernel, which is
+    the same for every edge of a face) can compute the cross product once and
+    reuse it, paying only this dot per query.
+
+    Keeps the normal's ``hi``/``lo`` parts separate through the dot product
+    (via ``_cdp8``, treating this as a 6-term compensated sum with two
+    zero-padded terms) instead of collapsing each component to a single float
+    first -- ``fl(nx_hi + nx_lo)`` typically just rounds back to ``nx_hi``,
+    discarding the compensated cross product's extra precision before it is
+    used.
+    """
+    s, lo = _cdp8(
+        q0,
+        q0,
+        q1,
+        q1,
+        q2,
+        q2,
+        0.0,
+        0.0,
+        nx_hi,
+        nx_lo,
+        ny_hi,
+        ny_lo,
+        nz_hi,
+        nz_lo,
+        0.0,
+        0.0,
+    )
+    return s + lo
+
+
+@njit(cache=True, inline="always")
+def _orient3d_on_sphere_value_xyz(a0, a1, a2, b0, b1, b2, q0, q1, q2):
+    """Accurate value of the orient3d-on-sphere predicate: ``(a x b) . q``.
+
+    Takes the nine vector components directly so hot loops can call it without
+    materializing ``(3,)`` arrays. Uses a compensated cross product, so for
+    unit-vector inputs it provides roughly double the effective precision of a
+    naive evaluation. Positive when q is left of the directed arc a->b, negative
+    when right, near zero when q is on the great circle through a and b.
+    """
+    nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(a0, a1, a2, b0, b1, b2)
+    return _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q0, q1, q2)
+
+
+@njit(cache=True)
+def _orient3d_on_sphere_value(a, b, q):
+    """Array form of :func:`_orient3d_on_sphere_value_xyz`: value of ``(a x b) . q``.
+
+    Convenience wrapper taking three ``(3,)`` unit vectors. Positive when q is
+    left of the directed arc a->b, negative when right, near zero when q is on
+    the great circle through a and b.
+    """
+    return _orient3d_on_sphere_value_xyz(
+        a[0], a[1], a[2], b[0], b[1], b[2], q[0], q[1], q[2]
+    )
+
+
+@njit(cache=True)
+def orient3d_on_sphere(a, b, q, tol=_PREDICATE_ZERO_TOL):
+    """Sign of the orient3d predicate on the unit sphere: -1, 0, or +1.
+
+    Evaluates the sign of ``(a x b) . q`` using compensated arithmetic to
+    avoid false zero results from floating-point cancellation near great-circle
+    boundaries. The sign determines which side of the great circle through a
+    and b the point q lies on. This is a public spatial predicate (used by
+    point-in-face, bounds, antimeridian handling and available for custom
+    geometry code); it is not part of the AccuXGCA/AccuXConstLat batch kernels.
+
+    Parameters
+    ----------
+    a, b, q : np.ndarray, shape (3,)
+        Unit vectors on the unit sphere.
+    tol : float, optional
+        Magnitude below which the result is classified as zero.
+
+    Returns
+    -------
+    int
+        +1 if q is to the left of a->b, -1 if to the right, 0 if collinear
+        within ``tol``.
+    """
+    v = _orient3d_on_sphere_value(a, b, q)
+    if v > tol:
+        return 1
+    if v < -tol:
+        return -1
+    return 0
+
+
+@njit(cache=True)
+def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
+    """Return True if q lies on the minor great-circle arc from a to b.
+
+    Uses ``_orient3d_on_sphere_value_xyz`` (a compensated cross product) for the
+    collinearity test and dot products for the interval check. Compared to
+    ``point_within_gca``, this avoids the ``arctan2`` call that guards against
+    180-degree arcs and avoids the separate plane-membership check via
+    ``np.cross`` + ``np.dot``.
+
+    Parameters
+    ----------
+    q : np.ndarray, shape (3,)
+        Query point (unit vector).
+    a, b : np.ndarray, shape (3,)
+        Endpoints of the great-circle arc (unit vectors).
+    tol : float, optional
+        Tolerance for the collinearity and interval checks.
+
+    Returns
+    -------
+    int
+        1 if q lies on the minor arc ab, 0 otherwise. Returned as an integer
+        mask (not bool) so callers can multiply it into validity products. An
+        attempt to implement a similar Python function that provides the same
+        functionality as AccuSphGeom's ``on_minor_arc_tol_ptr``.
+    """
+    return _on_minor_arc_xyz(q[0], q[1], q[2], a[0], a[1], a[2], b[0], b[1], b[2], tol)
+
+
+@njit(cache=True, inline="always")
+def _on_minor_arc_xyz(q0, q1, q2, a0, a1, a2, b0, b1, b2, tol=_ON_MINOR_ARC_TOL):
+    """Scalar-argument form of :func:`on_minor_arc`, returning a 0/1 int mask.
+
+    Same logic, but takes the nine vector components directly so hot loops can
+    test arc membership without allocating ``(3,)`` arrays for the query point.
+    """
+    # An attempt to implement a similar Python function that provides the
+    # same functionality as AccuSphGeom's on_minor_arc_tol_ptr: the result is
+    # a product of 0/1 masks. Note the branches below (still `if/else`) are a
+    # known gap versus a true branch-free form; tracked separately for a
+    # future fix.
+    #
+    # Coincident/antipodal degeneracy (a == b or a == -b) is detected via
+    # |a x b|^2 rather than exact component equality. Endpoints computed
+    # through independent trig paths (e.g. one via (lon, lat), the other via
+    # (lon + pi, -lat)) land coincident/antipodal to 1-2 ulp, not bit-exact --
+    # an exact ``==`` check misses them, and when missed, a x b ~= 0 makes the
+    # collinearity test pass for every point on the great circle and the
+    # interval checks degenerate to 0 >= -tol, producing false positives for
+    # arbitrary query points. |a x b|^2 < 1e-30 is a heuristic threshold, not
+    # a proven-robust degeneracy predicate -- rigorously handling coplanar/
+    # collinear degeneracies is an open problem in computational geometry,
+    # and the established robust approach (used by AccuSphGeom and
+    # S2Geometry) is Simulation of Simplicity, which this threshold does not
+    # implement. The C++ reference's ``on_minor_arc_tol_ptr`` only guards
+    # exact coincidence and assumes non-antipodal mesh edges, so this
+    # widening is a UXarray-side addition, not a port of the reference.
+    cx = a1 * b2 - a2 * b1
+    cy = a2 * b0 - a0 * b2
+    cz = a0 * b1 - a1 * b0
+    cross_sq = cx * cx + cy * cy + cz * cz
+    degenerate = 1 if cross_sq < 1e-30 else 0
+    orient_ok = (
+        1
+        if abs(_orient3d_on_sphere_value_xyz(a0, a1, a2, b0, b1, b2, q0, q1, q2)) <= tol
+        else 0
+    )
+    qa = a0 * q0 + a1 * q1 + a2 * q2
+    qb = b0 * q0 + b1 * q1 + b2 * q2
+    ab = a0 * b0 + a1 * b1 + a2 * b2
+    s1_ok = 1 if (qb - ab * qa) >= -tol else 0
+    s2_ok = 1 if (qa - qb * ab) >= -tol else 0
+    return (1 - degenerate) * orient_ok * s1_ok * s2_ok

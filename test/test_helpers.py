@@ -1,9 +1,7 @@
-import os
 import numpy as np
 import numpy.testing as nt
 import random
 import xarray as xr
-from pathlib import Path
 import pytest
 
 import uxarray as ux
@@ -11,25 +9,12 @@ from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
 from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _get_lonlat_rad_face_edge_nodes
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array, _get_lonlat_rad_face_edge_nodes_array
 from uxarray.grid.geometry import pole_point_inside_polygon, _pole_point_inside_polygon_cartesian
-
-try:
-    import constants
-except ImportError:
-    from . import constants
-
-# Data files
-current_path = Path(os.path.dirname(os.path.realpath(__file__)))
-
-gridfile_exo_CSne8 = current_path / "meshfiles" / "exodus" / "outCSne8" / "outCSne8.g"
-gridfile_scrip_CSne8 = current_path / 'meshfiles' / "scrip" / "outCSne8" / 'outCSne8.nc'
-gridfile_geoflowsmall_grid = current_path / 'meshfiles' / "ugrid" / "geoflow-small" / 'grid.nc'
-gridfile_geoflowsmall_var = current_path / 'meshfiles' / "ugrid" / "geoflow-small" / 'v1.nc'
 
 err_tolerance = 1.0e-12
 
-def test_face_area_coords():
+def test_face_area_coords(mesh_constants):
     """Test function for helper function get_all_face_area_from_coords."""
     # Note: currently only testing one face, but this can be used to get area of multiple faces
     # Cartesian coordinates (x, y, z) for each city
@@ -41,11 +26,11 @@ def test_face_area_coords():
     face_dimension = np.array([3], dtype=INT_DTYPE)
 
     area, _ = ux.grid.area.get_all_face_area_from_coords(
-        x, y, z, face_nodes, face_dimension, 3, coords_type="cartesian")
-    nt.assert_almost_equal(area, constants.TRI_AREA, decimal=5)
+        x, y, z, face_nodes, face_dimension)
+    nt.assert_almost_equal(area, mesh_constants['TRI_AREA'], decimal=5)
 
 
-def test_calculate_face_area():
+def test_calculate_face_area(mesh_constants):
     """Test function for helper function calculate_face_area - only one face."""
     # Note: currently only testing one face, but this can be used to get area of multiple faces
     # Also note, this does not need face_nodes, assumes nodes are in counterclockwise orientation
@@ -54,14 +39,14 @@ def test_calculate_face_area():
     z = np.array([0.66674712, 0.43462917, 0.66674712])
 
     area, _ = ux.grid.area.calculate_face_area(
-        x, y, z, "gaussian", 5, "cartesian", latitude_adjusted_area=False)
+        x, y, z, "gaussian", 5, latitude_adjusted_area=False)
 
-    nt.assert_almost_equal(area, constants.TRI_AREA, decimal=5)
+    nt.assert_almost_equal(area, mesh_constants['TRI_AREA'], decimal=5)
 
     area_corrected, _ = ux.grid.area.calculate_face_area(
-        x, y, z, "gaussian", 5, "cartesian", latitude_adjusted_area=True)
+        x, y, z, "gaussian", 5, latitude_adjusted_area=True)
 
-    nt.assert_almost_equal(area_corrected, constants.CORRECTED_TRI_AREA, decimal=5)
+    nt.assert_almost_equal(area_corrected, mesh_constants['CORRECTED_TRI_AREA'], decimal=5)
 
     # Make the same grid using lon/lat check area = constants.TRI_AREA
     lon = np.array([-87.7126, -80.1918, -75.7355])
@@ -75,8 +60,8 @@ def test_calculate_face_area():
         fill_value=-1,
     )
 
-    area, _ = grid.compute_face_areas()
-    nt.assert_almost_equal(area, constants.TRI_AREA, decimal=5)
+    area, _ = grid._compute_face_areas()
+    nt.assert_almost_equal(area, mesh_constants['TRI_AREA'], decimal=5)
 
 def test_quadrature():
     order = 1
@@ -95,10 +80,10 @@ def test_quadrature():
     np.testing.assert_array_almost_equal(G, dG)
     np.testing.assert_array_almost_equal(W, dW)
 
-def test_grid_center():
+def test_grid_center(gridpath):
     """Calculates if the calculated center point of a grid box is the same
     as a given value for the same dataset."""
-    ds_scrip_CSne8 = xr.open_dataset(gridfile_scrip_CSne8)
+    ds_scrip_CSne8 = xr.open_dataset(gridpath("scrip", "outCSne8", "outCSne8.nc"))
 
     # select actual center_lat/lon
     scrip_center_lon = ds_scrip_CSne8['grid_center_lon']
@@ -273,7 +258,7 @@ def test_get_cartesian_face_edge_nodes_pipeline():
     node_y = grid.node_y.values
     node_z = grid.node_z.values
 
-    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes_array(
         face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
     )
 
@@ -298,7 +283,7 @@ def test_get_cartesian_face_edge_nodes_filled_value():
     node_y = grid.node_y.values
     node_z = grid.node_z.values
 
-    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes_array(
         face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
     )
 
@@ -335,7 +320,7 @@ def test_get_cartesian_face_edge_nodes_filled_value2():
     node_y = np.array([v0_cart[1],v1_cart[1],v2_cart[1],v3_cart[1],v4_cart[1]])
     node_z = np.array([v0_cart[2],v1_cart[2],v2_cart[2],v3_cart[2],v4_cart[2]])
 
-    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes(
+    face_edges_connectivity_cartesian = _get_cartesian_face_edge_nodes_array(
         face_node_conn, n_face, n_max_face_edges, node_x, node_y, node_z
     )
 
@@ -368,7 +353,7 @@ def test_get_lonlat_face_edge_nodes_pipeline():
     node_lon = grid.node_lon.values
     node_lat = grid.node_lat.values
 
-    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes_array(
         face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
     )
 
@@ -398,7 +383,7 @@ def test_get_lonlat_face_edge_nodes_filled_value():
     node_lon = grid.node_lon.values
     node_lat = grid.node_lat.values
 
-    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes_array(
         face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
     )
 
@@ -434,7 +419,7 @@ def test_get_lonlat_face_edge_nodes_filled_value2():
     node_lon = np.array([v0_rad[0],v1_rad[0],v2_rad[0],v3_rad[0],v4_rad[0]])
     node_lat = np.array([v0_rad[1],v1_rad[1],v2_rad[1],v3_rad[1],v4_rad[1]])
 
-    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes(
+    face_edges_connectivity_lonlat = _get_lonlat_rad_face_edge_nodes_array(
         face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
     )
 

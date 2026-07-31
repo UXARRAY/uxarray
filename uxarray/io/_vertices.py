@@ -1,7 +1,7 @@
-import xarray as xr
 import numpy as np
+import xarray as xr
 
-from uxarray.constants import INT_FILL_VALUE, INT_DTYPE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 def _read_face_vertices(face_vertices, latlon):

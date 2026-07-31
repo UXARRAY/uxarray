@@ -1,11 +1,16 @@
-from .core.api import open_grid, open_dataset, open_mfdataset, concat
-
-from .core.dataset import UxDataset
-from .core.dataarray import UxDataArray
-from .grid import Grid
-
+from . import tutorial
 from .constants import INT_DTYPE, INT_FILL_VALUE
-from .cmaps import sequential, diverging, sequential_blue, sequential_green
+from .core.api import (
+    concat,
+    list_grid_names,
+    open_dataset,
+    open_grid,
+    open_mfdataset,
+    open_multigrid,
+)
+from .core.dataarray import UxDataArray
+from .core.dataset import UxDataset
+from .grid import Grid
 
 try:
     from importlib.metadata import version as _version
@@ -23,14 +28,13 @@ __all__ = (
     "open_grid",
     "open_dataset",
     "open_mfdataset",
+    "open_multigrid",
+    "list_grid_names",
     "concat",
+    "tutorial",
     "UxDataset",
     "UxDataArray",
     "INT_DTYPE",
     "INT_FILL_VALUE",
     "Grid",
-    "sequential",
-    "diverging",
-    "sequential_blue",
-    "sequential_green",
 )

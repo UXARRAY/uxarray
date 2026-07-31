@@ -1,21 +1,23 @@
 import numpy as np
 import xarray as xr
-from scipy.spatial import ConvexHull
+
 from uxarray.conventions import ugrid
+from uxarray.errors import DimensionError
 from uxarray.grid.geometry import stereographic_projection
-from scipy.spatial import Delaunay
 
 
 def _spherical_delaunay_from_points(points, boundary_points=None):
     """Generates a spherical Delaunay triangulation from given points,
     excluding triangles where all three nodes are boundary points."""
+    from scipy.spatial import ConvexHull
+
     out_ds = xr.Dataset()
 
     # Validate boundary_points if provided
     if boundary_points is not None:
         boundary_points = np.asarray(boundary_points)
         if boundary_points.ndim != 1:
-            raise ValueError(
+            raise DimensionError(
                 "boundary_points must be a 1D array-like of point indices."
             )
         if np.any(boundary_points < 0) or np.any(boundary_points >= len(points)):
@@ -68,13 +70,15 @@ def _spherical_delaunay_from_points(points, boundary_points=None):
 def _regional_delaunay_from_points(points, boundary_points=None):
     """Generates a regional Delaunay triangulation from given points,
     excluding triangles where all three nodes are boundary points."""
+    from scipy.spatial import Delaunay
+
     out_ds = xr.Dataset()
 
     # Validate boundary_points if provided
     if boundary_points is not None:
         boundary_points = np.asarray(boundary_points)
         if boundary_points.ndim != 1:
-            raise ValueError(
+            raise DimensionError(
                 "boundary_points must be a 1D array-like of point indices."
             )
         if np.any(boundary_points < 0) or np.any(boundary_points >= len(points)):

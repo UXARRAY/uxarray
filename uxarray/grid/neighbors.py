@@ -1,16 +1,9 @@
 import numpy as np
+import xarray as xr
+from numba import njit
 from numpy import deg2rad
 
-import xarray as xr
-
-from numba import njit
-
-from sklearn.neighbors import BallTree as SKBallTree
-from sklearn.neighbors import KDTree as SKKDTree
-
-from typing import Optional, Union
-
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
+from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 
 
 class KDTree:
@@ -45,9 +38,9 @@ class KDTree:
     def __init__(
         self,
         grid,
-        coordinates: Optional[str] = "face centers",
-        coordinate_system: Optional[str] = "cartesian",
-        distance_metric: Optional[str] = "minkowski",
+        coordinates: str | None = "face centers",
+        coordinate_system: str | None = "cartesian",
+        distance_metric: str | None = "minkowski",
         reconstruct: bool = False,
     ):
         # Set up references
@@ -80,6 +73,7 @@ class KDTree:
     def _build_from_nodes(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from corner
         nodes."""
+        from sklearn.neighbors import KDTree as SKKDTree
 
         if self._tree_from_nodes is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -114,6 +108,7 @@ class KDTree:
     def _build_from_face_centers(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from face
         centers."""
+        from sklearn.neighbors import KDTree as SKKDTree
 
         if self._tree_from_face_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -148,6 +143,8 @@ class KDTree:
     def _build_from_edge_centers(self):
         """Internal``sklearn.neighbors.KDTree`` constructed from edge
         centers."""
+        from sklearn.neighbors import KDTree as SKKDTree
+
         if self._tree_from_edge_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "cartesian":
@@ -204,13 +201,13 @@ class KDTree:
 
     def query(
         self,
-        coords: Union[np.ndarray, list, tuple],
-        k: Optional[int] = 1,
-        return_distance: Optional[bool] = True,
-        in_radians: Optional[bool] = False,
-        dualtree: Optional[bool] = False,
-        breadth_first: Optional[bool] = False,
-        sort_results: Optional[bool] = True,
+        coords: np.ndarray | list | tuple,
+        k: int | None = 1,
+        return_distance: bool | None = True,
+        in_radians: bool | None = False,
+        dualtree: bool | None = False,
+        breadth_first: bool | None = False,
+        sort_results: bool | None = True,
     ):
         """Queries the tree for the ``k`` nearest neighbors.
 
@@ -290,12 +287,12 @@ class KDTree:
 
     def query_radius(
         self,
-        coords: Union[np.ndarray, list, tuple],
-        r: Optional[int] = 1.0,
-        return_distance: Optional[bool] = False,
-        in_radians: Optional[bool] = False,
-        count_only: Optional[bool] = False,
-        sort_results: Optional[bool] = False,
+        coords: np.ndarray | list | tuple,
+        r: int | None = 1.0,
+        return_distance: bool | None = False,
+        in_radians: bool | None = False,
+        count_only: bool | None = False,
+        sort_results: bool | None = False,
     ):
         """Queries the tree for all neighbors within a radius ``r``.
 
@@ -433,9 +430,9 @@ class BallTree:
     def __init__(
         self,
         grid,
-        coordinates: Optional[str] = "face centers",
-        coordinate_system: Optional[str] = "spherical",
-        distance_metric: Optional[str] = "haversine",
+        coordinates: str | None = "face centers",
+        coordinate_system: str | None = "spherical",
+        distance_metric: str | None = "haversine",
         reconstruct: bool = False,
     ):
         # maintain a reference to the source grid
@@ -468,6 +465,7 @@ class BallTree:
     def _build_from_face_centers(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from face
         centers."""
+        from sklearn.neighbors import BallTree as SKBallTree
 
         if self._tree_from_face_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -503,6 +501,7 @@ class BallTree:
     def _build_from_nodes(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from corner
         nodes."""
+        from sklearn.neighbors import BallTree as SKBallTree
 
         if self._tree_from_nodes is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
@@ -530,6 +529,8 @@ class BallTree:
     def _build_from_edge_centers(self):
         """Internal``sklearn.neighbors.BallTree`` constructed from edge
         centers."""
+        from sklearn.neighbors import BallTree as SKBallTree
+
         if self._tree_from_edge_centers is None or self.reconstruct:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "spherical":
@@ -586,13 +587,13 @@ class BallTree:
 
     def query(
         self,
-        coords: Union[np.ndarray, list, tuple],
-        k: Optional[int] = 1,
-        in_radians: Optional[bool] = False,
-        return_distance: Optional[bool] = True,
-        dualtree: Optional[bool] = False,
-        breadth_first: Optional[bool] = False,
-        sort_results: Optional[bool] = True,
+        coords: np.ndarray | list | tuple,
+        k: int | None = 1,
+        in_radians: bool | None = False,
+        return_distance: bool | None = True,
+        dualtree: bool | None = False,
+        breadth_first: bool | None = False,
+        sort_results: bool | None = True,
     ):
         """Queries the tree for the ``k`` nearest neighbors.
 
@@ -671,12 +672,12 @@ class BallTree:
 
     def query_radius(
         self,
-        coords: Union[np.ndarray, list, tuple],
-        r: Optional[int] = 1.0,
-        in_radians: Optional[bool] = False,
-        return_distance: Optional[bool] = False,
-        count_only: Optional[bool] = False,
-        sort_results: Optional[bool] = False,
+        coords: np.ndarray | list | tuple,
+        r: int | None = 1.0,
+        in_radians: bool | None = False,
+        return_distance: bool | None = False,
+        count_only: bool | None = False,
+        sort_results: bool | None = False,
     ):
         """Queries the tree for all neighbors within a radius ``r``.
 
@@ -822,9 +823,6 @@ class SpatialHash:
         self._xmax = lon_max + self._dh
         self._ymax = lat_max + self._dh
 
-        print(self._xmin, self._xmax)
-        print(self._ymin, self._ymax)
-
         # Number of x points in the hash grid; used for
         # array flattening
         Lx = self._xmax - self._xmin
@@ -894,9 +892,9 @@ class SpatialHash:
 
     def query(
         self,
-        coords: Union[np.ndarray, list, tuple],
-        in_radians: Optional[bool] = False,
-        tol: Optional[float] = 1e-6,
+        coords: np.ndarray | list | tuple,
+        in_radians: bool | None = False,
+        tol: float | None = 1e-6,
     ):
         """Queries the hash table.
 
@@ -995,7 +993,6 @@ def _barycentric_coordinates(nodes, point):
         a2 = max(_triangle_area(point, vi, vi1), ERROR_TOLERANCE)
         sum_wi += a0 / (a1 * a2)
         w.append(a0 / (a1 * a2))
-
     barycentric_coords = [w_i / sum_wi for w_i in w]
 
     return barycentric_coords
@@ -1098,7 +1095,7 @@ def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
 def _populate_edge_face_distances(grid):
     """Populates ``edge_face_distances``"""
     edge_face_distances = _construct_edge_face_distances(
-        grid.node_lon.values, grid.node_lat.values, grid.edge_face_connectivity.values
+        grid.face_lon.values, grid.face_lat.values, grid.edge_face_connectivity.values
     )
 
     grid._ds["edge_face_distances"] = xr.DataArray(
@@ -1111,7 +1108,7 @@ def _populate_edge_face_distances(grid):
 
 
 @njit(cache=True)
-def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
+def _construct_edge_face_distances(face_lon, face_lat, edge_faces):
     """Helper for computing the arc-distance between faces that saddle a given
     edge."""
 
@@ -1119,11 +1116,11 @@ def _construct_edge_face_distances(node_lon, node_lat, edge_faces):
 
     edge_face_distances = np.zeros(edge_faces.shape[0])
 
-    edge_lon_a = np.deg2rad((node_lon[edge_faces[saddle_mask, 0]]))
-    edge_lon_b = np.deg2rad((node_lon[edge_faces[saddle_mask, 1]]))
+    edge_lon_a = np.deg2rad((face_lon[edge_faces[saddle_mask, 0]]))
+    edge_lon_b = np.deg2rad((face_lon[edge_faces[saddle_mask, 1]]))
 
-    edge_lat_a = np.deg2rad((node_lat[edge_faces[saddle_mask, 0]]))
-    edge_lat_b = np.deg2rad((node_lat[edge_faces[saddle_mask, 1]]))
+    edge_lat_a = np.deg2rad((face_lat[edge_faces[saddle_mask, 0]]))
+    edge_lat_b = np.deg2rad((face_lat[edge_faces[saddle_mask, 1]]))
 
     # arc length
     edge_face_distances[saddle_mask] = np.arccos(

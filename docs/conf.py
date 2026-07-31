@@ -5,18 +5,25 @@
 
 # -- Project information -----------------------------------------------------
 
+import datetime
 import os
-import sys
 import pathlib
+import sys
+from textwrap import dedent, indent
+
+import matplotlib.pyplot
+import sphinx_autosummary_accessors
 import yaml
 from sphinx.application import Sphinx
-import sphinx_autosummary_accessors
 from sphinx.util import logging
-from textwrap import dedent, indent
-import datetime
+
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
+os.environ.setdefault(
+    "UXARRAY_DATA_DIR",
+    str(PROJECT_ROOT / "test" / "meshfiles"),
+)
 
 import uxarray
-import matplotlib.pyplot
 
 __all__ = (uxarray, matplotlib.pyplot)
 
@@ -57,7 +64,19 @@ extensions = [
     "IPython.sphinxext.ipython_directive",
     "IPython.sphinxext.ipython_console_highlighting",
     "sphinx_remove_toctrees",
+    "sphinx_copybutton",
 ]
+
+suppress_warnings = [
+    # mystnb doesn't recognize MIME type 'application/vnd.holoviews_load.v0+json'
+    # from the holoviews plots and otherwise spams the build with warnings
+    "mystnb.unknown_mime_type",
+]
+
+# nbsphinx_execute = "never"
+# jupyter_execute_notebooks = "off"
+# nb_execution_mode = "off"
+
 
 extlinks = {
     "issue": ("https://github.com/uxarray/uxarray/issues/%s", "GH"),
@@ -66,18 +85,23 @@ extlinks = {
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
-    "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
-    "iris": ("https://scitools-iris.readthedocs.io/en/latest", None),
-    "numpy": ("https://numpy.org/doc/stable", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy", None),
-    "numba": ("https://numba.pydata.org/numba-doc/latest", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
+    "iris": ("https://scitools-iris.readthedocs.io/en/stable/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "numba": ("https://numba.readthedocs.io/en/stable/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
-    "dask": ("https://docs.dask.org/en/latest", None),
-    "cftime": ("https://unidata.github.io/cftime", None),
-    "rasterio": ("https://rasterio.readthedocs.io/en/latest", None),
-    "sparse": ("https://sparse.pydata.org/en/latest/", None),
-    "xarray": ("http://xarray.pydata.org/en/stable/", None),
+    "dask": ("https://docs.dask.org/en/stable/", None),
+    "cftime": ("https://unidata.github.io/cftime/", None),
+    "rasterio": ("https://rasterio.readthedocs.io/en/stable/", None),
+    "sparse": ("https://sparse.pydata.org/en/stable/", None),
+    "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "cartopy": ("https://cartopy.readthedocs.io/stable/", None),
 }
+
+
+# Notebook execution (per cell)
+nb_execution_timeout = 120
 
 remove_from_toctrees = ["generated/*"]
 
@@ -124,7 +148,15 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
+exclude_patterns = [
+    "_build",
+    "**.ipynb_checkpoints",
+    # Not included (yet)
+    "examples/template.ipynb",
+    "user-guide/custom-grid.ipynb",
+    "user-guide/spatial-hashing.ipynb",
+    "user-guide/template.ipynb",
+]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
@@ -160,7 +192,7 @@ html_theme_options = {
     "use_repository_button": True,
     "use_issues_button": True,
     "home_page_in_toc": False,
-    "navbar_footer_text": "",
+    # "navbar_footer_text": "",
     # "extra_footer": "<p></p>",
     "logo": {
         "image_light": "_static/images/logos/uxarray_logo_h_dark.svg",
@@ -203,6 +235,17 @@ nb_execution_excludepatterns = [
     "e3sm-calc-workflow.ipynb",
     "e3sm-load-viz.ipynb",
     "parallel-load-ux-with-dask.ipynb",
+]
+
+# add links to ignore during link checking
+linkcheck_ignore = [
+    r"https://gmao.gsfc.nasa.gov/gmaoftp/*",
+    r"https://docs.xarray.dev/*",
+    r"https://seatstandards.org/*",
+    r"https://healpix.sourceforge.io/*",
+    r"https://zenodo.org/*",
+    r"https://doi.org/10.5281/zenodo*",
+    # More URLs as needed
 ]
 
 

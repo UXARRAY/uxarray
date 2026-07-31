@@ -1,116 +1,89 @@
 .. currentmodule:: uxarray
-
 .. _installation:
 
+============
 Installation
 ============
 
-This installation guide includes only the UXarray installation instructions. Please
-refer to `UXarray Contributor's Guide <https://uxarray.readthedocs.io/en/latest/contributing.html>`_
-for detailed information about how to contribute to the UXarray project.
+UXarray is built **on top of** `Xarray <https://docs.xarray.dev/en/latest/getting-started-guide/installing.html#installation>`__,
+so we **strongly** recommend becoming familiar with Xarray’s installation
+process and dependencies first.
 
-Installing UXarray via Conda
-----------------------------
+Installing with Conda (recommended)
+-----------------------------------
 
-The easiest way to install UXarray along with its dependencies is via
-`Conda <https://conda.io/en/latest>`_::
-
-    conda install -c conda-forge uxarray
-
-Note that the Conda package manager automatically installs all `required`
-dependencies of UXarray, meaning it is not necessary to explicitly install
-Xarray or other required packages when installing UXarray.
-
-If you are interested in learning more about how Conda environments work, please
-visit the `managing environments <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_
-page of the Conda documentation.
-
-Installing UXarray via PyPI
----------------------------
-
-An alternative to Conda is using pip::
-
-    pip install uxarray
-
-This installs the minimum set of required dependencies, which includes the following:
-
-.. literalinclude:: ../pyproject.toml
-   :language: toml
-   :start-after: minimal dependencies start
-   :end-before: minimal dependencies end
+UXarray itself is a pure Python package, but its dependencies are not.
+The easiest way to get everything installed is to use conda.
+To install UXarray with its recommended dependencies using the conda command line tool:
 
 
-UXarray also maintains other dependency sets for different subsets of functionality::
+.. code-block:: bash
 
-    $ python -m pip install "uxarray[math]"       # Install optional dependencies for accurate math utlities
-    $ python -m pip install "uxarray[dev]"        # Install optional dependencies for development
-    $ python -m pip install "uxarray[complete]"   # Install all optional dependencies
+   conda install -c conda-forge uxarray
 
-The above commands should install most of the optional dependencies. However,
-some packages which are either not listed on PyPI or require extra
-installation steps are excluded. To know which dependencies would be
-installed, take a look at the ``[project.optional-dependencies]`` section in
-``pyproject.toml``:
+.. note::
 
-.. literalinclude:: ../pyproject.toml
-   :language: toml
-   :start-at: [project.optional-dependencies]
-   :end-before: [project.urls]
+   Conda automatically installs Xarray and every other required
+   dependency (including non‑Python libraries).
 
-Installing UXarray from source (Github)
----------------------------------------
+Installing with pip
+-------------------
+.. code-block:: bash
 
-Installing UXarray from source code is a fairly straightforward task, but
-doing so should not be necessary for most users. If you `are` interested in
-installing UXarray from source, you will first need to get the latest version
-of the code::
+   pip install uxarray
 
-    git clone https://github.com/UXARRAY/uxarray.git
-    cd uxarray
+This installs the *minimal* required dependencies. UXarray also provides optional extras:
 
-Required dependencies for installing and testing UXarray
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. code-block:: bash
 
-The following packages should be installed (in your active conda
-environment)::
+   pip install "uxarray[dev]"       # development tools
+   pip install "uxarray[complete]"  # all optional features
 
-    - Python 3.9+
-    - `pytest <https://docs.pytest.org/en/stable/>`_  (For tests only)
-    - `xarray <http://xarray.pydata.org/en/stable/>`_
+A complete list of extras lives in the ``[project.optional-dependencies]``
+section of our `pyproject.toml <https://github.com/UXARRAY/uxarray/blob/main/pyproject.toml>`_
 
-If you don't have these packages installed, the next section describes
-how to setup a conda environment with them.
-
-Creating a Conda environment
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The UXarray source code includes a conda environment definition file
-(:code:`environment.yml`) in the :code:`/ci` folder under the root
-directory that can be used to create a development environment
-containing all of the packages required to build UXarray. The
-following commands should work on Windows, Linux, and macOS to create
-and activate a new conda environment from that file::
-
-    conda env create -f ci/environment.yml
-    conda activate uxarray_build
 
 Installing from source
-^^^^^^^^^^^^^^^^^^^^^^
+----------------------
+Installing from source is intended mainly for developers.
 
-Once the dependencies listed above are installed, you can install
-UXarray with running the following command from the root-directory::
+#. **Clone the repo**
 
-    pip install .
+   .. code-block:: bash
 
-For compatibility purposes, we strongly recommend using Conda to
-configure your build environment as described above.
+      git clone https://github.com/UXARRAY/uxarray.git
+      cd uxarray
 
-Testing UXarray source
-^^^^^^^^^^^^^^^^^^^^^^
+#. **Create a dev environment**
 
-A UXarray code base can be tested from the root directory of the source
-code repository using the following command (Explicit installation of the
-`pytest <https://docs.pytest.org/en/stable/>`_ package may be required, please
-see above)::
+   A ready-made file is provided at ``ci/environment.yml``:
 
-    pytest test
+   .. code-block:: bash
+
+      conda env create -f ci/environment.yml
+      conda activate uxarray_build
+
+#. **Install UXarray**
+
+   .. code-block:: bash
+
+      pip install .
+
+#. **Run the test suite**
+
+   .. code-block:: bash
+
+      pytest test
+
+Verifying your installation
+---------------------------
+
+After installing UXarray, you can verify the installation by running the following in a Python shell or script:
+
+.. code-block:: python
+
+    import uxarray as ux
+
+    print(ux.__version__)
+
+This should print the installed version of UXarray without errors.

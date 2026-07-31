@@ -120,6 +120,8 @@ class RemapDownsample:
     def time_inverse_distance_weighted_remapping(self):
         self.uxds_120["bottomDepth"].remap.inverse_distance_weighted(self.uxds_480.uxgrid)
 
+    def time_bilinear_remapping(self):
+        self.uxds_120["bottomDepth"].remap.bilinear(self.uxds_480.uxgrid)
 
 class RemapUpsample:
 
@@ -135,6 +137,9 @@ class RemapUpsample:
 
     def time_inverse_distance_weighted_remapping(self):
         self.uxds_480["bottomDepth"].remap.inverse_distance_weighted(self.uxds_120.uxgrid)
+
+    def time_bilinear_remapping(self):
+        self.uxds_480["bottomDepth"].remap.bilinear(self.uxds_120.uxgrid)
 
 
 class HoleEdgeIndices(DatasetBenchmark):
@@ -203,13 +208,17 @@ class PointInPolygon:
         point = np.array([0.0, 0.0, 1.0])
         res = self.uxgrid.get_faces_containing_point(point)
 
+        self.point_xyz = np.array([self.uxgrid.face_x[0].values, self.uxgrid.face_y[0].values, self.uxgrid.face_z[0].values], dtype=np.float64)
+        self.point_lonlat = np.array([self.uxgrid.face_lon[0].values, self.uxgrid.face_lat.values[0]], dtype=np.float64)
+
     def teardown(self, resolution):
         del self.uxgrid
 
-    def time_face_search(self, resolution):
-        point_xyz = np.array([self.uxgrid.face_x[0].values, self.uxgrid.face_y[0].values, self.uxgrid.face_z[0].values], dtype=np.float64)
-        point_lonlat = np.array([self.uxgrid.face_lon[0].values, self.uxgrid.face_lat.values[0]], dtype=np.float64)
-        self.uxgrid.get_faces_containing_point(point_xyz=point_xyz, point_lonlat=point_lonlat)
+    def time_face_search_xyz(self, resolution):
+        self.uxgrid.get_faces_containing_point(self.point_xyz)
+
+    def time_face_search_lonlat(self, resolution):
+        self.uxgrid.get_faces_containing_point(self.point_lonlat)
 
 
 class ZonalAverage(DatasetBenchmark):

@@ -25,26 +25,98 @@ models have their own grid format (e.g. MPAS, ICON). Below is a list of support 
 UGRID
 =====
 
-The UGRID conventions are a standard for for storing unstructured grid (a.k.a. unstructured mesh,
+The `UGRID conventions <http://ugrid-conventions.github.io/ugrid-conventions/>`_
+are a standard for storing unstructured grid (a.k.a. unstructured mesh,
 flexible mesh) model data in a Unidata Network Common Data Form (NetCDF) file.
 
-These conventions are focussed on representing data for environmental applications, hence the motivation for
-starting from the Climate & Forecasting (CF) Metadata Conventions,
-The CF Conventions have been the standard in climate rx`earch for many years, and are being adopted by others as the metadata
+These conventions are focused on representing data for environmental applications, hence the motivation for
+starting from the Climate & Forecasting (CF) Metadata Conventions.
+The CF conventions have been the standard in climate research for many years, and are being adopted by others as the metadata
 standard (e.g. NASA, Open Geospatial Consortium). The CF conventions allow you to provide the geospatial and temporal coordinates
-for scientific data, but currently assumes that the horizontal topology may be inferred from the i,j indices of structured
-grids. The UGRID Conventions outline how to specify the topology of unstructured grids.
+for scientific data, but currently assume that the horizontal topology may be inferred from the i,j indices of structured
+grids. The UGRID conventions outline how to specify the topology of unstructured grids.
 
 The standard was developed over a period of several years through the UGRID Google Group which had members from many
-different unstructured grid modeling communities (including SELFE, ELCIRC, FVCOM, ADCIRC). From these discussions Bert
+different unstructured grid modeling communities (including SELFE, ELCIRC, FVCOM, ADCIRC). From these discussions, Bert
 Jagers (Deltares) created the first draft of this document, and the community worked to develop version 1.0.
+CF conventions versions 1.11 and later include the UGRID conventions by reference.
+
+UXarray in particular assumes horizontally unstructured grids, consistent with the
+UGRID conventions' 2D flexible mesh topology,
+with the extra assumption that all grid faces/cells are convex (all angles less than 180 degrees).
+UXarray also supports grids with vertical levels as described by the
+UGRID conventions' 3D layered mesh topology,
+but it does not support fully 3D unstructured topology.
+
+.. note::
+   UXarray's geometry algorithms also assume the grid lies on a spherical surface.
+   The sphere radius can be adjusted but a unit sphere is assumed by default.
 
 References
 ----------
 * https://ugrid-conventions.github.io/ugrid-conventions/#ugrid-conventions-v10
 * https://github.com/ugrid-conventions/ugrid-conventions
-* https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#ugrid-conventions
-* https://cfconventions.org/Data/cf-conventions/cf-conventions-1.11/cf-conventions.html#mesh-topology-variables
+* https://cf-convention.github.io/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#ugrid-conventions
+* https://cf-convention.github.io/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#mesh-topology-variables
+
+
+Projected (Non-Spherical) Coordinates
+--------------------------------------
+
+UGRID itself does not assume a sphere — some regional and coastal models write UGRID
+files with **projected coordinates** (e.g. a Lambert Conformal or Albers Equal
+Area projection) in units of meters rather than degrees. UXarray detects this
+automatically from the CF metadata already present on the coordinate variables:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 60
+
+   * - CF signal on ``node_lon``
+     - Detected as
+   * - ``standard_name = "projection_x_coordinate"``
+     - Projected
+   * - ``standard_name = "longitude"``
+     - Geographic
+   * - ``units`` is ``m``, ``km``, ``ft``, …
+     - Projected
+   * - ``units`` is ``degrees_east``, ``deg``, …
+     - Geographic
+   * - ``grid_mapping`` variable with non-latlon ``grid_mapping_name``
+     - Projected
+   * - No recognizable signal
+     - Geographic (backward-compatible default)
+
+When projected coordinates are detected, UXarray:
+
+* **Preserves coordinates as-is** — no longitude wrapping is applied.
+* **Emits a** ``UserWarning`` **on load** listing which operations are invalid.
+
+**What works on projected grids:** loading, data access, connectivity
+traversal, and plotting (coordinates are passed through as-is to the plotting
+backend).
+
+**What does not work:** UXarray's geometry algorithms assume a unit sphere —
+face areas, GCA intersections, zonal mean, face bounds, and cross-sections will
+produce incorrect results and are not supported on projected grids.
+
+.. code-block:: python
+
+    import xarray as xr
+    import uxarray as ux
+
+    # Load a projected UGRID file — coordinates are preserved, warning is issued
+    import warnings
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        grid = ux.open_grid("projected_grid.nc")
+        if w:
+            print(w[0].message)
+
+.. note::
+   ``Grid.from_topology`` accepts raw NumPy arrays with no CF attributes, so
+   projection cannot be auto-detected. Use ``Grid.from_dataset`` with a
+   properly attributed ``xr.Dataset`` for projected grids.
 
 MPAS
 ====
@@ -148,7 +220,7 @@ Alfred Wegener Institute, Helmholtz Centre for Polar and Marine Research (AWI), 
 
 References
 ----------
-* https://fesom2.readthedocs.io/en/latest/index.html#
+* https://fesom2.readthedocs.io/
 
 HEALPix
 =======
@@ -162,8 +234,8 @@ References
 ----------
 * https://easy.gems.dkrz.de/Processing/healpix/index.html#hierarchical-healpix-output
 * https://healpix.sourceforge.io/
-* https://healpix.jpl.nasa.gov/
-* https://iopscience.iop.org/article/10.1086/427976
+* https://irsa.ipac.caltech.edu/healpix/
+* https://doi.org/10.1086/427976
 
 Parsed Variables
 ================

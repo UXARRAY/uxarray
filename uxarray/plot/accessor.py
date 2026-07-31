@@ -1,33 +1,73 @@
 from __future__ import annotations
 
-import functools
 import warnings
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
-import cartopy.crs as ccrs
-import hvplot.pandas
-import hvplot.xarray
 import pandas as pd
 
-import uxarray.plot.dataarray_plot as dataarray_plot
 import uxarray.plot.utils
+from uxarray.errors import DataCenteringError
 
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
     from uxarray.core.dataset import UxDataset
     from uxarray.grid import Grid
 
+from uxarray.plot.utils import backend as plotting_backend
+
+# import speedup trick:
+#   code here uses obj.hvplot, which requires import hvplot.pandas and/or hvplot.xarray.
+#   But, those lines are "slow", so instead of doing them at top-level here,
+#   only run them when actually creating a plot accessor, inside the code later in this file.
+# (timing test: import uxarray takes ~1.7 seconds before change; 0.7 seconds after change.)
+
+_IMPORTED_HVPLOT = False
+
+
+def _ensure_hvplot_imported() -> None:
+    """Import hvplot.pandas and hvplot.xarray if not already imported.
+    (importing hvplot.pandas may output horizontal gray bar(s) in Jupyter, so only ever do it once.)
+    """
+    global _IMPORTED_HVPLOT
+    if not _IMPORTED_HVPLOT:
+        # workaround for hvplot issue #1735;
+        #  import hvplot.pandas and hvplot.xarray always adjust the hvplot.extension().
+        # To respect previously-setup extension value, need to remember and restore it.
+        # NB: the active backend lives on holoviews.Store (hvplot has no ``Store``),
+        #  and we only restore a backend that was actually loaded -- on a fresh import
+        #  Store.current_backend defaults to "matplotlib" while Store.registry is empty,
+        #  and restoring that unloaded backend would break rendering.
+        from holoviews import Store as _store
+
+        _backend_orig = _store.current_backend
+        import hvplot.pandas
+        import hvplot.xarray
+
+        if _backend_orig in _store.registry:
+            _store.set_current_backend(_backend_orig)
+
+        _IMPORTED_HVPLOT = True
+
 
 class GridPlotAccessor:
-    """Plotting accessor for ``Grid``.
+    """Plotting accessor for :class:`Grid`.
 
-    Accessed through `Grid.plot()` or `Grid.plot.specific_routine()`
+    You can call :func:`Grid.plot`
+    which plots the edges, or you can specify a routine.
+    For example:
+
+    - :func:`Grid.plot.edges`
+    - :func:`Grid.plot.nodes`
+    - :func:`Grid.plot.face_centers`
+
+    See examples in :doc:`/user-guide/plotting`.
     """
 
     _uxgrid: Grid
     __slots__ = ("_uxgrid",)
 
     def __init__(self, uxgrid: Grid) -> None:
+        _ensure_hvplot_imported()
         self._uxgrid = uxgrid
 
     def __call__(self, **kwargs) -> Any:
@@ -66,7 +106,7 @@ class GridPlotAccessor:
             If the provided `element` is not one of the accepted options.
         """
 
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
 
         if element in ["nodes", "corner nodes", "node_latlon"]:
             lon, lat = self._uxgrid.node_lon.values, self._uxgrid.node_lat.values
@@ -204,7 +244,9 @@ class GridPlotAccessor:
         gdf.hvplot.paths : hvplot.paths
             A paths plot of the edges of the unstructured grid
         """
-        uxarray.plot.utils.backend.assign(backend)
+        import cartopy.crs as ccrs
+
+        plotting_backend.assign(backend)
 
         if "rasterize" not in kwargs:
             kwargs["rasterize"] = False
@@ -212,6 +254,8 @@ class GridPlotAccessor:
             kwargs["projection"] = ccrs.PlateCarree()
         if "clabel" not in kwargs:
             kwargs["clabel"] = "edges"
+        if "color" not in kwargs and "line_color" not in kwargs:
+            kwargs["color"] = "black"
         if "crs" not in kwargs:
             if "projection" in kwargs:
                 central_longitude = kwargs["projection"].proj4_params["lon_0"]
@@ -247,7 +291,8 @@ class GridPlotAccessor:
     ):
         """Plots the distribution of the number of nodes per face as a bar
         plot."""
-        uxarray.plot.utils.backend.assign(backend)
+
+        plotting_backend.assign(backend)
 
         n_nodes_per_face = self._uxgrid.n_nodes_per_face.values
 
@@ -286,7 +331,7 @@ class GridPlotAccessor:
     ):
         """Plots a histogram of the face areas using hvplot."""
         # Assign the plotting backend if provided
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
 
         # Extract face areas from the grid
         face_areas = self._uxgrid.face_areas.values
@@ -308,16 +353,26 @@ class GridPlotAccessor:
 
 
 class UxDataArrayPlotAccessor:
-    """Plotting Accessor for ``UxDataArray``.
+    """Plotting Accessor for :class:`UxDataArray`.
 
-    Accessed through `UxDataArray.plot()` or
-    `UxDataArray.plot.specific_routine()`
+    You can call :func:`UxDataArray.plot`
+    which auto-selects polygons for face-centered data
+    or points for node- and edge-centered data,
+    or you can specify a routine:
+
+    - :func:`UxDataArray.plot.polygons`
+    - :func:`UxDataArray.plot.points`
+    - :func:`UxDataArray.plot.line`
+    - :func:`UxDataArray.plot.scatter`
+
+    See examples in :doc:`/user-guide/plotting`.
     """
 
     _uxda: UxDataArray
     __slots__ = ("_uxda",)
 
     def __init__(self, uxda: UxDataArray) -> None:
+        _ensure_hvplot_imported()
         self._uxda = uxda
 
     def __call__(self, **kwargs) -> Any:
@@ -346,14 +401,14 @@ class UxDataArrayPlotAccessor:
 
     def polygons(
         self,
-        periodic_elements: Optional[str] = "exclude",
-        backend: Optional[str] = None,
-        engine: Optional[str] = "spatialpandas",
-        rasterize: Optional[bool] = True,
-        dynamic: Optional[bool] = False,
-        projection: Optional[ccrs.Projection] = None,
-        xlabel: Optional[str] = "Longitude",
-        ylabel: Optional[str] = "Latitude",
+        periodic_elements: str | None = "split",
+        backend: str | None = None,
+        engine: str | None = "spatialpandas",
+        rasterize: bool | None = True,
+        dynamic: bool | None = False,
+        projection=None,
+        xlabel: str | None = "Longitude",
+        ylabel: str | None = "Latitude",
         *args,
         **kwargs,
     ):
@@ -366,11 +421,11 @@ class UxDataArrayPlotAccessor:
 
         Parameters
         ----------
-        periodic_elements : str, optional, default="exclude"
-            Specifies whether to include or exclude periodic elements in the grid.
+        periodic_elements : str, optional, default="split"
+            Specifies whether to split, ignore, or exclude periodic elements in the grid.
             Options are:
-            - "exclude": Exclude periodic elements,
             - "split": Split periodic elements.
+            - "exclude": Exclude periodic elements,
             - "ignore": Include periodic elements without any corrections
         backend : str or None, optional
             Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
@@ -390,7 +445,9 @@ class UxDataArrayPlotAccessor:
         gdf.hvplot.polygons : hvplot.polygons
             A shaded polygon plot
         """
-        uxarray.plot.utils.backend.assign(backend)
+        import cartopy.crs as ccrs
+
+        plotting_backend.assign(backend)
 
         if dynamic and (projection is not None or kwargs.get("geo", None) is True):
             warnings.warn(
@@ -449,11 +506,11 @@ class UxDataArrayPlotAccessor:
 
         Raises
         ------
-        ValueError
+        DataCenteringError (subclass of ValueError)
             If the data is not mapped to the nodes, edges, or faces.
         """
 
-        uxarray.plot.utils.backend.assign(backend)
+        plotting_backend.assign(backend)
 
         uxgrid = self._uxda.uxgrid
         data_mapping = self._uxda.data_mapping
@@ -465,7 +522,7 @@ class UxDataArrayPlotAccessor:
         elif data_mapping == "edges":
             lon, lat = uxgrid.edge_lon.values, uxgrid.edge_lat.values
         else:
-            raise ValueError(
+            raise DataCenteringError(
                 "Data is not mapped to the nodes, edges, or faces of the grid."
             )
 
@@ -475,102 +532,29 @@ class UxDataArrayPlotAccessor:
 
         return points_df.hvplot.points("lon", "lat", c="z", *args, **kwargs)
 
-    @functools.wraps(dataarray_plot.rasterize)
-    def rasterize(
-        self,
-        method: Optional[str] = "point",
-        backend: Optional[str] = "bokeh",
-        periodic_elements: Optional[str] = "exclude",
-        exclude_antimeridian: Optional[bool] = None,
-        pixel_ratio: Optional[float] = 1.0,
-        dynamic: Optional[bool] = False,
-        precompute: Optional[bool] = True,
-        projection: Optional[ccrs] = None,
-        width: Optional[int] = 1000,
-        height: Optional[int] = 500,
-        colorbar: Optional[bool] = True,
-        cmap: Optional[str] = "Blues",
-        aggregator: Optional[str] = "mean",
-        interpolation: Optional[str] = "linear",
-        npartitions: Optional[int] = 1,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        size: Optional[int] = 5,
-        **kwargs,
-    ):
-        """Raster plot of a data variable residing on an unstructured grid
-        element.
-
-        Parameters
-        ----------
-        method: str
-            Selects what type of element to rasterize (point, trimesh, polygon).
-        backend: str
-            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
-        projection: ccrs
-             Custom projection to transform (lon, lat) coordinates for rendering
-        pixel_ratio: float
-            Determines the resolution of the outputted raster.
-        cache: bool
-            Determines where computed elements (i.e. points, polygons) should be cached internally for subsequent plotting
-            calls
-
-        Notes
-        -----
-        For further information about supported keyword arguments, please refer to the [Holoviews Documentation](https://holoviews.org/_modules/holoviews/operation/datashader.html#rasterize)
-        or run holoviews.help(holoviews.operation.datashader.rasterize).
-        """
-
-        warnings.warn(
-            "``UxDataArray.plot.rasterize()`` will be deprecated in a future release. Please use "
-            "``UxDataArray.plot.polygons(rasterize=True)`` or ``UxDataArray.plot.points(rasterize=True)``",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        return dataarray_plot.rasterize(
-            self._uxda,
-            method=method,
-            backend=backend,
-            periodic_elements=periodic_elements,
-            exclude_antimeridian=exclude_antimeridian,
-            pixel_ratio=pixel_ratio,
-            dynamic=dynamic,
-            precompute=precompute,
-            projection=projection,
-            width=width,
-            height=height,
-            colorbar=colorbar,
-            cmap=cmap,
-            aggregator=aggregator,
-            interpolation=interpolation,
-            npartitions=npartitions,
-            cache=cache,
-            override=override,
-            size=size,
-            **kwargs,
-        )
-
     def line(self, backend=None, *args, **kwargs):
         """Wrapper for ``hvplot.line()``"""
-        uxarray.plot.utils.backend.assign(backend)
+
+        plotting_backend.assign(backend)
         da = self._uxda.to_xarray()
         return da.hvplot.line(*args, **kwargs)
 
     def scatter(self, backend=None, *args, **kwargs):
         """Wrapper for ``hvplot.scatter()``"""
-        uxarray.plot.utils.backend.assign(backend)
+
+        plotting_backend.assign(backend)
         da = self._uxda.to_xarray()
         return da.hvplot.scatter(*args, **kwargs)
 
 
 class UxDatasetPlotAccessor:
-    """Plotting accessor for ``UxDataset``."""
+    """Plotting accessor for :class:`UxDataset`."""
 
     _uxds: UxDataset
     __slots__ = ("_uxds",)
 
     def __init__(self, uxds: UxDataset) -> None:
+        _ensure_hvplot_imported()
         self._uxds = uxds
 
     def __call__(self, **kwargs) -> Any:

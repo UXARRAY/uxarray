@@ -1,21 +1,20 @@
-import xarray as xr
-import numpy as np
-import warnings
 import math
+import warnings
 
-from uxarray.conventions import ugrid
-
+import numpy as np
+import xarray as xr
 from numba import njit, prange
-from uxarray.constants import ERROR_TOLERANCE
-from typing import Union
 
+from uxarray.constants import ERROR_TOLERANCE
+from uxarray.conventions import ugrid
+from uxarray.errors import DimensionError
 from uxarray.grid.utils import _small_angle_of_2_vectors
 
 
 @njit(cache=True)
 def _lonlat_rad_to_xyz(
-    lon: Union[np.ndarray, float],
-    lat: Union[np.ndarray, float],
+    lon: np.ndarray | float,
+    lat: np.ndarray | float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Converts Spherical latitude and longitude coordinates into Cartesian x,
     y, z coordinates."""
@@ -28,9 +27,9 @@ def _lonlat_rad_to_xyz(
 
 @njit(cache=True)
 def _xyz_to_lonlat_rad_no_norm(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    z: np.ndarray | float,
 ):
     """Converts a Cartesian x,y,z coordinates into Spherical latitude and
     longitude without normalization, decorated with Numba.
@@ -53,10 +52,10 @@ def _xyz_to_lonlat_rad_no_norm(
         Latitude in radians
     """
 
-    lon = np.atan2(y, x)
+    lon = np.arctan2(y, x)
     lat = np.asin(z)
 
-    # set longitude range to [0, pi]
+    # set longitude range to [0, 2*pi]
     lon = np.mod(lon, 2 * np.pi)
 
     z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
@@ -71,12 +70,8 @@ def _xyz_to_lonlat_rad_no_norm(
 def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
     if normalize:
         x, y, z = _normalize_xyz_scalar(x, y, z)
-        denom = abs(x * x + y * y + z * z)
-        x /= denom
-        y /= denom
-        z /= denom
 
-    lon = np.atan2(y, x)
+    lon = np.arctan2(y, x)
     lat = np.asin(z)
 
     # Set longitude range to [0, 2*pi]
@@ -95,9 +90,9 @@ def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
 
 
 def _xyz_to_lonlat_rad(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    z: np.ndarray | float,
     normalize: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Converts Cartesian x, y, z coordinates in Spherical longitude and
@@ -105,34 +100,30 @@ def _xyz_to_lonlat_rad(
 
     Parameters
     ----------
-    x : Union[np.ndarray, float]
+    x : np.ndarray | float
         Cartesian x coordinates
-    y: Union[np.ndarray, float]
+    y: np.ndarray | float
         Cartesiain y coordinates
-    z: Union[np.ndarray, float]
+    z: np.ndarray | float
         Cartesian z coordinates
     normalize: bool
         Flag to select whether to normalize the coordinates
 
     Returns
     -------
-    lon : Union[np.ndarray, float]
+    lon : np.ndarray | float
         Longitude in radians
-    lat: Union[np.ndarray, float]
+    lat: np.ndarray | float
         Latitude in radians
     """
 
     if normalize:
         x, y, z = _normalize_xyz(x, y, z)
-        denom = np.abs(x * x + y * y + z * z)
-        x /= denom
-        y /= denom
-        z /= denom
 
     lon = np.arctan2(y, x)
     lat = np.arcsin(z)
 
-    # set longitude range to [0, pi]
+    # set longitude range to [0, 2*pi]
     lon = np.mod(lon, 2 * np.pi)
 
     z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
@@ -144,9 +135,9 @@ def _xyz_to_lonlat_rad(
 
 
 def _xyz_to_lonlat_deg(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    z: np.ndarray | float,
     normalize: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Converts Cartesian x, y, z coordinates in Spherical latitude and
@@ -154,20 +145,20 @@ def _xyz_to_lonlat_deg(
 
     Parameters
     ----------
-    x : Union[np.ndarray, float]
+    x : np.ndarray | float
         Cartesian x coordinates
-    y: Union[np.ndarray, float]
+    y: np.ndarray | float
         Cartesiain y coordinates
-    z: Union[np.ndarray, float]
+    z: np.ndarray | float
         Cartesian z coordinates
     normalize: bool
         Flag to select whether to normalize the coordinates
 
     Returns
     -------
-    lon : Union[np.ndarray, float]
+    lon : np.ndarray | float
         Longitude in degrees
-    lat: Union[np.ndarray, float]
+    lat: np.ndarray | float
         Latitude in degrees
     """
     lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z, normalize=normalize)
@@ -180,11 +171,11 @@ def _xyz_to_lonlat_deg(
 
 
 def _normalize_xyz(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
+    x: np.ndarray | float,
+    y: np.ndarray | float,
+    z: np.ndarray | float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Normalizes a set of Cartesiain coordinates."""
+    """Normalizes a set of Cartesian coordinates."""
     denom = np.linalg.norm(
         np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2, axis=0
     )
@@ -252,15 +243,15 @@ def _populate_face_centroids(grid, repopulate=False):
     repopulate : bool, optional
         Bool used to turn on/off repopulating the face coordinates of the centroids
     """
-    warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
-
-    node_x = grid.node_x.values
-    node_y = grid.node_y.values
-    node_z = grid.node_z.values
-    face_nodes = grid.face_node_connectivity.values
-    n_nodes_per_face = grid.n_nodes_per_face.values
+    # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
 
     if "face_lon" not in grid._ds or repopulate:
+        node_x = grid.node_x.values
+        node_y = grid.node_y.values
+        node_z = grid.node_z.values
+        face_nodes = grid.face_node_connectivity.values
+        n_nodes_per_face = grid.n_nodes_per_face.values
+
         # Construct the centroids if there are none stored
         if "face_x" not in grid._ds:
             centroid_x, centroid_y, centroid_z = _construct_face_centroids(
@@ -271,7 +262,7 @@ def _populate_face_centroids(grid, repopulate=False):
             # If there are cartesian centroids already use those instead
             centroid_x, centroid_y, centroid_z = grid.face_x, grid.face_y, grid.face_z
 
-        # Convert from xyz to latlon TODO
+        # Convert from xyz to latlon
         centroid_lon, centroid_lat = _xyz_to_lonlat_deg(
             centroid_x, centroid_y, centroid_z, normalize=False
         )
@@ -528,7 +519,6 @@ def _populate_face_centerpoints(grid, repopulate=False):
     -------
     None, populates the grid with the face centerpoints: face_lon, face_lat
     """
-    # warnings.warn("This cannot be guaranteed to work correctly on concave polygons")
 
     node_lon = grid.node_lon.values
     node_lat = grid.node_lat.values
@@ -693,178 +683,99 @@ def _construct_edge_centroids(node_x, node_y, node_z, edge_node_conn):
     return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
 
+def _is_projected_grid(uxgrid) -> bool:
+    """Return True if the grid uses projected (non-spherical) coordinates.
+
+    Detection priority (mirrors CF conventions):
+
+    1. ``standard_name = "projection_x_coordinate"`` on ``node_lon`` — the
+       clearest CF signal used by regional ocean and coastal models.
+    2. ``units`` on ``node_lon`` is a length unit (m, km, ft, …) rather than
+       angular — catches files that omit ``standard_name`` but carry units.
+    3. A ``grid_mapping`` attribute on ``node_lon`` pointing to a variable
+       whose ``grid_mapping_name`` is not ``"latitude_longitude"`` — handles
+       files that embed a full CRS variable (e.g. Lambert Conformal, Albers).
+
+    Falls back to ``False`` (geographic) when no signal is found, preserving
+    backward compatibility with all existing geographic UGRID files.
+    """
+    if "node_lon" not in uxgrid._ds:
+        return False
+
+    da = uxgrid._ds["node_lon"]
+    attrs = da.attrs
+
+    # 1. standard_name
+    stdname = attrs.get("standard_name", "") or ""
+    if stdname == "projection_x_coordinate":
+        return True
+    if stdname == "longitude":
+        return False
+
+    # 2. units — angular units mean geographic; length units mean projected.
+    # Guard against non-string values (e.g. None) before calling .lower().
+    raw_units = attrs.get("units", "")
+    units = raw_units.lower().strip() if isinstance(raw_units, str) else ""
+    _ANGULAR_UNITS = {
+        "degrees_east",
+        "degree_east",
+        "degree_e",
+        "degrees",
+        "degree",
+        "deg",
+        "rad",
+        "radians",
+    }
+    _LENGTH_UNITS = {"m", "km", "meter", "meters", "metre", "metres", "ft", "feet"}
+    if units in _LENGTH_UNITS:
+        return True
+    if units in _ANGULAR_UNITS:
+        return False
+
+    # 3. grid_mapping variable
+    gm_name = attrs.get("grid_mapping", "") or ""
+    if gm_name and gm_name in uxgrid._ds:
+        gm_attrs = uxgrid._ds[gm_name].attrs
+        gm_name_val = gm_attrs.get("grid_mapping_name", "latitude_longitude")
+        if gm_name_val != "latitude_longitude":
+            return True
+
+    return False
+
+
 def _set_desired_longitude_range(uxgrid):
-    """Sets the longitude range to [-180, 180] for all longitude variables."""
+    """Sets the longitude range to [-180, 180] for all longitude variables.
 
-    for lon_name in ["node_lon", "edge_lon", "face_lon"]:
-        if lon_name in uxgrid._ds:
-            if uxgrid._ds[lon_name].max() > 180:
-                uxgrid._ds[lon_name] = (uxgrid._ds[lon_name] + 180) % 360 - 180
-
-
-def _xyz_to_lonlat_rad(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-    normalize: bool = True,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Converts Cartesian x, y, z coordinates in Spherical latitude and
-    longitude coordinates in degrees.
-
-    Parameters
-    ----------
-    x : Union[np.ndarray, float]
-        Cartesian x coordinates
-    y: Union[np.ndarray, float]
-        Cartesiain y coordinates
-    z: Union[np.ndarray, float]
-        Cartesian z coordinates
-    normalize: bool
-        Flag to select whether to normalize the coordinates
-
-    Returns
-    -------
-    lon : Union[np.ndarray, float]
-        Longitude in radians
-    lat: Union[np.ndarray, float]
-        Latitude in radians
+    Skipped entirely for projected grids: wrapping meter-scale coordinates
+    as if they were degrees silently corrupts the geometry. A ``UserWarning``
+    is issued once per Grid instance so users know which operations are invalid.
     """
+    if _is_projected_grid(uxgrid):
+        if not getattr(uxgrid, "_projected_warning_issued", False):
+            warnings.warn(
+                "Projected (non-spherical) coordinates detected on this grid "
+                "(standard_name='projection_x_coordinate' or length units). "
+                "UXarray's geometry algorithms (face areas, GCA intersections, "
+                "zonal mean, bounds, cross-sections) assume a unit sphere and "
+                "will produce incorrect results on projected grids. "
+                "Loading, plotting, and connectivity operations are unaffected. "
+                "Inspect grid.node_lon.attrs to see the detected coordinate metadata.",
+                UserWarning,
+                stacklevel=3,
+            )
+            uxgrid._projected_warning_issued = True
+        return
 
-    if normalize:
-        x, y, z = _normalize_xyz(x, y, z)
-        denom = np.abs(x * x + y * y + z * z)
-        x /= denom
-        y /= denom
-        z /= denom
-
-    lon = np.arctan2(y, x, dtype=np.float64)
-    lat = np.arcsin(z, dtype=np.float64)
-
-    # set longitude range to [0, pi]
-    lon = np.mod(lon, 2 * np.pi)
-
-    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
-
-    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
-    lon = np.where(z_mask, 0.0, lon)
-
-    return lon, lat
-
-
-@njit(cache=True)
-def _xyz_to_lonlat_rad_no_norm(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-):
-    """Converts a Cartesian x,y,z coordinates into Spherical latitude and
-    longitude without normalization, decorated with Numba.
-
-    Parameters
-    ----------
-    x : float
-        Cartesian x coordinate
-    y: float
-        Cartesiain y coordinate
-    z: float
-        Cartesian z coordinate
-
-
-    Returns
-    -------
-    lon : float
-        Longitude in radians
-    lat: float
-        Latitude in radians
-    """
-
-    lon = np.atan2(y, x)
-    lat = np.asin(z)
-
-    # set longitude range to [0, pi]
-    lon = np.mod(lon, 2 * np.pi)
-
-    z_mask = np.abs(z) > 1.0 - ERROR_TOLERANCE
-
-    lat = np.where(z_mask, np.sign(z) * np.pi / 2, lat)
-    lon = np.where(z_mask, 0.0, lon)
-
-    return lon, lat
-
-
-def _normalize_xyz(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Normalizes a set of Cartesiain coordinates."""
-    denom = np.linalg.norm(
-        np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2, axis=0
-    )
-
-    x_norm = x / denom
-    y_norm = y / denom
-    z_norm = z / denom
-    return x_norm, y_norm, z_norm
-
-
-@njit(cache=True)
-def _lonlat_rad_to_xyz(
-    lon: Union[np.ndarray, float],
-    lat: Union[np.ndarray, float],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Converts Spherical lon and lat coordinates into Cartesian x, y, z
-    coordinates."""
-    x = np.cos(lon) * np.cos(lat)
-    y = np.sin(lon) * np.cos(lat)
-    z = np.sin(lat)
-
-    return x, y, z
-
-
-def _xyz_to_lonlat_deg(
-    x: Union[np.ndarray, float],
-    y: Union[np.ndarray, float],
-    z: Union[np.ndarray, float],
-    normalize: bool = True,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Converts Cartesian x, y, z coordinates in Spherical latitude and
-    longitude coordinates in degrees.
-
-    Parameters
-    ----------
-    x : Union[np.ndarray, float]
-        Cartesian x coordinates
-    y: Union[np.ndarray, float]
-        Cartesiain y coordinates
-    z: Union[np.ndarray, float]
-        Cartesian z coordinates
-    normalize: bool
-        Flag to select whether to normalize the coordinates
-
-    Returns
-    -------
-    lon : Union[np.ndarray, float]
-        Longitude in degrees
-    lat: Union[np.ndarray, float]
-        Latitude in degrees
-    """
-    lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z, normalize=normalize)
-
-    lon = np.rad2deg(lon_rad)
-    lat = np.rad2deg(lat_rad)
-
-    lon = (lon + 180) % 360 - 180
-    return lon, lat
-
-
-@njit(cache=True)
-def _normalize_xyz_scalar(x: float, y: float, z: float):
-    denom = np.linalg.norm(np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2)
-    x_norm = x / denom
-    y_norm = y / denom
-    z_norm = z / denom
-    return x_norm, y_norm, z_norm
+    with xr.set_options(keep_attrs=True):
+        for lon_name in ["node_lon", "edge_lon", "face_lon"]:
+            if lon_name in uxgrid._ds:
+                da = uxgrid._ds[lon_name]
+                if da.size == 0:
+                    continue
+                if da.max() > 180:
+                    wrapped = (uxgrid._ds[lon_name] + 180) % 360 - 180
+                    wrapped.name = da.name
+                    uxgrid._ds[lon_name] = wrapped
 
 
 def prepare_points(points, normalize):
@@ -880,8 +791,46 @@ def prepare_points(points, normalize):
         if normalize:
             x, y, z = _normalize_xyz(x, y, z)
     else:
-        raise ValueError(
+        raise DimensionError(
             "Points must be a sequence of length 2 (longitude, latitude) or 3 (x, y, z coordinates)."
         )
 
     return np.vstack([x, y, z]).T
+
+
+def points_atleast_2d_xyz(points):
+    """
+    Ensure the input is at least 2D and return Cartesian (x, y, z) coordinates.
+
+    Parameters
+    ----------
+    points : array_like, shape (N, 2) or (N, 3)
+        - If shape is (N, 2), interpreted as [longitude, latitude] in degrees.
+        - If shape is (N, 3), interpreted as Cartesian [x, y, z] coordinates.
+
+    Returns
+    -------
+    points_xyz : ndarray, shape (N, 3)
+        Cartesian coordinates [x, y, z] for each input point.
+
+    Raises
+    ------
+    ValueError
+        If `points` (after `np.atleast_2d`) does not have 2 or 3 columns.
+
+    """
+
+    points = np.atleast_2d(points)
+
+    if points.shape[1] == 2:
+        points_lonlat_rad = np.deg2rad(points)
+        x, y, z = _lonlat_rad_to_xyz(points_lonlat_rad[:, 0], points_lonlat_rad[:, 1])
+        points_xyz = np.vstack([x, y, z]).T
+    elif points.shape[1] == 3:
+        points_xyz = points
+    else:
+        raise DimensionError(
+            "Points are neither Cartesian (shape N x 3) nor Spherical (shape N x 2)."
+        )
+
+    return points_xyz

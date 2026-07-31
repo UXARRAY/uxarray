@@ -1,8 +1,6 @@
 .. currentmodule:: uxarray
 
-.. _examples:
-
-.. math::
+.. _gallery:
 
 Gallery
 =======
@@ -31,7 +29,7 @@ across various interesting datasets.
 Workflow Examples
 -----------------
 
-The following notebooks showcase workflows of Uxarray in action.
+The following notebooks showcase workflows of UXarray in action.
 
 .. include:: workflow-examples-gallery.txt
 

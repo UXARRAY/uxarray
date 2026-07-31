@@ -1,11 +1,8 @@
 import numpy as np
 import xarray as xr
-from scipy.spatial import KDTree
-from scipy.sparse import coo_matrix
-from scipy.sparse.csgraph import connected_components
 
-from uxarray.conventions import ugrid
 from uxarray.constants import INT_DTYPE
+from uxarray.conventions import ugrid
 
 
 def _read_structured_grid(lon, lat, tol=1e-10):
@@ -38,6 +35,11 @@ def _read_structured_grid(lon, lat, tol=1e-10):
       and latitude to create a meshgrid of node coordinates.
     - A KDTree is used to identify and merge nodes that are within the specified tolerance.
     """
+
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    from scipy.spatial import KDTree
+
     out_ds = xr.Dataset()
 
     sorted_indices = np.argsort(lon)

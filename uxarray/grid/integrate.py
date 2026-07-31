@@ -3,14 +3,13 @@ import polars as pl
 from numba import njit, prange, types
 from numba.typed import List
 
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.grid.arcs import compute_arc_length
+from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import (
     gca_const_lat_intersection,
     get_number_of_intersections,
 )
-from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad
-from uxarray.utils.computing import isclose
-from uxarray.grid.arcs import compute_arc_length
 
 DUMMY_EDGE_VALUE = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
 
@@ -85,7 +84,7 @@ def _zonal_face_weights_robust(
     """
 
     # Special case: latitude_cart close to +1 or -1 (near poles)
-    if isclose(latitude_cart, 1, atol=ERROR_TOLERANCE) or isclose(
+    if np.isclose(latitude_cart, 1, atol=ERROR_TOLERANCE) or np.isclose(
         latitude_cart, -1, atol=ERROR_TOLERANCE
     ):
         # Evenly distribute weight among candidate faces
