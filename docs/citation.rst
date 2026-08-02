@@ -85,7 +85,7 @@ Several of the intersection and geometry operators are additionally based on:
    (:download:`BibTeX <_static/citations/higham2002.bib>`)
 
 .. |cite-jeannerod| replace:: Jeannerod, C.-P., Louvet, N., and Muller, J.-M. (2013).
-   "Further Analysis of Kahan's Algorithm for the Accurate Computation of 2 x 2
+   "Further Analysis of Kahan's Algorithm for the Accurate Computation of 2 × 2
    Determinants." *Mathematics of Computation*, 82, 2245-2264.
    `doi:10.1090/S0025-5718-2013-02679-8 <https://doi.org/10.1090/S0025-5718-2013-02679-8>`__
    (:download:`BibTeX <_static/citations/jeannerod2013.bib>`)

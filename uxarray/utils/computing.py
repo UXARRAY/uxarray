@@ -230,7 +230,7 @@ def diff_of_products(a, b, c, d):
     https://doi.org/10.1137/1.9780898718027
 
     Jeannerod, C.-P., Louvet, N., and Muller, J.-M. (2013). Further analysis
-    of Kahan's algorithm for the accurate computation of 2 x 2 determinants.
+    of Kahan's algorithm for the accurate computation of 2 × 2 determinants.
     Mathematics of Computation, 82, 2245-2264.
     https://doi.org/10.1090/S0025-5718-2013-02679-8
     """
