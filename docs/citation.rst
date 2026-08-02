@@ -107,12 +107,10 @@ Algorithm-to-Publication Mapping
      - Required citation(s)
    * - `Descriptors <api.html#descriptors>`__
      - :py:attr:`~uxarray.Grid.bounds`
-     - |cite-gmd|
-   * - `Descriptors <api.html#descriptors>`__
-     - :py:attr:`~uxarray.Grid.face_bounds_lon`
-     - |cite-gmd|
-   * - `Descriptors <api.html#descriptors>`__
-     - :py:attr:`~uxarray.Grid.face_bounds_lat`
+
+       :py:attr:`~uxarray.Grid.face_bounds_lon`
+
+       :py:attr:`~uxarray.Grid.face_bounds_lat`
      - |cite-gmd|
    * - `Zonal Average <api.html#zonal-average>`__
      - All zonal-average remapping implementations (e.g. :py:meth:`~uxarray.UxDataArray.zonal_average`)
@@ -125,20 +123,18 @@ Algorithm-to-Publication Mapping
 
        |cite-siam|
    * - `Spherical Geometry: Arcs <api.html#arcs>`__
+     - :py:func:`~uxarray.grid.arcs.in_between`
+
+       :py:func:`~uxarray.grid.arcs.point_within_gca`
+     - No new citation required. Expected to be removed in a future release.
+   * - `Spherical Geometry: Arcs <api.html#arcs>`__
      - :py:func:`~uxarray.grid.arcs.extreme_gca_latitude`
      - |cite-gmd|
    * - `Spherical Geometry: Arcs <api.html#arcs>`__
      - :py:func:`~uxarray.grid.arcs.orient3d_on_sphere`
+
+       :py:func:`~uxarray.grid.arcs.on_minor_arc`
      - |cite-shewchuk|
-   * - `Spherical Geometry: Arcs <api.html#arcs>`__
-     - :py:func:`~uxarray.grid.arcs.on_minor_arc`
-     - |cite-shewchuk|
-   * - `Spherical Geometry: Arcs <api.html#arcs>`__
-     - :py:func:`~uxarray.grid.arcs.in_between`
-     - No new citation required. Expected to be removed in a future release.
-   * - `Spherical Geometry: Arcs <api.html#arcs>`__
-     - :py:func:`~uxarray.grid.arcs.point_within_gca`
-     - No new citation required. Expected to be removed in a future release.
    * - `Compensated Arithmetic <api.html#compensated-arithmetic>`__
      - :py:func:`~uxarray.utils.computing.two_sum`
      - |cite-knuth|
@@ -154,9 +150,8 @@ Algorithm-to-Publication Mapping
        |cite-jeannerod|
    * - `Compensated Arithmetic <api.html#compensated-arithmetic>`__
      - :py:func:`~uxarray.utils.computing.accucross`
-     - |cite-gmd|
-   * - `Compensated Arithmetic <api.html#compensated-arithmetic>`__
-     - :py:func:`~uxarray.utils.computing.accucross_pair`
+
+       :py:func:`~uxarray.utils.computing.accucross_pair`
      - |cite-gmd|
    * - `Compensated Arithmetic <api.html#compensated-arithmetic>`__
      - :py:func:`~uxarray.utils.computing.acc_sqrt_re`
