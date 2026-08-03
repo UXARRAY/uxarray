@@ -1,6 +1,6 @@
 import numpy as np
 import uxarray as ux
-from uxarray.errors import DimensionError
+from uxarray.errors import DataCenteringError, DimensionError
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
 from uxarray.core.dataset import UxDataset, UxDataArray
 import pytest
@@ -255,30 +255,29 @@ class TestNeighborhoodFilter:
         uxgrid = ux.Grid.from_healpix(zoom=1)
         uxda = UxDataArray(np.ones(5), dims=["other_dim"], uxgrid=uxgrid)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(DataCenteringError):
             uxda.neighborhood_filter(func=np.mean, r=1.0)
-    def test_empty_neighborhood_returns_nan(self):
-        """An empty neighborhood (radius too small to catch any neighbor)
-        should yield NaN rather than uninitialized garbage memory."""
+
+    def test_radius_edge_cases_never_produce_nan(self):
+        """Every element is its own neighbor at distance 0, so no neighborhood
+        is ever empty and the output never contains NaN."""
         uxgrid = ux.Grid.from_healpix(zoom=1)
         data = np.arange(uxgrid.n_face, dtype=float)
         uxda = UxDataArray(data, dims=["n_face"], uxgrid=uxgrid, name="face_var")
 
-        # A radius of exactly 0 will still catch the element itself.
-        # Use a tiny but non-zero radius that finds the element itself via query.
-        # r=0 catches the element itself; test with r=360 to check no-NaN case.
-        filtered = uxda.neighborhood_filter(func=np.mean, r=360.0)
-        assert not np.any(np.isnan(filtered.values)), (
-            "Global-radius filter should produce no NaN values"
-        )
-
-        # Now verify NaN initialization: create a grid but forcibly test
-        # the np.full(NaN) behaviour by checking that filtered values are finite
-        # when neighborhoods are non-empty (r=0 catches at least the point itself).
+        # r=0 catches only the element itself, so the data is returned unchanged
         filtered_zero = uxda.neighborhood_filter(func=np.mean, r=0.0)
-        assert not np.any(np.isnan(filtered_zero.values)), (
-            "r=0 filter should include the element itself, so no NaN"
-        )
+        assert not np.any(np.isnan(filtered_zero.values))
+        np.testing.assert_allclose(filtered_zero.values, data)
+
+        # a radius spanning the sphere catches every element
+        filtered_all = uxda.neighborhood_filter(func=np.mean, r=360.0)
+        assert not np.any(np.isnan(filtered_all.values))
+        np.testing.assert_allclose(filtered_all.values, data.mean())
+
+        # a negative radius is rejected by BallTree.query_radius
+        with pytest.raises(AssertionError):
+            uxda.neighborhood_filter(func=np.mean, r=-1.0)
 
     def test_auto_transpose_direct_on_uxdataarray(self, gridpath, datasetpath):
         """Calling neighborhood_filter directly on a (time, n_face) UxDataArray

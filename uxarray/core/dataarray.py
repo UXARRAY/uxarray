@@ -1997,7 +1997,6 @@ class UxDataArray(xr.DataArray):
         DimensionError (subclass of ValueError)
             If more than one grid dimension is selected and `ignore_grid=False`.
         """
-        from uxarray.core.dataarray import UxDataArray
         from uxarray.core.utils import _validate_indexers
 
         indexers, grid_dims = _validate_indexers(
@@ -2253,9 +2252,9 @@ class UxDataArray(xr.DataArray):
             data_mapping = "edge centers"
             grid_dim = "n_edge"
         else:
-            raise ValueError(
+            raise DataCenteringError(
                 f"neighborhood_filter requires data mapped to nodes, edges, or faces, "
-                f"but the last dimension {self.dims!r} does not match any grid dimension "
+                f"but the dimensions {self.dims!r} do not match any grid dimension "
                 f"{GRID_DIMS}."
             )
 
