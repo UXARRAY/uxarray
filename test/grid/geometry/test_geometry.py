@@ -1,11 +1,13 @@
 import numpy as np
-import numpy.testing as nt
 import pytest
+import xarray as xr
 
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
-from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
-from uxarray.grid.geometry import _pole_point_inside_polygon_cartesian
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _normalize_xyz
+from uxarray.grid.geometry import haversine_distance, _pole_point_inside_polygon_cartesian
+from uxarray.grid.point_in_face import _face_contains_point
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array
 
 
 def test_antimeridian_crossing():
@@ -197,13 +199,6 @@ def test_haversine_distance_creation():
 
     np.testing.assert_allclose(distance, expected_distance, atol=ERROR_TOLERANCE)
 
-from uxarray.constants import ERROR_TOLERANCE
-from uxarray.grid.coordinates import _lonlat_rad_to_xyz
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array
-from uxarray.grid.point_in_face import _face_contains_point
-from uxarray.grid.geometry import haversine_distance
-
-
 
 def test_engine_geodataframe(gridpath):
     uxgrid = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
@@ -215,3 +210,56 @@ def test_periodic_elements_geodataframe(gridpath):
     uxgrid = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
     for periodic_elements in ["ignore", "exclude", "split"]:
         gdf = uxgrid.to_geodataframe(periodic_elements=periodic_elements)
+
+
+def test_geodataframe_crashes_when_nnode_equals_nface():
+    """Ensure UxDataArray.to_geodataframe() crashes for non-face_centered data, even if n_node==n_face.
+    regression test for issue #1616.
+    """
+    # Below is a visualization of the example here, with ni node i, fj face j:
+    # (n1)----------------(n2)
+    #  | %%    f1        =%/|
+    #  |  %%           =% / |
+    #  |   %%       =%   /  |
+    #  |    %%   =%  f2 /   |
+    #  |     (n3)----(n4) f3|
+    #  | f0  %%  =% f4  \   |
+    #  |   %%       =%    \ |
+    #  | %%   f5       =%  \|
+    # (n0)----------------(n5)
+    XA, XB, XC, XF = 0, 10, 20, 30
+    YA, YB, YF = 0, 10, 25
+    node_lonlat = [
+        [XA, YA],  # n0
+        [XA, YF],  # n1
+        [XF, YF],  # n2
+        [XB, YB],  # n3
+        [XC, YB],  # n4
+        [XF, YA],  # n5
+    ]
+    node_lon = [n[0] for n in node_lonlat]
+    node_lat = [n[1] for n in node_lonlat]
+    face_node_connectivity = [
+        [0, 1, 3],  # f0
+        [1, 3, 2],  # f1
+        [3, 4, 2],  # f2
+        [4, 5, 2],  # f3
+        [3, 5, 4],  # f4
+        [0, 5, 3],  # f5
+    ]
+    # convert to xarray
+    ds_vars = {
+        'node_lon': xr.DataArray(node_lon, dims=['n_node']),
+        'node_lat': xr.DataArray(node_lat, dims=['n_node']),
+        'face_node_connectivity': xr.DataArray(face_node_connectivity, dims=['n_face', 'n_max_face_nodes']),
+    }
+    ds = xr.Dataset(ds_vars)
+    # convert to uxarray
+    uxgrid = ux.Grid(ds, 'UGRID')  # putting 'UGRID' avoids raising warning but does not affect results.
+    assert uxgrid.n_node == uxgrid.n_face
+    # make array of values, convert to uxarray
+    vals = xr.DataArray([100,200,300,400,500,600], dims=['n_node'])
+    uxarr = ux.UxDataArray(vals, uxgrid=uxgrid)
+    # ensure to_geodataframe crashes for non-face_centered data, even if n_node==n_face
+    with pytest.raises(ValueError):
+        uxarr.to_geodataframe()
