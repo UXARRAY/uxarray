@@ -103,6 +103,7 @@ around the `UGRID <http://ugrid-conventions.github.io/ugrid-conventions/>`_ conv
     API Reference <api>
     Tutorials and Videos <tutorials>
     Cite UXarray <citation>
+    Algorithm-Level Citations <citations-for-algorithms>
 
 .. toctree::
     :maxdepth: 1
