@@ -1,5 +1,6 @@
 import numpy as np
 import uxarray as ux
+from uxarray.errors import DimensionError
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
 from uxarray.core.dataset import UxDataset, UxDataArray
 import pytest
@@ -124,7 +125,7 @@ def test_isel_invalid_dim(gridpath, datasetpath):
     uxda = UxDataArray(data, dims=["time", "n_face"], uxgrid=uxds.uxgrid)
 
     with pytest.raises(
-        ValueError,
+        DimensionError,
         match=r"Dimensions \{'invalid_dim'\} do not exist\..*Available dimensions: \('time', 'n_face'\)",
     ):
         uxda.isel(invalid_dim=0)

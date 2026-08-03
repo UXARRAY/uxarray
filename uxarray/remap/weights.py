@@ -10,6 +10,7 @@ import numpy as np
 import xarray as xr
 
 from uxarray.core.utils import _open_dataset_with_fallback
+from uxarray.errors import DimensionError
 
 if TYPE_CHECKING:
     from scipy import sparse
@@ -123,7 +124,7 @@ class RemapWeights:
             ).ravel()
 
             if not (row.size == col.size == values.size):
-                raise ValueError(
+                raise DimensionError(
                     "Remap weights require row, col, and weight arrays of equal length."
                 )
 
@@ -152,10 +153,10 @@ class RemapWeights:
         values = np.asarray(values)
 
         if values.ndim == 0:
-            raise ValueError("Remap weights require at least a 1-D input array.")
+            raise DimensionError("Remap weights require at least a 1-D input array.")
 
         if values.shape[-1] != self.source_size:
-            raise ValueError(
+            raise DimensionError(
                 f"Expected trailing dimension of size {self.source_size}, "
                 f"got {values.shape[-1]}."
             )
