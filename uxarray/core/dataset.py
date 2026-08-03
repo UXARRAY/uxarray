@@ -125,10 +125,10 @@ class UxDataset(xr.Dataset):
         value = super().__getitem__(key)
 
         if isinstance(value, xr.DataArray):
-            value = UxDataArray(value, uxgrid=self.uxgrid)
+            value = UxDataArray(value, uxgrid=self._uxgrid)
         elif isinstance(value, xr.Dataset):
             value = UxDataset(
-                value, uxgrid=self.uxgrid, source_datasets=self.source_datasets
+                value, uxgrid=self._uxgrid, source_datasets=self.source_datasets
             )
 
         return value
@@ -164,11 +164,13 @@ class UxDataset(xr.Dataset):
         self._source_datasets = source_datasets_input
 
     @property
-    def uxgrid(self):
+    def uxgrid(self) -> Grid:
         """Linked unstructured grid (``uxarray.Grid``) which the data resides on."""
-        if (
-            self._uxgrid is None
-        ):  # comment in self.__init__ describes why this possibility exists.
+        # _uxgrid=None should only cause crash during grid-aware operations.
+        # So, internally: use self._uxgrid for non-grid-aware operations like _copy() or _replace(),
+        # but self.uxgrid for everything else, like integrate().
+        if self._uxgrid is None:
+            # (comment in self.__init__ describes why this possibility exists.)
             raise GridInvalidError(
                 f"Expected a uxarray.Grid; got {type(self).__name__}.uxgrid = None. "
                 "Maybe you forgot to provide uxgrid when initializing this UxDataset?"
@@ -176,7 +178,7 @@ class UxDataset(xr.Dataset):
         return self._uxgrid
 
     @uxgrid.setter
-    def uxgrid(self, ugrid_obj):
+    def uxgrid(self, ugrid_obj: Grid):
         if not isinstance(ugrid_obj, Grid):
             raise TypeError(
                 f"Expected a uxarray.Grid; got value={type(ugrid_obj)} "
@@ -190,10 +192,12 @@ class UxDataset(xr.Dataset):
         ds = super()._calculate_binary_op(*args, **kwargs)
 
         if isinstance(ds, UxDataset):
-            ds.uxgrid = self.uxgrid
+            ds._uxgrid = self._uxgrid
             ds.source_datasets = self.source_datasets
         else:
-            ds = UxDataset(ds, uxgrid=self.uxgrid, source_datasets=self.source_datasets)
+            ds = UxDataset(
+                ds, uxgrid=self._uxgrid, source_datasets=self.source_datasets
+            )
 
         return ds
 
@@ -201,7 +205,7 @@ class UxDataset(xr.Dataset):
         """Override to make the result an instance of
         ``uxarray.UxDataArray``."""
         xarr = super()._construct_dataarray(name)
-        return UxDataArray(xarr, uxgrid=self.uxgrid)
+        return UxDataArray(xarr, uxgrid=self._uxgrid)
 
     @classmethod
     def _construct_direct(cls, *args, **kwargs):
@@ -218,10 +222,10 @@ class UxDataset(xr.Dataset):
 
         if deep:
             # Reinitialize the uxgrid assessor
-            copied.uxgrid = self.uxgrid.copy()  # deep copy
+            copied._uxgrid = self._uxgrid.copy()  # deep copy
         else:
             # Point to the existing uxgrid object
-            copied.uxgrid = self.uxgrid
+            copied._uxgrid = self._uxgrid
 
         return copied
 
@@ -231,10 +235,12 @@ class UxDataset(xr.Dataset):
         ds = super()._replace(*args, **kwargs)
 
         if isinstance(ds, UxDataset):
-            ds.uxgrid = self.uxgrid
+            ds._uxgrid = self._uxgrid
             ds.source_datasets = self.source_datasets
         else:
-            ds = UxDataset(ds, uxgrid=self.uxgrid, source_datasets=self.source_datasets)
+            ds = UxDataset(
+                ds, uxgrid=self._uxgrid, source_datasets=self.source_datasets
+            )
 
         return ds
 
@@ -513,7 +519,7 @@ class UxDataset(xr.Dataset):
                 # Call the parent method
                 result = parent_method(*args, **kwargs)
                 # Wrap the result with our accessor
-                return accessor_class(result, self.uxgrid, self.source_datasets)
+                return accessor_class(result, self._uxgrid, self.source_datasets)
 
             # Copy the docstring from the parent method
             method.__doc__ = parent_method.__doc__
@@ -662,7 +668,8 @@ class UxDataset(xr.Dataset):
         """
 
         xarr = super().to_array(dim=dim, name=name)
-        return UxDataArray(xarr, uxgrid=self.uxgrid)
+        return UxDataArray(xarr, uxgrid=self._uxgrid)
+        # _uxgrid not uxgrid; converting to UxDataArray is not a grid-aware method.
 
     def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
         """
@@ -736,7 +743,7 @@ class UxDataset(xr.Dataset):
         return dataset
 
     def where(self, cond: Any, other: Any = dtypes.NA, drop: bool = False):
-        return UxDataset(self.to_xarray().where(cond, other, drop), uxgrid=self.uxgrid)
+        return UxDataset(self.to_xarray().where(cond, other, drop), uxgrid=self._uxgrid)
 
     where.__doc__ = xr.Dataset.where.__doc__
 
@@ -757,6 +764,6 @@ class UxDataset(xr.Dataset):
     sel.__doc__ = xr.Dataset.sel.__doc__
 
     def fillna(self, value: Any):
-        return UxDataset(super().fillna(value), uxgrid=self.uxgrid)
+        return UxDataset(super().fillna(value), uxgrid=self._uxgrid)
 
     fillna.__doc__ = xr.Dataset.fillna.__doc__
