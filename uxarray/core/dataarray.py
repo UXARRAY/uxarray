@@ -619,7 +619,7 @@ class UxDataArray(xr.DataArray):
 
         else:
             raise DimensionError(
-                "Integration of data with n_face not as the final dimension is not yet supported."
+                "Integration of data with n_face not as the final dimension is not yet supported. "
                 f"Got face_centered data, but the final dimension was {self.dims[-1]}, not 'n_face'."
             )
 
