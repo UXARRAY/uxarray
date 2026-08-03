@@ -121,8 +121,7 @@ class UxDataArray(xr.DataArray):
         ``uxarray.UxDataArray``."""
         copied = super()._copy(**kwargs)
 
-        # Match xarray's default: deep=True when not specified
-        deep = kwargs.get("deep", True)
+        deep = kwargs.get("deep", None)
 
         if deep:
             # Reinitialize the uxgrid assessor
@@ -2219,6 +2218,23 @@ class UxDataArray(xr.DataArray):
         -------
         uxda_filter : UxDataArray
             Filtered data.
+
+        Raises
+        ------
+        DataCenteringError (subclass of ValueError)
+            If the data is not mapped to nodes, edges, or faces.
+        TypeError
+            If ``func`` does not accept an ``axis`` keyword argument.
+
+        Notes
+        -----
+        ``r`` is a great-circle distance in degrees. Neighborhoods overlap, and
+        every element is its own neighbor at distance 0, so ``r = 0`` returns
+        the data unchanged and the result never contains spurious ``NaN``.
+
+        The query requires random access across the whole grid dimension, so
+        lazy (dask-backed) data is computed eagerly and the result is always
+        NumPy-backed.
 
         Examples
         --------

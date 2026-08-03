@@ -279,6 +279,50 @@ class TestNeighborhoodFilter:
         with pytest.raises(AssertionError):
             uxda.neighborhood_filter(func=np.mean, r=-1.0)
 
+    def test_func_without_axis_raises_helpful_error(self):
+        """A ``func`` that does not accept ``axis`` should raise a TypeError
+        that explains the requirement rather than a raw NumPy message."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        uxda = UxDataArray(
+            np.arange(uxgrid.n_face, dtype=float), dims=["n_face"], uxgrid=uxgrid
+        )
+
+        with pytest.raises(TypeError, match="must accept an `axis` keyword"):
+            uxda.neighborhood_filter(func=sum, r=5.0)
+
+    def test_uses_spherical_tree_regardless_of_cached_tree(self):
+        """``r`` is documented in great-circle degrees, so the filter must build
+        a spherical/haversine tree even if a cartesian one was cached first."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        data = np.arange(uxgrid.n_face, dtype=float)
+        uxda = UxDataArray(data, dims=["n_face"], uxgrid=uxgrid, name="face_var")
+
+        expected = uxda.neighborhood_filter(func=np.mean, r=20.0).values
+
+        # Prime the cache with a cartesian tree, then filter again
+        uxgrid.get_ball_tree(
+            coordinates="face centers",
+            coordinate_system="cartesian",
+            distance_metric="euclidean",
+        )
+        np.testing.assert_allclose(
+            uxda.neighborhood_filter(func=np.mean, r=20.0).values, expected
+        )
+
+    def test_dask_input_returns_numpy(self, gridpath, datasetpath):
+        """Lazy input is computed eagerly; the result is NumPy-backed."""
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+            chunks={"n_face": 1000},
+        )
+        uxda = uxds["psi"]
+        assert uxda.chunks is not None
+
+        filtered = uxda.neighborhood_filter(func=np.mean, r=2.0)
+        assert filtered.chunks is None
+        assert isinstance(filtered.data, np.ndarray)
+
     def test_auto_transpose_direct_on_uxdataarray(self, gridpath, datasetpath):
         """Calling neighborhood_filter directly on a (time, n_face) UxDataArray
         (without going through UxDataset) should preserve the original dim order."""

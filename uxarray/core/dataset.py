@@ -681,6 +681,13 @@ class UxDataset(xr.Dataset):
         destination_uxds : UxDataset
             Filtered dataset.
 
+        Notes
+        -----
+        Variables without a grid dimension are passed through unchanged.
+        ``r`` is a great-circle distance in degrees, and lazy (dask-backed)
+        variables are computed eagerly. See
+        :meth:`UxDataArray.neighborhood_filter` for details.
+
         Examples
         --------
         Apply a mean filter to all grid-mapped variables in a dataset:

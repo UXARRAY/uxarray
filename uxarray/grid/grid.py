@@ -1777,10 +1777,15 @@ class Grid:
             BallTree instance
         """
 
+        # Rebuild whenever any tree-defining parameter differs from the cached
+        # instance. Previously only ``coordinates`` was compared, so switching
+        # ``coordinate_system`` or ``distance_metric`` silently returned a stale
+        # tree built with the original settings.
         if (
             self._ball_tree is None
             or coordinates != self._ball_tree._coordinates
             or coordinate_system != self._ball_tree.coordinate_system
+            or distance_metric != self._ball_tree.distance_metric
             or reconstruct
         ):
             self._ball_tree = BallTree(
@@ -1879,10 +1884,13 @@ class Grid:
             KDTree instance
         """
 
+        # Rebuild whenever any tree-defining parameter differs from the cached
+        # instance (see ``get_ball_tree`` for details).
         if (
             self._kd_tree is None
             or coordinates != self._kd_tree._coordinates
             or coordinate_system != self._kd_tree.coordinate_system
+            or distance_metric != self._kd_tree.distance_metric
             or reconstruct
         ):
             self._kd_tree = KDTree(

@@ -1217,11 +1217,29 @@ def _neighborhood_filter(
     -------
     destination_data : np.ndarray
         Filtered data, matching the shape of ``data``.
+
+    Raises
+    ------
+    TypeError
+        If ``func`` does not accept an ``axis`` keyword argument.
+
+    Notes
+    -----
+    The neighborhood query requires random access across the whole grid
+    dimension, so lazy (dask-backed) input is computed eagerly and the result
+    is always a NumPy array.
     """
 
-    tree = grid.get_ball_tree(coordinates=data_mapping)
-
-    coordinate_system = tree.coordinate_system
+    # Request a spherical/haversine tree explicitly rather than relying on the
+    # defaults. Without this, a cartesian tree cached by an earlier call would
+    # be reused and ``r`` would be silently interpreted as a chord length
+    # instead of the great-circle degrees documented above.
+    coordinate_system = "spherical"
+    tree = grid.get_ball_tree(
+        coordinates=data_mapping,
+        coordinate_system=coordinate_system,
+        distance_metric="haversine",
+    )
 
     dest_coords = _get_element_coords(grid, data_mapping, coordinate_system)
 
@@ -1238,6 +1256,17 @@ def _neighborhood_filter(
     # dimensions (e.g. time) are preserved rather than being collapsed.
     for i, idx in enumerate(neighbor_indices):
         if len(idx):
-            destination_data[..., i] = func(data[..., idx], axis=-1)
+            try:
+                destination_data[..., i] = func(data[..., idx], axis=-1)
+            except TypeError as exc:
+                if "axis" not in str(exc):
+                    raise
+                raise TypeError(
+                    f"`func` must accept an `axis` keyword argument so that the "
+                    f"reduction is applied over the neighborhood only, but "
+                    f"{getattr(func, '__name__', func)!r} does not. Use a NumPy "
+                    f"reduction such as `np.mean` or `np.median`, or wrap your "
+                    f"function with `functools.partial` to supply `axis`."
+                ) from exc
 
     return destination_data
