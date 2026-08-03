@@ -28,7 +28,7 @@ For example:
 UXarray (version 2025.06.0) [Software].
 Project Raijin & Project SEATS. doi:10.5281/zenodo.15757812.**
 
-.. note::
+.. admonition:: Algorithm-Level Citations
 
    Several algorithms in UXarray (e.g., spherical geometry, regridding, etc.)
    implement methods from peer-reviewed publications. Citing them, in addition to
