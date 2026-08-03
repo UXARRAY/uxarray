@@ -1,6 +1,6 @@
 import numpy as np
 import uxarray as ux
-from uxarray.errors import DimensionError
+from uxarray.errors import DimensionError, GridInvalidError
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
 from uxarray.core.dataset import UxDataset, UxDataArray
 import pytest
@@ -164,3 +164,15 @@ def test_data_location():
         np.ones((3, uxgrid.n_face)), dims=["time", "n_face"], uxgrid=uxgrid
     )
     assert face_time.data_location == "face_centered"
+
+
+def test_uxgrid_None_is_invalid_in_uxdataarray():
+    """Ensures GridInvalidError gets raised if uxgrid=None when getting UxDataArray.uxgrid.
+    Regression test for #1620.
+    """
+    # construct array without uxgrid. Ideally this line would crash, but allowing uxgrid=None
+    # is an important workaround for subclassing from xarray. see #1620 for more details.
+    arr = ux.UxDataArray([1,2,3], dims=['n_face'])
+    # ensure getting arr.uxgrid crashes with GridInvalidError (it is None...)
+    with pytest.raises(GridInvalidError):
+        arr.uxgrid

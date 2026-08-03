@@ -25,7 +25,12 @@ from uxarray.core.zonal import (
     _compute_zonal_anomaly,
 )
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
-from uxarray.errors import DataCenteringError, DimensionError, GridsMismatchError
+from uxarray.errors import (
+    DataCenteringError,
+    DimensionError,
+    GridInvalidError,
+    GridsMismatchError,
+)
 from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
@@ -48,10 +53,11 @@ class UxDataArray(xr.DataArray):
 
     Parameters
     ----------
-    uxgrid : uxarray.Grid, optional
+    uxgrid : uxarray.Grid
         The `Grid` object that makes this array aware of the unstructured
         grid topology it belongs to.
-        If `None`, it needs to be an instance of `uxarray.Grid`.
+        Providing `None` is possible but intended for internal use only;
+        if `None`, must set self.uxgrid before using any grid-aware methods.
 
     Other Parameters
     ----------------
@@ -85,17 +91,15 @@ class UxDataArray(xr.DataArray):
     # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
     __slots__ = ("_uxgrid",)
 
-    def __init__(self, *args, uxgrid: Grid = None, **kwargs):
-        self._uxgrid = None
-
-        if uxgrid is not None and not isinstance(uxgrid, Grid):
-            raise RuntimeError(
-                "uxarray.UxDataArray.__init__: uxgrid can be either None or "
-                "an instance of the uxarray.Grid class"
-            )
-        else:
-            self.uxgrid = uxgrid
-
+    def __init__(self, *args, uxgrid: Grid | None = None, **kwargs):
+        # Note: allowing uxgrid=None is not desirable (see issue #1620)
+        #   but it is the default, to simplify subclassing from xarray.
+        # E.g., self.isel() uses self._replace(), which goes to xarray.DataArray._replace(),
+        #   which returns type(self)(...) with explicit kwargs only (no **kwargs),
+        #   making it very challenging to pass uxgrid at time of construction.
+        # Workaround here: clarified in docstring, and allow initial uxgrid=None,
+        #   but crash with GridInvalidError upon accessing self.uxgrid, if still None.
+        self._uxgrid = uxgrid  # self._uxgrid=None is allowed; self.uxgrid=None is not.
         super().__init__(*args, **kwargs)
 
     # declare various accessors
@@ -144,14 +148,23 @@ class UxDataArray(xr.DataArray):
 
     @property
     def uxgrid(self):
-        """Linked ``Grid`` representing to the unstructured grid the data
-        resides on."""
-
+        """Linked unstructured grid (``uxarray.Grid``) which the data resides on."""
+        if (
+            self._uxgrid is None
+        ):  # comment in self.__init__ describes why this possibility exists.
+            raise GridInvalidError(
+                f"Expected a uxarray.Grid; got {type(self).__name__}.uxgrid = None. "
+                "Maybe you forgot to provide uxgrid when initializing this UxDataArray?"
+            )
         return self._uxgrid
 
-    # a setter function
     @uxgrid.setter
     def uxgrid(self, ugrid_obj):
+        if not isinstance(ugrid_obj, Grid):
+            raise TypeError(
+                f"Expected a uxarray.Grid; got value={type(ugrid_obj)} "
+                f"(while setting {type(self).__name__}.uxgrid = value)."
+            )
         self._uxgrid = ugrid_obj
 
     @property

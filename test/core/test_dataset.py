@@ -1,13 +1,11 @@
 import numpy.testing as nt
 import xarray as xr
 import uxarray as ux
+import uxarray.errors
 from uxarray import UxDataset
 import pytest
 
 import numpy as np
-
-
-
 
 
 @pytest.fixture()
@@ -16,8 +14,6 @@ def healpix_sample_ds():
     fc_var = ux.UxDataArray(data=np.ones((3, uxgrid.n_face)), dims=['time', 'n_face'], uxgrid=uxgrid)
     nc_var = ux.UxDataArray(data=np.ones((3, uxgrid.n_node)), dims=['time', 'n_node'], uxgrid=uxgrid)
     return ux.UxDataset({"fc": fc_var, "nc": nc_var}, uxgrid=uxgrid)
-
-
 
 
 @pytest.fixture()
@@ -170,3 +166,15 @@ def test_uxdataset_to_array():
     assert arr1.name is None
     arr2 = uxds.to_array(dim='custom_dim', name='custom_name')
     assert arr2.name == 'custom_name'
+
+
+def test_uxgrid_None_is_invalid_in_uxdataset():
+    """Ensures GridInvalidError gets raised if uxgrid=None when getting UxDataset.uxgrid.
+    Regression test for #1620.
+    """
+    # construct array without uxgrid. Ideally this line would crash, but allowing uxgrid=None
+    # is an important workaround for subclassing from xarray. see #1620 for more details.
+    ds = ux.UxDataset({'arr0': xr.DataArray([1,2,3], dims=['n_face'])})
+    # ensure getting arr.uxgrid crashes with GridInvalidError (it is None...)
+    with pytest.raises(uxarray.errors.GridInvalidError):
+        ds.uxgrid
