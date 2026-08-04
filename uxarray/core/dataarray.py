@@ -169,7 +169,7 @@ class UxDataArray(xr.DataArray):
     def uxgrid(self, ugrid_obj: Grid):
         if not isinstance(ugrid_obj, Grid):
             raise TypeError(
-                f"Expected a uxarray.Grid; got value={type(ugrid_obj)} "
+                f"Expected a uxarray.Grid; got value with type={type(ugrid_obj)} "
                 f"(while setting {type(self).__name__}.uxgrid = value)."
             )
         self._uxgrid = ugrid_obj
