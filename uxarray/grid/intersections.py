@@ -4,6 +4,7 @@ import numpy as np
 from numba import njit
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE
+from uxarray.errors import DimensionError
 from uxarray.grid.arcs import _on_minor_arc_xyz, on_minor_arc
 from uxarray.utils.computing import (
     _cdp2,
@@ -382,7 +383,7 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
         (0, 1, or 2 valid rows).
     """
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
-        raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
+        raise DimensionError("The two GCAs must be in the cartesian [x, y, z] format")
 
     w0 = gca_a_xyz[0]
     w1 = gca_a_xyz[1]
