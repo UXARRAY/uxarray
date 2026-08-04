@@ -1583,7 +1583,7 @@ class Grid:
     @property
     def face_jacobian(self):
         """Declare face_jacobian as a property."""
-        if getattr(self, '_face_jacobian', None) is None:
+        if getattr(self, "_face_jacobian", None) is None:
             _ = self.face_areas
         return self._face_jacobian
 
