@@ -93,6 +93,8 @@ class UxDataset(xr.Dataset):
         else:
             self.uxgrid = uxgrid
 
+        self._source_datasets = source_datasets
+
         # As of xarray's 2026.4.0, `xr.Dataset(xr.Dataset)` is prohibited;
         # hence this check, i.e. if we get `xr.Dataset` as input, use its `data_vars`
         # as `dict` and handle `coords` and `attrs` properly as well
