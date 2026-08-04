@@ -63,11 +63,11 @@ other_output = uxds.some_function(some_param = True)
 
 
 ## AI Disclosure
-<!-- If you did not use AI, please write "AI Usage: N/A" and remove these checklist items or mark as [N/A].
-    Otherwise, please briefly specify all tools used and how they were used. Include model if known. Examples:
-    "AI Usage: Claude (Fable 5) made all code edits, but I came up with the ideas and design for this feature myself."
-    "AI Usage: discussion with Gemini and ChatGPT (5.5 Instant) to help find and understand the cause of this bug."
-    "AI Usage: inline code suggestions from GitHub Copilot." -->
+<!-- Please specify all AI tools used. Optionally, include model and/or briefly describe usage. Examples:
+    "AI Usage: Claude (Fable 5), Gemini"
+    "AI Usage: ChatGPT (5.5 Instant) to help understand cause of this bug, but I wrote all updates myself."
+    "AI Usage: just GitHub Copilot's inline code suggestions."
+    If you did not use AI, please write "AI Usage: N/A" and remove these checklist items or mark as [N/A].-->
 
 AI Usage:
 
