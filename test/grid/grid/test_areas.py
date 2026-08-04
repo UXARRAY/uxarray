@@ -115,3 +115,45 @@ def test_latlon_bounds_populate_bounds_MPAS(gridpath):
     """Test bounds population with MPAS grid."""
     uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
     bounds_xarray = uxgrid.bounds
+
+
+def _sum_quadrature_jacobians(x, y, z, quadrature_rule, order):
+    """Independently sum the Jacobian at each quadrature point of a triangle."""
+    node1 = np.array([x[0], y[0], z[0]])
+    node2 = np.array([x[1], y[1], z[1]])
+    node3 = np.array([x[2], y[2], z[2]])
+
+    if quadrature_rule == "gaussian":
+        dG, dW = ux.grid.area.get_gauss_quadrature_dg(order)
+        return sum(
+            ux.grid.area.calculate_spherical_triangle_jacobian(
+                node1, node2, node3, dG[0][p], dG[0][q])
+            for p in range(len(dW)) for q in range(len(dW))
+        )
+
+    dG, dW = ux.grid.area.get_tri_quadrature_dg(order)
+    return sum(
+        ux.grid.area.calculate_spherical_triangle_jacobian_barycentric(
+            node1, node2, node3, dG[p][0], dG[p][1])
+        for p in range(len(dW))
+    )
+
+@pytest.mark.parametrize("quadrature_rule, order", [("gaussian", 5), ("triangular", 4)])
+def test_calculate_face_area_jacobian_is_quadrature_sum(quadrature_rule, order):
+    """The returned jacobian must be the sum over every quadrature point.
+
+    Previously the loop did ``jacobian += jacobian`` after overwriting
+    ``jacobian`` with the value at the current point, so the result was twice
+    the *last* point rather than the running total.
+    """
+    x = np.array([0.02974582, 0.1534193, 0.18363692])
+    y = np.array([-0.74469018, -0.88744577, -0.72230586])
+    z = np.array([0.66674712, 0.43462917, 0.66674712])
+
+    expected = _sum_quadrature_jacobians(x, y, z, quadrature_rule, order)
+
+    _, jacobian = ux.grid.area.calculate_face_area(
+        x, y, z, quadrature_rule, order, latitude_adjusted_area=False)
+
+    assert jacobian > 0
+    nt.assert_allclose(jacobian, expected, rtol=1e-12)
