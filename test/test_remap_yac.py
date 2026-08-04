@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 
 import uxarray as ux
-from uxarray.remap.yac import YacNotAvailableError, _import_yac
+from uxarray.errors import YacNotAvailableError
+from uxarray.remap.yac import _import_yac
 
 
 try:
