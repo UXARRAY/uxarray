@@ -256,7 +256,7 @@ class UxDataArray(xr.DataArray):
                 f"for face-centered data."
             )
 
-        if self.values.size == self.uxgrid.n_face:
+        if self._face_centered():
             gdf, non_nan_polygon_indices = self.uxgrid.to_geodataframe(
                 periodic_elements=periodic_elements,
                 projection=projection,
@@ -293,22 +293,11 @@ class UxDataArray(xr.DataArray):
 
             gdf[var_name] = _data
 
-        elif self.values.size == self.uxgrid.n_node:
-            raise DataCenteringError(
-                f"Data Variable with size {self.values.size} does not match the number of faces "
-                f"({self.uxgrid.n_face}. Current size matches the number of nodes. Consider running "
-                f"``UxDataArray.topological_mean(destination='face') to aggregate the data onto the faces."
-            )
-        elif self.values.size == self.uxgrid.n_edge:
-            raise DataCenteringError(
-                f"Data Variable with size {self.values.size} does not match the number of faces "
-                f"({self.uxgrid.n_face}. Current size matches the number of edges."
-            )
         else:
-            # data is not mapped to
-            raise DimensionError(
-                f"Data Variable with size {self.values.size} does not match the number of faces "
-                f"({self.uxgrid.n_face}."
+            raise DataCenteringError(
+                f"to_geodataframe() expects face_centered data; got {self.data_location} data "
+                f"(with sizes={dict(**self.sizes)}). Consider running "
+                "``UxDataArray.topological_mean(destination='face')`` to aggregate the data onto faces."
             )
 
         return gdf
@@ -615,28 +604,25 @@ class UxDataArray(xr.DataArray):
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
         >>> integral = uxds["psi"].integrate()
         """
-        if self.values.shape[-1] == self.uxgrid.n_face:
+        # TODO: support integration regardless of n_face dimension position,
+        #    and remove the self.dims[-1] == "n_face" check.
+        #    (uxarray/xarray features should be agnostic to dimension positions.)
+        if self._face_centered() and self.dims[-1] == "n_face":
             face_areas = self.uxgrid.face_areas.values
 
             # perform dot product between face areas and last dimension of data
             integral = np.einsum("i,...i", face_areas, self.values)
 
-        elif self.values.shape[-1] == self.uxgrid.n_node:
+        elif not self._face_centered():
             raise DataCenteringError(
-                "Integrating data mapped to each node not yet supported."
-            )
-
-        elif self.values.shape[-1] == self.uxgrid.n_edge:
-            raise DataCenteringError(
-                "Integrating data mapped to each edge not yet supported."
+                "Integration of non-face_centered data is not yet supported. "
+                f"(Got {self.data_location} data with sizes={dict(**self.sizes)})"
             )
 
         else:
             raise DimensionError(
-                f"The final dimension of the data variable does not match the number of nodes, edges, "
-                f"or faces. Expected one of "
-                f"{self.uxgrid.n_node}, {self.uxgrid.n_edge}, or {self.uxgrid.n_face}, "
-                f"but received {self.values.shape[-1]}"
+                "Integration of data with n_face not as the final dimension is not yet supported. "
+                f"Got face_centered data, but the final dimension was {self.dims[-1]}, not 'n_face'."
             )
 
         # construct a uxda with integrated quantity
