@@ -123,6 +123,7 @@ def _sum_quadrature_jacobians(x, y, z, quadrature_rule, order):
     node2 = np.array([x[1], y[1], z[1]])
     node3 = np.array([x[2], y[2], z[2]])
 
+    assert quadrature_rule in ("gaussian", "triangular")
     if quadrature_rule == "gaussian":
         dG, dW = ux.grid.area.get_gauss_quadrature_dg(order)
         return sum(
@@ -130,13 +131,13 @@ def _sum_quadrature_jacobians(x, y, z, quadrature_rule, order):
                 node1, node2, node3, dG[0][p], dG[0][q])
             for p in range(len(dW)) for q in range(len(dW))
         )
-
-    dG, dW = ux.grid.area.get_tri_quadrature_dg(order)
-    return sum(
-        ux.grid.area.calculate_spherical_triangle_jacobian_barycentric(
-            node1, node2, node3, dG[p][0], dG[p][1])
-        for p in range(len(dW))
-    )
+    else:
+        dG, dW = ux.grid.area.get_tri_quadrature_dg(order)
+        return sum(
+            ux.grid.area.calculate_spherical_triangle_jacobian_barycentric(
+                node1, node2, node3, dG[p][0], dG[p][1])
+            for p in range(len(dW))
+        )
 
 @pytest.mark.parametrize("quadrature_rule, order", [("gaussian", 5), ("triangular", 4)])
 def test_calculate_face_area_jacobian_is_quadrature_sum(quadrature_rule, order):
