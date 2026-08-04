@@ -176,3 +176,15 @@ def test_uxgrid_None_is_invalid_in_uxdataarray():
     # ensure getting arr.uxgrid crashes with GridInvalidError (it is None...)
     with pytest.raises(GridInvalidError):
         arr.uxgrid
+
+    # trying to set uxgrid to a non-Grid should raise TypeError:
+    with pytest.raises(TypeError):
+        arr.uxgrid = "not a grid"
+    with pytest.raises(TypeError):
+        arr.uxgrid = 123
+    # this remains true even for None, outside of __init__:
+    with pytest.raises(TypeError):
+        arr.uxgrid = None
+    # it also applies (for non-None non-Grid objects) during __init__:
+    with pytest.raises(TypeError):
+        ux.UxDataArray([4,5], dims=['n_face'], uxgrid="not a grid")

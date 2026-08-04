@@ -86,7 +86,10 @@ class UxDataset(xr.Dataset):
         #   making it very challenging to pass uxgrid at time of construction.
         # Workaround here: clarified in docstring, and allow initial uxgrid=None,
         #   but crash with GridInvalidError upon accessing self.uxgrid, if still None.
-        self._uxgrid = uxgrid
+        if uxgrid is None:
+            self._uxgrid = uxgrid  # self._uxgrid=None is allowed; self.uxgrid=None is not.
+        else:
+            self.uxgrid = uxgrid  # calls the property's setter, which does type-checking.
         self._source_datasets = source_datasets
 
         # As of xarray's 2026.4.0, `xr.Dataset(xr.Dataset)` is prohibited;

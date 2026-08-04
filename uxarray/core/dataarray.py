@@ -99,7 +99,10 @@ class UxDataArray(xr.DataArray):
         #   making it very challenging to pass uxgrid at time of construction.
         # Workaround here: clarified in docstring, and allow initial uxgrid=None,
         #   but crash with GridInvalidError upon accessing self.uxgrid, if still None.
-        self._uxgrid = uxgrid  # self._uxgrid=None is allowed; self.uxgrid=None is not.
+        if uxgrid is None:
+            self._uxgrid = uxgrid  # self._uxgrid=None is allowed; self.uxgrid=None is not.
+        else:
+            self.uxgrid = uxgrid  # calls the property's setter, which does type-checking.
         super().__init__(*args, **kwargs)
 
     # declare various accessors
