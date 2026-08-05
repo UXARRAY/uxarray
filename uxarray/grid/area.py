@@ -91,15 +91,15 @@ def _face_area_from_quadrature(x, y, z, dG, dW, is_gaussian, latitude_adjusted_a
                 for q in range(n_weights):
                     dA = dG[0][p]
                     dB = dG[0][q]
-                    node_jacobian = calculate_spherical_triangle_jacobian(
+                    node_jacobian = _calculate_spherical_triangle_jacobian(
                         node1, node2, node3, dA, dB
                     )
                     area += dW[p] * dW[q] * node_jacobian
                     jacobian += node_jacobian
-            elif quadrature_rule == "triangular":
+            else:
                 dA = dG[p][0]
                 dB = dG[p][1]
-                node_jacobian = calculate_spherical_triangle_jacobian_barycentric(
+                node_jacobian = _calculate_spherical_triangle_jacobian_barycentric(
                     node1, node2, node3, dA, dB
                 )
                 area += dW[p] * node_jacobian

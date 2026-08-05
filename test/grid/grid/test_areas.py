@@ -127,14 +127,14 @@ def _sum_quadrature_jacobians(x, y, z, quadrature_rule, order):
     if quadrature_rule == "gaussian":
         dG, dW = ux.grid.area.get_gauss_quadrature_dg(order)
         return sum(
-            ux.grid.area.calculate_spherical_triangle_jacobian(
+            ux.grid.area._calculate_spherical_triangle_jacobian(
                 node1, node2, node3, dG[0][p], dG[0][q])
             for p in range(len(dW)) for q in range(len(dW))
         )
     else:
         dG, dW = ux.grid.area.get_tri_quadrature_dg(order)
         return sum(
-            ux.grid.area.calculate_spherical_triangle_jacobian_barycentric(
+            ux.grid.area._calculate_spherical_triangle_jacobian_barycentric(
                 node1, node2, node3, dG[p][0], dG[p][1])
             for p in range(len(dW))
         )
