@@ -1200,124 +1200,26 @@ def _get_element_coords(grid, data_mapping: str, coordinate_system: str):
 # and ``(m)`` the destination axis. Output is float64 regardless of input
 # dtype, matching the behaviour of the generic path below.
 _GUFUNC_SIGNATURES = [
-    "void(float64[:], int64[:], int64[:], int64[:], float64[:])",
-    "void(float32[:], int64[:], int64[:], int64[:], float64[:])",
-]
-_GUFUNC_LAYOUT = "(n),(k),(m),(m)->(m)"
-_GUFUNC_KWARGS = {"nopython": True, "cache": True, "target": "parallel"}
-
-# Variant carrying one scalar parameter (``q``, ``ddof``) as a scalar core
-# dimension, so the value travels with the call rather than being baked into a
-# separately compiled kernel per value.
-_GUFUNC_SIGNATURES_P = [
     "void(float64[:], int64[:], int64[:], int64[:], float64, float64[:])",
     "void(float32[:], int64[:], int64[:], int64[:], float64, float64[:])",
 ]
-_GUFUNC_LAYOUT_P = "(n),(k),(m),(m),()->(m)"
+_GUFUNC_LAYOUT = "(n),(k),(m),(m),()->(m)"
+_GUFUNC_KWARGS = {"nopython": True, "cache": True, "target": "parallel"}
 
 
-@guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
-def _gu_mean(data, flat, starts, counts, out):
-    for i in range(starts.shape[0]):
-        count = counts[i]
-        if count == 0:
-            out[i] = np.nan
-            continue
-        start = starts[i]
-        acc = 0.0
-        for j in range(start, start + count):
-            acc += data[flat[j]]
-        out[i] = acc / count
+def _make_kernel(reduce_fn):
+    """Builds a kernel that gathers each neighborhood, then calls
+    ``reduce_fn(window, param)`` on the 1-D result.
 
-
-@guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
-def _gu_sum(data, flat, starts, counts, out):
-    for i in range(starts.shape[0]):
-        start = starts[i]
-        acc = 0.0
-        for j in range(start, start + counts[i]):
-            acc += data[flat[j]]
-        out[i] = acc
-
-
-@guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
-def _gu_max(data, flat, starts, counts, out):
-    for i in range(starts.shape[0]):
-        count = counts[i]
-        if count == 0:
-            out[i] = np.nan
-            continue
-        start = starts[i]
-        best = data[flat[start]]
-        for j in range(start + 1, start + count):
-            value = data[flat[j]]
-            if value > best:
-                best = value
-        out[i] = best
-
-
-@guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
-def _gu_min(data, flat, starts, counts, out):
-    for i in range(starts.shape[0]):
-        count = counts[i]
-        if count == 0:
-            out[i] = np.nan
-            continue
-        start = starts[i]
-        best = data[flat[start]]
-        for j in range(start + 1, start + count):
-            value = data[flat[j]]
-            if value < best:
-                best = value
-        out[i] = best
-
-
-# Order statistics cannot stream: the neighborhood has to be materialized
-# before it can be sorted or partitioned. Those reductions share one gather
-# loop, and the reduction itself is whatever numba-compilable callable is
-# handed to the factory. Numba supports the NumPy reductions in nopython mode,
-# so ``np.median`` and friends are used directly rather than reimplemented --
-# numba's ``np.median`` partitions instead of fully sorting, which makes it
-# faster than an equivalent hand-written sort as well as shorter.
-def _make_buffered_kernel(reduce_fn):
-    """Builds a kernel that gathers each neighborhood, then calls ``reduce_fn``
-    on the 1-D result. ``reduce_fn`` must be numba-compilable."""
+    ``reduce_fn`` must be numba-compilable, and must be defined in a real
+    source file for ``cache=True`` to find it.
+    """
     # A reducer shared between kernels arrives already compiled; numba rejects
     # jitting a dispatcher twice.
     if not hasattr(reduce_fn, "py_func"):
         reduce_fn = njit(cache=True)(reduce_fn)
 
     @guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
-    def kernel(data, flat, starts, counts, out):
-        widest = 0
-        for i in range(counts.shape[0]):
-            if counts[i] > widest:
-                widest = counts[i]
-        buffer = np.empty(widest, dtype=np.float64)
-
-        for i in range(starts.shape[0]):
-            count = counts[i]
-            if count == 0:
-                out[i] = np.nan
-                continue
-            start = starts[i]
-            for j in range(count):
-                buffer[j] = data[flat[start + j]]
-            out[i] = reduce_fn(buffer[:count])
-
-    return kernel
-
-
-def _make_parameterized_kernel(reduce_fn):
-    """As ``_make_buffered_kernel``, but ``reduce_fn`` also takes one scalar
-    parameter (``q`` for quantiles, ``ddof`` for spreads), declared as a scalar
-    core dimension so it can vary per call without recompiling."""
-    # A reducer shared between kernels arrives already compiled; numba rejects
-    # jitting a dispatcher twice.
-    if not hasattr(reduce_fn, "py_func"):
-        reduce_fn = njit(cache=True)(reduce_fn)
-
-    @guvectorize(_GUFUNC_SIGNATURES_P, _GUFUNC_LAYOUT_P, **_GUFUNC_KWARGS)
     def kernel(data, flat, starts, counts, param, out):
         widest = 0
         for i in range(counts.shape[0]):
@@ -1338,6 +1240,27 @@ def _make_parameterized_kernel(reduce_fn):
     return kernel
 
 
+class _Reduction(NamedTuple):
+    """A named reduction, and the single scalar parameter it accepts (if any).
+
+    Limiting reductions to one parameter is what keeps the gufunc layout above
+    down to one; it covers every reduction implemented here.
+    """
+
+    kernel: object
+    param: str | None = None
+    default: float = 0.0
+
+
+# Reductions with a compiled kernel, addressed by name. A name always takes the
+# fast path, which is why the public API documents names rather than callables:
+# dispatching on a function object cannot see through ``functools.partial``, so
+# a parameterized reduction could never hit a kernel that way.
+#
+# Adding a reduction is one line here. Reducers take ``(window, param)``;
+# those with no parameter ignore the second argument. Numba keys its cache by
+# code object rather than qualified name, so the identically-named lambdas do
+# not collide.
 @njit(cache=True)
 def _variance(window, ddof):
     """Variance with a delta degrees of freedom. Numba's ``np.var`` takes no
@@ -1352,42 +1275,35 @@ def _variance(window, ddof):
     return total / denominator
 
 
-_gu_median = _make_buffered_kernel(lambda window: np.median(window))
-_gu_ptp = _make_buffered_kernel(lambda window: np.max(window) - np.min(window))
-_gu_quantile = _make_parameterized_kernel(lambda window, q: np.quantile(window, q))
-_gu_var = _make_parameterized_kernel(_variance)
-_gu_std = _make_parameterized_kernel(
-    lambda window, ddof: np.sqrt(_variance(window, ddof))
-)
+@njit(cache=True)
+def _median(window, _):
+    # numba's ``np.median`` selects by partitioning, and whether a NaN survives
+    # that depends on where it lands -- so unlike numpy's, it propagates NaN
+    # only sometimes. This spelling short-circuits and allocates nothing:
+    # ``np.any(np.isnan(window))`` costs ~14% more, and routing through
+    # ``np.quantile``, which does propagate, costs 2.5x.
+    for value in window:
+        if np.isnan(value):
+            return np.nan
+    return np.median(window)
 
 
-class _Reduction(NamedTuple):
-    """A named reduction, and the single scalar parameter it accepts (if any).
+_quantile_kernel = _make_kernel(lambda window, q: np.quantile(window, q))
 
-    Keeping parameters to at most one keeps the gufunc layouts down to the two
-    declared above, which covers every reduction implemented here.
-    """
-
-    kernel: object
-    param: str | None = None
-    default: float | None = None
-
-
-# Reductions with a compiled kernel, addressed by name. A name always takes the
-# fast path, which is why the public API documents names rather than callables:
-# dispatching on a function object cannot see through ``functools.partial``, so
-# a parameterized reduction could never hit a kernel that way.
 _REDUCTIONS = {
-    "mean": _Reduction(_gu_mean),
-    "sum": _Reduction(_gu_sum),
-    "min": _Reduction(_gu_min),
-    "max": _Reduction(_gu_max),
-    "median": _Reduction(_gu_median),
-    "ptp": _Reduction(_gu_ptp),
-    "std": _Reduction(_gu_std, param="ddof", default=0.0),
-    "var": _Reduction(_gu_var, param="ddof", default=0.0),
-    "quantile": _Reduction(_gu_quantile, param="q"),
-    "percentile": _Reduction(_gu_quantile, param="q"),
+    "mean": _Reduction(_make_kernel(lambda window, _: np.mean(window))),
+    "sum": _Reduction(_make_kernel(lambda window, _: np.sum(window))),
+    "min": _Reduction(_make_kernel(lambda window, _: np.min(window))),
+    "max": _Reduction(_make_kernel(lambda window, _: np.max(window))),
+    "ptp": _Reduction(_make_kernel(lambda window, _: np.max(window) - np.min(window))),
+    "median": _Reduction(_make_kernel(_median)),
+    "var": _Reduction(_make_kernel(_variance), param="ddof"),
+    "std": _Reduction(
+        _make_kernel(lambda window, ddof: np.sqrt(_variance(window, ddof))),
+        param="ddof",
+    ),
+    "quantile": _Reduction(_quantile_kernel, param="q"),
+    "percentile": _Reduction(_quantile_kernel, param="q"),
 }
 
 # Callables accepted for backwards compatibility, so that code written against
@@ -1446,16 +1362,17 @@ def _resolve_reduction(func, kwargs):
         )
 
     if reduction.param is None:
-        return reduction.kernel, None
+        # The kernel still takes a parameter; this one ignores it.
+        return reduction.kernel, 0.0
 
     if reduction.param in kwargs:
         value = float(kwargs[reduction.param])
-    elif reduction.default is not None:
-        value = reduction.default
-    else:
+    elif name in ("quantile", "percentile"):
         raise TypeError(
             f"Reduction {name!r} requires the {reduction.param!r} keyword argument."
         )
+    else:
+        value = reduction.default
 
     # `percentile` is `quantile` on a 0-100 scale; normalize so both share one
     # kernel rather than compiling a near-duplicate.
@@ -1727,10 +1644,7 @@ class Neighborhoods:
                 # path does too by writing into a float64 output.
                 if block.dtype not in (np.float64, np.float32):
                     block = block.astype(np.float64)
-                args = (block, self._flat, self._starts, self._counts)
-                if param is not None:
-                    args += (param,)
-                return kernel(*args)
+                return kernel(block, self._flat, self._starts, self._counts, param)
 
         work = _rechunk_grid_dim(uxda, grid_dim)
 

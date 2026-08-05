@@ -668,18 +668,8 @@ class UxDataset(xr.Dataset):
         element of every data variable with a reduction of all elements within
         a circular neighborhood of radius ``r``.
 
-        Parameters
-        ----------
-        func : str or Callable, default="mean"
-            Name of the reduction to apply: "mean", "sum", "min", "max",
-            "median", "ptp", "std", "var", "quantile", or "percentile". Named
-            reductions run compiled. A callable is accepted as an escape hatch;
-            see :meth:`UxDataArray.neighborhood_filter`.
-        r : float, default=1.
-            Radius of the neighborhood, in degrees.
-        **kwargs
-            Parameter for the named reduction: ``q`` for "quantile" (0-1) and
-            "percentile" (0-100), ``ddof`` for "std" and "var".
+        Parameters are as for :meth:`UxDataArray.neighborhood_filter`, which
+        documents the available reductions and their keyword arguments.
 
         Returns
         -------
@@ -689,9 +679,6 @@ class UxDataset(xr.Dataset):
         Notes
         -----
         Variables without a grid dimension are passed through unchanged.
-        ``r`` is a great-circle distance in degrees, and lazy (dask-backed)
-        variables stay lazy. See :meth:`UxDataArray.neighborhood_filter` for
-        details.
 
         Variables mapped to the same grid location share one neighbor query, so
         filtering a dataset costs one query per location present rather than
