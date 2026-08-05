@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit
+from numba import njit, prange
 
 from uxarray.constants import ERROR_TOLERANCE
 
@@ -44,16 +44,30 @@ def calculate_face_area(
     area : double
     jacobian: double
     """
-    area = 0.0  # set area to 0
-    jacobian = 0.0  # set jacobian to 0
-    order = order
-
     if quadrature_rule == "gaussian":
         dG, dW = get_gauss_quadrature_dg(order)
+        is_gaussian = True
     elif quadrature_rule == "triangular":
         dG, dW = get_tri_quadrature_dg(order)
+        is_gaussian = False
     else:
         raise ValueError("Invalid quadrature rule, specify gaussian or triangular")
+
+    return _face_area_from_quadrature(
+        x, y, z, dG, dW, is_gaussian, latitude_adjusted_area
+    )
+
+
+@njit(cache=True)
+def _face_area_from_quadrature(x, y, z, dG, dW, is_gaussian, latitude_adjusted_area):
+    """Compute one face's area/jacobian from precomputed quadrature points.
+
+    Split out of :func:`calculate_face_area` so the quadrature points ``dG``/``dW``
+    (which depend only on the rule and order, not on the face) can be computed once
+    and reused across every face, instead of being rebuilt per face.
+    """
+    area = 0.0  # set area to 0
+    jacobian = 0.0  # set jacobian to 0
 
     num_nodes = len(x)
 
@@ -62,25 +76,28 @@ def calculate_face_area(
     # Using tempestremap GridElements: https://github.com/ClimateGlobalChange/tempestremap/blob/master/src/GridElements.cpp
     # loop through all sub-triangles of face
     total_correction = 0.0
+    # node1 (the fan apex, vertex 0) is shared by every sub-triangle, so build it
+    # once instead of per triangle.
+    node1 = np.array([x[0], y[0], z[0]], dtype=x.dtype)
+    n_weights = len(dW)
     for j in range(0, num_triangles):
-        node1 = np.array([x[0], y[0], z[0]], dtype=x.dtype)
         node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=x.dtype)
         node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=x.dtype)
 
-        for p in range(len(dW)):
-            if quadrature_rule == "gaussian":
-                for q in range(len(dW)):
+        for p in range(n_weights):
+            if is_gaussian:
+                for q in range(n_weights):
                     dA = dG[0][p]
                     dB = dG[0][q]
-                    jacobian = calculate_spherical_triangle_jacobian(
+                    jacobian = _calculate_spherical_triangle_jacobian(
                         node1, node2, node3, dA, dB
                     )
                     area += dW[p] * dW[q] * jacobian
                     jacobian += jacobian
-            elif quadrature_rule == "triangular":
+            else:
                 dA = dG[p][0]
                 dB = dG[p][1]
-                jacobian = calculate_spherical_triangle_jacobian_barycentric(
+                jacobian = _calculate_spherical_triangle_jacobian_barycentric(
                     node1, node2, node3, dA, dB
                 )
                 area += dW[p] * jacobian
@@ -108,7 +125,7 @@ def calculate_face_area(
                     continue
 
                 # Check if the edge passes through a pole
-                passes_through_pole = edge_passes_through_pole(node1, node2)
+                passes_through_pole = _edge_passes_through_pole(node1, node2)
                 if passes_through_pole:
                     # Skip the edge if it passes through a pole
                     continue
@@ -131,7 +148,7 @@ def calculate_face_area(
                     continue
 
                 # Calculate the correction term
-                correction = area_correction(node1, node2)
+                correction = _area_correction(node1, node2)
 
                 # Check if the longitude is increasing in the northern hemisphere or decreasing in the southern hemisphere
                 if (z_sign > 0 and lon_diff > 0) or (z_sign < 0 and lon_diff < 0):
@@ -146,7 +163,7 @@ def calculate_face_area(
 
 
 @njit(cache=True)
-def edge_passes_through_pole(node1, node2):
+def _edge_passes_through_pole(node1, node2):
     """
     Check if the edge passes through a pole.
 
@@ -175,8 +192,8 @@ def edge_passes_through_pole(node1, node2):
     )
 
 
-@njit(cache=True)
-def get_all_face_area_from_coords(
+@njit(cache=True, parallel=True, nogil=True)
+def _get_all_face_area_from_coords(
     x,
     y,
     z,
@@ -224,22 +241,38 @@ def get_all_face_area_from_coords(
 
     n_face, n_max_face_nodes = face_nodes.shape
 
+    # Compute the quadrature points once (they depend only on the rule and order,
+    # not on the face) and reuse them across all faces, instead of rebuilding them
+    # inside every face's area computation.
+    if quadrature_rule == "gaussian":
+        dG, dW = get_gauss_quadrature_dg(order)
+        is_gaussian = True
+    elif quadrature_rule == "triangular":
+        dG, dW = get_tri_quadrature_dg(order)
+        is_gaussian = False
+    else:
+        raise ValueError("Invalid quadrature rule, specify gaussian or triangular")
+
     # set initial area of each face to 0
     area = np.zeros(n_face)
     jacobian = np.zeros(n_face)
 
-    for face_idx, max_nodes in enumerate(face_geometry):
+    # Each face is independent, so the loop is parallelized with prange. Every
+    # iteration writes a distinct area[face_idx]/jacobian[face_idx], so there is
+    # no shared-write race.
+    for face_idx in prange(n_face):
+        max_nodes = face_geometry[face_idx]
         face_x = x[face_nodes[face_idx, 0:max_nodes]]
         face_y = y[face_nodes[face_idx, 0:max_nodes]]
         face_z = z[face_nodes[face_idx, 0:max_nodes]]
 
-        # After getting all the nodes of a face assembled call the  cal. face area routine
-        face_area, face_jacobian = calculate_face_area(
+        face_area, face_jacobian = _face_area_from_quadrature(
             face_x,
             face_y,
             face_z,
-            quadrature_rule,
-            order,
+            dG,
+            dW,
+            is_gaussian,
             latitude_adjusted_area,
         )
         # store current face area
@@ -250,7 +283,7 @@ def get_all_face_area_from_coords(
 
 
 @njit(cache=True)
-def area_correction(node1, node2):
+def _area_correction(node1, node2):
     """
     Calculate the area correction A using the given formula.
 
@@ -281,7 +314,7 @@ def area_correction(node1, node2):
 
 
 @njit(cache=True)
-def calculate_spherical_triangle_jacobian(node1, node2, node3, d_a, d_b):
+def _calculate_spherical_triangle_jacobian(node1, node2, node3, d_a, d_b):
     """Calculate Jacobian of a spherical triangle. This is a helper function
     for calculating face area.
 
@@ -371,7 +404,7 @@ def calculate_spherical_triangle_jacobian(node1, node2, node3, d_a, d_b):
 
 
 @njit(cache=True)
-def calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, d_a, d_b):
+def _calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, d_a, d_b):
     """Calculate Jacobian of a spherical triangle. This is a helper function
     for calculating face area.
 
