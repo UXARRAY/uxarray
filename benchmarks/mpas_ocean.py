@@ -56,6 +56,14 @@ class GridBenchmark:
         del self.uxgrid
 
 
+class FaceAreas(GridBenchmark):
+    def time_compute_face_areas(self, resolution):
+        self.uxgrid.compute_face_areas()
+
+    def peakmem_compute_face_areas(self, resolution):
+        self.uxgrid.compute_face_areas()
+
+
 class Gradient(DatasetBenchmark):
     def time_gradient(self, resolution):
         self.uxds[data_var].gradient()
