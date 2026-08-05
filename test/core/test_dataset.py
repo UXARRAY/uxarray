@@ -206,3 +206,78 @@ class TestNeighborhoodFilter:
 
         nt.assert_allclose(filtered["face_var"].values, uxds["face_var"].values)
         nt.assert_allclose(filtered["scalar_var"].values, uxds["scalar_var"].values)
+
+    def test_named_reduction_with_parameter(self, gridpath, datasetpath):
+        """Named reductions and their parameters reach every variable."""
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+        )
+
+        filtered_ds = uxds.neighborhood_filter("percentile", r=5.0, q=90)
+        filtered_da = uxds["psi"].neighborhood_filter("percentile", r=5.0, q=90)
+
+        nt.assert_allclose(filtered_ds["psi"].values, filtered_da.values)
+
+    def test_one_query_shared_across_variables(self):
+        """Variables mapped to the same location must share a single neighbor
+        query. The query dominates the cost, so per-variable rebuilding would
+        make a dataset filter scale with the number of variables."""
+        from unittest.mock import patch
+
+        import uxarray.grid.neighbors as neighbors
+
+        uxgrid = ux.Grid.from_healpix(zoom=2)
+        rng = np.random.default_rng(0)
+        uxds = UxDataset(
+            data_vars={
+                f"v{i}": ("n_face", rng.random(uxgrid.n_face)) for i in range(5)
+            },
+            uxgrid=uxgrid,
+        )
+
+        real = neighbors._csr_neighbors
+        with patch.object(
+            neighbors, "_csr_neighbors", side_effect=real
+        ) as spy:
+            filtered = uxds.neighborhood_filter("mean", r=20.0)
+
+        assert spy.call_count == 1, (
+            f"expected one neighbor query for 5 same-location variables, "
+            f"got {spy.call_count}"
+        )
+
+        expected = uxds["v0"].neighborhood_filter("mean", r=20.0)
+        nt.assert_allclose(filtered["v0"].values, expected.values)
+
+    def test_query_per_location_not_per_variable(self):
+        """Variables on different grid locations each need their own query,
+        but only one apiece."""
+        from unittest.mock import patch
+
+        import uxarray.grid.neighbors as neighbors
+
+        uxgrid = ux.Grid.from_healpix(zoom=2)
+        # populate node coordinates before the tree is built (see the HEALPix
+        # boundary-population path, which cannot do it lazily)
+        n_node, n_face = uxgrid.n_node, uxgrid.n_face
+        rng = np.random.default_rng(0)
+        uxds = UxDataset(
+            data_vars={
+                "face_a": ("n_face", rng.random(n_face)),
+                "face_b": ("n_face", rng.random(n_face)),
+                "node_a": ("n_node", rng.random(n_node)),
+            },
+            uxgrid=uxgrid,
+        )
+
+        real = neighbors._csr_neighbors
+        with patch.object(
+            neighbors, "_csr_neighbors", side_effect=real
+        ) as spy:
+            uxds.neighborhood_filter("mean", r=20.0)
+
+        assert spy.call_count == 2, (
+            f"expected one query per grid location (faces, nodes), "
+            f"got {spy.call_count}"
+        )
