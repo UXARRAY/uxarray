@@ -669,10 +669,12 @@ class UxDataset(xr.Dataset):
         Parameters
         ----------
         func: Callable, default=np.mean
-            Apply this function to neighborhood. Must accept an ``axis`` keyword
-            argument (as ``np.mean``, ``np.median``, and similar NumPy reductions
-            do). Use ``functools.partial`` to supply additional arguments, e.g.
-            ``functools.partial(np.percentile, q=90)``.
+            Apply this function to neighborhood. ``np.mean``, ``np.sum``,
+            ``np.min``, ``np.max`` and ``np.median`` use a compiled kernel.
+            Any other function must accept an ``axis`` keyword argument (as
+            NumPy reductions do); use ``functools.partial`` to supply
+            additional arguments, e.g. ``functools.partial(np.percentile,
+            q=90)``.
         r : float, default=1.
             Radius of the neighborhood, in degrees.
 
@@ -685,8 +687,8 @@ class UxDataset(xr.Dataset):
         -----
         Variables without a grid dimension are passed through unchanged.
         ``r`` is a great-circle distance in degrees, and lazy (dask-backed)
-        variables are computed eagerly. See
-        :meth:`UxDataArray.neighborhood_filter` for details.
+        variables stay lazy. See :meth:`UxDataArray.neighborhood_filter` for
+        details.
 
         Examples
         --------

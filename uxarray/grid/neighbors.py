@@ -1,8 +1,9 @@
+import warnings
 from typing import Callable
 
 import numpy as np
 import xarray as xr
-from numba import njit
+from numba import guvectorize, njit
 from numpy import deg2rad
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
@@ -1184,10 +1185,234 @@ def _get_element_coords(grid, data_mapping: str, coordinate_system: str):
         )
 
 
+# A neighborhood reduction is a segmented reduction over a ragged (CSR-like)
+# neighbor structure: elementwise in every dimension except the grid axis,
+# which it reduces over. That is exactly a generalized ufunc signature, so the
+# kernels below declare the grid axis as a core dimension. Two consequences
+# fall out of stating it that way:
+#
+#   * dask can parallelize over the remaining (chunked) dimensions on its own,
+#     so the filter stays lazy instead of materializing the whole array, and
+#   * the grid axis is a *core* dimension, so dask refuses to split it rather
+#     than silently handing a kernel a block the neighbor indices overrun.
+#
+# ``(n)`` is the source grid axis, ``(k)`` the flattened neighbor index array,
+# and ``(m)`` the destination axis. Output is float64 regardless of input
+# dtype, matching the behaviour of the generic path below.
+_GUFUNC_SIGNATURES = [
+    "void(float64[:], int64[:], int64[:], int64[:], float64[:])",
+    "void(float32[:], int64[:], int64[:], int64[:], float64[:])",
+]
+_GUFUNC_LAYOUT = "(n),(k),(m),(m)->(m)"
+_GUFUNC_KWARGS = {"nopython": True, "cache": True, "target": "parallel"}
+
+
+@guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
+def _gu_mean(data, flat, starts, counts, out):
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        start = starts[i]
+        acc = 0.0
+        for j in range(start, start + count):
+            acc += data[flat[j]]
+        out[i] = acc / count
+
+
+@guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
+def _gu_sum(data, flat, starts, counts, out):
+    for i in range(starts.shape[0]):
+        start = starts[i]
+        acc = 0.0
+        for j in range(start, start + counts[i]):
+            acc += data[flat[j]]
+        out[i] = acc
+
+
+@guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
+def _gu_max(data, flat, starts, counts, out):
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        start = starts[i]
+        best = data[flat[start]]
+        for j in range(start + 1, start + count):
+            value = data[flat[j]]
+            if value > best:
+                best = value
+        out[i] = best
+
+
+@guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
+def _gu_min(data, flat, starts, counts, out):
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        start = starts[i]
+        best = data[flat[start]]
+        for j in range(start + 1, start + count):
+            value = data[flat[j]]
+            if value < best:
+                best = value
+        out[i] = best
+
+
+@guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
+def _gu_median(data, flat, starts, counts, out):
+    # A median needs the neighborhood materialized so it can be sorted, which
+    # is why ``np.ufunc.reduceat`` cannot express it but a kernel can: the
+    # scratch buffer is sized once to the largest neighborhood and reused.
+    widest = 0
+    for i in range(counts.shape[0]):
+        if counts[i] > widest:
+            widest = counts[i]
+    buffer = np.empty(widest, dtype=np.float64)
+
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        start = starts[i]
+        for j in range(count):
+            buffer[j] = data[flat[start + j]]
+        window = np.sort(buffer[:count])
+        if count % 2:
+            out[i] = window[count // 2]
+        else:
+            out[i] = 0.5 * (window[count // 2 - 1] + window[count // 2])
+
+
+# Reductions with a compiled kernel. Anything else (``np.median`` with a
+# custom axis, ``functools.partial(np.percentile, q=90)``, a user's own
+# callable) falls back to the generic path, which is slower but accepts any
+# function taking an ``axis`` keyword.
+_NEIGHBORHOOD_KERNELS = {
+    np.mean: _gu_mean,
+    np.sum: _gu_sum,
+    np.max: _gu_max,
+    np.amax: _gu_max,
+    np.min: _gu_min,
+    np.amin: _gu_min,
+    np.median: _gu_median,
+}
+
+
+def _csr_neighbors(grid, data_mapping: str, r: float):
+    """Queries the neighborhood of every element and returns it in CSR form.
+
+    ``query_radius`` returns a ragged sequence of index arrays, one per
+    element. Flattening it into ``(flat, starts, counts)`` gives the kernels a
+    layout they can walk without allocating per-neighborhood temporaries.
+
+    Returns
+    -------
+    flat : np.ndarray
+        Concatenated neighbor indices for every element.
+    starts : np.ndarray
+        Offset into ``flat`` at which each element's neighbors begin.
+    counts : np.ndarray
+        Number of neighbors of each element.
+    """
+    # Request a spherical/haversine tree explicitly rather than relying on the
+    # defaults. Without this, a cartesian tree cached by an earlier call would
+    # be reused and ``r`` would be silently interpreted as a chord length
+    # instead of the great-circle degrees documented by the callers.
+    coordinate_system = "spherical"
+    tree = grid.get_ball_tree(
+        coordinates=data_mapping,
+        coordinate_system=coordinate_system,
+        distance_metric="haversine",
+    )
+
+    dest_coords = _get_element_coords(grid, data_mapping, coordinate_system)
+    neighbor_indices = tree.query_radius(dest_coords, r=r)
+
+    # ``query_radius`` unwraps its result for a single query point, which a
+    # one-element grid would hit.
+    if isinstance(neighbor_indices, np.ndarray):
+        neighbor_indices = [neighbor_indices]
+
+    counts = np.fromiter(
+        map(len, neighbor_indices), dtype=np.int64, count=len(neighbor_indices)
+    )
+    starts = np.zeros(counts.size, dtype=np.int64)
+    np.cumsum(counts[:-1], out=starts[1:])
+    flat = np.concatenate(neighbor_indices).astype(np.int64, copy=False)
+
+    return flat, starts, counts
+
+
+def _neighborhood_reduce(block, flat, starts, counts, func: Callable):
+    """Generic fallback: applies ``func`` to each neighborhood in turn.
+
+    Used when ``func`` has no compiled kernel. ``block`` is a NumPy array with
+    the grid dimension last.
+    """
+    destination_data = np.full(block.shape, np.nan)
+
+    # The `axis` check lives outside the loop: whether `func` accepts the
+    # keyword cannot change between iterations, so validating it once is
+    # equivalent to validating it every time and leaves the loop body bare.
+    try:
+        for i in range(starts.shape[0]):
+            idx = flat[starts[i] : starts[i] + counts[i]]
+            # Apply func along the last (grid) axis only, so any extra leading
+            # dimensions (e.g. time) are preserved rather than being collapsed.
+            destination_data[..., i] = func(block[..., idx], axis=-1)
+    except TypeError as exc:
+        if "axis" not in str(exc):
+            raise
+        raise TypeError(
+            f"`func` must accept an `axis` keyword argument so that the "
+            f"reduction is applied over the neighborhood only, but "
+            f"{getattr(func, '__name__', func)!r} does not. Use a NumPy "
+            f"reduction such as `np.mean` or `np.median`, or wrap your "
+            f"function with `functools.partial` to supply `axis`."
+        ) from exc
+
+    return destination_data
+
+
+def _rechunk_grid_dim(uxda, grid_dim: str):
+    """Collapses the grid dimension to a single chunk, warning if that changes
+    the user's chunking.
+
+    Neighborhoods are global — an element near a chunk boundary draws on
+    elements in other chunks — so the grid dimension cannot be chunked. This is
+    done explicitly rather than through ``allow_rechunk``, which would do it
+    silently and also disable ``apply_gufunc``'s other consistency checks.
+    """
+    if uxda.chunks is None:
+        return uxda
+
+    grid_chunks = uxda.chunksizes.get(grid_dim, ())
+    if len(grid_chunks) <= 1:
+        return uxda
+
+    warnings.warn(
+        f"Rechunking {grid_dim!r} from {len(grid_chunks)} chunks into one, as a "
+        f"neighborhood may span the whole grid. Each task will hold "
+        f"{uxda.sizes[grid_dim]} elements along {grid_dim!r}; chunk the "
+        f"non-grid dimensions instead to bound memory use.",
+        UserWarning,
+        stacklevel=3,
+    )
+
+    return uxda.chunk({grid_dim: -1})
+
+
 def _neighborhood_filter(
     grid,
-    data: np.ndarray,
+    uxda,
     data_mapping: str,
+    grid_dim: str,
     func: Callable = np.mean,
     r: float = 1.0,
 ):
@@ -1199,74 +1424,72 @@ def _neighborhood_filter(
     grid : Grid
         Source grid used to construct the ``BallTree`` used for the
         neighborhood queries.
-    data : np.ndarray
-        Data to filter. The grid dimension (``n_node``, ``n_edge``, or
-        ``n_face``) is expected to be the last axis.
+    uxda : xr.DataArray
+        Data to filter. The grid dimension may sit at any position.
     data_mapping : str
         One of "nodes", "edge centers", or "face centers", identifying which
-        grid element ``data`` is mapped to.
+        grid element ``uxda`` is mapped to.
+    grid_dim : str
+        Name of the grid dimension (``n_node``, ``n_edge``, or ``n_face``).
     func : Callable, default=np.mean
-        Function applied to the values found in each neighborhood. Must
+        Function applied to the values found in each neighborhood. Reductions
+        with a compiled kernel (``np.mean``, ``np.sum``, ``np.min``,
+        ``np.max``, ``np.median``) take a fast path. Any other function must
         accept an ``axis`` keyword argument (as ``np.mean``, ``np.median``,
-        and similar NumPy reductions do) so that any extra, non-grid
-        dimensions (e.g. ``time``) are preserved rather than being collapsed.
+        and similar NumPy reductions do) so that extra, non-grid dimensions
+        (e.g. ``time``) are preserved rather than being collapsed.
     r : float, default=1.
         Radius of the neighborhood, in degrees.
 
     Returns
     -------
-    destination_data : np.ndarray
-        Filtered data, matching the shape of ``data``.
+    filtered : xr.DataArray
+        Filtered data, float64, with the grid dimension moved last. Lazy if
+        the input was lazy.
 
     Raises
     ------
     TypeError
-        If ``func`` does not accept an ``axis`` keyword argument.
+        If ``func`` has no compiled kernel and does not accept an ``axis``
+        keyword argument.
 
     Notes
     -----
-    The neighborhood query requires random access across the whole grid
-    dimension, so lazy (dask-backed) input is computed eagerly and the result
-    is always a NumPy array.
+    The grid dimension is a core dimension of the reduction, so it is
+    collapsed to a single chunk for dask-backed input; the remaining
+    dimensions stay chunked and are evaluated lazily.
     """
 
-    # Request a spherical/haversine tree explicitly rather than relying on the
-    # defaults. Without this, a cartesian tree cached by an earlier call would
-    # be reused and ``r`` would be silently interpreted as a chord length
-    # instead of the great-circle degrees documented above.
-    coordinate_system = "spherical"
-    tree = grid.get_ball_tree(
-        coordinates=data_mapping,
-        coordinate_system=coordinate_system,
-        distance_metric="haversine",
+    flat, starts, counts = _csr_neighbors(grid, data_mapping, r)
+    kernel = _NEIGHBORHOOD_KERNELS.get(func)
+
+    if kernel is not None:
+
+        def _apply(block):
+            # The kernels are compiled for float32/float64 only; anything else
+            # (integer fields, say) is promoted, which the generic path does
+            # too by writing into a float64 output.
+            if block.dtype not in (np.float64, np.float32):
+                block = block.astype(np.float64)
+            return kernel(block, flat, starts, counts)
+    else:
+
+        def _apply(block):
+            return _neighborhood_reduce(block, flat, starts, counts, func)
+
+    uxda = _rechunk_grid_dim(uxda, grid_dim)
+
+    # ``apply_ufunc`` moves the grid dimension last before calling ``_apply``
+    # and, for dask-backed input, hands each chunk over as a materialized
+    # NumPy block. Indexing the array one destination element at a time (as
+    # this function used to) would instead trigger one graph execution per
+    # grid element.
+    return xr.apply_ufunc(
+        _apply,
+        uxda,
+        input_core_dims=[[grid_dim]],
+        output_core_dims=[[grid_dim]],
+        dask="parallelized",
+        output_dtypes=[np.float64],
+        keep_attrs=True,
     )
-
-    dest_coords = _get_element_coords(grid, data_mapping, coordinate_system)
-
-    neighbor_indices = tree.query_radius(dest_coords, r=r)
-
-    # Allocate with NaN rather than ``np.empty`` purely as a defensive measure:
-    # if a neighborhood were ever empty, the result would be an obvious NaN
-    # instead of uninitialized garbage memory. In practice this cannot happen,
-    # since ``query_radius`` rejects negative ``r`` and every element is its own
-    # neighbor at distance 0, so even ``r = 0`` returns the original values.
-    destination_data = np.full(data.shape, np.nan)
-
-    # Apply func along the last (grid) axis only, so any extra leading
-    # dimensions (e.g. time) are preserved rather than being collapsed.
-    for i, idx in enumerate(neighbor_indices):
-        if len(idx):
-            try:
-                destination_data[..., i] = func(data[..., idx], axis=-1)
-            except TypeError as exc:
-                if "axis" not in str(exc):
-                    raise
-                raise TypeError(
-                    f"`func` must accept an `axis` keyword argument so that the "
-                    f"reduction is applied over the neighborhood only, but "
-                    f"{getattr(func, '__name__', func)!r} does not. Use a NumPy "
-                    f"reduction such as `np.mean` or `np.median`, or wrap your "
-                    f"function with `functools.partial` to supply `axis`."
-                ) from exc
-
-    return destination_data

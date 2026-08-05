@@ -2193,24 +2193,27 @@ class UxDataArray(xr.DataArray):
         Parameters
         ----------
         func: Callable, default=np.mean
-            Apply this function to neighborhood. Must accept an ``axis`` keyword
-            argument (as ``np.mean``, ``np.median``, and similar NumPy reductions
-            do). Use ``functools.partial`` to supply additional arguments, e.g.
-            ``functools.partial(np.percentile, q=90)``.
+            Apply this function to neighborhood. ``np.mean``, ``np.sum``,
+            ``np.min``, ``np.max`` and ``np.median`` use a compiled kernel.
+            Any other function must accept an ``axis`` keyword argument (as
+            NumPy reductions do); use ``functools.partial`` to supply
+            additional arguments, e.g. ``functools.partial(np.percentile,
+            q=90)``.
         r : float, default=1.
             Radius of the neighborhood, in degrees.
 
         Returns
         -------
         uxda_filter : UxDataArray
-            Filtered data.
+            Filtered data, as float64.
 
         Raises
         ------
         DataCenteringError (subclass of ValueError)
             If the data is not mapped to nodes, edges, or faces.
         TypeError
-            If ``func`` does not accept an ``axis`` keyword argument.
+            If ``func`` has no compiled kernel and does not accept an ``axis``
+            keyword argument.
 
         Notes
         -----
@@ -2218,9 +2221,10 @@ class UxDataArray(xr.DataArray):
         every element is its own neighbor at distance 0, so ``r = 0`` returns
         the data unchanged and the result never contains spurious ``NaN``.
 
-        The query requires random access across the whole grid dimension, so
-        lazy (dask-backed) data is computed eagerly and the result is always
-        NumPy-backed.
+        A neighborhood may span the whole grid, so the grid dimension cannot be
+        chunked; it is collapsed to a single chunk (with a warning) for
+        dask-backed data. The remaining dimensions stay chunked and lazy, so
+        chunk along ``time`` rather than the grid dimension.
 
         Examples
         --------
@@ -2260,28 +2264,23 @@ class UxDataArray(xr.DataArray):
                 f"{GRID_DIMS}."
             )
 
-        # Ensure the grid dimension is the last axis, transposing if necessary.
-        # This mirrors the behaviour of UxDataset.neighborhood_filter so that
-        # calling the method directly on a (time, n_face) UxDataArray works.
-        needs_transpose = self.dims[-1] != grid_dim
-        uxda_work = self.transpose(..., grid_dim) if needs_transpose else self
-
-        destination_data = _neighborhood_filter(
-            self.uxgrid, uxda_work.data, data_mapping, func=func, r=r
+        # ``_neighborhood_filter`` declares the grid dimension as a core
+        # dimension, so it moves that dimension into place itself; no manual
+        # transpose is needed on the way in.
+        filtered = _neighborhood_filter(
+            self.uxgrid, self, data_mapping, grid_dim, func=func, r=r
         )
 
-        # Construct UxDataArray for filtered variable, reusing metadata
-        # (name, coords, attrs, uxgrid) from the working copy.
-        # deep=False keeps a reference to the same uxgrid (the filtered data
-        # lives on the identical grid topology) and avoids a redundant deep
-        # copy of the now-discarded original data array.
-        uxda_filter = uxda_work._copy(data=destination_data, deep=False)
+        # Core dimensions come back appended last, so restore the caller's
+        # dimension order when it differed.
+        if filtered.dims != self.dims:
+            filtered = filtered.transpose(*self.dims)
 
-        # Restore original dimension order if we transposed.
-        if needs_transpose:
-            uxda_filter = uxda_filter.transpose(*self.dims)
-
-        return uxda_filter
+        # ``apply_ufunc`` returns a plain xr.DataArray, dropping the subclass
+        # and its grid. Name, coords and attrs are carried through already.
+        # The filtered data lives on the identical grid topology, so the same
+        # uxgrid is reattached rather than copied.
+        return UxDataArray(filtered, uxgrid=self.uxgrid)
 
     def __getattribute__(self, name):
         """Intercept accessor method calls to return Ux-aware accessors."""

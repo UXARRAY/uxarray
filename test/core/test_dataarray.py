@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import uxarray as ux
 from uxarray.errors import DataCenteringError, DimensionError
@@ -309,19 +310,123 @@ class TestNeighborhoodFilter:
             uxda.neighborhood_filter(func=np.mean, r=20.0).values, expected
         )
 
-    def test_dask_input_returns_numpy(self, gridpath, datasetpath):
-        """Lazy input is computed eagerly; the result is NumPy-backed."""
+    def test_dask_input_stays_lazy(self, gridpath, datasetpath):
+        """Lazy input stays lazy, and the result matches the eager path."""
         uxds = ux.open_dataset(
             gridpath("ugrid", "outCSne30", "outCSne30.ug"),
             datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
-            chunks={"n_face": 1000},
+        )
+        eager = uxds["psi"].neighborhood_filter(func=np.mean, r=2.0)
+
+        lazy_uxda = uxds["psi"].chunk({"n_face": -1})
+        assert lazy_uxda.chunks is not None
+
+        filtered = lazy_uxda.neighborhood_filter(func=np.mean, r=2.0)
+        assert filtered.chunks is not None, "the filter should not force a compute"
+        assert isinstance(filtered, UxDataArray)
+        assert filtered.uxgrid == lazy_uxda.uxgrid
+        np.testing.assert_allclose(filtered.compute().values, eager.values)
+
+    def test_grid_dim_chunks_are_collapsed_with_warning(self, gridpath, datasetpath):
+        """A neighborhood may span the whole grid, so the grid dimension cannot
+        stay chunked. Collapsing it is a memory decision the user made, so it
+        is not done silently."""
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+        )
+        expected = uxds["psi"].neighborhood_filter(func=np.mean, r=2.0).values
+
+        uxda = uxds["psi"].chunk({"n_face": 1000})
+        assert len(uxda.chunksizes["n_face"]) > 1
+
+        with pytest.warns(UserWarning, match="Rechunking 'n_face'"):
+            filtered = uxda.neighborhood_filter(func=np.mean, r=2.0)
+
+        assert filtered.chunksizes["n_face"] == (uxda.sizes["n_face"],)
+        np.testing.assert_allclose(filtered.compute().values, expected)
+
+    def test_chunked_over_time_is_not_rechunked(self, gridpath, datasetpath):
+        """Chunking a non-grid dimension is the supported case and should pass
+        through untouched, with no warning."""
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+        )
+        psi = uxds["psi"]
+        stacked = UxDataArray(
+            np.tile(psi.values, (6, 1)),
+            dims=["time", "n_face"],
+            uxgrid=psi.uxgrid,
+            name="psi",
+        ).chunk({"time": 2, "n_face": -1})
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            filtered = stacked.neighborhood_filter(func=np.mean, r=2.0)
+
+        assert filtered.chunksizes["time"] == (2, 2, 2)
+        expected = psi.neighborhood_filter(func=np.mean, r=2.0).values
+        np.testing.assert_allclose(filtered.compute().values, np.tile(expected, (6, 1)))
+
+    @pytest.mark.parametrize(
+        "func", [np.mean, np.sum, np.min, np.max, np.median, np.amin, np.amax]
+    )
+    def test_kernel_matches_generic_path(self, func, gridpath, datasetpath):
+        """Every reduction with a compiled kernel must agree with the generic
+        loop it bypasses."""
+        from uxarray.grid.neighbors import (
+            _NEIGHBORHOOD_KERNELS,
+            _csr_neighbors,
+            _neighborhood_reduce,
+        )
+
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
         )
         uxda = uxds["psi"]
-        assert uxda.chunks is not None
+        assert func in _NEIGHBORHOOD_KERNELS, "expected a compiled kernel"
 
-        filtered = uxda.neighborhood_filter(func=np.mean, r=2.0)
-        assert filtered.chunks is None
-        assert isinstance(filtered.data, np.ndarray)
+        flat, starts, counts = _csr_neighbors(uxda.uxgrid, "face centers", 3.0)
+        # 2-D as well as 1-D, to exercise the gufunc's broadcast loop
+        block = np.vstack([uxda.values, uxda.values * -2.0])
+        expected = _neighborhood_reduce(block, flat, starts, counts, func)
+
+        filtered = uxda.neighborhood_filter(func=func, r=3.0)
+        np.testing.assert_allclose(filtered.values, expected[0], rtol=1e-12)
+
+        kernel_2d = _NEIGHBORHOOD_KERNELS[func](block, flat, starts, counts)
+        np.testing.assert_allclose(kernel_2d, expected, rtol=1e-12)
+
+    def test_float32_input(self, gridpath, datasetpath):
+        """float32 fields take the compiled kernel's float32 signature and
+        still produce float64 output, as the generic path does."""
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+        )
+        uxda = uxds["psi"]
+        # `.astype` on a UxDataArray returns a plain DataArray, so rebuild
+        uxda32 = UxDataArray(
+            uxda.values.astype(np.float32), dims=uxda.dims, uxgrid=uxda.uxgrid
+        )
+        filtered32 = uxda32.neighborhood_filter(func=np.mean, r=2.0)
+        filtered64 = uxda.neighborhood_filter(func=np.mean, r=2.0)
+
+        assert filtered32.dtype == np.float64
+        np.testing.assert_allclose(filtered32.values, filtered64.values, rtol=1e-6)
+
+    def test_integer_input_is_promoted(self):
+        """Integer fields have no kernel signature and must be promoted rather
+        than raising."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        data = np.arange(uxgrid.n_face)
+        uxda = UxDataArray(data, dims=["n_face"], uxgrid=uxgrid, name="int_var")
+
+        filtered = uxda.neighborhood_filter(func=np.mean, r=0.0)
+        assert filtered.dtype == np.float64
+        np.testing.assert_allclose(filtered.values, data)
 
     def test_auto_transpose_direct_on_uxdataarray(self, gridpath, datasetpath):
         """Calling neighborhood_filter directly on a (time, n_face) UxDataArray
