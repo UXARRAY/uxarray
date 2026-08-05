@@ -118,7 +118,10 @@ def test_latlon_bounds_populate_bounds_MPAS(gridpath):
 
 
 def _sum_quadrature_jacobians(x, y, z, quadrature_rule, order):
-    """Independently sum the Jacobian at each quadrature point of a triangle."""
+    """Independently sum the Jacobian at each quadrature point of a triangle.
+
+    Regression test for #1645
+    """
     node1 = np.array([x[0], y[0], z[0]])
     node2 = np.array([x[1], y[1], z[1]])
     node3 = np.array([x[2], y[2], z[2]])
@@ -146,6 +149,8 @@ def test_calculate_face_area_jacobian_is_quadrature_sum(quadrature_rule, order):
     Previously the loop did ``jacobian += jacobian`` after overwriting
     ``jacobian`` with the value at the current point, so the result was twice
     the *last* point rather than the running total.
+
+    Regression test for #1645
     """
     x = np.array([0.02974582, 0.1534193, 0.18363692])
     y = np.array([-0.74469018, -0.88744577, -0.72230586])
