@@ -52,36 +52,93 @@ class GridBenchmark:
     def teardown(self, resolution, *args, **kwargs):
         del self.uxgrid
 
+CONNECTIVITY_NAMES = [
+    "n_nodes_per_face",
+    "face_node_connectivity",
+    "edge_node_connectivity",
+    "face_edge_connectivity",
+    "node_edge_connectivity",
+    "face_face_connectivity",
+    "edge_face_connectivity",
+    "node_face_connectivity",
+]
+
+_numba_warmed_up = False
+
+def _warmup(uxgrid):
+    """Compiles the Numba kernels backing each connectivity variable.
+
+    ``_build_node_edge_connectivity`` is not disk-cached, so a fresh benchmark
+    process would otherwise charge ~240ms of JIT compilation to whichever sample
+    happened to touch it first.
+    """
+    global _numba_warmed_up
+    if _numba_warmed_up:
+        return
+    for name in CONNECTIVITY_NAMES:
+        getattr(uxgrid, name)
+    _numba_warmed_up = True
+
+
 class Connectivity(GridBenchmark):
+    # Each connectivity variable is cached in ``Grid._ds`` once constructed, so a
+    # sample may only contain a single call; otherwise every call but the first
+    # would time a dictionary lookup.
+    number = 1
+
+    def setup(self, resolution, *args, **kwargs):
+        # The benchmark grids are MPAS meshes, which carry every connectivity
+        # variable on disk. Reading one would time the MPAS parser rather than
+        # the construction routines, so reduce the grid down to the minimal
+        # UGRID topology and let each variable be built on demand.
+        source_grid = ux.open_grid(file_path_dict[resolution])
+        self.topology = (
+            source_grid.node_lon.data,
+            source_grid.node_lat.data,
+            source_grid.face_node_connectivity.data,
+        )
+
+        _warmup(self.minimal_grid())
+        self.uxgrid = self.minimal_grid()
+
+    def minimal_grid(self):
+        return ux.Grid.from_topology(*self.topology)
+
+    def teardown(self, resolution, *args, **kwargs):
+        del self.uxgrid
+        del self.topology
+
+    def time_n_nodes_per_face(self, resolution):
+        _ = self.uxgrid.n_nodes_per_face.compute()
 
     def time_n_nodes_per_face(self, resolution):
         _ = self.uxgrid.n_nodes_per_face
 
     def time_face_node(self, resolution):
-        _ = self.uxgrid.face_node_connectivity
+        _ = self.uxgrid.face_node_connectivity.compute()
 
     def time_edge_node(self, resolution):
-        _ = self.uxgrid.edge_node_connectivity
+        _ = self.uxgrid.edge_node_connectivity.compute()
 
 #   TODO: Not yet supported?
 #   def time_node_node(self, resolution):
 #       _ = self.uxgrid.node_node_connectivity
 
     def time_face_edge(self, resolution):
-        _ = self.uxgrid.face_edge_connectivity
+        _ = self.uxgrid.face_edge_connectivity.compute()
 
 #   TODO: Not yet supported?
 #   def time_edge_edge(self, resolution):
 #        _ = self.uxgrid.edge_edge_connectivity
 
     def time_node_edge(self, resolution):
-        _ = self.uxgrid.node_edge_connectivity
+        _ = self.uxgrid.node_edge_connectivity.compute()
 
     def time_face_face(self, resolution):
-        _ = self.uxgrid.face_face_connectivity
+        _ = self.uxgrid.face_face_connectivity.compute()
 
     def time_edge_face(self, resolution):
-        _ = self.uxgrid.edge_face_connectivity
+        _ = self.uxgrid.edge_face_connectivity.compute()
 
     def time_node_face(self, resolution):
-        _ = self.uxgrid.node_face_connectivity
+        _ = self.uxgrid.node_face_connectivity.compute()

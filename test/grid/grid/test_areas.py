@@ -56,7 +56,7 @@ def test_calculate_total_face_area_respects_quadrature_kwargs(mesh_constants):
 def test_face_areas_compute_face_areas_geoflow_small(gridpath):
     """Checks if the GeoFlow Small can generate a face areas output."""
     grid_geoflow = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
-    grid_geoflow._compute_face_areas()
+    grid_geoflow._compute_face_areas_and_jacobian()
 
 
 class TestFaceAreas:
