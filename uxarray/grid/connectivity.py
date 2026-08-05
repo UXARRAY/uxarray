@@ -1,3 +1,5 @@
+from warnings import warn
+
 import numpy as np
 import xarray as xr
 from numba import njit, prange
@@ -10,8 +12,6 @@ from uxarray.grid.utils import (
     _search_bucket,
     _sort_bucket,
 )
-
-from warnings import warn
 
 
 def close_face_nodes(face_node_connectivity, n_face, n_max_face_nodes):
