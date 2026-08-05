@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 from numba import njit
 
-from uxarray.constants import INT_FILL_VALUE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
 @njit(cache=True)
@@ -445,9 +445,20 @@ def make_setter(key: str):
     return setter
 
 
-# Bucket sorts for the counting sort in ``connectivity._build_edge_node_connectivity``. Each
-# sorts one contiguous ``[bucket_start, bucket_start + size)`` slice of ``node_b`` in place,
-# applying the same permutation to ``order`` so the two stay aligned.
+# Bucket sorting and searching for the counting sorts in ``uxarray.grid.connectivity``, which
+# bucket half edges or edges on one of their two nodes and then order each bucket by the other.
+# Nothing below knows about meshes: a bucket is a contiguous ``[bucket_start, bucket_end)`` slice
+# of a key array, carrying an equally long ``payload`` array that every reordering moves in step
+# so the two stay aligned.
+#
+# ``_sort_bucket`` orders one bucket and is the entry point for the sorts; the kernels beneath it
+# are chosen by bucket size and are exposed only for testing. ``_build_pair_index`` runs the whole
+# count/scatter/sort sequence for a caller starting from an ``(n, 2)`` array, and
+# ``_search_bucket`` is the lookup that index is built for.
+#
+# NOTE: these are inlined into ``cache=True`` kernels in another module, and numba stamps its
+# cache against the defining file alone, so editing them does not invalidate a caller's cached
+# object. Clear ``uxarray/grid/__pycache__/*.nbi *.nbc`` after changing anything here.
 
 # Smallest bucket worth watching for pathological input. A bucket of ``size`` holds at most
 # ``size * (size - 1) / 2`` inversions, so at or below this size it cannot exceed the shift
@@ -461,8 +472,19 @@ MAX_SHIFTS_PER_EDGE = 8
 
 
 @njit(cache=True)
-def _sift_down(node_b, order, bucket_start, root, size):
-    """Restores the max-heap property at ``root`` for a bucket keyed on ``node_b``."""
+def _sort_bucket(end_node, payload, bucket_start, size):
+    """Orders one bucket by ``end_node``, picking the sort that suits its size."""
+    if size > MIN_ADAPTIVE_SORT_SIZE:
+        # Large enough that a bad ordering would be worth catching, which only a
+        # collapsed pole or a similarly degenerate node reaches
+        _adaptive_sort_bucket(end_node, payload, bucket_start, size)
+    elif size > 1:
+        _insertion_sort_bucket(end_node, payload, bucket_start, size)
+
+
+@njit(cache=True)
+def _sift_down(end_node, payload, bucket_start, root, size):
+    """Restores the max-heap property at ``root`` for a bucket keyed on ``end_node``."""
     while True:
         child = 2 * root + 1
         if child >= size:
@@ -470,80 +492,206 @@ def _sift_down(node_b, order, bucket_start, root, size):
 
         if (
             child + 1 < size
-            and node_b[bucket_start + child] < node_b[bucket_start + child + 1]
+            and end_node[bucket_start + child] < end_node[bucket_start + child + 1]
         ):
             child += 1
 
-        if node_b[bucket_start + root] >= node_b[bucket_start + child]:
+        if end_node[bucket_start + root] >= end_node[bucket_start + child]:
             break
 
-        node_b[bucket_start + root], node_b[bucket_start + child] = (
-            node_b[bucket_start + child],
-            node_b[bucket_start + root],
+        end_node[bucket_start + root], end_node[bucket_start + child] = (
+            end_node[bucket_start + child],
+            end_node[bucket_start + root],
         )
-        order[bucket_start + root], order[bucket_start + child] = (
-            order[bucket_start + child],
-            order[bucket_start + root],
+        payload[bucket_start + root], payload[bucket_start + child] = (
+            payload[bucket_start + child],
+            payload[bucket_start + root],
         )
         root = child
 
 
 @njit(cache=True)
-def _heap_sort_bucket(node_b, order, bucket_start, size):
-    """Sorts a bucket by ``node_b`` in place, in ``O(size * log(size))`` and without
+def _heap_sort_bucket(end_node, payload, bucket_start, size):
+    """Sorts a bucket by ``end_node`` in place, in ``O(size * log(size))`` and without
     scratch space, for the rare bucket an insertion sort cannot finish cheaply."""
     for root in range(size // 2 - 1, -1, -1):
-        _sift_down(node_b, order, bucket_start, root, size)
+        _sift_down(end_node, payload, bucket_start, root, size)
 
     for end in range(size - 1, 0, -1):
-        node_b[bucket_start], node_b[bucket_start + end] = (
-            node_b[bucket_start + end],
-            node_b[bucket_start],
+        end_node[bucket_start], end_node[bucket_start + end] = (
+            end_node[bucket_start + end],
+            end_node[bucket_start],
         )
-        order[bucket_start], order[bucket_start + end] = (
-            order[bucket_start + end],
-            order[bucket_start],
+        payload[bucket_start], payload[bucket_start + end] = (
+            payload[bucket_start + end],
+            payload[bucket_start],
         )
-        _sift_down(node_b, order, bucket_start, 0, end)
+        _sift_down(end_node, payload, bucket_start, 0, end)
 
 
 @njit(cache=True)
-def _insertion_sort_bucket(node_b, order, bucket_start, size):
-    """Sorts a bucket by ``node_b`` in place, in ``O(size + inversions)``."""
+def _insertion_sort_bucket(end_node, payload, bucket_start, size):
+    """Sorts a bucket by ``end_node`` in place, in ``O(size + inversions)``."""
     for i in range(bucket_start + 1, bucket_start + size):
-        key = node_b[i]
-        flat_idx = order[i]
+        key = end_node[i]
+        key_payload = payload[i]
 
         j = i - 1
-        while j >= bucket_start and node_b[j] > key:
-            node_b[j + 1] = node_b[j]
-            order[j + 1] = order[j]
+        while j >= bucket_start and end_node[j] > key:
+            end_node[j + 1] = end_node[j]
+            payload[j + 1] = payload[j]
             j -= 1
-        node_b[j + 1] = key
-        order[j + 1] = flat_idx
+        end_node[j + 1] = key
+        payload[j + 1] = key_payload
 
 
 @njit(cache=True)
-def _adaptive_sort_bucket(node_b, order, bucket_start, size):
-    """Sorts a large bucket by ``node_b`` in place, insertion sorting it unless it turns out
+def _adaptive_sort_bucket(end_node, payload, bucket_start, size):
+    """Sorts a large bucket by ``end_node`` in place, insertion sorting it unless it turns out
     to be badly ordered, in which case the partial work is abandoned for a heap sort.
+
+    This is ``_insertion_sort_bucket``'s loop with a shift meter around it. The duplication is
+    deliberate: metering every bucket instead of only the large ones measured ~5% slower
+    end-to-end, because typical buckets hold a handful of edges and the per-element bookkeeping
+    is a real fraction of that work. Keep the two in sync rather than merging them.
     """
     budget = MAX_SHIFTS_PER_EDGE * size
     shifts = 0
 
     for i in range(bucket_start + 1, bucket_start + size):
-        key = node_b[i]
-        flat_idx = order[i]
+        key = end_node[i]
+        key_payload = payload[i]
 
         j = i - 1
-        while j >= bucket_start and node_b[j] > key:
-            node_b[j + 1] = node_b[j]
-            order[j + 1] = order[j]
+        while j >= bucket_start and end_node[j] > key:
+            end_node[j + 1] = end_node[j]
+            payload[j + 1] = payload[j]
             j -= 1
-        node_b[j + 1] = key
-        order[j + 1] = flat_idx
+        end_node[j + 1] = key
+        payload[j + 1] = key_payload
 
         shifts += i - 1 - j
         if shifts > budget:
-            _heap_sort_bucket(node_b, order, bucket_start, size)
+            _heap_sort_bucket(end_node, payload, bucket_start, size)
             return
+
+
+@njit(cache=True)
+def _count_unique_in_bucket(end_node, bucket_start, bucket_end):
+    """Number of distinct keys in an already sorted bucket, where equal keys are adjacent."""
+    n_unique = 0
+    previous_end_node = INT_FILL_VALUE
+
+    for i in range(bucket_start, bucket_end):
+        if end_node[i] != previous_end_node:
+            n_unique += 1
+            previous_end_node = end_node[i]
+
+    return n_unique
+
+
+@njit(cache=True)
+def _is_lexicographically_sorted(pairs):
+    """Whether every row of an ``(n, 2)`` array is ascending and the rows are themselves in
+    nondecreasing lexicographic order."""
+    previous_low = INT_FILL_VALUE
+    previous_high = INT_FILL_VALUE
+
+    for i in range(pairs.shape[0]):
+        low = pairs[i, 0]
+        high = pairs[i, 1]
+
+        if low > high:
+            return False
+        if low < previous_low or (low == previous_low and high < previous_high):
+            return False
+
+        previous_low = low
+        previous_high = high
+
+    return True
+
+
+@njit(cache=True)
+def _count_pairs_per_bucket(pairs, n_bucket):
+    """Bucket offsets keyed on each row's lower value: bucket ``a`` will occupy
+    ``[bucket_offset[a], bucket_offset[a + 1])``."""
+    bucket_offset = np.zeros(n_bucket + 1, dtype=INT_DTYPE)
+
+    for i in range(pairs.shape[0]):
+        bucket_offset[min(pairs[i, 0], pairs[i, 1]) + 1] += 1
+
+    for a in range(n_bucket):
+        bucket_offset[a + 1] += bucket_offset[a]
+
+    return bucket_offset
+
+
+@njit(cache=True)
+def _build_pair_index(pairs, n_bucket):
+    """Indexes an ``(n, 2)`` array of integer pairs so a pair can be looked up by value.
+
+    Each row is bucketed on its lower value and each bucket ordered by its higher value, which is
+    what lets :func:`_search_bucket` find a row with a single binary search. Rows that are already
+    canonically ordered are indexed without being sorted again.
+
+    Returns ``(bucket_offset, high, row)``: bucket ``a`` occupies
+    ``[bucket_offset[a], bucket_offset[a + 1])``, ``high`` holds each entry's higher value, and
+    ``row`` the index of ``pairs`` it came from. ``high`` is a copy rather than a column view, both
+    to keep the search off a strided array and so that either path below returns the same arrays.
+    """
+    bucket_offset = _count_pairs_per_bucket(pairs, n_bucket)
+
+    n_pair = pairs.shape[0]
+    high = np.empty(n_pair, dtype=INT_DTYPE)
+    row = np.empty(n_pair, dtype=INT_DTYPE)
+
+    if _is_lexicographically_sorted(pairs):
+        # Already grouped by lower value, ascending within each group, so the buckets are the
+        # runs the counting pass just measured and no sorting is needed
+        for i in range(n_pair):
+            high[i] = pairs[i, 1]
+            row[i] = i
+        return bucket_offset, high, row
+
+    for i in range(n_pair):
+        pair_low = pairs[i, 0]
+        pair_high = pairs[i, 1]
+        if pair_low > pair_high:
+            pair_low, pair_high = pair_high, pair_low
+
+        slot = bucket_offset[pair_low]
+        high[slot] = pair_high
+        row[slot] = i
+        bucket_offset[pair_low] = slot + 1
+
+    # The scatter left each entry at its bucket's end, one slot right of where the convention
+    # above wants it. One backward pass puts it back.
+    for a in range(n_bucket, 0, -1):
+        bucket_offset[a] = bucket_offset[a - 1]
+    bucket_offset[0] = 0
+
+    for a in range(n_bucket):
+        bucket_start = bucket_offset[a]
+        _sort_bucket(high, row, bucket_start, bucket_offset[a + 1] - bucket_start)
+
+    return bucket_offset, high, row
+
+
+@njit(cache=True)
+def _search_bucket(high, row, bucket_start, bucket_end, key):
+    """The ``row`` entry whose key is ``key`` within a sorted bucket, or ``INT_FILL_VALUE``
+    when the bucket does not hold it."""
+    low = bucket_start
+    stop = bucket_end
+
+    while low < stop:
+        mid = (low + stop) // 2
+        if high[mid] < key:
+            low = mid + 1
+        else:
+            stop = mid
+
+    if low < bucket_end and high[low] == key:
+        return row[low]
+    return INT_FILL_VALUE
