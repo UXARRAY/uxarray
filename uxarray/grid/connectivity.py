@@ -11,6 +11,8 @@ from uxarray.grid.utils import (
     _sort_bucket,
 )
 
+from warnings import warn
+
 
 def close_face_nodes(face_node_connectivity, n_face, n_max_face_nodes):
     """Closes (``face_node_connectivity``) by inserting the first node index
@@ -155,10 +157,19 @@ def _populate_edge_node_connectivity(grid):
     # Check edge coordinates already exist, if they do this might cause issues
 
     if "n_edge" in grid.sizes:
-        # TODO: raise a warning or exception?
-        pass
+        stale = sorted(n for n in grid._ds if ugrid.EDGE_DIM in grid._ds[n].dims)
+        warn(
+            f"Constructing 'edge_node_connectivity' on a grid that already has "
+            f"edge-centered variables ({', '.join(stale)}). Constructed edges are "
+            f"numbered in lexicographic node-pair order, which need not match the "
+            f"numbering those variables were stored with; they may no longer refer "
+            f"to the same edges.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
-    # HACK: this is lieu of an xarray equivalent to `da.compute(a, b)`
+    # This is in lieu of an xarray equivalent to `da.compute(a, b)`. We traverse the
+    # grid once to gather both variables, possibly as chunks if dask is enabled
     computed = xr.Dataset(
         {
             "face_nodes": grid.face_node_connectivity.variable,
