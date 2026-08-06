@@ -43,6 +43,8 @@ def calculate_face_area(
     -------
     area : double
     jacobian: double
+        Sum of the Jacobian evaluated at every quadrature point of every
+        sub-triangle of the face.
     """
     if quadrature_rule == "gaussian":
         dG, dW = get_gauss_quadrature_dg(order)
@@ -89,19 +91,19 @@ def _face_area_from_quadrature(x, y, z, dG, dW, is_gaussian, latitude_adjusted_a
                 for q in range(n_weights):
                     dA = dG[0][p]
                     dB = dG[0][q]
-                    jacobian = _calculate_spherical_triangle_jacobian(
+                    node_jacobian = _calculate_spherical_triangle_jacobian(
                         node1, node2, node3, dA, dB
                     )
-                    area += dW[p] * dW[q] * jacobian
-                    jacobian += jacobian
+                    area += dW[p] * dW[q] * node_jacobian
+                    jacobian += node_jacobian
             else:
                 dA = dG[p][0]
                 dB = dG[p][1]
-                jacobian = _calculate_spherical_triangle_jacobian_barycentric(
+                node_jacobian = _calculate_spherical_triangle_jacobian_barycentric(
                     node1, node2, node3, dA, dB
                 )
-                area += dW[p] * jacobian
-                jacobian += jacobian
+                area += dW[p] * node_jacobian
+                jacobian += node_jacobian
 
     # check if the any edge is on the line of constant latitude
     # which means we need to check edges for same z-coordinates and call area correction routine
