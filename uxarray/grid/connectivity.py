@@ -1,4 +1,3 @@
-from warnings import warn
 
 import numpy as np
 import xarray as xr
@@ -156,16 +155,14 @@ def _populate_edge_node_connectivity(grid):
 
     # Check edge coordinates already exist, if they do this might cause issues
 
-    if "n_edge" in grid.sizes:
+    if "n_edge" in grid.dims:
         stale = sorted(n for n in grid._ds if ugrid.EDGE_DIM in grid._ds[n].dims)
-        warn(
+        raise(
             f"Constructing 'edge_node_connectivity' on a grid that already has "
             f"edge-centered variables ({', '.join(stale)}). Constructed edges are "
             f"numbered in lexicographic node-pair order, which need not match the "
             f"numbering those variables were stored with; they may no longer refer "
-            f"to the same edges.",
-            RuntimeWarning,
-            stacklevel=2,
+            f"to the same edges."
         )
 
     # This is in lieu of an xarray equivalent to `da.compute(a, b)`. We traverse the
