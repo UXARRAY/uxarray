@@ -1,5 +1,6 @@
 import xarray as xr
 
+from uxarray.errors import DimensionError
 from uxarray.io.utils import _get_source_dims_dict, _parse_grid_type
 
 
@@ -141,7 +142,7 @@ def _validate_indexers(indexers, indexers_kwargs, func_name, ignore_grid):
     }
 
     if not ignore_grid and len(grid_dims) > 1:
-        raise ValueError(
+        raise DimensionError(
             f"Only one grid dimension can be sliced at a time; got {sorted(grid_dims)}."
         )
 

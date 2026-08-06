@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import numpy as np
 import xarray as xr
 
+from uxarray.errors import DimensionError
+
 
 @dataclass(frozen=True)
 class RectilinearGridSpec:
@@ -65,7 +67,7 @@ def _as_1d_coord(coord, default_name: str) -> xr.DataArray:
     if isinstance(coord, xr.DataArray):
         values = np.asarray(coord.values, dtype=np.float64)
         if coord.ndim != 1:
-            raise ValueError(
+            raise DimensionError(
                 f"Rectilinear {default_name!r} coordinate must be 1-D, "
                 f"got {coord.ndim}-D."
             )
@@ -75,7 +77,7 @@ def _as_1d_coord(coord, default_name: str) -> xr.DataArray:
     else:
         values = np.asarray(coord, dtype=np.float64)
         if values.ndim != 1:
-            raise ValueError(
+            raise DimensionError(
                 f"Rectilinear {default_name!r} coordinate must be 1-D, "
                 f"got {values.ndim}-D."
             )
@@ -84,7 +86,7 @@ def _as_1d_coord(coord, default_name: str) -> xr.DataArray:
         attrs = {}
 
     if values.size < 2:
-        raise ValueError(
+        raise DimensionError(
             f"Rectilinear {default_name!r} coordinate must contain at least two values."
         )
     return xr.DataArray(values, dims=(dim,), name=name, attrs=attrs)
@@ -148,7 +150,7 @@ def _reshape_array_to_rectilinear(
 
     axis = da.get_axis_num("n_face")
     if da.sizes["n_face"] != spec.size:
-        raise ValueError(
+        raise DimensionError(
             "Cannot reshape remapped data to the requested rectilinear grid. "
             f"Expected {spec.size} face values, got {da.sizes['n_face']}."
         )

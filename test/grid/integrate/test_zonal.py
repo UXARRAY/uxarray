@@ -8,6 +8,7 @@ import numpy.testing as nt
 
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
+from uxarray.errors import DataCenteringError
 
 class TestZonalCSne30:
 
@@ -380,7 +381,7 @@ class TestZonalAnomaly:
         uxda = ux.UxDataArray(
             np.zeros(uxgrid.n_node), dims=["n_node"], uxgrid=uxgrid
         )
-        with pytest.raises(ValueError, match="face-centered"):
+        with pytest.raises(DataCenteringError, match="face-centered"):
             uxda.zonal_anomaly()
 
     def test_invalid_lat_input_raises(self):

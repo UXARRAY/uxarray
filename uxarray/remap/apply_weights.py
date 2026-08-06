@@ -6,6 +6,7 @@ import numpy as np
 import xarray as xr
 
 import uxarray.core.dataarray
+from uxarray.errors import DimensionError
 
 from .utils import (
     LABEL_TO_COORD,
@@ -25,21 +26,21 @@ def _get_source_dim(
     spatial_dims = [dim for dim in da.dims if dim in SPATIAL_DIMS]
 
     if len(spatial_dims) > 1:
-        raise ValueError(
+        raise DimensionError(
             f"Weight application does not support variables with multiple "
             f"spatial dimensions. Got {spatial_dims!r} for variable {da.name!r}."
         )
 
     if source_dim is not None:
         if source_dim not in SPATIAL_DIMS:
-            raise ValueError(
+            raise DimensionError(
                 f"source_dim {source_dim!r} is not a spatial dimension. "
                 f"Expected one of {sorted(SPATIAL_DIMS)}."
             )
         if source_dim not in da.dims:
             return None
         if da.sizes[source_dim] != weights.source_size:
-            raise ValueError(
+            raise DimensionError(
                 f"Variable {da.name!r} dimension {source_dim!r} has size "
                 f"{da.sizes[source_dim]}, expected {weights.source_size}."
             )
@@ -69,7 +70,7 @@ def _apply_weights(
     destination_size = destination_grid.sizes[destination_dim]
 
     if destination_size != weights_obj.destination_size:
-        raise ValueError(
+        raise DimensionError(
             f"Destination grid size for {destination_dim!r} is {destination_size}, "
             f"but weights target size is {weights_obj.destination_size}."
         )
@@ -107,10 +108,10 @@ def _apply_weights(
 
     if not remapped_any:
         if is_da:
-            raise ValueError(
+            raise DimensionError(
                 f"No spatial dimension matched the weight source size {weights_obj.source_size}."
             )
-        raise ValueError(
+        raise DimensionError(
             "No dataset variables matched the supplied weight source size."
         )
 
