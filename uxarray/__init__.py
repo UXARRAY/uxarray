@@ -1,3 +1,4 @@
+from . import errors
 from . import tutorial
 from .constants import INT_DTYPE, INT_FILL_VALUE
 from .core.api import (
@@ -37,4 +38,5 @@ __all__ = (
     "INT_DTYPE",
     "INT_FILL_VALUE",
     "Grid",
+    "errors",
 )
