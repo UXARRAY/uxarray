@@ -25,6 +25,12 @@ from uxarray.core.zonal import (
     _compute_zonal_anomaly,
 )
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
+from uxarray.errors import (
+    DataCenteringError,
+    DimensionError,
+    GridInvalidError,
+    GridsMismatchError,
+)
 from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
@@ -47,10 +53,11 @@ class UxDataArray(xr.DataArray):
 
     Parameters
     ----------
-    uxgrid : uxarray.Grid, optional
+    uxgrid : uxarray.Grid
         The `Grid` object that makes this array aware of the unstructured
         grid topology it belongs to.
-        If `None`, it needs to be an instance of `uxarray.Grid`.
+        Providing `None` is possible but intended for internal use only;
+        if `None`, must set self.uxgrid before using any grid-aware methods.
 
     Other Parameters
     ----------------
@@ -84,17 +91,20 @@ class UxDataArray(xr.DataArray):
     # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
     __slots__ = ("_uxgrid",)
 
-    def __init__(self, *args, uxgrid: Grid = None, **kwargs):
-        self._uxgrid = None
+    def __init__(self, *args, uxgrid: Grid | None = None, **kwargs):
+        # Note: allowing uxgrid=None is not desirable (see issue #1620)
+        #   but it is the default, to simplify subclassing from xarray.
+        # E.g., self.isel() uses self._replace(), which goes to xarray.DataArray._replace(),
+        #   which returns type(self)(...) with explicit kwargs only (no **kwargs),
+        #   making it very challenging to pass uxgrid at time of construction.
+        # Workaround here: clarified in docstring, and allow initial uxgrid=None,
+        #   but crash with GridInvalidError upon accessing self.uxgrid, if still None.
 
-        if uxgrid is not None and not isinstance(uxgrid, Grid):
-            raise RuntimeError(
-                "uxarray.UxDataArray.__init__: uxgrid can be either None or "
-                "an instance of the uxarray.Grid class"
-            )
+        # Need self._uxgrid if None; self.uxgrid ensures value is actually a Grid.
+        if uxgrid is None:
+            self._uxgrid = uxgrid
         else:
             self.uxgrid = uxgrid
-
         super().__init__(*args, **kwargs)
 
     # declare various accessors
@@ -122,10 +132,10 @@ class UxDataArray(xr.DataArray):
 
         if deep:
             # Reinitialize the uxgrid assessor
-            copied.uxgrid = self.uxgrid.copy()  # deep copy
+            copied._uxgrid = self._uxgrid.copy()  # deep copy
         else:
             # Point to the existing uxgrid object
-            copied.uxgrid = self.uxgrid
+            copied._uxgrid = self._uxgrid
 
         return copied
 
@@ -135,22 +145,33 @@ class UxDataArray(xr.DataArray):
         da = super()._replace(*args, **kwargs)
 
         if isinstance(da, UxDataArray):
-            da.uxgrid = self.uxgrid
+            da._uxgrid = self._uxgrid
         else:
-            da = UxDataArray(da, uxgrid=self.uxgrid)
+            da = UxDataArray(da, uxgrid=self._uxgrid)
 
         return da
 
     @property
-    def uxgrid(self):
-        """Linked ``Grid`` representing to the unstructured grid the data
-        resides on."""
-
+    def uxgrid(self) -> Grid:
+        """Linked unstructured grid (``uxarray.Grid``) which the data resides on."""
+        # _uxgrid=None should only cause crash during grid-aware operations.
+        # So, internally: use self._uxgrid for non-grid-aware operations like _copy() or _replace(),
+        # but self.uxgrid for everything else, like integrate().
+        if self._uxgrid is None:
+            # (comment in self.__init__ describes why this possibility exists.)
+            raise GridInvalidError(
+                f"Expected a uxarray.Grid; got {type(self).__name__}.uxgrid = None. "
+                "Maybe you forgot to provide uxgrid when initializing this UxDataArray?"
+            )
         return self._uxgrid
 
-    # a setter function
     @uxgrid.setter
-    def uxgrid(self, ugrid_obj):
+    def uxgrid(self, ugrid_obj: Grid):
+        if not isinstance(ugrid_obj, Grid):
+            raise TypeError(
+                f"Expected a uxarray.Grid; got value with type={type(ugrid_obj)} "
+                f"(while setting {type(self).__name__}.uxgrid = value)."
+            )
         self._uxgrid = ugrid_obj
 
     @property
@@ -248,12 +269,12 @@ class UxDataArray(xr.DataArray):
 
         if self.values.ndim > 1:
             # data is multidimensional, must be a 1D slice
-            raise ValueError(
+            raise DimensionError(
                 f"Data Variable must be 1-dimensional, with shape {self.uxgrid.n_face} "
                 f"for face-centered data."
             )
 
-        if self.values.size == self.uxgrid.n_face:
+        if self._face_centered():
             gdf, non_nan_polygon_indices = self.uxgrid.to_geodataframe(
                 periodic_elements=periodic_elements,
                 projection=projection,
@@ -290,22 +311,11 @@ class UxDataArray(xr.DataArray):
 
             gdf[var_name] = _data
 
-        elif self.values.size == self.uxgrid.n_node:
-            raise ValueError(
-                f"Data Variable with size {self.values.size} does not match the number of faces "
-                f"({self.uxgrid.n_face}. Current size matches the number of nodes. Consider running "
-                f"``UxDataArray.topological_mean(destination='face') to aggregate the data onto the faces."
-            )
-        elif self.values.size == self.uxgrid.n_edge:
-            raise ValueError(
-                f"Data Variable with size {self.values.size} does not match the number of faces "
-                f"({self.uxgrid.n_face}. Current size matches the number of edges."
-            )
         else:
-            # data is not mapped to
-            raise ValueError(
-                f"Data Variable with size {self.values.size} does not match the number of faces "
-                f"({self.uxgrid.n_face}."
+            raise DataCenteringError(
+                f"to_geodataframe() expects face_centered data; got {self.data_location} data "
+                f"(with sizes={dict(**self.sizes)}). Consider running "
+                "``UxDataArray.topological_mean(destination='face')`` to aggregate the data onto faces."
             )
 
         return gdf
@@ -341,7 +351,7 @@ class UxDataArray(xr.DataArray):
         """
         # data is multidimensional, must be a 1D slice
         if self.values.ndim > 1:
-            raise ValueError(
+            raise DimensionError(
                 f"Data Variable must be 1-dimensional, with shape {self.uxgrid.n_face} "
                 f"for face-centered data."
             )
@@ -392,7 +402,7 @@ class UxDataArray(xr.DataArray):
             else:
                 return poly_collection
         else:
-            raise ValueError("Data variable must be face centered.")
+            raise DataCenteringError("Data variable must be face centered.")
 
     def to_raster(
         self,
@@ -580,7 +590,7 @@ class UxDataArray(xr.DataArray):
         uxds: UxDataSet
         """
         xrds = super().to_dataset(dim=dim, name=name, promote_attrs=promote_attrs)
-        uxds = uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
+        uxds = uxarray.core.dataset.UxDataset(xrds, uxgrid=self._uxgrid)
 
         return uxds
 
@@ -612,24 +622,25 @@ class UxDataArray(xr.DataArray):
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
         >>> integral = uxds["psi"].integrate()
         """
-        if self.values.shape[-1] == self.uxgrid.n_face:
+        # TODO: support integration regardless of n_face dimension position,
+        #    and remove the self.dims[-1] == "n_face" check.
+        #    (uxarray/xarray features should be agnostic to dimension positions.)
+        if self._face_centered() and self.dims[-1] == "n_face":
             face_areas = self.uxgrid.face_areas.values
 
             # perform dot product between face areas and last dimension of data
             integral = np.einsum("i,...i", face_areas, self.values)
 
-        elif self.values.shape[-1] == self.uxgrid.n_node:
-            raise ValueError("Integrating data mapped to each node not yet supported.")
-
-        elif self.values.shape[-1] == self.uxgrid.n_edge:
-            raise ValueError("Integrating data mapped to each edge not yet supported.")
+        elif not self._face_centered():
+            raise DataCenteringError(
+                "Integration of non-face_centered data is not yet supported. "
+                f"(Got {self.data_location} data with sizes={dict(**self.sizes)})"
+            )
 
         else:
-            raise ValueError(
-                f"The final dimension of the data variable does not match the number of nodes, edges, "
-                f"or faces. Expected one of "
-                f"{self.uxgrid.n_node}, {self.uxgrid.n_edge}, or {self.uxgrid.n_face}, "
-                f"but received {self.values.shape[-1]}"
+            raise DimensionError(
+                "Integration of data with n_face not as the final dimension is not yet supported. "
+                f"Got face_centered data, but the final dimension was {self.dims[-1]}, not 'n_face'."
             )
 
         # construct a uxda with integrated quantity
@@ -687,7 +698,7 @@ class UxDataArray(xr.DataArray):
         physical analysis. Non-conservative averaging samples at latitude lines.
         """
         if not self._face_centered():
-            raise ValueError(
+            raise DataCenteringError(
                 "Zonal mean computations are currently only supported for face-centered data variables."
             )
 
@@ -768,7 +779,7 @@ class UxDataArray(xr.DataArray):
                 )
 
             if edges.ndim != 1 or edges.size < 2:
-                raise ValueError("Band edges must be 1D with at least two values")
+                raise DimensionError("Band edges must be 1D with at least two values")
 
             res = _compute_conservative_zonal_mean_bands(self, edges)
 
@@ -835,7 +846,7 @@ class UxDataArray(xr.DataArray):
         >>> uxds["var"].zonal_anomaly(lat=(-60, 60, 5), conservative=True)
         """
         if not self._face_centered():
-            raise ValueError(
+            raise DataCenteringError(
                 "Zonal anomaly is only supported for face-centered data variables."
             )
 
@@ -854,7 +865,7 @@ class UxDataArray(xr.DataArray):
             )
 
         if edges.ndim != 1 or edges.size < 2:
-            raise ValueError("Band edges must be 1D with at least two values.")
+            raise DimensionError("Band edges must be 1D with at least two values.")
 
         res = _compute_zonal_anomaly(self, edges, conservative=conservative)
 
@@ -914,7 +925,7 @@ class UxDataArray(xr.DataArray):
         from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
         if not self._face_centered():
-            raise ValueError(
+            raise DataCenteringError(
                 "Azimuthal mean computations are currently only supported for face-centered data variables."
             )
 
@@ -1633,13 +1644,13 @@ class UxDataArray(xr.DataArray):
             raise TypeError("other must be a UxDataArray")
 
         if self.uxgrid != other.uxgrid:
-            raise ValueError("Both vector components must be on the same grid")
+            raise GridsMismatchError("Both vector components must be on the same grid")
 
         if self.dims != other.dims:
-            raise ValueError("Both vector components must have the same dimensions")
+            raise DimensionError("Both vector components must have the same dimensions")
 
         if len(self.dims) != 1:
-            raise ValueError(
+            raise DimensionError(
                 "Curl computation currently only supports 1-dimensional data. "
                 "Use .isel() to select a single time slice or level."
             )
@@ -1724,20 +1735,20 @@ class UxDataArray(xr.DataArray):
             raise TypeError("other must be a UxDataArray")
 
         if self.uxgrid != other.uxgrid:
-            raise ValueError("Both UxDataArrays must have the same grid")
+            raise GridsMismatchError("Both UxDataArrays must have the same grid")
 
         if self.dims != other.dims:
-            raise ValueError("Both UxDataArrays must have the same dimensions")
+            raise DimensionError("Both UxDataArrays must have the same dimensions")
 
         if self.ndim > 1:
-            raise ValueError(
+            raise DimensionError(
                 "Divergence currently requires 1D face-centered data. Consider "
                 "reducing the dimension by selecting data across leading dimensions (e.g., `.isel(time=0)`, "
                 "`.sel(lev=500)`, or `.mean('time')`)."
             )
 
         if not (self._face_centered() and other._face_centered()):
-            raise ValueError(
+            raise DataCenteringError(
                 "Computing the divergence is only supported for face-centered data variables."
             )
 
@@ -1804,19 +1815,19 @@ class UxDataArray(xr.DataArray):
             raise TypeError("q must be a UxDataArray")
 
         if self.uxgrid != v.uxgrid or self.uxgrid != q.uxgrid:
-            raise ValueError("All UxDataArrays must have the same grid")
+            raise GridsMismatchError("All UxDataArrays must have the same grid")
 
         if self.dims != v.dims or self.dims != q.dims:
-            raise ValueError("All UxDataArrays must have the same dimensions")
+            raise DimensionError("All UxDataArrays must have the same dimensions")
 
         if self.ndim > 1:
-            raise ValueError(
+            raise DimensionError(
                 "Scalar dot gradient currently requires 1D face-centered data. "
                 "Consider selecting a single slice before computing."
             )
 
         if not (self._face_centered() and v._face_centered() and q._face_centered()):
-            raise ValueError(
+            raise DataCenteringError(
                 "Computing the scalar dot gradient is only supported for face-centered data variables."
             )
 
@@ -1879,12 +1890,12 @@ class UxDataArray(xr.DataArray):
                 dims[-1] = "n_edge"
                 name = f"{var_name}edge_face_difference"
             elif destination == "face":
-                raise ValueError(
+                raise DataCenteringError(
                     "Invalid destination 'face' for a face-centered data variable, computing"
                     "the difference and storing it on each face is not possible"
                 )
             elif destination == "node":
-                raise ValueError(
+                raise DataCenteringError(
                     "Support for computing the difference of a face-centered data variable and storing"
                     "the result on each node not yet supported."
                 )
@@ -1897,13 +1908,13 @@ class UxDataArray(xr.DataArray):
                 dims[-1] = "n_edge"
                 name = f"{var_name}edge_node_difference"
             elif destination == "node":
-                raise ValueError(
+                raise DataCenteringError(
                     "Invalid destination 'node' for a node-centered data variable, computing"
                     "the difference and storing it on each node is not possible"
                 )
 
             elif destination == "face":
-                raise ValueError(
+                raise DataCenteringError(
                     "Support for computing the difference of a node-centered data variable and storing"
                     "the result on each face not yet supported."
                 )
@@ -1914,7 +1925,7 @@ class UxDataArray(xr.DataArray):
             )
 
         else:
-            raise ValueError("TODO: ")
+            raise DataCenteringError("TODO: ")
 
         uxda = UxDataArray(
             _difference,
@@ -1986,7 +1997,7 @@ class UxDataArray(xr.DataArray):
 
         Raises
         ------
-        ValueError
+        DimensionError (subclass of ValueError)
             If more than one grid dimension is selected and `ignore_grid=False`.
         """
         from uxarray.core.utils import _validate_indexers
@@ -2040,7 +2051,7 @@ class UxDataArray(xr.DataArray):
                 # e.g. "Dimensions {'level'} do not exist. Expected one of ('n_face', 'time', 'lev')"
                 # Let's just append the available dimensions.
                 original_error_msg = str(e)
-                raise ValueError(
+                raise DimensionError(
                     f"{original_error_msg}. Available dimensions: {self.dims}"
                 ) from e
             else:
@@ -2105,7 +2116,7 @@ class UxDataArray(xr.DataArray):
             raise ValueError("`da` must be a xr.DataArray")
 
         if face_dim not in da.dims:
-            raise ValueError(
+            raise DimensionError(
                 f"The provided face dimension '{face_dim}' is present in the provided healpix data array."
                 f"Please set 'face_dim' to the dimension corresponding to the healpix face dimension."
             )
@@ -2139,7 +2150,7 @@ class UxDataArray(xr.DataArray):
             )
 
         else:
-            raise ValueError(
+            raise DataCenteringError(
                 "Data variable must be either node, edge, or face centered."
             )
 
@@ -2207,7 +2218,7 @@ class UxDataArray(xr.DataArray):
                 # Call the parent method
                 result = parent_method(*args, **kwargs)
                 # Wrap the result with our accessor
-                return accessor_class(result, self.uxgrid)
+                return accessor_class(result, self._uxgrid)
 
             # Copy the docstring from the parent method
             method.__doc__ = parent_method.__doc__
@@ -2219,11 +2230,11 @@ class UxDataArray(xr.DataArray):
         return super().__getattribute__(name)
 
     def where(self, cond: Any, other: Any = dtypes.NA, drop: bool = False):
-        return UxDataArray(super().where(cond, other, drop), uxgrid=self.uxgrid)
+        return UxDataArray(super().where(cond, other, drop), uxgrid=self._uxgrid)
 
     where.__doc__ = xr.DataArray.where.__doc__
 
     def fillna(self, value: Any):
-        return UxDataArray(super().fillna(value), uxgrid=self.uxgrid)
+        return UxDataArray(super().fillna(value), uxgrid=self._uxgrid)
 
     fillna.__doc__ = xr.DataArray.fillna.__doc__
