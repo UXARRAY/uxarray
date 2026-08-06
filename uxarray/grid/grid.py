@@ -2015,16 +2015,16 @@ class Grid:
             and not latitude_adjusted_area
         ):
             result = np.sum(self.face_areas.values)
-
-        result = np.sum(
-            self.compute_face_areas(
-                quadrature_rule=quadrature_rule,
-                order=order,
-                latitude_adjusted_area=latitude_adjusted_area,
+        else:
+            result = np.sum(
+                self.compute_face_areas(
+                    quadrature_rule=quadrature_rule,
+                    order=order,
+                    latitude_adjusted_area=latitude_adjusted_area,
+                )
             )
-        )
 
-        RTOL = 1e-6  # 1e-7 had warnings in existing CI tests (as of 2026-08-05), 1e-6 did not.
+        RTOL = 1e-7
         if result > 4 * np.pi * self.sphere_radius**2 * (1 + RTOL):
             warnings.warn(
                 f"Total face area (={result}) exceeds the surface area of the whole sphere "
