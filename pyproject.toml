@@ -48,6 +48,7 @@ dev = [
     'ruff',
 ]
 geo = [
+    "cartopy",  # in both geo and viz it is needed by to_geodataframe() and by plotting routines.
     "geopandas",
     "healpix",
     "pyproj",
