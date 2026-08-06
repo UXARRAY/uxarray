@@ -157,7 +157,7 @@ def _populate_edge_node_connectivity(grid):
 
     if "n_edge" in grid.dims:
         stale = sorted(n for n in grid._ds if ugrid.EDGE_DIM in grid._ds[n].dims)
-        raise(
+        raise ValueError(
             f"Constructing 'edge_node_connectivity' on a grid that already has "
             f"edge-centered variables ({', '.join(stale)}). Constructed edges are "
             f"numbered in lexicographic node-pair order, which need not match the "
