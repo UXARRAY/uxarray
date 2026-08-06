@@ -20,6 +20,7 @@ from uxarray.errors import DimensionError, GridInvalidError
 from uxarray.formatting_html import dataset_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
+from uxarray.grid.neighbors import Neighborhoods
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDatasetPlotAccessor
@@ -680,22 +681,16 @@ class UxDataset(xr.Dataset):
 
     def neighborhood_filter(
         self,
-        func: Callable = np.mean,
+        func: str | Callable = "mean",
         r: float = 1.0,
+        **kwargs,
     ) -> UxDataset:
         """Apply a neighborhood filter, replacing the value at each grid
-        element of every data variable with ``func`` applied to all elements
-        within a circular neighborhood of radius ``r``.
+        element of every data variable with a reduction of all elements within
+        a circular neighborhood of radius ``r``.
 
-        Parameters
-        ----------
-        func: Callable, default=np.mean
-            Apply this function to neighborhood. Must accept an ``axis`` keyword
-            argument (as ``np.mean``, ``np.median``, and similar NumPy reductions
-            do). Use ``functools.partial`` to supply additional arguments, e.g.
-            ``functools.partial(np.percentile, q=90)``.
-        r : float, default=1.
-            Radius of the neighborhood, in degrees.
+        Parameters are as for :meth:`UxDataArray.neighborhood_filter`, which
+        documents the available reductions and their keyword arguments.
 
         Returns
         -------
@@ -705,27 +700,34 @@ class UxDataset(xr.Dataset):
         Notes
         -----
         Variables without a grid dimension are passed through unchanged.
-        ``r`` is a great-circle distance in degrees, and lazy (dask-backed)
-        variables are computed eagerly. See
-        :meth:`UxDataArray.neighborhood_filter` for details.
+
+        Variables mapped to the same grid location share one neighbor query, so
+        filtering a dataset costs one query per location present rather than
+        one per variable.
 
         Examples
         --------
         Apply a mean filter to all grid-mapped variables in a dataset:
 
-        >>> import numpy as np
         >>> import uxarray as ux
         >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
-        >>> uxds_smooth = uxds.neighborhood_filter(func=np.mean, r=5.0)
+        >>> uxds_smooth = uxds.neighborhood_filter("mean", r=5.0)
 
         See Also
         --------
         UxDataArray.neighborhood_filter : Filter a single data variable.
+        Grid.neighborhoods : Reusable neighborhoods, for several reductions at one radius.
         UxDataArray.zonal_mean : Average over latitude bands.
         UxDataArray.azimuthal_mean : Average over rings of constant great-circle distance.
         """
 
         destination_uxds = self._copy()
+
+        # The neighbor query dominates the cost of a reduction, and it depends
+        # only on (grid, location, radius) -- not on the data. Variables mapped
+        # to the same location therefore share one query, built on first use.
+        neighborhoods: dict[str, Neighborhoods] = {}
+
         # Loop through UxDataArrays in UxDataset and apply the filter to every
         # variable that is mapped to a grid element (node, edge, or face).
         # Variables without a grid dimension are left unchanged.
@@ -736,9 +738,15 @@ class UxDataset(xr.Dataset):
             if not any(dim in GRID_DIMS for dim in uxda.dims):
                 continue
 
-            # UxDataArray.neighborhood_filter handles the transpose internally,
-            # so dimension order is always preserved.
-            destination_uxds[var_name] = uxda.neighborhood_filter(func, r)
+            location = uxda._neighborhood_location("neighborhood_filter")
+            if location not in neighborhoods:
+                neighborhoods[location] = Neighborhoods(self.uxgrid, r=r, on=location)
+
+            # Neighborhoods.reduce restores the input dimension order, so it is
+            # always preserved.
+            destination_uxds[var_name] = neighborhoods[location].reduce(
+                uxda, func=func, **kwargs
+            )
 
         return destination_uxds
 

@@ -60,6 +60,7 @@ from uxarray.grid.intersections import (
 from uxarray.grid.neighbors import (
     BallTree,
     KDTree,
+    Neighborhoods,
     SpatialHash,
     _populate_edge_face_distances,
     _populate_edge_node_distances,
@@ -1803,6 +1804,42 @@ class Grid:
             )
 
         return self._ball_tree
+
+    def neighborhoods(self, r: float = 1.0, on: str = "face centers") -> Neighborhoods:
+        """Finds the grid elements within ``r`` degrees of every element of
+        ``on``, returning a reusable :class:`Neighborhoods`.
+
+        The radius query behind this dominates the cost of a neighborhood
+        reduction, so building this once and reducing several times over it is
+        substantially cheaper than calling
+        :meth:`UxDataArray.neighborhood_filter` repeatedly, which rebuilds it
+        on every call.
+
+        Parameters
+        ----------
+        r : float, default=1.
+            Radius of the neighborhood, in degrees of great-circle distance.
+        on : str, default="face centers"
+            Grid location to center the neighborhoods on: "nodes",
+            "edge centers", or "face centers".
+
+        Returns
+        -------
+        Neighborhoods
+
+        Examples
+        --------
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")  # doctest: +SKIP
+        >>> nb = uxds.uxgrid.neighborhoods(r=5.0)  # doctest: +SKIP
+        >>> smooth = nb.reduce(uxds["psi"], "mean")  # doctest: +SKIP
+        >>> p90 = nb.reduce(uxds["psi"], "percentile", q=90)  # doctest: +SKIP
+
+        See Also
+        --------
+        UxDataArray.neighborhood_filter : One-shot filter for a single reduction.
+        """
+        return Neighborhoods(self, r=r, on=on)
 
     def _get_scipy_kd_tree(
         self, coordinates: str | None = "face", reconstruct: bool = False

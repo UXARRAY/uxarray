@@ -194,6 +194,7 @@ Methods
    Grid.compute_face_areas
    Grid.construct_face_centers
    Grid.get_ball_tree
+   Grid.neighborhoods
    Grid.get_kd_tree
    Grid.get_spatial_hash
    Grid.get_faces_containing_point
@@ -576,6 +577,17 @@ neighborhood of a specified radius around each grid element.
 
    UxDataArray.neighborhood_filter
    UxDataset.neighborhood_filter
+
+Finding the neighbors is usually more expensive than reducing over them. To apply several
+reductions at one radius, build the neighborhoods once and reduce over them repeatedly.
+
+.. autosummary::
+   :toctree: generated/
+
+   Grid.neighborhoods
+   uxarray.grid.neighbors.Neighborhoods
+   uxarray.grid.neighbors.Neighborhoods.reduce
+   uxarray.grid.neighbors.Neighborhoods.n_neighbors
 
 
 Zonal Average

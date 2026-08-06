@@ -225,3 +225,43 @@ def test_uxgrid_None_is_invalid_in_uxdataset():
     # it also applies (for non-None non-Grid objects) during __init__:
     with pytest.raises(TypeError):
         ux.UxDataset({'arr1': xr.DataArray([4,5], dims=['n_face'])}, uxgrid=[1,2])
+    def test_one_query_per_grid_location(self):
+        """Variables sharing a grid location must share one neighbor query.
+
+        The query dominates the cost of a reduction, so rebuilding it per
+        variable would make a dataset filter scale with the number of
+        variables. Counting calls is the only way to see that from outside.
+        """
+        from unittest.mock import patch
+
+        import uxarray.grid.neighbors as neighbors
+
+        uxgrid = ux.Grid.from_healpix(zoom=2)
+        # touch both locations first: a HEALPix grid cannot populate node
+        # coordinates lazily from inside the tree build
+        n_node, n_face = uxgrid.n_node, uxgrid.n_face
+        rng = np.random.default_rng(0)
+        uxds = UxDataset(
+            data_vars={
+                "face_a": ("n_face", rng.random(n_face)),
+                "face_b": ("n_face", rng.random(n_face)),
+                "face_c": ("n_face", rng.random(n_face)),
+                "node_a": ("n_node", rng.random(n_node)),
+            },
+            uxgrid=uxgrid,
+        )
+
+        real = neighbors._csr_neighbors
+        with patch.object(neighbors, "_csr_neighbors", side_effect=real) as spy:
+            filtered = uxds.neighborhood_filter("percentile", r=20.0, q=90)
+
+        assert spy.call_count == 2, (
+            f"expected one query per grid location (faces, nodes), got "
+            f"{spy.call_count}"
+        )
+        # and the reduction, with its parameter, reached every variable
+        for name in ("face_a", "node_a"):
+            nt.assert_allclose(
+                filtered[name].values,
+                uxds[name].neighborhood_filter("percentile", r=20.0, q=90).values,
+            )
