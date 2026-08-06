@@ -19,7 +19,7 @@ from uxarray.core.utils import _open_dataset_with_fallback
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.errors import DataCenteringError, GridInvalidError
 from uxarray.formatting_html import grid_repr
-from uxarray.grid.area import get_all_face_area_from_coords
+from uxarray.grid.area import _get_all_face_area_from_coords
 from uxarray.grid.bounds import _populate_face_bounds
 from uxarray.grid.connectivity import (
     _populate_edge_face_connectivity,
@@ -103,6 +103,8 @@ from uxarray.subset import GridSubsetAccessor
 
 if TYPE_CHECKING:
     import cartopy.crs as ccrs
+
+    from uxarray.core.dataarray import UxDataArray
 
 
 class Grid:
@@ -1510,7 +1512,9 @@ class Grid:
         Notes
         -----
         For HEALPix grids, this property returns theoretical equal areas to preserve
-        the equal-area property. For other grid types, areas are computed geometrically.
+        the equal-area property. For other grid types, areas are computed geometrically,
+        and results are equivalent to calling :py:meth:`~uxarray.Grid.compute_face_areas()`
+        with no arguments. Either way, the computed areas are cached for future use.
         """
         from uxarray.conventions.descriptors import FACE_AREAS_ATTRS, FACE_AREAS_DIMS
 
@@ -1523,7 +1527,9 @@ class Grid:
                 self._ds["face_areas"] = _compute_healpix_face_areas(self._ds)
             else:
                 # For other grids, use calculated areas
-                face_areas, self._face_jacobian = self._compute_face_areas()
+                face_areas, self._face_jacobian = (
+                    self._compute_face_areas_and_jacobian()
+                )
                 self._ds["face_areas"] = xr.DataArray(
                     data=face_areas, dims=FACE_AREAS_DIMS, attrs=FACE_AREAS_ATTRS
                 )
@@ -1583,7 +1589,7 @@ class Grid:
     @property
     def face_jacobian(self):
         """Declare face_jacobian as a property."""
-        if self._face_jacobian is None:
+        if getattr(self, "_face_jacobian", None) is None:
             _ = self.face_areas
         return self._face_jacobian
 
@@ -1949,21 +1955,27 @@ class Grid:
         order: int = 4,
         latitude_adjusted_area: bool = False,
     ) -> float:
-        """Function to calculate the total surface area of all the faces in a
-        mesh.
+        """Calculate the total surface area of all the faces in a mesh.
+
+        Equivalent to ``self.compute_face_areas(...).sum()``; provided as a
+        convenience.
 
         Parameters
         ----------
         quadrature_rule : str, optional
-            Quadrature rule to use. Defaults to "triangular".
+            Quadrature rule to use, one of ``"triangular"`` or ``"gaussian"``.
+            Defaults to ``"triangular"``. See :meth:`compute_face_areas` for
+            what these mean and the supported orders.
         order : int, optional
-            Order of quadrature rule. Defaults to 4.
+            Order of the quadrature rule. Defaults to 4.
         latitude_adjusted_area : bool, optional
-            If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
+            If True, corrects the area of faces that have edges lying along a
+            line of constant latitude. Defaults to False.
 
         Returns
         -------
-        Sum of area of all the faces in the mesh : float
+        float
+            Sum of the area of all faces in the mesh.
         """
         # Default parameters match the cached ``face_areas`` property, which also
         # preserves the equal-area values used for HEALPix grids; reuse it to avoid
@@ -1976,61 +1988,105 @@ class Grid:
         ):
             return np.sum(self.face_areas.values)
 
-        face_areas, _ = self._compute_face_areas(
-            quadrature_rule, order, latitude_adjusted_area
+        return np.sum(
+            self.compute_face_areas(
+                quadrature_rule=quadrature_rule,
+                order=order,
+                latitude_adjusted_area=latitude_adjusted_area,
+            )
         )
-        return np.sum(face_areas)
 
     def compute_face_areas(
         self,
         quadrature_rule: str = "triangular",
         order: int = 4,
         latitude_adjusted_area: bool = False,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Face areas calculation function for grid class, calculates area of
-        all faces in the grid.
+        return_jacobian: bool = False,
+        as_uxarray: bool = False,
+    ) -> "np.ndarray | UxDataArray | tuple[np.ndarray | UxDataArray, np.ndarray]":
+        """Compute the area of each face in the grid.
 
-        .. deprecated:: 2025.10.0
-            Use the `face_areas` property instead for better performance and caching.
-            This method will be removed in a future version.
+        Unlike the cached :attr:`face_areas` property (which always uses the
+        default quadrature), this method computes areas with a caller-specified
+        quadrature rule and order. For repeated access with default settings,
+        prefer the :attr:`face_areas` property, which caches its result.
 
         Parameters
         ----------
         quadrature_rule : str, optional
-            Quadrature rule to use. Defaults to "triangular".
+            Quadrature rule used to integrate each face, one of:
+
+            - ``"triangular"`` (default): symmetric quadrature over each
+              spherical sub-triangle; supported orders are 1, 4, 8, 10, 12.
+            - ``"gaussian"``: tensor-product Gauss-Legendre quadrature;
+              supported orders are 1 to 10.
+
+            A quadrature rule is the set of sample points and weights used to
+            numerically approximate the surface integral; a higher order uses
+            more points for a more accurate area at greater cost.
         order : int, optional
-            Order of quadrature rule. Defaults to 4.
+            Order of the quadrature rule. Defaults to 4.
         latitude_adjusted_area : bool, optional
-            If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
+            If True, corrects the area of faces that have edges lying along a
+            line of constant latitude (a small-circle edge encloses slightly
+            more area than the great-circle arc between the same endpoints).
+            Defaults to False.
+        return_jacobian : bool, optional
+            If True, also return the per-face Jacobian of the integration.
+            Defaults to False.
+        as_uxarray : bool, optional
+            If True, return the areas as a :class:`~uxarray.UxDataArray` paired
+            with this grid (``result.uxgrid = self``), so the result can be
+            plotted directly, instead of a raw :class:`numpy.ndarray`. Defaults
+            to False.
 
         Returns
         -------
-        1. Area of all the faces in the mesh : np.ndarray
-        2. Jacobian of all the faces in the mesh : np.ndarray
+        numpy.ndarray or uxarray.UxDataArray
+            Area of each face, shape ``(n_face,)``. Returned as a
+            :class:`~uxarray.UxDataArray` when ``as_uxarray=True``.
+        numpy.ndarray
+            Per-face Jacobian, only returned when ``return_jacobian=True``.
 
         Notes
         -----
-        This method performs geometric integration to compute face areas. For HEALPix grids,
-        this may not preserve the equal-area property due to differences between algorithmic
-        pixel definitions and geometric representation. For HEALPix grids, use the
-        ``face_areas`` property instead, which ensures mathematical correctness by using
-        theoretical equal areas.
+        This method performs geometric integration. For HEALPix grids this may
+        not preserve the equal-area property, since it integrates the polygonal
+        face representation rather than the theoretical pixel areas; use the
+        :attr:`face_areas` property for HEALPix equal areas.
         """
-        warnings.warn(
-            "compute_face_areas() is deprecated. Use the face_areas property instead for better performance and caching.",
-            DeprecationWarning,
-            stacklevel=2,
+        face_areas, face_jacobian = self._compute_face_areas_and_jacobian(
+            quadrature_rule, order, latitude_adjusted_area
         )
-        return self._compute_face_areas(quadrature_rule, order, latitude_adjusted_area)
 
-    def _compute_face_areas(
+        if as_uxarray:
+            from uxarray.conventions.descriptors import (
+                FACE_AREAS_ATTRS,
+                FACE_AREAS_DIMS,
+            )
+            from uxarray.core.dataarray import UxDataArray
+
+            face_areas = UxDataArray(
+                data=face_areas,
+                dims=FACE_AREAS_DIMS,
+                attrs=FACE_AREAS_ATTRS,
+                uxgrid=self,
+            )
+
+        if return_jacobian:
+            return face_areas, face_jacobian
+        return face_areas
+
+    def _compute_face_areas_and_jacobian(
         self,
         quadrature_rule: str = "triangular",
         order: int = 4,
         latitude_adjusted_area: bool = False,
     ) -> tuple[np.ndarray, np.ndarray]:
-        """Internal face areas calculation function for grid class, calculates area of
-        all faces in the grid.
+        """Internal worker: compute per-face areas and Jacobians.
+
+        Returns both the areas and the Jacobians; :meth:`compute_face_areas` is
+        the public entry point and selects what to return.
 
         Parameters
         ----------
@@ -2045,14 +2101,6 @@ class Grid:
         -------
         1. Area of all the faces in the mesh : np.ndarray
         2. Jacobian of all the faces in the mesh : np.ndarray
-
-        Notes
-        -----
-        This method performs geometric integration to compute face areas. For HEALPix grids,
-        this may not preserve the equal-area property due to differences between algorithmic
-        pixel definitions and geometric representation. For HEALPix grids, use the
-        ``face_areas`` property instead, which ensures mathematical correctness by using
-        theoretical equal areas.
         """
         # if self._face_areas is None: # this allows for using the cached result,
         # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
@@ -2074,7 +2122,7 @@ class Grid:
         n_nodes_per_face = self.n_nodes_per_face.values
 
         # call function to get area of all the faces as a np array
-        self._face_areas, self._face_jacobian = get_all_face_area_from_coords(
+        self._face_areas, self._face_jacobian = _get_all_face_area_from_coords(
             x,
             y,
             z,
