@@ -2024,6 +2024,8 @@ class Grid:
                 )
             )
 
+        # Choose RTOL. Mostly just an arbitrary decision....
+        # but noting that 1e-9 had warnings in existing CI tests (as of 2026-08-06), while 1e-8 did not.
         RTOL = 1e-7
         if result > 4 * np.pi * self.sphere_radius**2 * (1 + RTOL):
             warnings.warn(
