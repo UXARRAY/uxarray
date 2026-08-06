@@ -4,7 +4,6 @@ Tests should all pass if and only if installed accordingly, i.e. something like:
     pip install ".[geo,viz]"
 """
 
-import pytest
 from _optional_deps_helpers import (
     check_requires_no_opts,
     check_requires_only_geo,
