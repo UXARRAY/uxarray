@@ -42,5 +42,6 @@ class YacNotAvailableError(RuntimeError):
 
 # # # ----- Miscellaneous Errors ----- # # #
 
+
 class OptionalDependencyNotFoundError(ModuleNotFoundError):
     """indicates functionality relies on a not-yet-installed optional dependency."""

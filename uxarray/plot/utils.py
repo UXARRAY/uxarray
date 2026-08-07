@@ -1,5 +1,5 @@
-
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
+
 
 class HoloviewsBackend:
     """Compare and set the HoloViews plotting backend."""
