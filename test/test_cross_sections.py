@@ -8,6 +8,7 @@ import numpy.testing as nt
 
 
 
+from uxarray.constants import ERROR_TOLERANCE
 from uxarray.grid.intersections import constant_lat_intersections_face_bounds
 
 
@@ -119,6 +120,54 @@ def test_constant_lat_out_of_bounds():
 
     assert len(candidate_faces) == 0
 
+
+def test_edges_at_constant_latitude(gridpath):
+    """``get_edges_at_constant_latitude`` returns exactly the edges whose endpoints straddle the latitude."""
+    uxgrid = ux.open_grid(gridpath("ugrid", "quad-hexagon", "grid.nc"))
+
+    edges = uxgrid.get_edges_at_constant_latitude(lat=0.0)
+
+    # Derived from the node coordinates rather than from the screener: an edge
+    # meets the equator when its two endpoints sit on opposite sides of z = 0,
+    # or when both lie on it.
+    edge_node_z = uxgrid.node_z.values[uxgrid.edge_node_connectivity.values]
+    z0, z1 = edge_node_z[:, 0], edge_node_z[:, 1]
+    expected = np.flatnonzero(
+        (z0 * z1 < 0.0)
+        | ((np.abs(z0) < ERROR_TOLERANCE) & (np.abs(z1) < ERROR_TOLERANCE))
+    )
+
+    assert len(expected) > 0
+    nt.assert_array_equal(edges, expected)
+
+
+def test_edges_at_constant_lat_lon_chunked_grid(gridpath):
+    """Both edge queries run on a dask-backed grid and agree with the in-memory result."""
+    da = pytest.importorskip("dask.array")
+    gridfile = gridpath("ugrid", "quad-hexagon", "grid.nc")
+
+    uxgrid = ux.open_grid(gridfile)
+    expected_lat = uxgrid.get_edges_at_constant_latitude(lat=0.0)
+    expected_lon = uxgrid.get_edges_at_constant_longitude(lon=0.0)
+
+    chunked = ux.open_grid(gridfile)
+
+    # Construct the derived variables first so that chunk() converts them too,
+    # leaving both the connectivity and the node coordinates dask-backed.
+    _ = chunked.edge_node_connectivity
+    _ = chunked.node_x, chunked.node_y, chunked.node_z
+    chunked.chunk(n_node=2, n_edge=4, n_face=2)
+
+    assert isinstance(chunked.edge_node_connectivity.data, da.Array)
+    for coord in (chunked.node_x, chunked.node_y, chunked.node_z):
+        assert isinstance(coord.data, da.Array)
+
+    nt.assert_array_equal(
+        chunked.get_edges_at_constant_latitude(lat=0.0), expected_lat
+    )
+    nt.assert_array_equal(
+        chunked.get_edges_at_constant_longitude(lon=0.0), expected_lon
+    )
 
 
 def test_const_lat_interval_da(gridpath, datasetpath):
