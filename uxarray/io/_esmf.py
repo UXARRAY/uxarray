@@ -93,11 +93,20 @@ def _read_esmf(in_ds):
         # assume start index is 1 if one is not provided
         start_index = 1
 
-    face_node_connectivity = in_ds["elementConn"].astype(INT_DTYPE)
+    element_conn = in_ds["elementConn"]
+
+    # CF decoding turns the ESMF fill value into NaN, while an undecoded read
+    # leaves the raw sentinel in place. Identify the padding before the integer
+    # cast, which preserves neither form (NaN casts to a platform-dependent
+    # value, not to INT_FILL_VALUE).
+    fill_value = element_conn.encoding.get(
+        "_FillValue", element_conn.attrs.get("_FillValue", -1)
+    )
+    fill_mask = element_conn.isnull() | (element_conn == fill_value)
+
+    face_node_connectivity = element_conn.fillna(0).astype(INT_DTYPE) - start_index
     face_node_connectivity = xr.where(
-        face_node_connectivity != INT_FILL_VALUE,
-        face_node_connectivity - start_index,
-        face_node_connectivity,
+        fill_mask, INT_FILL_VALUE, face_node_connectivity
     )
 
     out_ds["face_node_connectivity"] = xr.DataArray(
@@ -144,8 +153,17 @@ def _encode_esmf(ds: xr.Dataset) -> xr.Dataset:
     # Face Node Connectivity (elementConn)
     if "face_node_connectivity" in ds:
         # ESMF elementConn is 1-based, with -1 for unused; UGRID is 0-based
+        face_node_conn = ds["face_node_connectivity"]
+
+        # Only offset the valid indices. Applying the offset to INT_FILL_VALUE and
+        # letting it fall through to the int32 encoding below truncates it into a
+        # small, valid node index, silently turning padding into real vertices.
+        element_conn = xr.where(
+            face_node_conn == INT_FILL_VALUE, -1, face_node_conn + 1
+        )
+
         out_ds["elementConn"] = xr.DataArray(
-            ds["face_node_connectivity"] + 1,
+            element_conn,
             dims=("elementCount", "maxNodePElement"),
             attrs={
                 "long_name": "Node Indices that define the element connectivity",
