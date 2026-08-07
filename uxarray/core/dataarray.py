@@ -39,6 +39,7 @@ from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 if TYPE_CHECKING:
     import cartopy.crs as ccrs
@@ -473,6 +474,7 @@ class UxDataArray(xr.DataArray):
         >>> ax.imshow(raster, origin="lower", extent=ax.get_xlim() + ax.get_ylim())
 
         """
+        _raise_hint_if_optional_deps_missing("cartopy")
         from cartopy.mpl.geoaxes import GeoAxes
 
         from uxarray.constants import INT_DTYPE
@@ -517,6 +519,7 @@ class UxDataArray(xr.DataArray):
 
             if _is_default_extent():
                 try:
+                    _raise_hint_if_optional_deps_missing("cartopy")
                     import cartopy.crs as ccrs
 
                     lon_min = float(self.uxgrid.node_lon.min(skipna=True).values)
