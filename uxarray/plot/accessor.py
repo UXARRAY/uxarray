@@ -472,6 +472,9 @@ class UxDataArrayPlotAccessor:
             project=False,
         )
 
+        # import datashader  # no need to import explicitly, but gets used below when rasterize=True.
+        # (commented here for future reference, since datashader appears in uxarray dependency list,
+        #    but it isn't imported explicitly anywhere in uxarray. For more details see PR #1548.)
         return gdf.hvplot.polygons(
             c=self._uxda.name if self._uxda.name is not None else "var",
             rasterize=rasterize,
