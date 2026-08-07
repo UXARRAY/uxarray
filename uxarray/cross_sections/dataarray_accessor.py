@@ -6,6 +6,7 @@ import numpy as np
 import xarray as xr
 
 from uxarray.constants import INT_DTYPE
+from uxarray.errors import DataCenteringError
 
 from .sample import (
     sample_constant_latitude,
@@ -80,7 +81,7 @@ class UxDataArrayCrossSectionAccessor:
         """
 
         if not self.uxda._face_centered():
-            raise ValueError("Data variable must be face-centered")
+            raise DataCenteringError("Data variable must be face-centered")
 
         if steps < 2:
             raise ValueError("steps must be at least 2")

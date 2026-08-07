@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from uxarray.errors import DimensionError
+
 if TYPE_CHECKING:
     from uxarray.grid import Grid
 
@@ -394,7 +396,7 @@ class GridSubsetAccessor:
     def _get_tree(self, coords, tree_type):
         """Internal helper for obtaining the desired KDTree or BallTree."""
         if coords.ndim > 1:
-            raise ValueError("Coordinates must be one-dimensional")
+            raise DimensionError("Coordinates must be one-dimensional")
 
         if len(coords) == 2:
             # Spherical coordinates
@@ -403,7 +405,7 @@ class GridSubsetAccessor:
             # Cartesian coordinates
             tree = self.uxgrid.get_kd_tree(tree_type)
         else:
-            raise ValueError("Unsupported coordinates provided.")
+            raise DimensionError("Unsupported coordinates provided.")
 
         return tree
 

@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 import numpy as np
 
+from uxarray.errors import DimensionError
+
 if TYPE_CHECKING:
     from cartopy.mpl.geoaxes import GeoAxes
 
@@ -17,23 +19,23 @@ def _ensure_dimensions(data: UxDataArray) -> UxDataArray:
 
     Raises
     ------
-    ValueError
+    DimensionError (subclass of ValueError)
         If the DataArray has more or fewer than one dimension.
-    ValueError
+    DimensionError (subclass of ValueError)
         If the sole dimension is not named "n_face".
     """
     # Allow extra singleton dimensions as long as there's exactly one non-singleton dim
     non_trivial_dims = [dim for dim, size in zip(data.dims, data.shape) if size != 1]
 
     if len(non_trivial_dims) != 1:
-        raise ValueError(
+        raise DimensionError(
             "Expected data with a single dimension (other axes may be length 1), "
             f"but got dims {data.dims} with shape {data.shape}"
         )
 
     sole_dim = non_trivial_dims[0]
     if sole_dim != "n_face":
-        raise ValueError(f"Expected dimension 'n_face', but got '{sole_dim}'")
+        raise DimensionError(f"Expected dimension 'n_face', but got '{sole_dim}'")
 
     # Squeeze any singleton axes to ensure we return a true 1D array over n_face
     return data.squeeze()

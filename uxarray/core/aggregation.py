@@ -2,6 +2,7 @@ import numpy as np
 import xarray as xr
 
 import uxarray.core.dataarray
+from uxarray.errors import DataCenteringError
 from uxarray.grid.connectivity import get_face_node_partitions
 
 NUMPY_AGGREGATIONS = {
@@ -33,7 +34,7 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
         elif destination == "edge":
             return _node_to_edge_aggregation(uxda, aggregation, kwargs)
         else:
-            raise ValueError(
+            raise DataCenteringError(
                 f"Invalid destination for a node-centered data variable. Expected"
                 f"one of ['face', 'edge' but received {destination}"
             )
@@ -63,7 +64,7 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
         #     raise ValueError("TODO: ")
 
     else:
-        raise ValueError(
+        raise DataCenteringError(
             "Invalid data mapping. Data variable is expected to be mapped to either the "
             "nodes, faces, or edges of the source grid."
         )
@@ -74,7 +75,7 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
     import dask.array as da
 
     if not uxda._node_centered():
-        raise ValueError(
+        raise DataCenteringError(
             f"Data Variable must be mapped to the corner nodes of each face, with dimension "
             f"{uxda.uxgrid.n_face}."
         )
@@ -192,7 +193,7 @@ def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
     import dask.array as da
 
     if not uxda._node_centered():
-        raise ValueError(
+        raise DataCenteringError(
             f"Data Variable must be mapped to the corner nodes of each face, with dimension "
             f"{uxda.uxgrid.n_face}."
         )
