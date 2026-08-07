@@ -25,7 +25,12 @@ from uxarray.core.zonal import (
     _compute_zonal_anomaly,
 )
 from uxarray.cross_sections import UxDataArrayCrossSectionAccessor
-from uxarray.errors import DataCenteringError, DimensionError, GridsMismatchError
+from uxarray.errors import (
+    DataCenteringError,
+    DimensionError,
+    GridInvalidError,
+    GridsMismatchError,
+)
 from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
@@ -48,10 +53,11 @@ class UxDataArray(xr.DataArray):
 
     Parameters
     ----------
-    uxgrid : uxarray.Grid, optional
+    uxgrid : uxarray.Grid
         The `Grid` object that makes this array aware of the unstructured
         grid topology it belongs to.
-        If `None`, it needs to be an instance of `uxarray.Grid`.
+        Providing `None` is possible but intended for internal use only;
+        if `None`, must set self.uxgrid before using any grid-aware methods.
 
     Other Parameters
     ----------------
@@ -85,17 +91,20 @@ class UxDataArray(xr.DataArray):
     # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
     __slots__ = ("_uxgrid",)
 
-    def __init__(self, *args, uxgrid: Grid = None, **kwargs):
-        self._uxgrid = None
+    def __init__(self, *args, uxgrid: Grid | None = None, **kwargs):
+        # Note: allowing uxgrid=None is not desirable (see issue #1620)
+        #   but it is the default, to simplify subclassing from xarray.
+        # E.g., self.isel() uses self._replace(), which goes to xarray.DataArray._replace(),
+        #   which returns type(self)(...) with explicit kwargs only (no **kwargs),
+        #   making it very challenging to pass uxgrid at time of construction.
+        # Workaround here: clarified in docstring, and allow initial uxgrid=None,
+        #   but crash with GridInvalidError upon accessing self.uxgrid, if still None.
 
-        if uxgrid is not None and not isinstance(uxgrid, Grid):
-            raise RuntimeError(
-                "uxarray.UxDataArray.__init__: uxgrid can be either None or "
-                "an instance of the uxarray.Grid class"
-            )
+        # Need self._uxgrid if None; self.uxgrid ensures value is actually a Grid.
+        if uxgrid is None:
+            self._uxgrid = uxgrid
         else:
             self.uxgrid = uxgrid
-
         super().__init__(*args, **kwargs)
 
     # declare various accessors
@@ -123,10 +132,10 @@ class UxDataArray(xr.DataArray):
 
         if deep:
             # Reinitialize the uxgrid assessor
-            copied.uxgrid = self.uxgrid.copy()  # deep copy
+            copied._uxgrid = self._uxgrid.copy()  # deep copy
         else:
             # Point to the existing uxgrid object
-            copied.uxgrid = self.uxgrid
+            copied._uxgrid = self._uxgrid
 
         return copied
 
@@ -136,22 +145,33 @@ class UxDataArray(xr.DataArray):
         da = super()._replace(*args, **kwargs)
 
         if isinstance(da, UxDataArray):
-            da.uxgrid = self.uxgrid
+            da._uxgrid = self._uxgrid
         else:
-            da = UxDataArray(da, uxgrid=self.uxgrid)
+            da = UxDataArray(da, uxgrid=self._uxgrid)
 
         return da
 
     @property
-    def uxgrid(self):
-        """Linked ``Grid`` representing to the unstructured grid the data
-        resides on."""
-
+    def uxgrid(self) -> Grid:
+        """Linked unstructured grid (``uxarray.Grid``) which the data resides on."""
+        # _uxgrid=None should only cause crash during grid-aware operations.
+        # So, internally: use self._uxgrid for non-grid-aware operations like _copy() or _replace(),
+        # but self.uxgrid for everything else, like integrate().
+        if self._uxgrid is None:
+            # (comment in self.__init__ describes why this possibility exists.)
+            raise GridInvalidError(
+                f"Expected a uxarray.Grid; got {type(self).__name__}.uxgrid = None. "
+                "Maybe you forgot to provide uxgrid when initializing this UxDataArray?"
+            )
         return self._uxgrid
 
-    # a setter function
     @uxgrid.setter
-    def uxgrid(self, ugrid_obj):
+    def uxgrid(self, ugrid_obj: Grid):
+        if not isinstance(ugrid_obj, Grid):
+            raise TypeError(
+                f"Expected a uxarray.Grid; got value with type={type(ugrid_obj)} "
+                f"(while setting {type(self).__name__}.uxgrid = value)."
+            )
         self._uxgrid = ugrid_obj
 
     @property
@@ -570,7 +590,7 @@ class UxDataArray(xr.DataArray):
         uxds: UxDataSet
         """
         xrds = super().to_dataset(dim=dim, name=name, promote_attrs=promote_attrs)
-        uxds = uxarray.core.dataset.UxDataset(xrds, uxgrid=self.uxgrid)
+        uxds = uxarray.core.dataset.UxDataset(xrds, uxgrid=self._uxgrid)
 
         return uxds
 
@@ -2213,7 +2233,7 @@ class UxDataArray(xr.DataArray):
                 # Call the parent method
                 result = parent_method(*args, **kwargs)
                 # Wrap the result with our accessor
-                return accessor_class(result, self.uxgrid)
+                return accessor_class(result, self._uxgrid)
 
             # Copy the docstring from the parent method
             method.__doc__ = parent_method.__doc__
@@ -2225,11 +2245,11 @@ class UxDataArray(xr.DataArray):
         return super().__getattribute__(name)
 
     def where(self, cond: Any, other: Any = dtypes.NA, drop: bool = False):
-        return UxDataArray(super().where(cond, other, drop), uxgrid=self.uxgrid)
+        return UxDataArray(super().where(cond, other, drop), uxgrid=self._uxgrid)
 
     where.__doc__ = xr.DataArray.where.__doc__
 
     def fillna(self, value: Any):
-        return UxDataArray(super().fillna(value), uxgrid=self.uxgrid)
+        return UxDataArray(super().fillna(value), uxgrid=self._uxgrid)
 
     fillna.__doc__ = xr.DataArray.fillna.__doc__
