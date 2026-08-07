@@ -202,30 +202,21 @@ def _encode_scrip(face_node_connectivity, node_lon, node_lat, face_areas):
     n_face = face_node_connectivity.shape[0]
     n_max_nodes = face_node_connectivity.shape[1]
 
-    # --- Core logic enhanced with Implementation 2's robust method ---
-    # Flatten the connectivity array to easily work with all node indices
-    f_nodes_flat = face_node_connectivity.values.astype(int).ravel()
+    conn = face_node_connectivity.values.astype(INT_DTYPE)
+    valid_nodes_mask = conn != INT_FILL_VALUE
 
-    # Create a mask to identify valid nodes vs. fill values
-    valid_nodes_mask = f_nodes_flat != INT_FILL_VALUE
+    # SCRIP has no fill value for corners. A face with fewer than grid_corners
+    # vertices is written as a degenerate polygon that repeats its last valid
+    # corner. Writing NaN into the padded slots instead makes the reader dedupe
+    # them into a phantom NaN node, which both inflates n_node and poisons the
+    # node coordinates for every downstream geometry calculation.
+    last_valid = np.maximum.accumulate(
+        np.where(valid_nodes_mask, np.arange(n_max_nodes), 0), axis=1
+    )
+    padded_conn = np.take_along_axis(conn, last_valid, axis=1)
 
-    # Create arrays to hold final lat/lon data, filled with NaN
-    lat_nodes_flat = np.full(f_nodes_flat.shape, np.nan, dtype=np.float64)
-    lon_nodes_flat = np.full(f_nodes_flat.shape, np.nan, dtype=np.float64)
-
-    # Get the flattened indices of the valid nodes (where the mask is True)
-    valid_indices = np.where(valid_nodes_mask)[0]
-    # Get the actual node indices from the connectivity array for those valid positions
-    valid_node_ids = f_nodes_flat[valid_indices]
-
-    # Use the valid indices to populate the coordinate arrays correctly
-    lon_nodes_flat[valid_indices] = node_lon.values[valid_node_ids]
-    lat_nodes_flat[valid_indices] = node_lat.values[valid_node_ids]
-
-    # Reshape the 1D arrays back to 2D
-    reshp_lat = lat_nodes_flat.reshape((n_face, n_max_nodes))
-    reshp_lon = lon_nodes_flat.reshape((n_face, n_max_nodes))
-    # --- End of enhanced logic ---
+    reshp_lon = node_lon.values[padded_conn]
+    reshp_lat = node_lat.values[padded_conn]
 
     # Add data to new scrip output file
     ds["grid_corner_lat"] = xr.DataArray(
