@@ -1,6 +1,7 @@
 """
 Purpose: utils related to imports, e.g. handling optional dependency imports
 """
+
 import importlib
 
 from uxarray.errors import OptionalDependencyNotFoundError
@@ -22,6 +23,7 @@ _OPTIONAL_DEPS_TO_EXTRAS = {
     "holoviews": "viz",
     "hvplot": "viz",
 }
+
 
 def _raise_hint_if_optional_deps_missing(*packages: str):
     """try to import these optional dependencies; raise helpful hint if any ModuleNotFoundError.
@@ -53,7 +55,7 @@ def _raise_hint_if_optional_deps_missing(*packages: str):
 
     if len(missing) == 0:
         pass  # nothing to do; all requested packages imported successfully!
-    else: # raise error with helpful message.
+    else:  # raise error with helpful message.
         # Trying to be slightly smart with the message here, to be improve user experience:
         # (1) if everything would be covered by one extra, suggest it. (E.g. holoviews & cartopy --> [viz])
         # (2) if everything would easily be covered by doing multiple extras, suggest them,
@@ -63,13 +65,25 @@ def _raise_hint_if_optional_deps_missing(*packages: str):
         need_extras = set()
         or_extras = []
         missing_extras = {pkg: _OPTIONAL_DEPS_TO_EXTRAS[pkg] for pkg in missing}
-        one_extra = {pkg: extra for pkg, extra in missing_extras.items() if isinstance(extra, str)}
-        many_extras = {pkg: extras for pkg, extras in missing_extras.items() if not isinstance(extras, str)}
-        assert all(len(extras) >= 2 for extras in many_extras.values())  # else wrong format in _OPTIONAL_DEPS_TO_EXTRAS.
+        one_extra = {
+            pkg: extra
+            for pkg, extra in missing_extras.items()
+            if isinstance(extra, str)
+        }
+        many_extras = {
+            pkg: extras
+            for pkg, extras in missing_extras.items()
+            if not isinstance(extras, str)
+        }
+        assert all(
+            len(extras) >= 2 for extras in many_extras.values()
+        )  # else wrong format in _OPTIONAL_DEPS_TO_EXTRAS.
         for pkg, extra in one_extra.items():
             need_extras.add(extra)  # definitely need to include all of these
         for pkg, extras in many_extras.items():
-            if any(extra in need_extras for extra in extras):  # still maybe in case (1) or (2).
+            if any(
+                extra in need_extras for extra in extras
+            ):  # still maybe in case (1) or (2).
                 pass  # this package is already covered by other needed extras!
             elif len(extras) == 0:  # case (3)
                 need_extras.add(extras[0])
@@ -85,6 +99,6 @@ def _raise_hint_if_optional_deps_missing(*packages: str):
         elif len(or_extras) == 1:
             errmsg += f' or ``pip install "uxarray[{or_extras[0]}]"``'
         elif len(or_extras) >= 2:
-            errmsg += f' or pip install with any of {set(or_extras)} instead'
-        errmsg += ', then try again.'
+            errmsg += f" or pip install with any of {set(or_extras)} instead"
+        errmsg += ", then try again."
         raise OptionalDependencyNotFoundError(errmsg) from last_err
