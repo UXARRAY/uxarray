@@ -105,9 +105,7 @@ def _read_esmf(in_ds):
     fill_mask = element_conn.isnull() | (element_conn == fill_value)
 
     face_node_connectivity = element_conn.fillna(0).astype(INT_DTYPE) - start_index
-    face_node_connectivity = xr.where(
-        fill_mask, INT_FILL_VALUE, face_node_connectivity
-    )
+    face_node_connectivity = xr.where(fill_mask, INT_FILL_VALUE, face_node_connectivity)
 
     out_ds["face_node_connectivity"] = xr.DataArray(
         data=face_node_connectivity,
