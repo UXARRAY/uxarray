@@ -35,3 +35,8 @@ Project Raijin & Project SEATS. doi:10.5281/zenodo.15757812.**
    or instead of citing UXarray as a software tool via Zenodo, may be needed in
    your case. Please visit our :doc:`Algorithm-Level Citations <citations-for-algorithms>`
    page for detailed information and the list of our publications.
+
+.. toctree::
+   :hidden:
+
+   citations-for-algorithms

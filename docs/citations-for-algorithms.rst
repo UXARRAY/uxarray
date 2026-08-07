@@ -1,5 +1,3 @@
-:orphan:
-
 .. currentmodule:: uxarray
 
 .. _algorithm-citations:
