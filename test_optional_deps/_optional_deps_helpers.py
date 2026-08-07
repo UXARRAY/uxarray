@@ -20,8 +20,8 @@ def check_requires_only_viz():
     """
     import uxarray as ux
 
-    uxds = ux.tutorial.open_dataset("quad-hexagon")
-    plot_obj = uxds.plot.points()  # points() doesn't need geo projection details.
+    arr = ux.tutorial.open_dataset("quad-hexagon")["t2m"]
+    plot_obj = arr.plot.points()  # points() doesn't need geo projection details.
 
     # actually try to render the plot, too:
     import holoviews as hv
