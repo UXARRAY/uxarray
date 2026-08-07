@@ -39,6 +39,8 @@ def check_requires_only_geo():
     arr = ux.tutorial.open_dataset("quad-hexagon")["t2m"]
     arr.to_geodataframe()
 
+    ux.Grid.from_healpix(zoom=1)
+
 
 def check_requires_viz_and_geo():
     """run some checks which should require both viz and geo optional dependencies,
