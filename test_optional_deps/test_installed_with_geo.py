@@ -20,7 +20,7 @@ def test_check_requires_no_opts():
 
 def test_check_requires_only_viz():
     """ensure failure for checks which should require viz optional dependencies"""
-    with pytest.raises(ImportError):
+    with pytest.raises(ImportError, match=r"pip install uxarray\[viz\]"):
         check_requires_only_viz()
 
 
