@@ -1273,6 +1273,10 @@ class Grid:
         Constructed edges are stored as ascending node pairs and numbered in lexicographic order of that pair; edges
         read from a file keep the order and orientation they were stored in.
 
+        The result is cached after the first access; subsequent calls return the stored value without recomputing it.
+        Computing edge_node_connectivity always derives face_edge_connectivity as part of the same pass and
+        overwrites any existing face_edge_connectivity value, regardless of whether one was already present.
+
         Returns
         -------
         edge_node_connectivity : :py:class:`xarray.DataArray`
@@ -1317,6 +1321,11 @@ class Grid:
         :py:attr:`~uxarray.Grid.n_max_face_edges`. In grids with a mix of geometries (e.g., triangles and hexagons),
         rows containing fewer than :py:attr:`~uxarray.Grid.n_max_face_edges` indices are padded with the fill value defined in
         :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        The result is cached after the first access; subsequent calls return the stored value without recomputing it.
+        If edge_node_connectivity has not yet been computed, it is derived together with face_edge_connectivity in
+        the same pass. If edge_node_connectivity is already present, face_edge_connectivity is instead derived
+        independently from the existing connectivity data.
 
         Returns
         -------
