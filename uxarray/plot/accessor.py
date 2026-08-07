@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from uxarray.grid import Grid
 
 from uxarray.plot.utils import backend as plotting_backend
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 # import speedup trick:
 #   code here uses obj.hvplot, which requires import hvplot.pandas and/or hvplot.xarray.
@@ -30,6 +31,7 @@ def _ensure_hvplot_imported() -> None:
     """
     global _IMPORTED_HVPLOT
     if not _IMPORTED_HVPLOT:
+        _raise_hint_if_optional_deps_missing("holoviews", "hvplot")
         # workaround for hvplot issue #1735;
         #  import hvplot.pandas and hvplot.xarray always adjust the hvplot.extension().
         # To respect previously-setup extension value, need to remember and restore it.
@@ -244,6 +246,7 @@ class GridPlotAccessor:
         gdf.hvplot.paths : hvplot.paths
             A paths plot of the edges of the unstructured grid
         """
+        _raise_hint_if_optional_deps_missing("cartopy")
         import cartopy.crs as ccrs
 
         plotting_backend.assign(backend)
@@ -445,6 +448,7 @@ class UxDataArrayPlotAccessor:
         gdf.hvplot.polygons : hvplot.polygons
             A shaded polygon plot
         """
+        _raise_hint_if_optional_deps_missing("cartopy")
         import cartopy.crs as ccrs
 
         plotting_backend.assign(backend)
