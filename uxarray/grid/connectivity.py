@@ -469,7 +469,7 @@ def _populate_node_edge_connectivity(grid):
     )
 
 
-@njit
+@njit(cache=True)
 def _build_node_edge_connectivity(edge_nodes, n_node):
     """Constructs the Node Edge Connectivity, which stores the indices of the edges that are shared by each node."""
     n_edge, nodes_per_edge = edge_nodes.shape
