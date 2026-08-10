@@ -5,17 +5,14 @@
 Algorithm-Level Citations
 ==========================
 
-.. note::
-
-   In addition to the package-level Zenodo citation, several spherical geometry and
-   regridding algorithms in UXarray implement methods from peer-reviewed publications.
-   If a result you report in an academic work (paper, thesis, preprint, technical
-   report) depends on one of these algorithms (e.g., latlon bounds, zonal-mean,
-   conservative remapping, computed face area), please also cite the corresponding
-   publication listed below, in addition to the UXarray software citation. This does
-   not apply to incidental use of these APIs in code that isn't producing a citable
-   scientific result (e.g., tutorials, internal tools, or software that merely
-   depends on UXarray).
+In addition to the package-level Zenodo citation, several spherical geometry and
+regridding algorithms in UXarray implement methods from peer-reviewed publications.
+Please cite the corresponding publication(s) below, in addition to the UXarray
+software citation, if your work depends directly on the details of one of these
+algorithms, for example describing the algorithm in detail or comparing it against
+other algorithms. This does not apply to typical use of these APIs as part of an
+analysis workflow, such as tutorials, internal tools, or research that simply
+relies on UXarray's computed outputs.
 
 The definitions and geometric conventions for nodes, edges, and faces used
 throughout UXarray are based on:
@@ -85,7 +82,7 @@ Algorithm-to-Publication Mapping
        :py:attr:`~uxarray.Grid.face_bounds_lat`
      - |cite-gmd|
    * - `Zonal Average <api.html#zonal-average>`__
-     - All zonal-average remapping implementations (e.g. :py:meth:`~uxarray.UxDataArray.zonal_average`)
+     - All zonal-average remapping implementations (e.g. :py:meth:`~uxarray.UxDataArray.zonal_mean`)
      - |cite-siam|
    * - `Spherical Geometry: Intersections <api.html#intersections>`__
      - All spherical-intersection APIs in this section (:py:func:`~uxarray.grid.intersections.gca_gca_intersection`, :py:func:`~uxarray.grid.intersections.gca_const_lat_intersection`, :py:func:`~uxarray.grid.intersections.get_number_of_intersections`)
