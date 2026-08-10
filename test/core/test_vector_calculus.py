@@ -185,6 +185,32 @@ class TestGradientDyamondSubset:
         assert grad_scaled["zonal_gradient"].attrs["units"].endswith("/m")
         assert grad_unit["zonal_gradient"].attrs["units"].endswith("/rad")
 
+    def test_gradient_invariant_to_coordinate_scale(self, gridpath):
+        """The gradient must not depend on the units of face_x/face_y/face_z.
+
+        This grid is the one test mesh whose Cartesian face coordinates are
+        stored in meters (norm 6.37e6) rather than as unit vectors, so it is
+        what distinguishes a dual-cell area that normalizes its inputs from one
+        that does not. Skipping the normalization inflates the area by the
+        radius squared (~4e13) and collapses the gradient to ~0 instead of
+        raising anything.
+
+        d/dlat of sin(lat) is cos(lat), so the meridional component divided by
+        cos(lat) should be 1.
+        """
+        uxgrid = ux.open_grid(gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"))
+        lat = np.deg2rad(uxgrid.face_lat.values)
+        phi = ux.UxDataArray(np.sin(lat), dims=["n_face"], uxgrid=uxgrid, name="phi")
+
+        grad = phi.gradient(scale_by_radius=False)
+        mg = grad["meridional_gradient"].values
+
+        finite = np.isfinite(mg)
+        assert finite.any()
+
+        ratio = mg[finite] / np.cos(lat[finite])
+        assert np.abs(np.median(ratio) - 1.0) < 0.01
+
 
 class TestDivergenceQuadHex:
 
