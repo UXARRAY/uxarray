@@ -58,11 +58,11 @@ class GridBenchmark:
 
 
 class FaceAreas(GridBenchmark):
-    def time_compute_face_areas(self, resolution):
-        self.uxgrid.compute_face_areas()
+    def time_face_areas(self, resolution):
+        _ = self.uxgrid.face_areas
 
-    def peakmem_compute_face_areas(self, resolution):
-        self.uxgrid.compute_face_areas()
+    def peakmem_face_areas(self, resolution):
+        _ = self.uxgrid.face_areas
 
 
 class Gradient(DatasetBenchmark):
@@ -119,7 +119,7 @@ class GeoDataFrame(DatasetBenchmark):
 
 class ConnectivityConstruction(DatasetBenchmark):
     def time_n_nodes_per_face(self, resolution):
-        self.uxds.uxgrid.n_nodes_per_face
+        _ = self.uxds.uxgrid.n_nodes_per_face
 
     def time_face_face_connectivity(self, resolution):
         ux.grid.connectivity._populate_face_face_connectivity(self.uxds.uxgrid)
