@@ -46,6 +46,7 @@ def test_node_to_face_dask_reproduces_numpy(gridpath):
         numpy_result = getattr(uxda, agg_func)(destination='face')
         dask_result = getattr(uxda.chunk(), agg_func)(destination='face')
 
+        assert isinstance(dask_result, ux.UxDataArray)
         assert numpy_result.dims == dask_result.dims
         assert numpy_result.dtype == dask_result.dtype
         # both paths run the same kernel over the same partitions, so they must
@@ -63,6 +64,7 @@ def test_node_to_edge_dask_reproduces_numpy(gridpath):
         numpy_result = getattr(uxda, agg_func)(destination='edge')
         dask_result = getattr(uxda.chunk(), agg_func)(destination='edge')
 
+        assert isinstance(dask_result, ux.UxDataArray)
         assert numpy_result.dims == dask_result.dims
         assert numpy_result.dtype == dask_result.dtype
         # both paths run the same kernel over the same partitions, so they must
@@ -89,6 +91,7 @@ def test_node_aggs_dask_reproduces_numpy_blockwise(gridpath, destination):
         chunked = uxda.chunk({"lev": 2})
         dask_result = getattr(chunked, agg_func)(destination=destination)
 
+        assert isinstance(dask_result, ux.UxDataArray)
         # three chunks along 'lev', so the kernel is applied three times
         assert len(dask_result.chunks[0]) == 3
 
