@@ -875,7 +875,7 @@ class UxDataArray(xr.DataArray):
         elif isinstance(lat, (list, np.ndarray)):
             edges = np.asarray(lat, dtype=float)
         else:
-            raise ValueError(
+            raise TypeError(
                 "Invalid value for 'lat'. Must be a tuple (start, end, step) or array-like band edges."
             )
 
@@ -2182,7 +2182,7 @@ class UxDataArray(xr.DataArray):
         """
 
         if _check_duplicate_nodes_indices(self.uxgrid):
-            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+            raise GridInvalidError("Duplicate nodes found, cannot construct dual")
 
         if self.uxgrid.partial_sphere_coverage:
             warn(
