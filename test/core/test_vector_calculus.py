@@ -25,15 +25,31 @@ class TestGradientQuadHex:
     def test_gradient_all_boundary_faces(self, gridpath, datasetpath):
         """Quad hexagon grid has 4 faces, all touching the boundary.
 
-        Each face still has some interior edges, so the gradient should
-        produce finite (small) values rather than NaN.
+        Green-Gauss needs a closed contour to divide by the area it
+        encloses. Every face here sits on the mesh boundary, so no closed
+        contour exists and NaN is the honest answer rather than a value
+        normalized by an area that was never integrated over.
         """
         uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
         grad = uxds['t2m'].gradient()
 
-        assert not np.isnan(grad['meridional_gradient']).any()
-        assert not np.isnan(grad['zonal_gradient']).any()
+        assert np.isnan(grad['meridional_gradient']).all()
+        assert np.isnan(grad['zonal_gradient']).all()
+
+    def test_gradient_partial_boundary_still_finite(self, gridpath):
+        """Interior faces of a SCRIP-derived grid keep finite gradients.
+
+        Regression guard for #1452: the boundary handling must not go back
+        to NaN-ing an entire grid.
+        """
+        uxgrid = ux.open_grid(gridpath("scrip", "ne30pg2", "grid.nc"))
+        lat = np.deg2rad(uxgrid.face_lat.values)
+        phi = ux.UxDataArray(np.sin(lat), dims=["n_face"], uxgrid=uxgrid, name="phi")
+
+        grad = phi.gradient(scale_by_radius=False)
+
+        assert np.isfinite(grad["meridional_gradient"].values).mean() > 0.95
 
 
 class TestGradientMPASOcean:
@@ -297,7 +313,12 @@ class TestScalarDotGradientMPASOcean:
 class TestDivergenceDyamondSubset:
 
     def test_divergence_constant_field(self, gridpath, datasetpath):
-        """Test divergence of constant vector field (should be zero)"""
+        """Divergence of a constant vector field reduces to the metric term.
+
+        On a plane this would be zero, but on the sphere the divergence
+        carries -v*tan(lat)/a, so a constant v = 1 leaves exactly
+        -tan(lat)/a behind.
+        """
         uxds = ux.open_dataset(
             gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
             datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
@@ -309,15 +330,16 @@ class TestDivergenceDyamondSubset:
 
         div_field = constant_u.divergence(constant_v)
 
-        # Divergence of constant field should be close to zero for interior faces
         # Boundary faces may have NaN values (which is expected)
-        finite_values = div_field.values[np.isfinite(div_field.values)]
+        finite = np.isfinite(div_field.values)
+        assert finite.any(), "No finite divergence values found"
 
-        # Check that we have some finite values (interior faces)
-        assert len(finite_values) > 0, "No finite divergence values found"
+        radius = uxds.uxgrid._ds.attrs["sphere_radius"]
+        expected = -np.tan(np.deg2rad(uxds.uxgrid.face_lat.values)) / radius
 
-        # Divergence of constant field should be close to zero for finite values
-        assert np.abs(finite_values).max() < 1e-10, f"Max divergence: {np.abs(finite_values).max()}"
+        nt.assert_allclose(
+            div_field.values[finite], expected[finite], rtol=1e-10, atol=1e-15
+        )
 
     def test_divergence_linear_field(self, gridpath, datasetpath):
         """Test divergence of linear vector field"""
@@ -485,7 +507,11 @@ class TestCurlMPASOcean:
 class TestCurlDyamondSubset:
 
     def test_curl_constant_field(self, gridpath, datasetpath):
-        """Test curl of constant vector field (should be zero)"""
+        """Curl of a constant vector field reduces to the metric term.
+
+        On a plane this would be zero, but on the sphere the curl carries
+        u*tan(lat)/a, so a constant u = 1 leaves exactly tan(lat)/a behind.
+        """
         uxds = ux.open_dataset(
             gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
             datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
@@ -497,15 +523,16 @@ class TestCurlDyamondSubset:
 
         curl_field = constant_u.curl(constant_v)
 
-        # Curl of constant field should be close to zero for interior faces
         # Boundary faces may have NaN values (which is expected)
-        finite_values = curl_field.values[np.isfinite(curl_field.values)]
+        finite = np.isfinite(curl_field.values)
+        assert finite.any(), "No finite curl values found"
 
-        # Check that we have some finite values (interior faces)
-        assert len(finite_values) > 0, "No finite curl values found"
+        radius = uxds.uxgrid._ds.attrs["sphere_radius"]
+        expected = np.tan(np.deg2rad(uxds.uxgrid.face_lat.values)) / radius
 
-        # Curl of constant field should be close to zero for finite values
-        assert np.abs(finite_values).max() < 1e-10, f"Max curl: {np.abs(finite_values).max()}"
+        nt.assert_allclose(
+            curl_field.values[finite], expected[finite], rtol=1e-10, atol=1e-15
+        )
 
     def test_curl_linear_field(self, gridpath, datasetpath):
         """Test curl of linear vector field"""
@@ -686,7 +713,7 @@ class TestCurlDyamondSubset:
         # Check attributes
         assert "long_name" in curl_field.attrs
         assert "description" in curl_field.attrs
-        assert curl_field.attrs["description"] == "Curl of vector field computed as ∂v/∂x - ∂u/∂y"
+        assert curl_field.attrs["description"] == "Curl of vector field computed as ∂v/∂x - ∂u/∂y + u·tan(φ)/a"
 
         # Check name
         expected_name = f"curl_{u_component.name}_{v_component.name}"
@@ -694,3 +721,129 @@ class TestCurlDyamondSubset:
 
         # Check that grid is preserved
         assert curl_field.uxgrid == u_component.uxgrid
+
+
+class TestSphericalManufacturedSolutions:
+    """Amplitude checks against closed-form answers on the unit sphere.
+
+    The existing suite leans on null tests (constant fields, curl of a
+    gradient) and on sign/ordering comparisons. Those stay satisfied when an
+    operator is off by a constant factor, which is how the dual/primal area
+    mismatch and the missing metric terms survived. Each test below has a
+    non-zero exact answer, so a scale error fails immediately.
+    """
+
+    # Away from the poles, where tan(lat) blows up and the finite-volume
+    # stencil degrades.
+    MIDLAT = np.deg2rad(60)
+
+    @staticmethod
+    def _grids():
+        yield "healpix_z5_quad", ux.Grid.from_healpix(zoom=5)
+
+    def test_gradient_amplitude(self):
+        """grad of sin(lat) has meridional component cos(lat), zonal zero."""
+        for label, uxgrid in self._grids():
+            lat = np.deg2rad(uxgrid.face_lat.values)
+            interior = np.abs(lat) < self.MIDLAT
+
+            phi = ux.UxDataArray(
+                np.sin(lat), dims=["n_face"], uxgrid=uxgrid, name="phi"
+            )
+            grad = phi.gradient(scale_by_radius=False)
+
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio = grad["meridional_gradient"].values / np.cos(lat)
+            sel = interior & np.isfinite(ratio)
+            assert np.abs(np.median(ratio[sel]) - 1.0) < 0.01, label
+
+    def test_curl_solid_body_rotation(self):
+        """u = cos(lat), v = 0 has relative vorticity 2*sin(lat)."""
+        for label, uxgrid in self._grids():
+            lat = np.deg2rad(uxgrid.face_lat.values)
+            interior = np.abs(lat) < self.MIDLAT
+
+            u = ux.UxDataArray(
+                np.cos(lat), dims=["n_face"], uxgrid=uxgrid, name="u"
+            )
+            v = ux.UxDataArray(
+                np.zeros_like(lat), dims=["n_face"], uxgrid=uxgrid, name="v"
+            )
+
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio = u.curl(v, scale_by_radius=False).values / (
+                    2 * np.sin(lat)
+                )
+            sel = interior & np.isfinite(ratio)
+            assert np.abs(np.median(ratio[sel]) - 1.0) < 0.01, label
+
+    def test_divergence_amplitude(self):
+        """u = 0, v = cos(lat) has divergence -2*sin(lat)."""
+        for label, uxgrid in self._grids():
+            lat = np.deg2rad(uxgrid.face_lat.values)
+            interior = np.abs(lat) < self.MIDLAT
+
+            u = ux.UxDataArray(
+                np.zeros_like(lat), dims=["n_face"], uxgrid=uxgrid, name="u"
+            )
+            v = ux.UxDataArray(
+                np.cos(lat), dims=["n_face"], uxgrid=uxgrid, name="v"
+            )
+
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio = u.divergence(v, scale_by_radius=False).values / (
+                    -2 * np.sin(lat)
+                )
+            sel = interior & np.isfinite(ratio)
+            assert np.abs(np.median(ratio[sel]) - 1.0) < 0.01, label
+
+    def test_gradient_converges_under_refinement(self):
+        """The error shrinks with resolution instead of sitting at a factor.
+
+        This is the check that separates a normalization bug from truncation
+        error: before the fix the ratio converged to 4.0 on quads.
+        """
+        errors = []
+        for zoom in (4, 5, 6):
+            uxgrid = ux.Grid.from_healpix(zoom=zoom)
+            lat = np.deg2rad(uxgrid.face_lat.values)
+            interior = np.abs(lat) < self.MIDLAT
+
+            phi = ux.UxDataArray(
+                np.sin(lat), dims=["n_face"], uxgrid=uxgrid, name="phi"
+            )
+            grad = phi.gradient(scale_by_radius=False)
+
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio = grad["meridional_gradient"].values / np.cos(lat)
+            sel = interior & np.isfinite(ratio)
+            errors.append(abs(np.median(ratio[sel]) - 1.0))
+
+        assert errors[1] < errors[0]
+        assert errors[2] < errors[1]
+
+    def test_hexagonal_matches_quadrilateral(self, gridpath):
+        """The answer must not depend on cell topology.
+
+        The dual/primal ratio was ~4 on quads and ~3 on hexagons, so an
+        inflated gradient showed up as a topology-dependent answer.
+        """
+        results = {}
+        for label, uxgrid in (
+            ("quad", ux.Grid.from_healpix(zoom=5)),
+            ("hex", ux.open_grid(gridpath("mpas", "QU", "480", "grid.nc"))),
+        ):
+            lat = np.deg2rad(uxgrid.face_lat.values)
+            interior = np.abs(lat) < self.MIDLAT
+
+            phi = ux.UxDataArray(
+                np.sin(lat), dims=["n_face"], uxgrid=uxgrid, name="phi"
+            )
+            grad = phi.gradient(scale_by_radius=False)
+
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio = grad["meridional_gradient"].values / np.cos(lat)
+            sel = interior & np.isfinite(ratio)
+            results[label] = np.median(ratio[sel])
+
+        assert abs(results["quad"] - results["hex"]) < 0.02

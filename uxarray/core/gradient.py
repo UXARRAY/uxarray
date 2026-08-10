@@ -226,15 +226,57 @@ def _compute_gradient(data, scale_by_radius=True):
 
 
 @njit(cache=True)
-def _normalize_and_project_gradient(
-    gradient, index, normal_lat, normal_lon, node_coords, node_neighbors
-):
-    area, _ = calculate_face_area(
-        node_coords[0, node_neighbors].astype(np.float64),
-        node_coords[1, node_neighbors].astype(np.float64),
-        node_coords[2, node_neighbors].astype(np.float64),
-    )
+def _dual_cell_area(stencil_coords):
+    """Spherical area of the contour the Green-Gauss loop integrates around.
 
+    ``stencil_coords`` holds the (3, n) Cartesian centroids of the faces that
+    form the contour. They arrive in connectivity order, which is not
+    necessarily the order in which they trace the polygon, so they are sorted
+    by azimuth about the contour centroid before the area is measured.
+    """
+    n = stencil_coords.shape[1]
+
+    # Contour centroid, used as the pole of the local azimuthal sort.
+    cx = np.sum(stencil_coords[0]) / n
+    cy = np.sum(stencil_coords[1]) / n
+    cz = np.sum(stencil_coords[2]) / n
+    cnorm = np.sqrt(cx * cx + cy * cy + cz * cz)
+    cx, cy, cz = cx / cnorm, cy / cnorm, cz / cnorm
+
+    # Build a local tangent basis at the centroid.
+    if np.abs(cz) < 0.9:
+        ax, ay, az = 0.0, 0.0, 1.0
+    else:
+        ax, ay, az = 1.0, 0.0, 0.0
+    ex = ay * cz - az * cy
+    ey = az * cx - ax * cz
+    ez = ax * cy - ay * cx
+    enorm = np.sqrt(ex * ex + ey * ey + ez * ez)
+    ex, ey, ez = ex / enorm, ey / enorm, ez / enorm
+    fx = cy * ez - cz * ey
+    fy = cz * ex - cx * ez
+    fz = cx * ey - cy * ex
+
+    angles = np.empty(n)
+    for i in range(n):
+        px = stencil_coords[0, i]
+        py = stencil_coords[1, i]
+        pz = stencil_coords[2, i]
+        angles[i] = np.arctan2(px * fx + py * fy + pz * fz, px * ex + py * ey + pz * ez)
+
+    order = np.argsort(angles)
+    sorted_coords = np.empty((3, n))
+    for i in range(n):
+        sorted_coords[0, i] = stencil_coords[0, order[i]]
+        sorted_coords[1, i] = stencil_coords[1, order[i]]
+        sorted_coords[2, i] = stencil_coords[2, order[i]]
+
+    area, _ = calculate_face_area(sorted_coords[0], sorted_coords[1], sorted_coords[2])
+    return area
+
+
+@njit(cache=True)
+def _normalize_and_project_gradient(gradient, index, normal_lat, normal_lon, area):
     gradient = gradient / area
 
     # projection to horizontal gradient
@@ -298,6 +340,17 @@ def _compute_gradients_on_faces(
         gradient = np.zeros(3)
         has_contribution = False
 
+        # Centroids of the faces forming the contour, collected as the loop
+        # walks it so the normalizing area matches the region integrated over.
+        max_stencil = face_node_connectivity.shape[1] * node_edge_connectivity.shape[1]
+        stencil = np.empty(max_stencil, dtype=np.int64)
+        n_stencil = 0
+
+        # Green-Gauss only applies to a closed contour. If any edge in this
+        # face's node neighborhood is missing a second face, the contour is
+        # open and no enclosed area exists.
+        contour_closed = True
+
         for node_idx in face_node_connectivity[face_idx]:  # take each node on that face
             if node_idx != INT_FILL_VALUE:
                 for edge_idx in node_edge_connectivity[
@@ -310,6 +363,7 @@ def _compute_gradients_on_faces(
                         # spurious INT_FILL_VALUE entries (e.g. SCRIP-
                         # derived SE grids like ne120np4).  See #1452.
                         if INT_FILL_VALUE in edge_face_connectivity[edge_idx]:
+                            contour_closed = False
                             continue
 
                         if (
@@ -347,16 +401,34 @@ def _compute_gradients_on_faces(
                             )
                             has_contribution = True
 
-        if not has_contribution:
-            gradient = np.full(3, np.nan)
+                            for cand in (face1_idx, face2_idx):
+                                seen = False
+                                for s in range(n_stencil):
+                                    if stencil[s] == cand:
+                                        seen = True
+                                        break
+                                if not seen:
+                                    stencil[n_stencil] = cand
+                                    n_stencil += 1
 
-        node_neighbors = face_node_connectivity[face_idx]
-        node_neighbors = node_neighbors[node_neighbors != INT_FILL_VALUE]
+        # The contour must be closed, and a polygon, before it encloses an area.
+        if not has_contribution or not contour_closed or n_stencil < 3:
+            gradients_faces[face_idx, 0] = np.nan
+            gradients_faces[face_idx, 1] = np.nan
+            continue
+
+        stencil_coords = np.empty((3, n_stencil))
+        for s in range(n_stencil):
+            stencil_coords[0, s] = face_coords[stencil[s], 0]
+            stencil_coords[1, s] = face_coords[stencil[s], 1]
+            stencil_coords[2, s] = face_coords[stencil[s], 2]
+
+        area = _dual_cell_area(stencil_coords)
 
         # Normalize and project zonal and meridional components and store the result for the current face
         gradients_faces[face_idx, 0], gradients_faces[face_idx, 1] = (
             _normalize_and_project_gradient(
-                gradient, face_idx, normal_lat, normal_lon, node_coords, node_neighbors
+                gradient, face_idx, normal_lat, normal_lon, area
             )
         )
 
