@@ -13,7 +13,7 @@ Closes #XXX
 
 ## Expected Usage
 <!--  If this PR adds a new feature, please provide a short example of it in action.
-      You may ignore this step if it is not applicable (comment out this section). -->
+      You may ignore this step if it is not applicable (delete this section). -->
 ```Python
 import uxarray as ux
 
@@ -60,6 +60,19 @@ other_output = uxds.some_function(some_param = True)
 - [ ] New notebook examples added to appropriate folder (gallery: `docs/examples/`; guide: `docs/user-guide/`; quickstart: `docs/getting-started/`)
 - [ ] New notebook examples referenced in appropriate .rst file (gallery: `docs/gallery.rst`; guide: `docs/userguide.rst`; quickstart: `docs/quickstart.rst`)
 - [ ] New notebook gallery examples added entry in `docs/gallery.yml` with appropriate thumbnail photo in `docs/_static/thumbnails/`
+
+
+## AI Disclosure
+<!-- Please specify all AI tools used. Optionally, include model and/or briefly describe usage. Examples:
+    "AI Usage: Claude (Fable 5), Gemini"
+    "AI Usage: ChatGPT (5.5 Instant) to help understand cause of this bug, but I wrote all updates myself."
+    "AI Usage: just GitHub Copilot's inline code suggestions."
+    If you did not use AI, please write "AI Usage: N/A" and remove these checklist items or mark as [N/A].-->
+
+AI Usage:
+
+- [ ] I take responsibility for all AI-generated content in my PR.
+- [ ] I have tested all AI-generated content in my PR.
 
 <!--
 Thank you so much for your PR!  To help us review your contribution, please
