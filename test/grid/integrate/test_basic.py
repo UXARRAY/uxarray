@@ -96,6 +96,34 @@ def _random_uxda(gridpath, shape, dims):
     [((5400,), ("n_face",)), ((4, 5, 5400), ("a", "b", "n_face"))],
     ids=["single_dim", "multi_dim"],
 )
+def test_integrate_returns_uxdataarray_matching_numpy(gridpath, shape_dims):
+    """Both branches of integrate() return a UxDataArray matching a plain numpy dot product."""
+    dask_array = pytest.importorskip("dask.array")
+    shape, dims = shape_dims
+    uxda = _random_uxda(gridpath, shape, dims)
+
+    # independent reference, computed without going through integrate()
+    expected = uxda.values @ uxda.uxgrid.face_areas.values
+
+    numpy_integral = uxda.integrate()
+    dask_integral = uxda.chunk({"n_face": 100}).integrate()
+
+    # backing type is preserved: eager stays eager, chunked stays lazy
+    assert isinstance(numpy_integral.data, np.ndarray)
+    assert isinstance(dask_integral.data, dask_array.Array)
+
+    for integral in (numpy_integral, dask_integral):
+        assert isinstance(integral, ux.UxDataArray)
+        assert integral.uxgrid is uxda.uxgrid
+        assert integral.dims == dims[:-1]
+        nt.assert_allclose(integral.values, expected, rtol=1e-12, atol=0.0)
+
+
+@pytest.mark.parametrize(
+    "shape_dims",
+    [((5400,), ("n_face",)), ((4, 5, 5400), ("a", "b", "n_face"))],
+    ids=["single_dim", "multi_dim"],
+)
 def test_integrate_dask_reproduces_numpy_whole_face_dim(gridpath, shape_dims):
     # 'n_face' in a single chunk: xr.dot performs one reduction per block, in the
     # same order as the numpy path's einsum, so agreement must be exact.
