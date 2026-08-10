@@ -28,7 +28,7 @@ def test_multi_dim(gridpath):
     assert integral.ndim == len(dims) - 1
     nt.assert_almost_equal(integral, np.ones((5, 5)) * 4 * np.pi)
 
-<<<<<<< Updated upstream
+
 def test_integrate_crashes_when_nnode_equals_nface():
     """Ensure UxDataArray.integrate() crashes for non-face_centered data, even if n_node==n_face.
     regression test for issue #1616.
@@ -80,7 +80,7 @@ def test_integrate_crashes_when_nnode_equals_nface():
     # ensure integrate() crashes for non-face_centered data, even if n_node==n_face
     with pytest.raises(ValueError):
         uxarr.integrate()
-=======
+
 
 def _random_uxda(gridpath, shape, dims):
     """Non-uniform test data, so a reordered reduction actually shows up."""
@@ -141,4 +141,3 @@ def test_integrate_dask_reproduces_numpy_chunked_face_dim(gridpath, shape_dims):
         nt.assert_allclose(
             numpy_integral.values, dask_integral.values, rtol=1e-12, atol=0.0
         )
->>>>>>> Stashed changes
