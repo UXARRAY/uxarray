@@ -31,6 +31,38 @@ def _write_sparse_map(path: Path, source_size: int, destination_size: int) -> Pa
     return path
 
 
+def _write_dense_map(
+    path: Path, source_size: int, destination_size: int, nnz_per_row: int = 3
+) -> Path:
+    """A map with several non-trivial weights per destination row.
+
+    ``_write_sparse_map`` builds a pure permutation with unit weights, so the
+    sparse multiply never sums anything. Use this when the summation itself
+    matters.
+    """
+    rng = np.random.default_rng(0)
+    rows = np.repeat(np.arange(1, destination_size + 1), nnz_per_row).astype(np.int32)
+    cols = (rng.integers(0, source_size, size=destination_size * nnz_per_row) + 1).astype(
+        np.int32
+    )
+    values = rng.random(destination_size * nnz_per_row)
+
+    ds = xr.Dataset(
+        data_vars={
+            "row": (("n_s",), rows),
+            "col": (("n_s",), cols),
+            "S": (("n_s",), values),
+        },
+        coords={"n_s": np.arange(rows.size, dtype=np.int32)},
+    )
+    ds = ds.assign_coords(
+        n_a=np.arange(source_size, dtype=np.int32),
+        n_b=np.arange(destination_size, dtype=np.int32),
+    )
+    ds.to_netcdf(path)
+    return path
+
+
 def test_load_remap_weights_and_apply_vector(tmp_path, gridpath):
     grid = ux.open_grid(gridpath("ugrid", "quad-hexagon", "grid.nc"))
     weight_file = _write_sparse_map(
@@ -191,3 +223,37 @@ def test_remap_weights_cache_is_lru_bounded(tmp_path, gridpath):
         _write_sparse_map(path, grid.n_face, grid.n_face)
         load_remap_weights(path)
     assert len(_WEIGHTS_CACHE) == _WEIGHTS_CACHE_MAXSIZE
+
+
+def test_apply_weights_dask_reproduces_numpy(tmp_path, gridpath):
+    # the numpy (eager) and dask (blockwise) branches must agree. The source dim
+    # is forced into a single chunk, so the sparse multiply is never split and
+    # agreement must be exact.
+    dask_array = pytest.importorskip("dask.array")  # dask-backed branch requires dask
+    grid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
+    weight_file = _write_dense_map(tmp_path / "dense_map.nc", grid.n_face, grid.n_face)
+
+    rng = np.random.default_rng(1)
+    source = ux.UxDataArray(
+        xr.DataArray(
+            rng.random((6, grid.n_face)),
+            dims=["time", "n_face"],
+            name="temperature",
+            attrs={"units": "K"},
+        ),
+        uxgrid=grid,
+    )
+
+    numpy_result = source.remap.apply_weights(grid, weight_file)
+    assert isinstance(numpy_result.data, np.ndarray)
+
+    # including chunkings of the source dim, which _apply_weights must rechunk away
+    for chunks in ({"time": 2}, {"n_face": 50}, {"time": 2, "n_face": 50}):
+        dask_result = source.chunk(chunks).remap.apply_weights(grid, weight_file)
+
+        assert isinstance(dask_result.data, dask_array.Array)
+
+        assert numpy_result.dims == dask_result.dims
+        assert numpy_result.dtype == dask_result.dtype
+        nt.assert_array_equal(numpy_result.values, dask_result.values)
+        nt.assert_equal(dask_result.attrs["units"], "K")

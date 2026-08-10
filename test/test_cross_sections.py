@@ -226,3 +226,70 @@ def test_cross_section(gridpath, datasetpath):
         _ = uxds['RELHUM'].cross_section(start=(45, 45))
         _ = uxds['RELHUM'].cross_section(lon=45, end=(45, 45))
         _ = uxds['RELHUM'].cross_section()
+
+
+CROSS_SECTION_MODES = [
+    dict(start=(-45, -45), end=(45, 45)),
+    dict(lat=45),
+    dict(lon=45),
+    dict(lon=45, steps=3),
+]
+
+
+def test_cross_section_dask_reproduces_numpy(gridpath, datasetpath):
+    # the numpy (eager) and dask (lazy gather) branches must agree
+    dask_array = pytest.importorskip("dask.array")  # dask-backed branch requires dask
+    uxds = ux.open_dataset(gridpath("scrip", "ne30pg2", "grid.nc"), datasetpath("scrip", "ne30pg2", "data.nc"))
+    uxda = uxds['RELHUM']  # ('lev', 'n_face'), so the face dim is not the leading one
+
+    for kwargs in CROSS_SECTION_MODES:
+        numpy_result = uxda.cross_section(**kwargs)
+
+        # chunk the face dim as well: the gather must not rely on n_face being whole
+        for chunks in ({"lev": 8}, {"n_face": 4000}, {"lev": 8, "n_face": 4000}):
+            dask_result = uxda.chunk(chunks).cross_section(**kwargs)
+
+            # the accessor no longer calls .compute(), so the result stays lazy
+            assert isinstance(dask_result.data, dask_array.Array)
+
+            assert numpy_result.dims == dask_result.dims
+            assert numpy_result.dtype == dask_result.dtype
+            nt.assert_array_equal(numpy_result.values, dask_result.values)
+            nt.assert_array_equal(numpy_result.lat.values, dask_result.lat.values)
+            nt.assert_array_equal(numpy_result.lon.values, dask_result.lon.values)
+
+
+def test_cross_section_dask_reproduces_numpy_partial_coverage(gridpath, datasetpath):
+    # steps with no containing face become NaN; that fill path must match too
+    dask_array = pytest.importorskip("dask.array")  # dask-backed branch requires dask
+    uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"),
+                           datasetpath("ugrid", "quad-hexagon", "multi_dim_data.nc"))
+    uxda = uxds['multi_dim_data']  # ('time', 'lev', 'n_face') over a 4-face regional patch
+
+    # arc starts inside the patch and leaves it, so the result mixes data with NaN
+    kwargs = dict(start=(-0.043, -0.112), end=(5, 5))
+    numpy_result = uxda.cross_section(**kwargs)
+    nan_mask = np.isnan(numpy_result.values)
+    assert nan_mask.any() and not nan_mask.all()
+
+    for chunks in ({"time": 2}, {"time": 2, "lev": 3}, {"time": 2, "n_face": 1}):
+        dask_result = uxda.chunk(chunks).cross_section(**kwargs)
+
+        assert isinstance(dask_result.data, dask_array.Array)
+
+        assert numpy_result.dims == dask_result.dims
+        assert numpy_result.dtype == dask_result.dtype
+        nt.assert_array_equal(numpy_result.values, dask_result.values)
+
+    # 'n_face' in a leading position: 'steps' must land in its place. This is the
+    # case the replaced numpy path handled with an explicit moveaxis round-trip.
+    leading = uxda.transpose("n_face", "time", "lev")
+    leading_numpy = leading.cross_section(**kwargs)
+    leading_dask = leading.chunk({"time": 2}).cross_section(**kwargs)
+
+    assert leading_numpy.dims == ("steps", "time", "lev")
+    assert leading_numpy.dims == leading_dask.dims
+    nt.assert_array_equal(leading_numpy.values, leading_dask.values)
+    nt.assert_array_equal(
+        leading_numpy.transpose(*numpy_result.dims).values, numpy_result.values
+    )
