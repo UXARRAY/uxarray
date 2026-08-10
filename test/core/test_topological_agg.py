@@ -38,7 +38,7 @@ def test_node_to_edge_aggs(gridpath):
 
 def test_node_to_face_dask_reproduces_numpy(gridpath):
     # the numpy (eager) and dask (chunked) branches must agree
-    pytest.importorskip("dask")  # dask-backed branch requires dask
+    da = pytest.importorskip("dask")  # dask-backed branch requires dask
     uxds = ux.open_dataset(gridpath("mpas", "QU", "oQU480.231010.nc"), gridpath("mpas", "QU", "oQU480.231010.nc"))
     uxda = uxds['areaTriangle']
 
@@ -46,7 +46,7 @@ def test_node_to_face_dask_reproduces_numpy(gridpath):
         numpy_result = getattr(uxda, agg_func)(destination='face')
         dask_result = getattr(uxda.chunk(), agg_func)(destination='face')
 
-        assert isinstance(dask_result, ux.UxDataArray)
+        assert isinstance(dask_result.data, da.array.Array)
         assert numpy_result.dims == dask_result.dims
         assert numpy_result.dtype == dask_result.dtype
         # both paths run the same kernel over the same partitions, so they must
@@ -56,7 +56,7 @@ def test_node_to_face_dask_reproduces_numpy(gridpath):
 
 def test_node_to_edge_dask_reproduces_numpy(gridpath):
     # the numpy (eager) and dask (chunked) branches must agree
-    pytest.importorskip("dask")  # dask-backed branch requires dask
+    da = pytest.importorskip("dask")  # dask-backed branch requires dask
     uxds = ux.open_dataset(gridpath("mpas", "QU", "oQU480.231010.nc"), gridpath("mpas", "QU", "oQU480.231010.nc"))
     uxda = uxds['areaTriangle']
 
@@ -64,7 +64,7 @@ def test_node_to_edge_dask_reproduces_numpy(gridpath):
         numpy_result = getattr(uxda, agg_func)(destination='edge')
         dask_result = getattr(uxda.chunk(), agg_func)(destination='edge')
 
-        assert isinstance(dask_result, ux.UxDataArray)
+        assert isinstance(dask_result.data, da.array.Array)
         assert numpy_result.dims == dask_result.dims
         assert numpy_result.dtype == dask_result.dtype
         # both paths run the same kernel over the same partitions, so they must
@@ -77,7 +77,7 @@ def test_node_aggs_dask_reproduces_numpy_blockwise(gridpath, destination):
     # 'areaTriangle' is 1D, so chunking it leaves a single block and the
     # blockwise machinery is never exercised. Add a leading dimension so the
     # dask path really runs the kernel once per chunk.
-    pytest.importorskip("dask")  # dask-backed branch requires dask
+    da = pytest.importorskip("dask")  # dask-backed branch requires dask
     uxds = ux.open_dataset(gridpath("mpas", "QU", "oQU480.231010.nc"), gridpath("mpas", "QU", "oQU480.231010.nc"))
     uxgrid = uxds['areaTriangle'].uxgrid
 
@@ -91,7 +91,7 @@ def test_node_aggs_dask_reproduces_numpy_blockwise(gridpath, destination):
         chunked = uxda.chunk({"lev": 2})
         dask_result = getattr(chunked, agg_func)(destination=destination)
 
-        assert isinstance(dask_result, ux.UxDataArray)
+        assert isinstance(dask_result.data, da.array.Array)
         # three chunks along 'lev', so the kernel is applied three times
         assert len(dask_result.chunks[0]) == 3
 
