@@ -439,7 +439,7 @@ def make_setter(key: str):
 
     def setter(self, value):
         if not isinstance(value, xr.DataArray):
-            raise ValueError(f"{key} must be an xr.DataArray")
+            raise TypeError(f"{key} must be an xr.DataArray")
         self._ds[key] = value
 
     return setter

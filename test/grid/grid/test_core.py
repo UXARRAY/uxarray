@@ -131,5 +131,5 @@ def test_dual_mesh_mpas(gridpath):
 def test_dual_duplicate(gridpath):
     """Test dual mesh creation with duplicate grids."""
     dataset = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), gridpath("ugrid", "geoflow-small", "grid.nc"))
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ux.errors.GridInvalidError):
         dataset.get_dual()
