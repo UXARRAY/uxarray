@@ -3,8 +3,8 @@ import xarray as xr
 
 import uxarray.conventions.ugrid as ugrid
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.conventions.descriptors import DESCRIPTOR_NAMES
+from uxarray.grid.connectivity import _replace_fill_values
 
 def _read_ugrid(ds):
     """Parses an unstructured grid dataset and encodes it in the UGRID
