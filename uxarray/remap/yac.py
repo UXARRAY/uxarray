@@ -122,7 +122,7 @@ def _get_lon_lat(grid, dim: str) -> tuple[np.ndarray, np.ndarray]:
     lon = getattr(grid, lon_attr, None)
     lat = getattr(grid, lat_attr, None)
     if lon is None or lat is None:
-        raise ValueError(
+        raise AttributeError(
             f"Grid does not provide {lon_attr}/{lat_attr} required for YAC remapping."
         )
     return np.deg2rad(np.asarray(lon.values, dtype=np.float64)), np.deg2rad(
