@@ -212,6 +212,36 @@ class TestGradientDyamondSubset:
         assert np.abs(np.median(ratio) - 1.0) < 0.01
 
 
+class TestGradientDualCellArea:
+    """The dual cell is frequently non-convex, so its area has to be measured
+    with a signed fan sum."""
+
+    @pytest.mark.parametrize("zoom,tol", [(4, 0.02), (5, 0.01), (6, 0.006)])
+    def test_gradient_worst_case_error_converges(self, zoom, tol):
+        """Bound the worst face, not just the median.
+
+        A HealPix dual cell alternates near edge-neighbor centroids with far
+        corner-neighbor centroids, so a fan from vertex 0 sweeps some triangles
+        backwards. Summing their spherical excess unsigned double-counts those
+        and leaves a ~19% error on the worst face that does not shrink with
+        resolution; only the median looks healthy. Guard the tail so that a
+        regression to an unsigned sum fails here.
+        """
+        uxgrid = ux.Grid.from_healpix(zoom)
+        lat = np.deg2rad(uxgrid.face_lat.values)
+        phi = ux.UxDataArray(np.sin(lat), dims=["n_face"], uxgrid=uxgrid, name="phi")
+
+        mg = phi.gradient(scale_by_radius=False)["meridional_gradient"].values
+
+        # d/dlat of sin(lat) is cos(lat); stay off the poles where the
+        # projection is ill-conditioned.
+        ok = np.isfinite(mg) & (np.abs(lat) < np.deg2rad(60))
+        assert ok.any()
+
+        error = np.abs(mg[ok] / np.cos(lat[ok]) - 1.0)
+        assert error.max() < tol
+
+
 class TestDivergenceQuadHex:
 
     def test_divergence_output_format(self, gridpath, datasetpath):

@@ -241,25 +241,23 @@ def _dual_cell_area(sx, sy, sz, angles, n):
     roughly 80x the exact answer (23.9 us vs 0.3 us per call) and was slightly
     less accurate.
 
-    Two properties of the retired quadrature are reproduced deliberately:
+    The fan triangles are summed *signed*, and the magnitude is taken once at
+    the end. Dual cells are frequently non-convex -- a HealPix dual cell
+    alternates near edge-neighbor centroids with far corner-neighbor centroids
+    -- and for a non-convex polygon a fan from vertex 0 sweeps some triangles
+    backwards. Those must cancel. The retired quadrature accumulated unsigned
+    Jacobians instead, which double-counts the reversed triangles: measured
+    against the exact ``d/dlat sin(lat) = cos(lat)`` solution on HealPix, the
+    unsigned area leaves a worst-case gradient error of ~19% that does not
+    improve with resolution (0.186 / 0.192 / 0.196 at z4 / z5 / z6), while the
+    signed sum converges as expected (0.0127 / 0.0088 / 0.0051). Roughly 46% of
+    z4 dual cells are affected, by up to 20% in area.
 
-    - It accumulated *unsigned* Jacobians, i.e. an unsigned sum over fan
-      triangles from vertex 0. Dual cells are often non-convex -- a HealPix dual
-      cell alternates near edge-neighbor centroids with far corner-neighbor
-      centroids -- and for those a signed excess sum differs from an unsigned
-      one by ~1%. Summing ``abs`` per triangle matches the previous area to
-      ~5e-14; a signed sum does not. This is a compatibility choice, not a claim
-      that unsigned is the geometrically correct convention for a
-      self-overlapping fan.
-    - It was scale-invariant, because its Jacobian divided the radius out. The
-      excess formula is not, so the points are normalized onto the unit sphere
-      first: some grids store ``face_x``/``face_y``/``face_z`` in meters rather
-      than as unit vectors (e.g. the dyamond-30km test subset, at a radius of
-      6.37e6).
-
-    Gradients therefore shift by up to ~5e-6 relative to the quadrature-based
-    implementation. That gap is the retired quadrature's own truncation error;
-    the closed form is the more accurate value.
+    Scale invariance is preserved from the quadrature, whose Jacobian divided
+    the radius out. The excess formula has no such property, so the points are
+    normalized onto the unit sphere first: some grids store
+    ``face_x``/``face_y``/``face_z`` in meters rather than as unit vectors
+    (e.g. the dyamond-30km test subset, at a radius of 6.37e6).
     """
     # The excess formula needs unit vectors; face centroids are not always stored
     # normalized.
@@ -323,7 +321,8 @@ def _dual_cell_area(sx, sy, sz, angles, n):
         sy[j + 1] = ky
         sz[j + 1] = kz
 
-    # Spherical excess of each fan triangle from vertex 0, summed unsigned.
+    # Spherical excess of each fan triangle from vertex 0, summed signed so
+    # that backward-swept triangles of a non-convex cell cancel.
     area = 0.0
     ax = sx[0]
     ay = sy[0]
@@ -346,9 +345,9 @@ def _dual_cell_area(sx, sy, sz, angles, n):
             + (bx * cx + by * cy + bz * cz)
             + (cx * ax + cy * ay + cz * az)
         )
-        area += np.abs(2.0 * np.arctan2(triple, denom))
+        area += 2.0 * np.arctan2(triple, denom)
 
-    return area
+    return np.abs(area)
 
 
 @njit(cache=True, parallel=True)
