@@ -1,4 +1,5 @@
 import math
+import warnings
 
 import numpy as np
 import xarray as xr
@@ -6,6 +7,7 @@ from numba import njit, prange
 
 from uxarray.constants import ERROR_TOLERANCE
 from uxarray.conventions import ugrid
+from uxarray.errors import DimensionError
 from uxarray.grid.utils import _small_angle_of_2_vectors
 
 
@@ -750,8 +752,6 @@ def _set_desired_longitude_range(uxgrid):
     """
     if _is_projected_grid(uxgrid):
         if not getattr(uxgrid, "_projected_warning_issued", False):
-            import warnings
-
             warnings.warn(
                 "Projected (non-spherical) coordinates detected on this grid "
                 "(standard_name='projection_x_coordinate' or length units). "
@@ -791,7 +791,7 @@ def prepare_points(points, normalize):
         if normalize:
             x, y, z = _normalize_xyz(x, y, z)
     else:
-        raise ValueError(
+        raise DimensionError(
             "Points must be a sequence of length 2 (longitude, latitude) or 3 (x, y, z coordinates)."
         )
 
@@ -829,7 +829,7 @@ def points_atleast_2d_xyz(points):
     elif points.shape[1] == 3:
         points_xyz = points
     else:
-        raise ValueError(
+        raise DimensionError(
             "Points are neither Cartesian (shape N x 3) nor Spherical (shape N x 2)."
         )
 

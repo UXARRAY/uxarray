@@ -156,4 +156,6 @@ def _read_icon(ext_ds, use_dual=False):
     if not use_dual:
         return _primal_to_ugrid(ext_ds, out_ds)
     else:
-        raise ValueError("Conversion of the ICON Dual mesh is not yet supported.")
+        raise NotImplementedError(
+            "Conversion of the ICON Dual mesh is not yet supported."
+        )

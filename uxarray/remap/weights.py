@@ -4,12 +4,16 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import xarray as xr
-from scipy import sparse
 
 from uxarray.core.utils import _open_dataset_with_fallback
+from uxarray.errors import DimensionError
+
+if TYPE_CHECKING:
+    from scipy import sparse
 
 # LRU-bounded cache for loaded remap operators.
 _WEIGHTS_CACHE_MAXSIZE = 32
@@ -83,6 +87,8 @@ class RemapWeights:
     @classmethod
     def from_file(cls, filename_or_obj: str | PathLike[str] | xr.Dataset):
         """Load a standard sparse remap-weight file into memory once."""
+        from scipy import sparse
+
         if isinstance(filename_or_obj, xr.Dataset):
             ds = filename_or_obj
             close_ds = False
@@ -118,7 +124,7 @@ class RemapWeights:
             ).ravel()
 
             if not (row.size == col.size == values.size):
-                raise ValueError(
+                raise DimensionError(
                     "Remap weights require row, col, and weight arrays of equal length."
                 )
 
@@ -147,10 +153,10 @@ class RemapWeights:
         values = np.asarray(values)
 
         if values.ndim == 0:
-            raise ValueError("Remap weights require at least a 1-D input array.")
+            raise DimensionError("Remap weights require at least a 1-D input array.")
 
         if values.shape[-1] != self.source_size:
-            raise ValueError(
+            raise DimensionError(
                 f"Expected trailing dimension of size {self.source_size}, "
                 f"got {values.shape[-1]}."
             )

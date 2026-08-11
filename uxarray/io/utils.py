@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 
+from uxarray.errors import GridInvalidError
 from uxarray.io._esmf import _esmf_to_ugrid_dims
 from uxarray.io._icon import _icon_to_ugrid_dims
 from uxarray.io._mpas import _mpas_to_ugrid_dims
@@ -120,7 +121,9 @@ def _parse_grid_type(dataset):
         mesh_type = "Structured"
         return mesh_type, lon_name, lat_name
     else:
-        raise RuntimeError("Could not recognize dataset format.")
+        raise GridInvalidError(
+            "Failed to parse uxgrid information from xarray.Dataset."
+        )
 
     return mesh_type, None, None
 

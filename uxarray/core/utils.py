@@ -1,5 +1,6 @@
 import xarray as xr
 
+from uxarray.errors import DimensionError
 from uxarray.io.utils import _get_source_dims_dict, _parse_grid_type
 
 
@@ -104,7 +105,11 @@ def match_chunks_to_ugrid(grid_filename_or_obj, chunks):
         # No need to rename
         return chunks
 
-    ds = _open_dataset_with_fallback(grid_filename_or_obj, chunks=chunks)
+    if isinstance(grid_filename_or_obj, xr.Dataset):
+        ds = grid_filename_or_obj
+    else:
+        ds = _open_dataset_with_fallback(grid_filename_or_obj, chunks=chunks)
+
     grid_spec, _, _ = _parse_grid_type(ds)
 
     source_dims_dict = _get_source_dims_dict(ds, grid_spec)
@@ -137,7 +142,7 @@ def _validate_indexers(indexers, indexers_kwargs, func_name, ignore_grid):
     }
 
     if not ignore_grid and len(grid_dims) > 1:
-        raise ValueError(
+        raise DimensionError(
             f"Only one grid dimension can be sliced at a time; got {sorted(grid_dims)}."
         )
 
