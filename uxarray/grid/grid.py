@@ -1952,30 +1952,24 @@ class Grid:
 
     def compute_face_node_angles(
         self,
-        geometry: str = "spherical",
         *,
         degrees: bool = False,
-        assume_convex: bool = False,
         cache: bool | None = None,
         as_uxarray: bool = False,
-    ) -> xr.DataArray:
+    ) -> xr.DataArray | UxDataArray:
         """Compute the angles at each node of each face in the grid.
+        Assumes convex faces and a spherical geometry (consistent with other uxarray methods).
 
         Parameters
         ----------
-        geometry : str, "spherical" or "flat", defaults to "spherical"
-            The geometry to use for angle computation.
-            If "spherical", angles are computed considering the tangent plane at each node.
-            If "flat", angles are computed in 3D Cartesian space,
-            ignoring the true spherical geometry of the grid, but may be faster to compute.
         degrees : bool, defaults to False
             Whether to return angles in degrees (if True) or radians (if False).
         assume_convex : bool, defaults to False
             Whether to assume that all faces are convex, i.e. all internal angles less than 180 degrees.
             If True, uses a more efficient algorithm that will produce incorrect results for non-convex faces.
         cache : None or bool, defaults to None
-            Whether to cache the computed angles in the grid's dataset, in face_node_angles (if "spherical" geometry)
-            or face_node_angles_flat (if "flat" or "euclidean" geometry). Cached angles are always in radians.
+            Whether to cache the computed angles in the grid's dataset, in face_node_angles data variable.
+            Cached angles are always in radians.
             If None, use cached result if available, else compute but do not cache result.
             If True, use cached result if available, else compute and cache result.
             If False, always recompute; do not check or store in cache.
@@ -1991,38 +1985,34 @@ class Grid:
         """
         from uxarray.conventions.ugrid import FACE_DIM, N_MAX_FACE_NODES_DIM
 
-        if geometry not in ("spherical", "flat"):
-            raise ValueError(
-                f"Invalid geometry {geometry!r}; expected 'spherical' or 'flat'."
-            )
-        name = "face_node_angles" if geometry == "spherical" else "face_node_angles_flat"
+        name = "face_node_angles"
         result = None
         if cache is None or cache:
             if name in self._ds:
                 result = self._ds[name]
         if result is None:  # result not in cache; need to compute it
-            if assume_convex:
-                result = _compute_face_node_angles_convex(
-                    self.node_x.values, self.node_y.values, self.node_z.values,
-                    self.face_node_connectivity.values, self.n_nodes_per_face.values,
-                    geometry=geometry,
-                )
-            else:
-                raise NotImplementedError('[TODO] Non-convex face angle computation.')
+            result = _compute_face_node_angles_convex(
+                self.node_x.values,
+                self.node_y.values,
+                self.node_z.values,
+                self.face_node_connectivity.values,
+                self.n_nodes_per_face.values,
+            )
             # convert to xr.DataArray
             result = xr.DataArray(
                 data=result,
                 dims=[FACE_DIM, N_MAX_FACE_NODES_DIM],
                 name=name,
-                attrs={"description": ("Internal angles at each node of each face. "
-                                      f"(geometry={geometry}, assume_convex={assume_convex})")},
+                attrs={"description": "Internal angles at each node of each face."},
             )
             if cache:
                 self._ds[name] = result
         if degrees:
             result = np.rad2deg(result)
         if as_uxarray:
-            from uxarray.core.dataarray import UxDataArray  # import at runtime to avoid circular import
+            from uxarray.core.dataarray import UxDataArray
+            # ^import at runtime to avoid circular import
+
             result = UxDataArray(result, uxgrid=self)
         return result
 

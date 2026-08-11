@@ -2,9 +2,8 @@
 Purpose: angle calculations on a grid
 """
 
-from numba import njit, prange
 import numpy as np
-import xarray as xr
+from numba import njit, prange
 
 from uxarray.grid.utils import _small_angle_of_2_vectors
 
@@ -16,11 +15,10 @@ def _compute_face_node_angles_convex(
     node_z,
     face_node_connectivity,
     n_nodes_per_face,
-    *,
-    geometry="spherical",
 ):
     """
-    Calculate the angles at each node for each face assuming the faces are convex.
+    Calculate the angles at each node for each face, assuming convex faces
+    and a spherical geometry (these assumptions occur throughout uxarray).
 
     Parameters
     ----------
@@ -34,10 +32,6 @@ def _compute_face_node_angles_convex(
         Connectivity array defining which nodes form each face.
     n_nodes_per_face : np.ndarray with shape (n_faces,)
         Number of nodes for each face.
-    geometry : str, "spherical" or "flat", default "spherical"
-        The geometry to use. "spherical" respects the true underlying geometry,
-        by projecting edges onto the tangent plane at each node.
-        "flat" finds angles between chords, which is less accurate but also less expensive.
 
     Returns
     -------
@@ -56,13 +50,16 @@ def _compute_face_node_angles_convex(
             xhere = node_x[ihere]
             yhere = node_y[ihere]
             zhere = node_z[ihere]
-            v1 = np.array([node_x[iprev] - xhere, node_y[iprev] - yhere, node_z[iprev] - zhere])
-            v2 = np.array([node_x[inext] - xhere, node_y[inext] - yhere, node_z[inext] - zhere])
-            if geometry == "spherical":
-                # Project onto tangent plane at the current node
-                normal = np.array([xhere, yhere, zhere])
-                normal /= np.linalg.norm(normal)
-                v1 -= np.dot(v1, normal) * normal
-                v2 -= np.dot(v2, normal) * normal
+            v1 = np.array(
+                [node_x[iprev] - xhere, node_y[iprev] - yhere, node_z[iprev] - zhere]
+            )
+            v2 = np.array(
+                [node_x[inext] - xhere, node_y[inext] - yhere, node_z[inext] - zhere]
+            )
+            # Spherical geometry: project onto tangent plane at the current node
+            normal = np.array([xhere, yhere, zhere])
+            normal /= np.linalg.norm(normal)
+            v1 -= np.dot(v1, normal) * normal
+            v2 -= np.dot(v2, normal) * normal
             result[i, j] = _small_angle_of_2_vectors(v1, v2)
     return result
