@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 
 import uxarray as ux
+
 from .helpers._memsize import grid_nbytes
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -58,11 +59,20 @@ class GridBenchmark:
 
 
 class FaceAreas(GridBenchmark):
+    number = 1 # face_areas only calculates once before being cached
+
+    def setup(self, resolution, *args, **kwargs):
+        super().setup(resolution, *args, **kwargs)
+        del self.uxgrid._ds["face_areas"] # guarantee it is empty
+
     def time_face_areas(self, resolution):
         _ = self.uxgrid.face_areas
 
-    def peakmem_face_areas(self, resolution):
-        _ = self.uxgrid.face_areas
+    def track_nbytes_face_areas(self, resolution):
+        """Size of the materialized ``Grid.face_areas`` array."""
+        return self.uxgrid.face_areas.nbytes
+
+    track_nbytes_face_areas.unit = "bytes"
 
 
 class Gradient(DatasetBenchmark):
