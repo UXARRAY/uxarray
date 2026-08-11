@@ -6,6 +6,7 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions.descriptors import DESCRIPTOR_NAMES
 from uxarray.grid.connectivity import _replace_fill_values
 
+
 def _read_ugrid(ds):
     """Parses an unstructured grid dataset and encodes it in the UGRID
     conventions."""
@@ -87,6 +88,7 @@ def _read_ugrid(ds):
 
     return ds, dim_dict
 
+
 def _keep_only_grid_vars(ds):
     """Return ``ds`` with only recognized UGRID grid variables/coordinates.
 
@@ -97,15 +99,20 @@ def _keep_only_grid_vars(ds):
     """
     # uxarray's own canonical grid-variable names (the same lists Grid filters against)
     keep = {"grid_topology"}
-    keep.update(ugrid.SPHERICAL_COORD_NAMES)   # node/edge/face lon-lat
-    keep.update(ugrid.CARTESIAN_COORD_NAMES)   # node/edge/face x-y-z
-    keep.update(ugrid.CONNECTIVITY_NAMES)      # face_node_connectivity, edge_node_connectivity, ...
-    keep.update(DESCRIPTOR_NAMES)              # n_nodes_per_face, face_areas, boundary_*_indices, ...
+    keep.update(ugrid.SPHERICAL_COORD_NAMES)  # node/edge/face lon-lat
+    keep.update(ugrid.CARTESIAN_COORD_NAMES)  # node/edge/face x-y-z
+    keep.update(
+        ugrid.CONNECTIVITY_NAMES
+    )  # face_node_connectivity, edge_node_connectivity, ...
+    keep.update(
+        DESCRIPTOR_NAMES
+    )  # n_nodes_per_face, face_areas, boundary_*_indices, ...
 
     # drop_vars removes variables/coords by name (never bare dimensions), so grid
     # dims survive with their variables; errors="ignore" tolerates absent names.
     drop = [name for name in ds.variables if name not in keep]
     return ds.drop_vars(drop, errors="ignore")
+
 
 def _encode_ugrid(ds):
     """Encodes an unstructured grid represented under a ``Grid`` object as a
