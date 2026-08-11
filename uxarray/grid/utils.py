@@ -40,7 +40,9 @@ def _small_angle_of_2_vectors(u, v):
         v_norm_times_u[1] + u_norm_times_v[1],
         v_norm_times_u[2] + u_norm_times_v[2],
     )
-    angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus), np.linalg.norm(vec_sum))
+    norm_vec_minus = _numba_norm3(vec_minus)
+    norm_vec_sum = _numba_norm3(vec_sum)
+    angle_u_v_rad = 2 * np.arctan2(norm_vec_minus, norm_vec_sum)
     return angle_u_v_rad
 
 
