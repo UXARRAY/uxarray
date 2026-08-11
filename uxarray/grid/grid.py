@@ -1964,9 +1964,6 @@ class Grid:
         ----------
         degrees : bool, defaults to False
             Whether to return angles in degrees (if True) or radians (if False).
-        assume_convex : bool, defaults to False
-            Whether to assume that all faces are convex, i.e. all internal angles less than 180 degrees.
-            If True, uses a more efficient algorithm that will produce incorrect results for non-convex faces.
         cache : None or bool, defaults to None
             Whether to cache the computed angles in the grid's dataset, in face_node_angles data variable.
             Cached angles are always in radians.
@@ -2011,7 +2008,6 @@ class Grid:
             result = np.rad2deg(result)
         if as_uxarray:
             from uxarray.core.dataarray import UxDataArray
-            # ^import at runtime to avoid circular import
 
             result = UxDataArray(result, uxgrid=self)
         return result

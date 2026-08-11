@@ -12,9 +12,9 @@ def _small_angle_of_2_vectors(u, v):
 
     Parameters
     ----------
-    u : numpy.ndarray
+    u : numpy.ndarray or iterable of length 3
         The first 3D vector.
-    v : numpy.ndarray
+    v : numpy.ndarray or iterable of length 3
         The second 3D vector.
 
     Returns
@@ -22,12 +22,51 @@ def _small_angle_of_2_vectors(u, v):
     float
         The smallest angle between `u` and `v` in radians.
     """
-    v_norm_times_u = np.linalg.norm(v) * u
-    u_norm_times_v = np.linalg.norm(u) * v
-    vec_minus = v_norm_times_u - u_norm_times_v
-    vec_sum = v_norm_times_u + u_norm_times_v
+    # don't convert to numpy array if not already numpy array
+    # --> use u[0], u[1], u[2] instead of np.linalg.norm.
+    # TODO: replace with a numba norm function, instead of repeating the logic inline here.
+    # The formula is: angle = 2 * arctan2(| |v|*u - |u|*v |, | |v|*u + |u|*v |)
+    v_norm = _numba_norm3(v)
+    u_norm = _numba_norm3(u)
+    v_norm_times_u = (v_norm * u[0], v_norm * u[1], v_norm * u[2])
+    u_norm_times_v = (u_norm * v[0], u_norm * v[1], u_norm * v[2])
+    vec_minus = (
+        v_norm_times_u[0] - u_norm_times_v[0],
+        v_norm_times_u[1] - u_norm_times_v[1],
+        v_norm_times_u[2] - u_norm_times_v[2],
+    )
+    vec_sum = (
+        v_norm_times_u[0] + u_norm_times_v[0],
+        v_norm_times_u[1] + u_norm_times_v[1],
+        v_norm_times_u[2] + u_norm_times_v[2],
+    )
     angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus), np.linalg.norm(vec_sum))
     return angle_u_v_rad
+
+
+# TODO: move _numba_norm3 to a higher-level utils file. For more details, see issue #1648.
+@njit(cache=True)
+def _numba_norm3(u):
+    """
+    Compute the Euclidean norm of a 3D vector.
+    Implementation is currently equivalent to np.linalg.norm:
+        sqrt(u[0]**2 + u[1]**2 + u[2]**2)
+
+    Does NOT internally convert u to a list or numpy array;
+    utilizing tuples in numba instead of many tiny lists/arrays
+    can improve performance significantly.
+
+    Parameters
+    ----------
+    u : iterable of length 3, possibly a numpy array
+        The 3D vector.
+
+    Returns
+    -------
+    float
+        The Euclidean norm of the vector `u`.
+    """
+    return (u[0] ** 2 + u[1] ** 2 + u[2] ** 2) ** 0.5
 
 
 @njit(cache=True)
