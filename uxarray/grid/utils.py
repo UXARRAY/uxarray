@@ -22,9 +22,7 @@ def _small_angle_of_2_vectors(u, v):
     float
         The smallest angle between `u` and `v` in radians.
     """
-    # don't convert to numpy array if not already numpy array
-    # --> use u[0], u[1], u[2] instead of np.linalg.norm.
-    # TODO: replace with a numba norm function, instead of repeating the logic inline here.
+    # don't convert to numpy array if not already numpy array.
     # The formula is: angle = 2 * arctan2(| |v|*u - |u|*v |, | |v|*u + |u|*v |)
     v_norm = _numba_norm3(v)
     u_norm = _numba_norm3(u)

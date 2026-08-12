@@ -1972,6 +1972,7 @@ class Grid:
         face_node_angles : xr.DataArray or uxarray.UxDataArray (if as_uxarray=True)
             The internal angles at each node, for each face in the grid.
             Has 'n_face' and 'n_max_face_nodes' dimensions, with same size as in self.
+            For faces with fewer than n_max_face_nodes, fill value is np.nan.
         """
         from uxarray.conventions.ugrid import FACE_DIM, N_MAX_FACE_NODES_DIM
 
