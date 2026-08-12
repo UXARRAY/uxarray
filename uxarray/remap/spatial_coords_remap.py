@@ -3,6 +3,7 @@ from typing import Dict, Literal, Optional, Tuple
 
 import xarray as xr
 
+from uxarray.conventions.ugrid import EDGE_DIM, FACE_DIM, NODE_DIM
 from uxarray.core.dataarray import UxDataArray
 from uxarray.errors import DimensionError
 from uxarray.grid.grid import Grid
@@ -180,12 +181,11 @@ class SpatialCoordsRemapper:
         Optional[str]
             Element type ('nodes', 'faces', 'edges') or None
         """
-        dim_lower = dim_name.lower()
-        if "face" in dim_lower:
+        if dim_name == FACE_DIM:
             return "faces"
-        elif "node" in dim_lower:
+        elif dim_name == NODE_DIM:
             return "nodes"
-        elif "edge" in dim_lower:
+        elif dim_name == EDGE_DIM:
             return "edges"
         return None
 
