@@ -17,7 +17,7 @@ from uxarray.conventions import ugrid
 # Import the utility function for opening datasets with fallback
 from uxarray.core.utils import _open_dataset_with_fallback
 from uxarray.cross_sections import GridCrossSectionAccessor
-from uxarray.errors import DataCenteringError, GridInvalidError
+from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
 from uxarray.formatting_html import grid_repr
 from uxarray.grid.area import _get_all_face_area_from_coords
 from uxarray.grid.bounds import _populate_face_bounds
@@ -569,7 +569,7 @@ class Grid:
             Indicates whether the inputted vertices are in lat/lon, with units in degrees
         """
         if not isinstance(face_vertices, (list, tuple, np.ndarray)):
-            raise ValueError("Input must be either a list, tuple, or np.ndarray")
+            raise TypeError("Input must be either a list, tuple, or np.ndarray")
 
         face_vertices = np.asarray(face_vertices)
 
@@ -580,7 +580,7 @@ class Grid:
             grid_ds = _read_face_vertices(np.array([face_vertices]), latlon)
 
         else:
-            raise RuntimeError(
+            raise DimensionError(
                 f"Invalid Input Dimension: {face_vertices.ndim}. Expected dimension should be "
                 f"3: [n_face, n_node, two/three] or 2 when only "
                 f"one face is passed in."
@@ -633,7 +633,7 @@ class Grid:
             print("Mesh validation successful.")
             return True
         else:
-            raise RuntimeError("Mesh validation failed.")
+            raise GridInvalidError("Mesh validation failed.")
 
     def construct_face_centers(self, method="cartesian average"):
         """Constructs face centers, this method provides users direct control
@@ -1612,7 +1612,7 @@ class Grid:
         """Indices of nodes that border regions not covered by any geometry
         (holes) in a partial grid."""
         if "boundary_node_indices" not in self._ds:
-            raise ValueError
+            raise NotImplementedError
 
         return self._ds["boundary_node_indices"]
 
@@ -1663,7 +1663,7 @@ class Grid:
         if self.is_subset:
             return self._inverse_indices
         else:
-            raise Exception(
+            raise AttributeError(
                 "Grid is not a subset, therefore no inverse face indices exist"
             )
 
@@ -2548,7 +2548,7 @@ class Grid:
         if check_duplicate_nodes:
             if _check_duplicate_nodes_indices(self):
                 # TODO: This is very slow
-                raise RuntimeError("Duplicate nodes found, cannot construct dual")
+                raise GridInvalidError("Duplicate nodes found, cannot construct dual")
 
         # Get dual mesh node face connectivity
         dual_node_face_conn = construct_dual(grid=self)
