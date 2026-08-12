@@ -168,19 +168,19 @@ def test_uxdataset_to_array():
     assert arr2.name == 'custom_name'
 
 
-class TestNeighborhoodFilter:
-    """Tests for ``UxDataset.neighborhood_filter``."""
+class TestNeighborhood:
+    """Tests for ``UxDataset.neighborhood`` and the reductions on it."""
 
     def test_face_centered(self, gridpath, datasetpath):
-        """Ensures the dataset-level filter matches the per-variable
-        ``UxDataArray.neighborhood_filter`` results."""
+        """Ensures the dataset-level reduction matches the per-variable
+        ``UxDataArray.neighborhood`` results."""
         uxds = ux.open_dataset(
             gridpath("ugrid", "outCSne30", "outCSne30.ug"),
             datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
         )
 
-        filtered_ds = uxds.neighborhood_filter(func=np.mean, r=5.0)
-        filtered_da = uxds["psi"].neighborhood_filter(func=np.mean, r=5.0)
+        filtered_ds = uxds.neighborhood(r=5.0).mean()
+        filtered_da = uxds["psi"].neighborhood(r=5.0).mean()
 
         assert isinstance(filtered_ds, UxDataset)
         nt.assert_allclose(filtered_ds["psi"].values, filtered_da.values)
@@ -198,38 +198,16 @@ class TestNeighborhoodFilter:
             uxgrid=uxgrid,
         )
 
-        filtered = uxds.neighborhood_filter(func=np.mean, r=0.0)
+        filtered = uxds.neighborhood(r=0.0).mean()
 
         nt.assert_allclose(filtered["face_var"].values, uxds["face_var"].values)
         nt.assert_allclose(filtered["scalar_var"].values, uxds["scalar_var"].values)
 
-def test_uxgrid_None_is_invalid_in_uxdataset():
-    """Ensures GridInvalidError gets raised if uxgrid=None when getting UxDataset.uxgrid.
-    Regression test for #1620.
-    """
-    # construct array without uxgrid. Ideally this line would crash, but allowing uxgrid=None
-    # is an important workaround for subclassing from xarray. see #1620 for more details.
-    ds = ux.UxDataset({'arr0': xr.DataArray([1,2,3], dims=['n_face'])})
-    # ensure getting arr.uxgrid crashes with GridInvalidError (it is None...)
-    with pytest.raises(uxarray.errors.GridInvalidError):
-        ds.uxgrid
-
-    # trying to set uxgrid to a non-Grid should raise TypeError:
-    with pytest.raises(TypeError):
-        ds.uxgrid = "not a grid"
-    with pytest.raises(TypeError):
-        ds.uxgrid = 123
-    # this remains true even for None, outside of __init__:
-    with pytest.raises(TypeError):
-        ds.uxgrid = None
-    # it also applies (for non-None non-Grid objects) during __init__:
-    with pytest.raises(TypeError):
-        ux.UxDataset({'arr1': xr.DataArray([4,5], dims=['n_face'])}, uxgrid=[1,2])
     def test_one_query_per_grid_location(self):
         """Variables sharing a grid location must share one neighbor query.
 
         The query dominates the cost of a reduction, so rebuilding it per
-        variable would make a dataset filter scale with the number of
+        variable would make a dataset reduction scale with the number of
         variables. Counting calls is the only way to see that from outside.
         """
         from unittest.mock import patch
@@ -253,7 +231,7 @@ def test_uxgrid_None_is_invalid_in_uxdataset():
 
         real = neighbors._csr_neighbors
         with patch.object(neighbors, "_csr_neighbors", side_effect=real) as spy:
-            filtered = uxds.neighborhood_filter("percentile", r=20.0, q=90)
+            filtered = uxds.neighborhood(r=20.0).percentile(90)
 
         assert spy.call_count == 2, (
             f"expected one query per grid location (faces, nodes), got "
@@ -263,5 +241,69 @@ def test_uxgrid_None_is_invalid_in_uxdataset():
         for name in ("face_a", "node_a"):
             nt.assert_allclose(
                 filtered[name].values,
-                uxds[name].neighborhood_filter("percentile", r=20.0, q=90).values,
+                uxds[name].neighborhood(r=20.0).percentile(90).values,
             )
+
+    def test_one_query_reused_across_reductions(self):
+        """A DatasetNeighborhood holds its queries, so a second reduction on
+        the same object must not rebuild them."""
+        from unittest.mock import patch
+
+        import uxarray.grid.neighbors as neighbors
+
+        uxgrid = ux.Grid.from_healpix(zoom=2)
+        rng = np.random.default_rng(0)
+        uxds = UxDataset(
+            data_vars={"face_a": ("n_face", rng.random(uxgrid.n_face))},
+            uxgrid=uxgrid,
+        )
+
+        nb = uxds.neighborhood(r=20.0)
+        real = neighbors._csr_neighbors
+        with patch.object(neighbors, "_csr_neighbors", side_effect=real) as spy:
+            smooth, spread = nb.mean(), nb.std(ddof=1)
+
+        assert spy.call_count == 1, (
+            f"expected the query to be built once and reused, got {spy.call_count}"
+        )
+        assert smooth["face_a"].shape == spread["face_a"].shape
+
+    def test_callable_escape_hatch(self):
+        """``reduce`` applies a user's own function to every grid-mapped
+        variable."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        rng = np.random.default_rng(0)
+        uxds = UxDataset(
+            data_vars={"face_a": ("n_face", rng.random(uxgrid.n_face))},
+            uxgrid=uxgrid,
+        )
+
+        def rms(values, axis):
+            return np.sqrt(np.mean(values**2, axis=axis))
+
+        filtered = uxds.neighborhood(r=20.0).reduce(rms)
+        assert np.all(filtered["face_a"].values >= 0)
+
+
+def test_uxgrid_None_is_invalid_in_uxdataset():
+    """Ensures GridInvalidError gets raised if uxgrid=None when getting UxDataset.uxgrid.
+    Regression test for #1620.
+    """
+    # construct array without uxgrid. Ideally this line would crash, but allowing uxgrid=None
+    # is an important workaround for subclassing from xarray. see #1620 for more details.
+    ds = ux.UxDataset({'arr0': xr.DataArray([1,2,3], dims=['n_face'])})
+    # ensure getting arr.uxgrid crashes with GridInvalidError (it is None...)
+    with pytest.raises(uxarray.errors.GridInvalidError):
+        ds.uxgrid
+
+    # trying to set uxgrid to a non-Grid should raise TypeError:
+    with pytest.raises(TypeError):
+        ds.uxgrid = "not a grid"
+    with pytest.raises(TypeError):
+        ds.uxgrid = 123
+    # this remains true even for None, outside of __init__:
+    with pytest.raises(TypeError):
+        ds.uxgrid = None
+    # it also applies (for non-None non-Grid objects) during __init__:
+    with pytest.raises(TypeError):
+        ux.UxDataset({'arr1': xr.DataArray([4,5], dims=['n_face'])}, uxgrid=[1,2])

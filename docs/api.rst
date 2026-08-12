@@ -194,7 +194,7 @@ Methods
    Grid.compute_face_areas
    Grid.construct_face_centers
    Grid.get_ball_tree
-   Grid.neighborhoods
+   Grid.neighborhood
    Grid.get_kd_tree
    Grid.get_spatial_hash
    Grid.get_faces_containing_point
@@ -569,25 +569,52 @@ Azimuthal aggregations apply an aggregation (i.e. averaging) along circles of co
 Neighborhood
 ~~~~~~~~~~~~
 
-Neighborhood filters apply an aggregation (i.e. averaging) to all grid elements within a circular
-neighborhood of a specified radius around each grid element.
+Neighborhood reductions apply an aggregation (i.e. averaging) to all grid elements within a
+circular neighborhood of a specified radius around each grid element, as in a smoothing filter.
+Grouping the data comes first, then a reduction over the groups::
+
+   uxda.neighborhood(r=5.0).mean()
+   uxda.neighborhood(r=5.0).percentile(90)
 
 .. autosummary::
    :toctree: generated/
 
-   UxDataArray.neighborhood_filter
-   UxDataset.neighborhood_filter
+   UxDataArray.neighborhood
+   UxDataset.neighborhood
 
-Finding the neighbors is usually more expensive than reducing over them. To apply several
-reductions at one radius, build the neighborhoods once and reduce over them repeatedly.
+Each reduction is a method of the object those return. ``reduce`` is the escape hatch for
+anything without a method of its own; it takes a callable, and runs in Python rather than
+compiled.
 
 .. autosummary::
    :toctree: generated/
 
-   Grid.neighborhoods
-   uxarray.grid.neighbors.Neighborhoods
-   uxarray.grid.neighbors.Neighborhoods.reduce
-   uxarray.grid.neighbors.Neighborhoods.n_neighbors
+   uxarray.grid.neighbors.DataArrayNeighborhood
+   uxarray.grid.neighbors.DataArrayNeighborhood.mean
+   uxarray.grid.neighbors.DataArrayNeighborhood.sum
+   uxarray.grid.neighbors.DataArrayNeighborhood.min
+   uxarray.grid.neighbors.DataArrayNeighborhood.max
+   uxarray.grid.neighbors.DataArrayNeighborhood.ptp
+   uxarray.grid.neighbors.DataArrayNeighborhood.median
+   uxarray.grid.neighbors.DataArrayNeighborhood.std
+   uxarray.grid.neighbors.DataArrayNeighborhood.var
+   uxarray.grid.neighbors.DataArrayNeighborhood.quantile
+   uxarray.grid.neighbors.DataArrayNeighborhood.percentile
+   uxarray.grid.neighbors.DataArrayNeighborhood.reduce
+   uxarray.grid.neighbors.DataArrayNeighborhood.n_neighbors
+   uxarray.grid.neighbors.DatasetNeighborhood
+
+Finding the neighbors is usually more expensive than reducing over them. Reductions on one of the
+objects above already share a single query. To share one across several variables too, build the
+neighborhood from the grid instead; its reduction methods then take the data as an argument.
+
+.. autosummary::
+   :toctree: generated/
+
+   Grid.neighborhood
+   uxarray.grid.neighbors.Neighborhood
+   uxarray.grid.neighbors.Neighborhood.reduce
+   uxarray.grid.neighbors.Neighborhood.n_neighbors
 
 
 Zonal Average

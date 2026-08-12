@@ -60,7 +60,7 @@ from uxarray.grid.intersections import (
 from uxarray.grid.neighbors import (
     BallTree,
     KDTree,
-    Neighborhoods,
+    Neighborhood,
     SpatialHash,
     _populate_edge_face_distances,
     _populate_edge_node_distances,
@@ -1805,41 +1805,46 @@ class Grid:
 
         return self._ball_tree
 
-    def neighborhoods(self, r: float = 1.0, on: str = "face centers") -> Neighborhoods:
+    def neighborhood(self, r: float = 1.0, on: str = "face centers") -> Neighborhood:
         """Finds the grid elements within ``r`` degrees of every element of
-        ``on``, returning a reusable :class:`Neighborhoods`.
+        ``on``, returning a reusable :class:`Neighborhood`.
 
         The radius query behind this dominates the cost of a neighborhood
         reduction, so building this once and reducing several times over it is
-        substantially cheaper than calling
-        :meth:`UxDataArray.neighborhood_filter` repeatedly, which rebuilds it
-        on every call.
+        substantially cheaper than calling :meth:`UxDataArray.neighborhood`
+        repeatedly, which rebuilds it on every call.
+
+        Unlike :meth:`UxDataArray.neighborhood`, the result is not bound to
+        any data, so its reduction methods take the data to reduce as an
+        argument. That is what lets several variables share one query.
 
         Parameters
         ----------
         r : float, default=1.
             Radius of the neighborhood, in degrees of great-circle distance.
         on : str, default="face centers"
-            Grid location to center the neighborhoods on: "nodes",
+            Grid location to center the neighborhood on: "nodes",
             "edge centers", or "face centers".
 
         Returns
         -------
-        Neighborhoods
+        Neighborhood
 
         Examples
         --------
         >>> import uxarray as ux
         >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")  # doctest: +SKIP
-        >>> nb = uxds.uxgrid.neighborhoods(r=5.0)  # doctest: +SKIP
-        >>> smooth = nb.reduce(uxds["psi"], "mean")  # doctest: +SKIP
-        >>> p90 = nb.reduce(uxds["psi"], "percentile", q=90)  # doctest: +SKIP
+        >>> nb = uxds.uxgrid.neighborhood(r=5.0)  # doctest: +SKIP
+        >>> smooth = nb.mean(uxds["psi"])  # doctest: +SKIP
+        >>> p90 = nb.percentile(uxds["psi"], q=90)  # doctest: +SKIP
 
         See Also
         --------
-        UxDataArray.neighborhood_filter : One-shot filter for a single reduction.
+        Neighborhood : The reductions available on the returned object.
+        UxDataArray.neighborhood : Neighborhood bound to a single variable.
+        UxDataset.neighborhood : Neighborhood across every variable in a dataset.
         """
-        return Neighborhoods(self, r=r, on=on)
+        return Neighborhood(self, r=r, on=on)
 
     def _get_scipy_kd_tree(
         self, coordinates: str | None = "face", reconstruct: bool = False
