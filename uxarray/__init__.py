@@ -1,4 +1,4 @@
-from . import tutorial
+from . import errors, tutorial
 from .constants import INT_DTYPE, INT_FILL_VALUE
 from .core.api import (
     concat,
@@ -37,4 +37,5 @@ __all__ = (
     "INT_DTYPE",
     "INT_FILL_VALUE",
     "Grid",
+    "errors",
 )
