@@ -1954,7 +1954,6 @@ class Grid:
         self,
         *,
         degrees: bool = False,
-        cache: bool | None = None,
         as_uxarray: bool = False,
     ) -> xr.DataArray | UxDataArray:
         """Compute the angles at each node of each face in the grid.
@@ -1964,12 +1963,6 @@ class Grid:
         ----------
         degrees : bool, defaults to False
             Whether to return angles in degrees (if True) or radians (if False).
-        cache : None or bool, defaults to None
-            Whether to cache the computed angles in the grid's dataset, in face_node_angles data variable.
-            Cached angles are always in radians.
-            If None, use cached result if available, else compute but do not cache result.
-            If True, use cached result if available, else compute and cache result.
-            If False, always recompute; do not check or store in cache.
         as_uxarray : bool, defaults to False
             Whether to return a uxarray.DataArray (if True) instead of an xarray.DataArray (if False).
             If True, equivalent to uxarray.DataArray(self.compute_face_node_angles(..., as_uxarray=False), uxgrid=self).
@@ -1982,28 +1975,19 @@ class Grid:
         """
         from uxarray.conventions.ugrid import FACE_DIM, N_MAX_FACE_NODES_DIM
 
-        name = "face_node_angles"
-        result = None
-        if cache is None or cache:
-            if name in self._ds:
-                result = self._ds[name]
-        if result is None:  # result not in cache; need to compute it
-            result = _compute_face_node_angles_convex(
-                self.node_x.values,
-                self.node_y.values,
-                self.node_z.values,
-                self.face_node_connectivity.values,
-                self.n_nodes_per_face.values,
-            )
-            # convert to xr.DataArray
-            result = xr.DataArray(
-                data=result,
-                dims=[FACE_DIM, N_MAX_FACE_NODES_DIM],
-                name=name,
-                attrs={"description": "Internal angles at each node of each face."},
-            )
-            if cache:
-                self._ds[name] = result
+        result = _compute_face_node_angles_convex(
+            self.node_x.values,
+            self.node_y.values,
+            self.node_z.values,
+            self.face_node_connectivity.values,
+            self.n_nodes_per_face.values,
+        )
+        result = xr.DataArray(
+            data=result,
+            dims=[FACE_DIM, N_MAX_FACE_NODES_DIM],
+            name="face_node_angles",
+            attrs={"description": "Internal angles at each node of each face."},
+        )
         if degrees:
             result = np.rad2deg(result)
         if as_uxarray:
