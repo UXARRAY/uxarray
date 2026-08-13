@@ -14,9 +14,8 @@ for generating unstructured grid topology from structured grid or point-cloud in
 enable model intercomparison workflows.
 
 .. note::
-  For new users interested in learning from our documented coding examples, notebooks, geospatial
-  lessons, and more, check out `Project Pythia <https://projectpythia.org/unstructured-grid-viz-cookbook>`_
-  where additional documentation can be found.
+  For new users who are looking to learn more about unstructured grids (or other topics of the Earth System Sciences),
+  check out our `Frequently Asked Questions <https://uxarray.readthedocs.io/en/latest/getting-started/freq-asked-questions.html>`_.
 
 Unstructured Grids
 ==================
