@@ -1981,7 +1981,12 @@ class Grid:
         """Calculate the total surface area of all the faces in a mesh.
 
         Equivalent to ``self.compute_face_areas(...).sum()``; provided as a
-        convenience.
+        convenience. (Note: for HEALPix grids, when called with default arguments,
+        this method actually returns ``self.face_areas.sum()`` instead,
+        which respects HEALPix equal-area property.)
+
+        Additionally, raises a warning if the result is larger than
+        the total area of a sphere (4 * pi * self.sphere_radius**2).
 
         Parameters
         ----------
@@ -2009,15 +2014,24 @@ class Grid:
             and order == 4
             and not latitude_adjusted_area
         ):
-            return np.sum(self.face_areas.values)
+            result = np.sum(self.face_areas.values)
 
-        return np.sum(
+        result = np.sum(
             self.compute_face_areas(
                 quadrature_rule=quadrature_rule,
                 order=order,
                 latitude_adjusted_area=latitude_adjusted_area,
             )
         )
+
+        RTOL = 1e-6  # 1e-7 had warnings in existing CI tests (as of 2026-08-05), 1e-6 did not.
+        if result > 4 * np.pi * self.sphere_radius**2 * (1 + RTOL):
+            warnings.warn(
+                f"Total face area (={result}) exceeds the surface area of the whole sphere "
+                f"(={4 * np.pi * self.sphere_radius**2}) (with sphere_radius={self.sphere_radius}).",
+            )
+
+        return result
 
     def compute_face_areas(
         self,

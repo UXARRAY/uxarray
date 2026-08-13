@@ -116,7 +116,6 @@ def test_latlon_bounds_populate_bounds_MPAS(gridpath):
     uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
     bounds_xarray = uxgrid.bounds
 
-
 def _sum_quadrature_jacobians(x, y, z, quadrature_rule, order):
     """Independently sum the Jacobian at each quadrature point of a triangle.
 
@@ -163,3 +162,10 @@ def test_calculate_face_area_jacobian_is_quadrature_sum(quadrature_rule, order):
 
     assert jacobian > 0
     nt.assert_allclose(jacobian, expected, rtol=1e-12)
+
+
+def test_face_areas_fesom(gridpath):
+    """Ensure correct total area for FESOM grid (~8.3780 sr). Regression test for #425."""
+    uxgrid = ux.open_grid(gridpath("ugrid", "fesom", "fesom.mesh.diag.nc"))
+    total_area = uxgrid.calculate_total_face_area()
+    nt.assert_almost_equal(total_area, 8.3780, decimal=4)
