@@ -169,3 +169,30 @@ def test_face_areas_fesom(gridpath):
     uxgrid = ux.open_grid(gridpath("ugrid", "fesom", "fesom.mesh.diag.nc"))
     total_area = uxgrid.calculate_total_face_area()
     nt.assert_almost_equal(total_area, 8.3780, decimal=4)
+
+
+def test_total_face_area_healpix_uses_cached_equal_areas():
+    """Default args must reuse the cached ``face_areas``, not recompute.
+
+    HEALPix faces are exactly equal-area, so the cached sum is exactly 4*pi.
+    Recomputing via quadrature drifts and loses that property.
+    """
+    uxgrid = ux.Grid.from_healpix(zoom=2)
+
+    total_area = uxgrid.calculate_total_face_area()
+
+    nt.assert_allclose(total_area, np.sum(uxgrid.face_areas.values), rtol=0)
+    nt.assert_allclose(total_area, 4 * np.pi, rtol=1e-12)
+
+
+def test_total_face_area_honors_quadrature_kwargs():
+    """Non-default quadrature settings must still trigger a fresh computation."""
+    uxgrid = ux.Grid.from_healpix(zoom=2)
+
+    recomputed = uxgrid.calculate_total_face_area(quadrature_rule="gaussian", order=2)
+
+    nt.assert_allclose(
+        recomputed,
+        np.sum(uxgrid.compute_face_areas(quadrature_rule="gaussian", order=2)),
+        rtol=0,
+    )
