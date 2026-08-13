@@ -174,7 +174,7 @@ class SpatialCoordsRemapper:
         Parameters
         ----------
         dim_name : str
-            Dimension name (e.g., 'n_face', 'nMesh2_face', etc.)
+            Dimension name (either "n_face", "n_node", or "n_edge")
 
         Returns
         -------
