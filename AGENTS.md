@@ -1,4 +1,4 @@
-# CLAUDE.md
+# AGENTS.md
 
 Guidance for Claude working in the UXarray repository.
 
@@ -15,16 +15,16 @@ This file is a snapshot, not an oracle. Where it contradicts the repository, the
 Before leaning on a specific claim here, and **especially** before repeating a claim that some other document is out of date:
 
 ```bash
-git log -1 --format='%ai %h' -- CLAUDE.md
+git log -1 --format='%ai %h' -- AGENTS.md
 git log -1 --format='%ai %h' -- docs/contributing.rst
 git log -1 --format='%ai %h' -- <the files you are about to change>
 ```
 
 | Situation | What to do |
 | --- | --- |
-| CLAUDE.md is newer than what it describes | Follow this file. |
+| AGENTS.md is newer than what it describes | Follow this file. |
 | A source file it describes is newer | Read that file before acting on the claim about it. |
-| `docs/contributing.rst` is newer than CLAUDE.md | **Treat this file as the suspect one.** Follow the contributor's guide, and tell the user which parts of CLAUDE.md now look stale. |
+| `docs/contributing.rst` is newer than AGENTS.md | **Treat this file as the suspect one.** Follow the contributor's guide, and tell the user which parts of AGENTS.md now look stale. |
 
 The last case is the dangerous one: a contributor's guide that has just been revised is more likely to be current than an assistant-facing file that hasn't. Never assert that the guide is stale without checking the dates first.
 
@@ -94,7 +94,7 @@ There are **no registered pytest markers** (no `pytest.ini`, no `[tool.pytest.in
 | `uxarray/utils/computing.py` | Compensated / error-free floating-point primitives (numba) | §8 |
 | `uxarray/tutorial/` | Hardcoded `DATASETS` registry; resolves from `test/meshfiles/` or `UXARRAY_DATA_DIR`, else downloads to `~/.cache/uxarray/tutorial` via plain `urllib` | Network access on cache miss |
 | `uxarray/formatting_html.py` | Jupyter `_repr_html_` for `Grid`/`UxDataset`/`UxDataArray` | Reads the §6 name lists |
-| `test/` | 70 files, ~546 tests; data committed under `test/meshfiles/` | §12 — **ruff-excluded** |
+| `test/` | hundreds of tests; data committed under `test/meshfiles/` | §12 — **ruff-excluded** |
 | `benchmarks/` | Flat ASV suite + `asv.conf.json` | §13 — **ruff-excluded** |
 | `docs/` | Sphinx; `api.rst` is a hand-maintained API index | §15 |
 | `ci/` | `environment.yml`, `asv.yml`, `docs.yml`, `install-upstream.sh` | |
@@ -253,7 +253,7 @@ This distinction matters and is easy to get wrong.
 
 | Area | Idiom | Example |
 | --- | --- | --- |
-| **Source** (`uxarray/`) | Lazy import inside the function; on failure raise a **typed error from `errors.py`** with an actionable message. Never skip silently, never `pytest` anything. | `remap/yac.py::_import_yac()` → `YacNotAvailableError("YAC backend requested but 'yac.core' is not available…")` |
+| **Source** (`uxarray/`) | Lazy import inside the function; on failure, consider raising a **typed error from `errors.py`** with an actionable message. Never skip silently, never `pytest` anything. | `remap/yac.py::_import_yac()` → `YacNotAvailableError("YAC backend requested but 'yac.core' is not available…")` |
 | **Tests** (`test/`) | `try: import x / except ImportError: pytest.skip(...)`, or a module-level skip via the source's own probe, or `@pytest.mark.skipif` reusing a source capability flag. | `test/test_remap_yac.py` calls `_import_yac()` and skips with `allow_module_level=True` |
 | **Benchmarks** (`benchmarks/`) | No dependency guarding — the ASV env is assumed complete. Only *data* availability is conditional (params shrink when NCAR/Glade paths are absent). | `bench_connectivity.py` |
 
