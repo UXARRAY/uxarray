@@ -9,13 +9,16 @@ from uxarray.constants import ERROR_TOLERANCE
 from uxarray.conventions import ugrid
 from uxarray.errors import DimensionError
 from uxarray.grid.utils import _small_angle_of_2_vectors
+from uxarray.utils.numba_math import (
+    _numba_div3_scalar, _numba_norm3,
+)
 
 
 @njit(cache=True)
 def _lonlat_rad_to_xyz(
     lon: np.ndarray | float,
     lat: np.ndarray | float,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray | float, np.ndarray | float, np.ndarray | float]:
     """Converts Spherical latitude and longitude coordinates into Cartesian x,
     y, z coordinates."""
     x = np.cos(lon) * np.cos(lat)
@@ -82,6 +85,10 @@ def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
         lat = math.copysign(math.pi / 2, z)
         lon = 0.0
 
+    # TODO: constructing tiny numpy array inside numba function is sub-optimal,
+    #  if function gets called many times. (see issue $1648). But, as of 2026-08-13,
+    #  it looks like this function isn't being used anywhere, so maybe it should
+    #  just be removed entirely, instead of being optimized?
     lonlat = np.empty(2)
     lonlat[0] = lon
     lonlat[1] = lat
@@ -94,7 +101,7 @@ def _xyz_to_lonlat_rad(
     y: np.ndarray | float,
     z: np.ndarray | float,
     normalize: bool = True,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray | float, np.ndarray | float]:
     """Converts Cartesian x, y, z coordinates in Spherical longitude and
     latitude coordinates in radians.
 
@@ -188,11 +195,10 @@ def _normalize_xyz(
 
 @njit(cache=True)
 def _normalize_xyz_scalar(x: float, y: float, z: float):
-    denom = np.linalg.norm(np.asarray(np.array([x, y, z]), dtype=np.float64), ord=2)
-    x_norm = x / denom
-    y_norm = y / denom
-    z_norm = z / denom
-    return x_norm, y_norm, z_norm
+    """returns (x/|u|, y/|u|, z/|u|), where |u| = sqrt(x^2 + y^2 + z^2)"""
+    u = (x, y, z)
+    u_norm = _numba_norm3(u)
+    return _numba_div3_scalar(u, u_norm)
 
 
 def _populate_node_latlon(grid) -> None:
@@ -341,6 +347,7 @@ def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_fa
     return centroid_x, centroid_y, centroid_z
 
 
+@njit(cache=True)
 def _welzl_recursive(points, boundary, R):
     """Recursive helper function for Welzl's algorithm to find the smallest
     enclosing circle.
@@ -389,6 +396,7 @@ def _welzl_recursive(points, boundary, R):
         return _welzl_recursive(temp_points, new_boundary, R)
 
 
+@njit(cache=True)
 def _smallest_enclosing_circle(points):
     """Find the smallest circle that encloses all given points on a unit sphere
     using Welzl's algorithm.
@@ -429,8 +437,8 @@ def _circle_from_two_points(p1, p2):
     center_lat = (p1[1] + p2[1]) / 2
     center = (center_lon, center_lat)
 
-    v1 = np.array(_lonlat_rad_to_xyz(np.radians(p1[0]), np.radians(p1[1])))
-    v2 = np.array(_lonlat_rad_to_xyz(np.radians(p2[0]), np.radians(p2[1])))
+    v1 = _lonlat_rad_to_xyz(np.radians(p1[0]), np.radians(p1[1]))
+    v2 = _lonlat_rad_to_xyz(np.radians(p2[0]), np.radians(p2[1]))
 
     distance = _small_angle_of_2_vectors(v1, v2)
     radius = distance / 2
@@ -462,9 +470,9 @@ def _circle_from_three_points(p1, p2, p3):
     center_lat = (p1[1] + p2[1] + p3[1]) / 3
     center = (center_lon, center_lat)
 
-    v1 = np.array(_lonlat_rad_to_xyz(np.radians(p1[0]), np.radians(p1[1])))
-    v2 = np.array(_lonlat_rad_to_xyz(np.radians(p2[0]), np.radians(p2[1])))
-    v3 = np.array(_lonlat_rad_to_xyz(np.radians(p3[0]), np.radians(p3[1])))
+    v1 = _lonlat_rad_to_xyz(np.radians(p1[0]), np.radians(p1[1]))
+    v2 = _lonlat_rad_to_xyz(np.radians(p2[0]), np.radians(p2[1]))
+    v3 = _lonlat_rad_to_xyz(np.radians(p3[0]), np.radians(p3[1]))
 
     radius = (
         max(
@@ -495,8 +503,8 @@ def _is_inside_circle(circle, point):
         True if the point is inside the circle, False otherwise.
     """
     center, radius = circle
-    v1 = np.array(_lonlat_rad_to_xyz(np.radians(center[0]), np.radians(center[1])))
-    v2 = np.array(_lonlat_rad_to_xyz(np.radians(point[0]), np.radians(point[1])))
+    v1 = _lonlat_rad_to_xyz(np.radians(center[0]), np.radians(center[1]))
+    v2 = _lonlat_rad_to_xyz(np.radians(point[0]), np.radians(point[1]))
     distance = _small_angle_of_2_vectors(v1, v2)
     return distance <= radius
 
@@ -560,6 +568,7 @@ def _populate_face_centerpoints(grid, repopulate=False):
         )
 
 
+@njit(cache=True, parallel=True)
 def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_face):
     """Constructs the face centerpoint using Welzl's algorithm.
 
@@ -595,12 +604,11 @@ def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_fac
     ]
 
     # Compute circles for all faces
-    circles = [_smallest_enclosing_circle(points) for points in points_arrays]
-
-    # Extract centerpoints
-    ctrpt_lon, ctrpt_lat = zip(*[circle[0] for circle in circles])
-
-    return np.array(ctrpt_lon), np.array(ctrpt_lat)
+    for ipoint in prange(len(points_arrays)):
+        circle_lonlat = _smallest_enclosing_circle(points_arrays[ipoint])[0]
+        ctrpt_lon[ipoint] = circle_lonlat[0]
+        ctrpt_lat[ipoint] = circle_lonlat[1]
+    return ctrpt_lon, ctrpt_lat
 
 
 def _populate_edge_centroids(grid, repopulate=False):
