@@ -1,3 +1,5 @@
+
+import dask.array as da
 import numpy as np
 import numpy.testing as nt
 import pytest
@@ -98,7 +100,6 @@ def _random_uxda(gridpath, shape, dims):
 )
 def test_integrate_returns_uxdataarray_matching_numpy(gridpath, shape_dims):
     """Both branches of integrate() return a UxDataArray matching a plain numpy dot product."""
-    dask_array = pytest.importorskip("dask.array")
     shape, dims = shape_dims
     uxda = _random_uxda(gridpath, shape, dims)
 
@@ -110,7 +111,7 @@ def test_integrate_returns_uxdataarray_matching_numpy(gridpath, shape_dims):
 
     # backing type is preserved: eager stays eager, chunked stays lazy
     assert isinstance(numpy_integral.data, np.ndarray)
-    assert isinstance(dask_integral.data, dask_array.Array)
+    assert isinstance(dask_integral.data, da.Array)
 
     for integral in (numpy_integral, dask_integral):
         assert isinstance(integral, ux.UxDataArray)
@@ -127,7 +128,6 @@ def test_integrate_returns_uxdataarray_matching_numpy(gridpath, shape_dims):
 def test_integrate_dask_reproduces_numpy_whole_face_dim(gridpath, shape_dims):
     # 'n_face' in a single chunk: xr.dot performs one reduction per block, in the
     # same order as the numpy path's einsum, so agreement must be exact.
-    dask_array = pytest.importorskip("dask.array")  # dask-backed branch requires dask
     shape, dims = shape_dims
     uxda = _random_uxda(gridpath, shape, dims)
 
@@ -137,7 +137,7 @@ def test_integrate_dask_reproduces_numpy_whole_face_dim(gridpath, shape_dims):
         chunks = {d: s for d, s in chunks.items() if d in dims}
         dask_integral = uxda.chunk(chunks).integrate()
 
-        assert isinstance(dask_integral.data, dask_array.Array)
+        assert isinstance(dask_integral.data, da.Array)
         assert numpy_integral.dims == dask_integral.dims
         assert numpy_integral.dtype == dask_integral.dtype
         nt.assert_array_equal(numpy_integral.values, dask_integral.values)
@@ -154,7 +154,6 @@ def test_integrate_dask_reproduces_numpy_chunked_face_dim(gridpath, shape_dims):
     # This is the one changed routine that is close-but-not-bitwise, hence a
     # tolerance rather than assert_array_equal. Observed worst case is ~2e-15
     # relative on this mesh, independent of chunk size.
-    dask_array = pytest.importorskip("dask.array")  # dask-backed branch requires dask
     shape, dims = shape_dims
     uxda = _random_uxda(gridpath, shape, dims)
 
@@ -163,7 +162,7 @@ def test_integrate_dask_reproduces_numpy_chunked_face_dim(gridpath, shape_dims):
     for chunks in ({"n_face": 100}, {"n_face": 1350}, {"n_face": 7}):
         dask_integral = uxda.chunk(chunks).integrate()
 
-        assert isinstance(dask_integral.data, dask_array.Array)
+        assert isinstance(dask_integral.data, da.Array)
         assert numpy_integral.dims == dask_integral.dims
         assert numpy_integral.dtype == dask_integral.dtype
         nt.assert_allclose(

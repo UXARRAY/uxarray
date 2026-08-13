@@ -1,17 +1,12 @@
-import uxarray as ux
+
+import dask.array as da
 import pytest
 import numpy as np
-import xarray as xr
-
 import numpy.testing as nt
-
-
-
+import xarray as xr
+import uxarray as ux
 
 from uxarray.grid.intersections import constant_lat_intersections_face_bounds
-
-
-
 
 
 def test_constant_lat_subset_grid(gridpath):
@@ -238,7 +233,6 @@ CROSS_SECTION_MODES = [
 
 def test_cross_section_dask_reproduces_numpy(gridpath, datasetpath):
     # the numpy (eager) and dask (lazy gather) branches must agree
-    dask_array = pytest.importorskip("dask.array")  # dask-backed branch requires dask
     uxds = ux.open_dataset(gridpath("scrip", "ne30pg2", "grid.nc"), datasetpath("scrip", "ne30pg2", "data.nc"))
     uxda = uxds['RELHUM']  # ('lev', 'n_face'), so the face dim is not the leading one
 
@@ -250,7 +244,7 @@ def test_cross_section_dask_reproduces_numpy(gridpath, datasetpath):
             dask_result = uxda.chunk(chunks).cross_section(**kwargs)
 
             # the accessor no longer calls .compute(), so the result stays lazy
-            assert isinstance(dask_result.data, dask_array.Array)
+            assert isinstance(dask_result.data, da.Array)
 
             assert numpy_result.dims == dask_result.dims
             assert numpy_result.dtype == dask_result.dtype
@@ -261,7 +255,6 @@ def test_cross_section_dask_reproduces_numpy(gridpath, datasetpath):
 
 def test_cross_section_dask_reproduces_numpy_partial_coverage(gridpath, datasetpath):
     # steps with no containing face become NaN; that fill path must match too
-    dask_array = pytest.importorskip("dask.array")  # dask-backed branch requires dask
     uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"),
                            datasetpath("ugrid", "quad-hexagon", "multi_dim_data.nc"))
     uxda = uxds['multi_dim_data']  # ('time', 'lev', 'n_face') over a 4-face regional patch
@@ -275,7 +268,7 @@ def test_cross_section_dask_reproduces_numpy_partial_coverage(gridpath, datasetp
     for chunks in ({"time": 2}, {"time": 2, "lev": 3}, {"time": 2, "n_face": 1}):
         dask_result = uxda.chunk(chunks).cross_section(**kwargs)
 
-        assert isinstance(dask_result.data, dask_array.Array)
+        assert isinstance(dask_result.data, da.Array)
 
         assert numpy_result.dims == dask_result.dims
         assert numpy_result.dtype == dask_result.dtype

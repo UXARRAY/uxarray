@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import dask.array as da
 import numpy as np
 import numpy.testing as nt
 import pytest
@@ -229,7 +230,6 @@ def test_apply_weights_dask_reproduces_numpy(tmp_path, gridpath):
     # the numpy (eager) and dask (blockwise) branches must agree. The source dim
     # is forced into a single chunk, so the sparse multiply is never split and
     # agreement must be exact.
-    dask_array = pytest.importorskip("dask.array")  # dask-backed branch requires dask
     grid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
     weight_file = _write_dense_map(tmp_path / "dense_map.nc", grid.n_face, grid.n_face)
 
@@ -251,7 +251,7 @@ def test_apply_weights_dask_reproduces_numpy(tmp_path, gridpath):
     for chunks in ({"time": 2}, {"n_face": 50}, {"time": 2, "n_face": 50}):
         dask_result = source.chunk(chunks).remap.apply_weights(grid, weight_file)
 
-        assert isinstance(dask_result.data, dask_array.Array)
+        assert isinstance(dask_result.data, da.Array)
 
         assert numpy_result.dims == dask_result.dims
         assert numpy_result.dtype == dask_result.dtype
