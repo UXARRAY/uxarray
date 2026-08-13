@@ -76,7 +76,7 @@ def _read_esmf(in_ds):
             )
 
     else:
-        raise ValueError(
+        raise NotImplementedError(
             "Reading in ESMF grids with Cartesian coordinates not yet supported"
         )
 

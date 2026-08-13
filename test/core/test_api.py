@@ -85,7 +85,7 @@ def test_open_dataset_single_argument_rejects_invalid_combined_file(datasetpath)
 
     data_path = datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc")
 
-    with pytest.raises(RuntimeError, match="Failed to parse uxgrid information from xarray.Dataset."):
+    with pytest.raises(ux.errors.GridInvalidError, match="Failed to parse uxgrid information from xarray.Dataset."):
         ux.open_dataset(data_path)
 
 
