@@ -90,7 +90,7 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
             uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
         )
     else:
-        raise ValueError
+        raise TypeError
 
     return uxarray.core.dataarray.UxDataArray(
         uxgrid=uxda.uxgrid,
@@ -158,7 +158,7 @@ def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
             uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
         )
     else:
-        raise ValueError
+        raise TypeError
 
     return uxarray.core.dataarray.UxDataArray(
         uxgrid=uxda.uxgrid,
