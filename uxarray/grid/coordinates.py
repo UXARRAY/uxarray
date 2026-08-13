@@ -10,7 +10,8 @@ from uxarray.conventions import ugrid
 from uxarray.errors import DimensionError
 from uxarray.grid.utils import _small_angle_of_2_vectors
 from uxarray.utils.numba_math import (
-    _numba_div3_scalar, _numba_norm3,
+    _numba_div3_scalar,
+    _numba_norm3,
 )
 
 

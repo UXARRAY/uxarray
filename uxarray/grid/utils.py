@@ -4,7 +4,10 @@ from numba import njit
 
 from uxarray.constants import INT_FILL_VALUE
 from uxarray.utils.numba_math import (
-    _numba_add3, _numba_sub3, _numba_mul3_scalar, _numba_norm3,
+    _numba_add3,
+    _numba_mul3_scalar,
+    _numba_norm3,
+    _numba_sub3,
 )
 
 

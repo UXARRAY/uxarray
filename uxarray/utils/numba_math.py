@@ -9,47 +9,57 @@ Creating lots of tiny numpy arrays (or lists) costs a lot in numba;
         because it doesn't need to allocate lists/arrays.
     See issue #1648 for more details.
 """
+
 import numpy as np
 from numba import njit
 
 # ------- basic arithmetic with vectors ------- #
+
 
 @njit(cache=True)
 def _numba_add3(u, v):
     """component-wise addition of 3-vectors; returns (u[0] + v[0], u[1] + v[1], u[2] + v[2])"""
     return u[0] + v[0], u[1] + v[1], u[2] + v[2]
 
+
 @njit(cache=True)
 def _numba_add3_scalar(u, scalar):
     """component-wise addition of 3-vector and scalar; returns (u[0] + scalar, u[1] + scalar, u[2] + scalar)"""
     return u[0] + scalar, u[1] + scalar, u[2] + scalar
+
 
 @njit(cache=True)
 def _numba_sub3(u, v):
     """component-wise subtraction of 3-vectors; returns (u[0] - v[0], u[1] - v[1], u[2] - v[2])"""
     return u[0] - v[0], u[1] - v[1], u[2] - v[2]
 
+
 # _numba_sub3_scalar not provided; just use _numba_add3_scalar with negative scalar
+
 
 @njit(cache=True)
 def _numba_mul3(u, v):
     """component-wise multiplication of 3-vectors; returns (u[0] * v[0], u[1] * v[1], u[2] * v[2])"""
     return u[0] * v[0], u[1] * v[1], u[2] * v[2]
 
+
 @njit(cache=True)
 def _numba_mul3_scalar(u, scalar):
     """component-wise multiplication of 3-vector and scalar; returns (u[0] * scalar, u[1] * scalar, u[2] * scalar)"""
     return u[0] * scalar, u[1] * scalar, u[2] * scalar
+
 
 @njit(cache=True)
 def _numba_div3(u, v):
     """component-wise division of 3-vectors; returns (u[0] / v[0], u[1] / v[1], u[2] / v[2])"""
     return u[0] / v[0], u[1] / v[1], u[2] / v[2]
 
+
 @njit(cache=True)
 def _numba_div3_scalar(u, scalar):
     """component-wise division of 3-vector by scalar; returns (u[0] / scalar, u[1] / scalar, u[2] / scalar)"""
     return u[0] / scalar, u[1] / scalar, u[2] / scalar
+
 
 @njit(cache=True)
 def _numba_sqrt3(u):
@@ -59,15 +69,18 @@ def _numba_sqrt3(u):
 
 # ------- vector arithmetic ------- #
 
+
 @njit(cache=True)
 def _numba_norm3(u):
     """Euclidean norm of a 3-vector; returns sqrt(u[0]**2 + u[1]**2 + u[2]**2)"""
     return np.sqrt(u[0] ** 2 + u[1] ** 2 + u[2] ** 2)
 
+
 @njit(cache=True)
 def _numba_dot3(u, v):
     """dot product of two 3-vectors; returns u[0]*v[0] + u[1]*v[1] + u[2]*v[2]"""
     return u[0] * v[0] + u[1] * v[1] + u[2] * v[2]
+
 
 @njit(cache=True)
 def _numba_cross3(u, v):
