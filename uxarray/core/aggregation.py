@@ -3,6 +3,7 @@ import numpy as np
 import uxarray.core.dataarray
 from uxarray.errors import DataCenteringError
 from uxarray.grid.connectivity import get_face_node_partitions
+from uxarray.utils.coords import _preserve_valid_coords
 
 NUMPY_AGGREGATIONS = {
     "mean": np.mean,
@@ -16,22 +17,6 @@ NUMPY_AGGREGATIONS = {
     "all": np.all,
     "any": np.any,
 }
-
-
-def _non_source_coords(uxda, source_dim):
-    """Coordinates that survive a topological aggregation.
-
-    The source dimension is reduced away, so any coordinate spanning it (the
-    grid dimension itself, or auxiliary coordinates like ``node_lon``) cannot be
-    carried over. Everything else -- most importantly the leading dimensions
-    such as ``time`` or ``lev`` -- is untouched by the aggregation and must be
-    preserved so that label-based indexing keeps working on the result.
-    """
-    return {
-        name: coord
-        for name, coord in uxda.coords.items()
-        if source_dim not in coord.dims
-    }
 
 
 def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
@@ -112,7 +97,7 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
         uxgrid=uxda.uxgrid,
         data=aggregated_var,
         dims=uxda.dims,
-        coords=_non_source_coords(uxda, "n_node"),
+        coords=_preserve_valid_coords(uxda, "n_node"),
         attrs=uxda.attrs,
         name=uxda.name,
     ).rename({"n_node": "n_face"})
@@ -182,7 +167,7 @@ def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
         uxgrid=uxda.uxgrid,
         data=aggregation_var,
         dims=uxda.dims,
-        coords=_non_source_coords(uxda, "n_node"),
+        coords=_preserve_valid_coords(uxda, "n_node"),
         attrs=uxda.attrs,
         name=uxda.name,
     ).rename({"n_node": "n_edge"})
