@@ -1002,7 +1002,7 @@ class Grid:
         """
         if "node_lat" not in self._ds:
             if self.source_grid_spec == "HEALPix":
-                _populate_healpix_boundaries(self)
+                _populate_healpix_boundaries(self._ds)
             else:
                 _set_desired_longitude_range(self)
                 _populate_node_latlon(self)
@@ -1546,6 +1546,13 @@ class Grid:
         -------
         bounds: :py:class:`xr.DataArray`
             An array of shape (:py:attr:`~uxarray.Grid.n_face`, `two`, `two`)
+
+        References
+        ----------
+        Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+        Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+        algorithms for regridding on the sphere. Geoscientific Model
+        Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
         """
         if "bounds" not in self._ds:
             _populate_face_bounds(self)
@@ -1555,7 +1562,15 @@ class Grid:
 
     @property
     def face_bounds_lon(self):
-        """Longitude bounds for each face in degrees."""
+        """Longitude bounds for each face in degrees.
+
+        References
+        ----------
+        Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+        Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+        algorithms for regridding on the sphere. Geoscientific Model
+        Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
+        """
 
         if "face_bounds_lon" not in self._ds:
             bounds = self.bounds.values
@@ -1575,7 +1590,15 @@ class Grid:
 
     @property
     def face_bounds_lat(self):
-        """Latitude bounds for each face in degrees."""
+        """Latitude bounds for each face in degrees.
+
+        References
+        ----------
+        Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+        Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+        algorithms for regridding on the sphere. Geoscientific Model
+        Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
+        """
 
         if "face_bounds_lat" not in self._ds:
             bounds = self.bounds.values
@@ -1958,7 +1981,12 @@ class Grid:
         """Calculate the total surface area of all the faces in a mesh.
 
         Equivalent to ``self.compute_face_areas(...).sum()``; provided as a
-        convenience.
+        convenience. (Note: for HEALPix grids, when called with default arguments,
+        this method actually returns ``self.face_areas.sum()`` instead,
+        which respects HEALPix equal-area property.)
+
+        Additionally, raises a warning if the result is larger than
+        the total area of a sphere (4 * pi * self.sphere_radius**2).
 
         Parameters
         ----------
@@ -1986,15 +2014,26 @@ class Grid:
             and order == 4
             and not latitude_adjusted_area
         ):
-            return np.sum(self.face_areas.values)
-
-        return np.sum(
-            self.compute_face_areas(
-                quadrature_rule=quadrature_rule,
-                order=order,
-                latitude_adjusted_area=latitude_adjusted_area,
+            result = np.sum(self.face_areas.values)
+        else:
+            result = np.sum(
+                self.compute_face_areas(
+                    quadrature_rule=quadrature_rule,
+                    order=order,
+                    latitude_adjusted_area=latitude_adjusted_area,
+                )
             )
-        )
+
+        # Choose RTOL. Mostly just an arbitrary decision....
+        # but noting that 1e-9 had warnings in existing CI tests (as of 2026-08-06), while 1e-8 did not.
+        RTOL = 1e-7
+        if result > 4 * np.pi * self.sphere_radius**2 * (1 + RTOL):
+            warnings.warn(
+                f"Total face area (={result}) exceeds the surface area of the whole sphere "
+                f"(={4 * np.pi * self.sphere_radius**2}) (with sphere_radius={self.sphere_radius}).",
+            )
+
+        return result
 
     def compute_face_areas(
         self,
