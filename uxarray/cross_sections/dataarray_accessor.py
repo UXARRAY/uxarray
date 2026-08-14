@@ -7,6 +7,7 @@ import xarray as xr
 
 from uxarray.constants import INT_DTYPE
 from uxarray.errors import DataCenteringError
+from uxarray.utils.coords import _preserve_valid_coords
 
 from .sample import (
     sample_constant_latitude,
@@ -133,11 +134,7 @@ class UxDataArrayCrossSectionAccessor:
         )
 
         # Build coords dict: keep everything except 'n_face'
-        coords = {
-            name: self.uxda.coords[name]
-            for name in self.uxda.coords
-            if name != "n_face" and "n_face" not in self.uxda.coords[name].dims
-        }
+        coords = _preserve_valid_coords(self.uxda, "n_face")
         # index along the arc
         coords[new_dim] = np.arange(steps)
 

@@ -32,7 +32,7 @@ def _slice_node_indices(
     """
 
     if inclusive is False:
-        raise ValueError("Exclusive slicing is not yet supported.")
+        raise NotImplementedError("Exclusive slicing is not yet supported.")
 
     # faces that saddle nodes given in 'indices'
     face_indices = np.unique(
@@ -64,7 +64,7 @@ def _slice_edge_indices(
     """
 
     if inclusive is False:
-        raise ValueError("Exclusive slicing is not yet supported.")
+        raise NotImplementedError("Exclusive slicing is not yet supported.")
 
     # faces that saddle nodes given in 'indices'
     face_indices = np.unique(

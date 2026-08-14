@@ -4,6 +4,7 @@ import xarray as xr
 import uxarray.core.dataarray
 from uxarray.errors import DataCenteringError
 from uxarray.grid.connectivity import get_face_node_partitions
+from uxarray.utils.coords import _preserve_valid_coords
 
 NUMPY_AGGREGATIONS = {
     "mean": np.mean,
@@ -91,7 +92,7 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
             uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
         )
     else:
-        raise ValueError
+        raise TypeError
 
 
 def _node_to_face_kernel(
@@ -148,6 +149,8 @@ def _apply_node_to_face_aggregation_numpy(
         uxgrid=uxda.uxgrid,
         data=aggregated_var,
         dims=uxda.dims,
+        coords=_preserve_valid_coords(uxda, "n_node"),
+        attrs=uxda.attrs,
         name=uxda.name,
     ).rename({"n_node": "n_face"})
 
@@ -185,7 +188,16 @@ def _apply_node_to_face_aggregation_dask(
         },
     )
 
-    return uxarray.core.dataarray.UxDataArray(result, uxgrid=uxgrid, name=uxda.name)
+    # apply_ufunc already drops the coords spanning the consumed ``n_node`` dim,
+    # but not the variable attrs; restore them so both paths return the same
+    # metadata.
+    return uxarray.core.dataarray.UxDataArray(
+        result,
+        uxgrid=uxgrid,
+        coords=_preserve_valid_coords(uxda, "n_node"),
+        attrs=uxda.attrs,
+        name=uxda.name,
+    )
 
 
 def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
@@ -211,7 +223,7 @@ def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
             uxda, aggregation_func, aggregation_func_kwargs
         )
     else:
-        raise ValueError
+        raise TypeError
 
 
 def _node_to_edge_kernel(
@@ -243,6 +255,8 @@ def _apply_node_to_edge_aggregation_numpy(
         uxgrid=uxda.uxgrid,
         data=aggregated_var,
         dims=uxda.dims,
+        coords=_preserve_valid_coords(uxda, "n_node"),
+        attrs=uxda.attrs,
         name=uxda.name,
     ).rename({"n_node": "n_edge"})
 
@@ -289,4 +303,13 @@ def _apply_node_to_edge_aggregation_dask(
         },
     )
 
-    return uxarray.core.dataarray.UxDataArray(result, uxgrid=uxgrid, name=uxda.name)
+    # apply_ufunc already drops the coords spanning the consumed ``n_node`` dim,
+    # but not the variable attrs; restore them so both paths return the same
+    # metadata.
+    return uxarray.core.dataarray.UxDataArray(
+        result,
+        uxgrid=uxgrid,
+        coords=_preserve_valid_coords(uxda, "n_node"),
+        attrs=uxda.attrs,
+        name=uxda.name,
+    )

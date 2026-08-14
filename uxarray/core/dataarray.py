@@ -39,6 +39,7 @@ from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
+from uxarray.utils.coords import _preserve_valid_coords
 
 if TYPE_CHECKING:
     import cartopy.crs as ccrs
@@ -701,6 +702,12 @@ class UxDataArray(xr.DataArray):
 
         Conservative averaging preserves integral quantities and is recommended for
         physical analysis. Non-conservative averaging samples at latitude lines.
+
+        References
+        ----------
+        Chen, H., Ullrich, P. A., and Panetta, J. (2026). Fast and accurate
+        intersections on a sphere. SIAM Journal on Scientific Computing, 48(2),
+        B208-B232. https://doi.org/10.1137/25M1737614
         """
         if not self._face_centered():
             raise DataCenteringError(
@@ -741,11 +748,7 @@ class UxDataArray(xr.DataArray):
             dims[face_axis] = "latitudes"
 
             # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
-            new_coords = {
-                k: v
-                for k, v in self.coords.items()
-                if self.dims[face_axis] not in v.dims
-            }
+            new_coords = _preserve_valid_coords(self, "n_face")
             # Add latitudes to the resulting coords
             new_coords["latitudes"] = latitudes
 
@@ -795,11 +798,7 @@ class UxDataArray(xr.DataArray):
             dims[face_axis] = "latitudes"
 
             # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
-            new_coords = {
-                k: v
-                for k, v in self.coords.items()
-                if self.dims[face_axis] not in v.dims
-            }
+            new_coords = _preserve_valid_coords(self, "n_face")
             # Add latitudes to the resulting coords
             new_coords["latitudes"] = centers
 
@@ -818,7 +817,12 @@ class UxDataArray(xr.DataArray):
             )
 
     def zonal_average(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
-        """Alias of zonal_mean; prefer `zonal_mean` for primary API."""
+        """Alias of zonal_mean; prefer `zonal_mean` for primary API.
+
+        See Also
+        --------
+        zonal_mean : Full docstring, including algorithm references.
+        """
         return self.zonal_mean(lat=lat, conservative=conservative, **kwargs)
 
     def zonal_anomaly(self, lat=(-90, 90, 10), conservative: bool = False):
@@ -849,6 +853,10 @@ class UxDataArray(xr.DataArray):
         --------
         >>> uxds["var"].zonal_anomaly()
         >>> uxds["var"].zonal_anomaly(lat=(-60, 60, 5), conservative=True)
+
+        See Also
+        --------
+        zonal_mean : Underlying zonal averaging algorithm and references.
         """
         if not self._face_centered():
             raise DataCenteringError(
@@ -865,7 +873,7 @@ class UxDataArray(xr.DataArray):
         elif isinstance(lat, (list, np.ndarray)):
             edges = np.asarray(lat, dtype=float)
         else:
-            raise ValueError(
+            raise TypeError(
                 "Invalid value for 'lat'. Must be a tuple (start, end, step) or array-like band edges."
             )
 
@@ -985,9 +993,7 @@ class UxDataArray(xr.DataArray):
         )
 
         # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
-        new_coords = {
-            k: v for k, v in self.coords.items() if self.dims[face_axis] not in v.dims
-        }
+        new_coords = _preserve_valid_coords(self, "n_face")
         # Add radii_deg to the resulting coords
         new_coords["radius"] = radii_deg
 
@@ -2172,7 +2178,7 @@ class UxDataArray(xr.DataArray):
         """
 
         if _check_duplicate_nodes_indices(self.uxgrid):
-            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+            raise GridInvalidError("Duplicate nodes found, cannot construct dual")
 
         if self.uxgrid.partial_sphere_coverage:
             warn(
