@@ -9,6 +9,25 @@ from uxarray.conventions import ugrid
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_deg
 
+# Producer name written into (and looked for in) "qa_records"
+_WRITER_NAME = "uxarray"
+
+
+def _written_by_uxarray(ext_ds):
+    """Whether ``ext_ds`` was produced by :func:`_encode_exodus`.
+
+    Exodus defines ``elem_num_map`` as each element's user-facing ID, not as
+    where the element came from. Only a file this writer produced is known to
+    store the original face order there, so the reordering below is restricted
+    to those files -- a third-party file whose IDs happen to be a permutation of
+    ``1..n`` keeps the face order it was written with.
+    """
+    if "qa_records" not in ext_ds:
+        return False
+
+    records = np.asarray(ext_ds["qa_records"].values, dtype="S").ravel()
+    return _WRITER_NAME.encode() in records
+
 
 # Exodus Number is one-based.
 def _read_exodus(ext_ds):
@@ -91,10 +110,11 @@ def _read_exodus(ext_ds):
     else:
         face_nodes = np.vstack(padded_blocks)
 
-    if "elem_num_map" in ext_ds:
-        # Blocks are stored grouped by element type; elem_num_map gives each
-        # element's original position. Only honor it when it is a genuine
-        # permutation, since Exodus also allows arbitrary user-assigned IDs.
+    if "elem_num_map" in ext_ds and _written_by_uxarray(ext_ds):
+        # _encode_exodus groups elements into blocks by face size, which permutes
+        # a mixed mesh, and records each element's original position here. Undo
+        # that so face order survives a round trip. Only honor the map when it is
+        # a genuine permutation, since Exodus also allows arbitrary IDs.
         elem_num_map = ext_ds["elem_num_map"].values.astype(INT_DTYPE) - 1
         if elem_num_map.shape == (face_nodes.shape[0],) and np.array_equal(
             np.sort(elem_num_map), np.arange(face_nodes.shape[0])
@@ -186,7 +206,7 @@ def _encode_exodus(ds, outfile=None):
 
     # --- QA Records ---
     ux_exodus_version = "1.0"
-    qa_records = [["uxarray"], [ux_exodus_version], [date], [time]]
+    qa_records = [[_WRITER_NAME], [ux_exodus_version], [date], [time]]
     exo_ds["qa_records"] = xr.DataArray(
         data=np.array(qa_records, dtype="S"),
         dims=["num_qa_rec", "four"],

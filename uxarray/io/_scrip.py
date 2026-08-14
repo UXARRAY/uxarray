@@ -37,6 +37,53 @@ def _values_in_degrees(data_array):
     return values
 
 
+def _collapse_repeated_corners(face_nodes):
+    """Turn SCRIP's repeated corners back into fill values.
+
+    SCRIP has no fill value for corners, so a face with fewer than
+    ``grid_corners`` vertices is written as a degenerate polygon that repeats one
+    of its corners. Left in place, each repeat reads as a real vertex: the face
+    keeps its full width and contributes a zero-length edge to
+    ``edge_node_connectivity``.
+
+    Duplicates are dropped keeping the first occurrence, so the winding order
+    survives and a closed ring (a last corner repeating the first) collapses too.
+
+    Parameters
+    ----------
+    face_nodes : numpy.ndarray
+        ``(n_face, n_max_face_nodes)`` node indices, with repeated corners.
+
+    Returns
+    -------
+    numpy.ndarray
+        The same connectivity with repeats replaced by ``INT_FILL_VALUE``,
+        packed to the left of each row.
+    """
+    n_face, n_corners = face_nodes.shape
+
+    keep = np.ones(face_nodes.shape, dtype=bool)
+    for corner in range(1, n_corners):
+        keep[:, corner] = (face_nodes[:, [corner]] != face_nodes[:, :corner]).all(
+            axis=1
+        )
+
+    # A polygon needs three vertices. If collapsing would take a face below that,
+    # the cell is degenerate in the source file, so leave the row alone rather
+    # than inventing a one- or two-node face.
+    keep[keep.sum(axis=1) < 3] = True
+
+    if keep.all():
+        return face_nodes
+
+    collapsed = np.full(face_nodes.shape, INT_FILL_VALUE, dtype=face_nodes.dtype)
+    rows = np.broadcast_to(np.arange(n_face)[:, None], face_nodes.shape)
+    destination = np.cumsum(keep, axis=1) - 1
+    collapsed[rows[keep], destination[keep]] = face_nodes[keep]
+
+    return collapsed
+
+
 def _to_ugrid(in_ds, out_ds):
     """If input dataset (``in_ds``) file is an unstructured SCRIP file,
     function will reassign SCRIP variables to UGRID conventions in output file
@@ -81,6 +128,9 @@ def _to_ugrid(in_ds, out_ds):
         # Reshape face nodes array into original shape for use in 'face_node_connectivity'
         unq_inv = np.reshape(unq_inv, (len(in_ds.grid_size), len(in_ds.grid_corners)))
 
+        # Recover the real face sizes from the degenerate corners SCRIP pads with
+        unq_inv = _collapse_repeated_corners(unq_inv)
+
         # Create node_lon & node_lat
         out_ds[ugrid.NODE_COORDINATES[0]] = xr.DataArray(
             unq_lon, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LON_ATTRS
@@ -104,10 +154,12 @@ def _to_ugrid(in_ds, out_ds):
             attrs=ugrid.FACE_LAT_ATTRS,
         )
 
-        # standardize fill values and data type face nodes
+        # standardize fill values and data type face nodes. The corner collapse
+        # above is what introduces padding here; SCRIP itself has no fill value,
+        # so there is never a -1 in this array to translate.
         face_nodes = _replace_fill_values(
             xr.DataArray(data=unq_inv),
-            original_fill=-1,
+            original_fill=INT_FILL_VALUE,
             new_fill=INT_FILL_VALUE,
             new_dtype=INT_DTYPE,
         )

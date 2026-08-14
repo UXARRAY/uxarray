@@ -37,7 +37,8 @@ WRITABLE_FORMATS = ["ugrid", "exodus", "scrip", "esmf"]
 
 # SCRIP stores corner coordinates rather than node indices, so its reader
 # rebuilds nodes by deduplicating coordinates and renumbers them in the process.
-# Its geometry survives a round trip; its connectivity is not restored verbatim.
+# Its geometry and its face sizes survive a round trip; the specific index each
+# node is given does not.
 EXACT_CONNECTIVITY_FORMATS = ["ugrid", "exodus", "esmf"]
 
 # Format conversion test pairs - removed for now as format conversion
@@ -307,8 +308,35 @@ class TestIOWriteRoundTrip:
             reloaded.face_node_connectivity.values,
             err_msg=f"{fmt}: ragged connectivity not preserved",
         )
+
+    @pytest.mark.parametrize("fmt", WRITABLE_FORMATS)
+    def test_ragged_grid_round_trip_preserves_face_sizes(
+        self, fmt, ragged_grid, tmp_path
+    ):
+        """A short face comes back short, in every writable format.
+
+        Node indices may be renumbered, but a triangle must not reload as a quad.
+        SCRIP is the interesting case: it has no corner fill value, so a short
+        face is written as a degenerate polygon repeating a corner, and the reader
+        has to collapse those repeats back into padding. Leaving them in place
+        keeps the node count honest while still widening the face and adding a
+        zero-length edge.
+        """
+        reloaded = _write_and_reload(ragged_grid, fmt, tmp_path)
+
         assert_array_equal(
             reloaded.n_nodes_per_face.values,
-            np.array([4, 3, 3]),
+            ragged_grid.n_nodes_per_face.values,
             err_msg=f"{fmt}: face sizes not preserved",
         )
+        assert reloaded.n_edge == ragged_grid.n_edge, (
+            f"{fmt}: edge count changed, which means a face gained a "
+            "duplicate vertex and a zero-length edge"
+        )
+
+        # No face may name the same node twice
+        for face, row in enumerate(reloaded.face_node_connectivity.values):
+            nodes = [i for i in row if i != INT_FILL_VALUE]
+            assert len(nodes) == len(set(nodes)), (
+                f"{fmt}: face {face} references a node more than once"
+            )

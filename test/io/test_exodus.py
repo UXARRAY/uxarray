@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pytest
 import uxarray as ux
+import xarray as xr
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -62,6 +63,37 @@ def test_encode_exodus_mixed_blocks():
     # recorded or face-centered data silently misaligns on the way back in.
     assert "elem_num_map" in exo_ds
     assert sorted(exo_ds["elem_num_map"].values.tolist()) == [1, 2, 3]
+
+def test_read_exodus_ignores_third_party_elem_num_map(gridpath, tmp_path):
+    """Element IDs from another writer must not reorder the mesh.
+
+    ``_encode_exodus`` stores the original face order in ``elem_num_map`` so its
+    own block grouping can be undone on read. Exodus itself defines that variable
+    as each element's user-facing ID, which a third-party file is free to
+    renumber. Reading the IDs as an ordering would silently permute those meshes,
+    so the reader only honors the map on files it wrote -- identified via
+    ``qa_records``.
+    """
+    source = gridpath("exodus", "mixed", "mixed.exo")
+    original = ux.open_grid(source)
+
+    # Same mesh, same blocks, same connectivity -- only the element IDs change
+    with xr.open_dataset(source) as ds:
+        renumbered = ds.load()
+    n_elem = renumbered["elem_num_map"].sizes["num_elem"]
+    renumbered["elem_num_map"][:] = np.arange(n_elem, 0, -1)
+
+    assert b"uxarray" not in np.asarray(
+        renumbered["qa_records"].values, dtype="S"
+    ).ravel(), "fixture is no longer a third-party file"
+
+    path = tmp_path / "mixed_renumbered.exo"
+    renumbered.to_netcdf(path)
+
+    np.testing.assert_array_equal(
+        ux.open_grid(path).face_node_connectivity.values,
+        original.face_node_connectivity.values,
+    )
 
 def test_mixed_exodus(gridpath):
     """Read/write an exodus file with two types of faces (triangle and quadrilaterals) and writes a ugrid file."""

@@ -1,5 +1,8 @@
+import numpy as np
+import pytest
 import uxarray as ux
 import xarray as xr
+from uxarray.constants import INT_FILL_VALUE
 
 
 def test_read_esmf(gridpath):
@@ -51,3 +54,36 @@ def test_encode_esmf_structure(gridpath):
     assert esmf_dataset['numElementConn'].values.sum() == (
         uxgrid.n_nodes_per_face.values.sum()
     )
+
+
+@pytest.mark.parametrize("mask_and_scale", [True, False])
+def test_read_esmf_padding_independent_of_cf_decoding(mask_and_scale, tmp_path):
+    """Padding is recognized whether or not xarray decoded the fill value.
+
+    ``_FillValue = -1`` means CF decoding replaces the padding with NaN and
+    promotes elementConn to float, while an undecoded read hands back the raw
+    ``-1`` as int32. Neither form survives a cast to INT_DTYPE as INT_FILL_VALUE,
+    so both have to be identified before it.
+    """
+    uxgrid = ux.Grid.from_topology(
+        node_lon=np.array([0.0, 10.0, 10.0, 0.0, 20.0]),
+        node_lat=np.array([0.0, 0.0, 10.0, 10.0, 0.0]),
+        face_node_connectivity=np.array([
+            [0, 1, 2, 3],
+            [1, 4, 2, INT_FILL_VALUE],
+            [0, 3, 4, INT_FILL_VALUE],
+        ]),
+        fill_value=INT_FILL_VALUE,
+    )
+
+    path = tmp_path / "esmf_ragged.nc"
+    uxgrid.to_xarray("ESMF").to_netcdf(path)
+
+    with xr.open_dataset(path, mask_and_scale=mask_and_scale) as ds:
+        reloaded = ux.open_grid(ds)
+
+    np.testing.assert_array_equal(
+        reloaded.face_node_connectivity.values,
+        uxgrid.face_node_connectivity.values,
+    )
+    np.testing.assert_array_equal(reloaded.n_nodes_per_face.values, [4, 3, 3])
