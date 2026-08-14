@@ -35,10 +35,9 @@ IO_READ_TEST_FORMATS = [
 # Formats that support writing
 WRITABLE_FORMATS = ["ugrid", "exodus", "scrip", "esmf"]
 
-# SCRIP stores corner coordinates rather than node indices, so its reader
-# rebuilds nodes by deduplicating coordinates and renumbers them in the process.
-# Its geometry and its face sizes survive a round trip; the specific index each
-# node is given does not.
+# SCRIP stores corner coordinates, not node indices, so its reader rebuilds and
+# renumbers nodes. Geometry and face sizes survive a round trip; the index each
+# node lands on does not.
 EXACT_CONNECTIVITY_FORMATS = ["ugrid", "exodus", "esmf"]
 
 # Format conversion test pairs - removed for now as format conversion
@@ -316,11 +315,9 @@ class TestIOWriteRoundTrip:
         """A short face comes back short, in every writable format.
 
         Node indices may be renumbered, but a triangle must not reload as a quad.
-        SCRIP is the interesting case: it has no corner fill value, so a short
-        face is written as a degenerate polygon repeating a corner, and the reader
-        has to collapse those repeats back into padding. Leaving them in place
-        keeps the node count honest while still widening the face and adding a
-        zero-length edge.
+        SCRIP is the interesting case: with no corner fill value it repeats a
+        corner instead, and the reader has to collapse those repeats. Leaving them
+        keeps the node count honest while still widening the face.
         """
         reloaded = _write_and_reload(ragged_grid, fmt, tmp_path)
 
@@ -330,8 +327,7 @@ class TestIOWriteRoundTrip:
             err_msg=f"{fmt}: face sizes not preserved",
         )
         assert reloaded.n_edge == ragged_grid.n_edge, (
-            f"{fmt}: edge count changed, which means a face gained a "
-            "duplicate vertex and a zero-length edge"
+            f"{fmt}: edge count changed -- a face gained a duplicate vertex"
         )
 
         # No face may name the same node twice

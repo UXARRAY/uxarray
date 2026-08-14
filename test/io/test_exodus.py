@@ -67,12 +67,10 @@ def test_encode_exodus_mixed_blocks():
 def test_read_exodus_ignores_third_party_elem_num_map(gridpath, tmp_path):
     """Element IDs from another writer must not reorder the mesh.
 
-    ``_encode_exodus`` stores the original face order in ``elem_num_map`` so its
-    own block grouping can be undone on read. Exodus itself defines that variable
-    as each element's user-facing ID, which a third-party file is free to
-    renumber. Reading the IDs as an ordering would silently permute those meshes,
-    so the reader only honors the map on files it wrote -- identified via
-    ``qa_records``.
+    ``_encode_exodus`` records the original face order in ``elem_num_map`` to undo
+    its own block grouping. Exodus defines that variable as a user-facing ID, which
+    a third-party file is free to renumber, so the reader only honors it on files
+    it wrote -- identified via ``qa_records``.
     """
     source = gridpath("exodus", "mixed", "mixed.exo")
     original = ux.open_grid(source)

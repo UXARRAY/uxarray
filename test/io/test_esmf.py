@@ -60,10 +60,9 @@ def test_encode_esmf_structure(gridpath):
 def test_read_esmf_padding_independent_of_cf_decoding(mask_and_scale, tmp_path):
     """Padding is recognized whether or not xarray decoded the fill value.
 
-    ``_FillValue = -1`` means CF decoding replaces the padding with NaN and
-    promotes elementConn to float, while an undecoded read hands back the raw
-    ``-1`` as int32. Neither form survives a cast to INT_DTYPE as INT_FILL_VALUE,
-    so both have to be identified before it.
+    CF decoding replaces the ``-1`` padding with NaN and promotes elementConn to
+    float; an undecoded read hands back the raw int32. Neither survives the cast
+    to INT_DTYPE as INT_FILL_VALUE, so both must be identified before it.
     """
     uxgrid = ux.Grid.from_topology(
         node_lon=np.array([0.0, 10.0, 10.0, 0.0, 20.0]),

@@ -96,11 +96,9 @@ def _read_esmf(in_ds):
     element_conn = in_ds["elementConn"]
     face_dim, node_dim = element_conn.dims
 
-    # "numElementConn" is the format's authoritative face size, so the padding can
-    # be located positionally. Matching the fill value instead means guessing at
-    # it: CF decoding turns the ESMF sentinel into NaN, an undecoded read leaves
-    # the raw value in place, and the integer cast below preserves neither form
-    # (NaN casts to a platform-dependent value, not to INT_FILL_VALUE).
+    # "numElementConn" gives the face size, so locate the padding positionally.
+    # Matching the sentinel means guessing: CF decoding turns it into NaN, and the
+    # cast below preserves neither NaN nor the raw value as INT_FILL_VALUE.
     positions = xr.DataArray(
         np.arange(element_conn.sizes[node_dim], dtype=INT_DTYPE), dims=node_dim
     )

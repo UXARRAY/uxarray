@@ -16,11 +16,9 @@ _WRITER_NAME = "uxarray"
 def _written_by_uxarray(ext_ds):
     """Whether ``ext_ds`` was produced by :func:`_encode_exodus`.
 
-    Exodus defines ``elem_num_map`` as each element's user-facing ID, not as
-    where the element came from. Only a file this writer produced is known to
-    store the original face order there, so the reordering below is restricted
-    to those files -- a third-party file whose IDs happen to be a permutation of
-    ``1..n`` keeps the face order it was written with.
+    Exodus defines ``elem_num_map`` as each element's user-facing ID, not its
+    original position, so only files this writer produced can be reordered from
+    it. A third-party file keeps the face order it was written with.
     """
     if "qa_records" not in ext_ds:
         return False
@@ -111,10 +109,9 @@ def _read_exodus(ext_ds):
         face_nodes = np.vstack(padded_blocks)
 
     if "elem_num_map" in ext_ds and _written_by_uxarray(ext_ds):
-        # _encode_exodus groups elements into blocks by face size, which permutes
-        # a mixed mesh, and records each element's original position here. Undo
-        # that so face order survives a round trip. Only honor the map when it is
-        # a genuine permutation, since Exodus also allows arbitrary IDs.
+        # _encode_exodus groups elements into blocks by face size, permuting a
+        # mixed mesh, and records each original position here. Undo that, but only
+        # for a genuine permutation -- Exodus also allows arbitrary IDs.
         elem_num_map = ext_ds["elem_num_map"].values.astype(INT_DTYPE) - 1
         if elem_num_map.shape == (face_nodes.shape[0],) and np.array_equal(
             np.sort(elem_num_map), np.arange(face_nodes.shape[0])

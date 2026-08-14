@@ -142,8 +142,8 @@ def test_open_multigrid_mask_active_value_per_grid_override(gridpath):
 def test_collapse_repeated_corners():
     """SCRIP pads a short face by repeating a corner; the reader undoes that.
 
-    Duplicates are dropped keeping the first occurrence, so the winding order is
-    preserved and a closed ring collapses the same way a trailing repeat does.
+    Duplicates drop keeping the first occurrence, so winding order is preserved
+    and a closed ring collapses like a trailing repeat.
     """
     face_nodes = np.array(
         [
@@ -171,9 +171,8 @@ def test_collapse_repeated_corners():
 def test_collapse_repeated_corners_keeps_degenerate_faces():
     """A cell that would collapse below three vertices is left alone.
 
-    That cell is degenerate in the source file. Packing it down to one or two
-    nodes would invent a face no polygon routine can use, so the row is returned
-    untouched and the degeneracy stays visible.
+    It is degenerate in the source file; packing it to one or two nodes would
+    invent a face no polygon routine can use, so the degeneracy stays visible.
     """
     face_nodes = np.array([[0, 0, 0, 0], [1, 1, 2, 2]], dtype=INT_DTYPE)
 

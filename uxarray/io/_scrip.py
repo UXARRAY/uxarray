@@ -41,13 +41,11 @@ def _collapse_repeated_corners(face_nodes):
     """Turn SCRIP's repeated corners back into fill values.
 
     SCRIP has no fill value for corners, so a face with fewer than
-    ``grid_corners`` vertices is written as a degenerate polygon that repeats one
-    of its corners. Left in place, each repeat reads as a real vertex: the face
-    keeps its full width and contributes a zero-length edge to
-    ``edge_node_connectivity``.
+    ``grid_corners`` vertices repeats one of them. Left in place each repeat reads
+    as a real vertex, keeping the face full width and adding a zero-length edge.
 
-    Duplicates are dropped keeping the first occurrence, so the winding order
-    survives and a closed ring (a last corner repeating the first) collapses too.
+    Duplicates are dropped keeping the first occurrence, so winding order survives
+    and a closed ring (last corner repeating the first) collapses too.
 
     Parameters
     ----------
@@ -57,8 +55,7 @@ def _collapse_repeated_corners(face_nodes):
     Returns
     -------
     numpy.ndarray
-        The same connectivity with repeats replaced by ``INT_FILL_VALUE``,
-        packed to the left of each row.
+        Connectivity with repeats replaced by ``INT_FILL_VALUE``, packed left.
     """
     n_face, n_corners = face_nodes.shape
 
@@ -68,9 +65,8 @@ def _collapse_repeated_corners(face_nodes):
             axis=1
         )
 
-    # A polygon needs three vertices. If collapsing would take a face below that,
-    # the cell is degenerate in the source file, so leave the row alone rather
-    # than inventing a one- or two-node face.
+    # A cell that would collapse below three vertices is degenerate in the source
+    # file; leave it alone rather than invent a one- or two-node face.
     keep[keep.sum(axis=1) < 3] = True
 
     if keep.all():
@@ -154,9 +150,8 @@ def _to_ugrid(in_ds, out_ds):
             attrs=ugrid.FACE_LAT_ATTRS,
         )
 
-        # standardize fill values and data type face nodes. The corner collapse
-        # above is what introduces padding here; SCRIP itself has no fill value,
-        # so there is never a -1 in this array to translate.
+        # standardize fill values and data type face nodes. The padding here comes
+        # from the collapse above; SCRIP has no fill value of its own.
         face_nodes = _replace_fill_values(
             xr.DataArray(data=unq_inv),
             original_fill=INT_FILL_VALUE,
