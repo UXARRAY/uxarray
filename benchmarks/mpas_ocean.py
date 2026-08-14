@@ -89,6 +89,8 @@ class GeoDataFrame(DatasetBenchmark):
 
 
 class ConnectivityConstruction(DatasetBenchmark):
+    number = 1
+
     def time_n_nodes_per_face(self, resolution):
         self.uxds.uxgrid.n_nodes_per_face
 

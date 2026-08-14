@@ -131,20 +131,36 @@ def _populate_n_nodes_per_face(grid):
     it within the internal (``Grid._ds``) and through the attribute
     (``Grid.n_nodes_per_face``)."""
 
-    n_nodes_per_face = (
-        (grid.face_node_connectivity != INT_FILL_VALUE).sum(axis=1).astype(INT_DTYPE)
+    n_nodes_per_face = xr.apply_ufunc(
+        _build_n_nodes_per_face,
+        grid.face_node_connectivity,
+        input_core_dims=[[ugrid.N_MAX_FACE_NODES_DIM]],
+        dask="parallelized",
+        output_dtypes=[INT_DTYPE],
     )
-
-    if n_nodes_per_face.ndim == 0:
-        # convert scalar value into a [1, 1] array
-        n_nodes_per_face = np.expand_dims(n_nodes_per_face, 0)
 
     # add to internal dataset
     grid._ds["n_nodes_per_face"] = xr.DataArray(
-        data=n_nodes_per_face,
+        data=n_nodes_per_face.data,
         dims=ugrid.N_NODES_PER_FACE_DIMS,
         attrs=ugrid.N_NODES_PER_FACE_ATTRS,
     )
+
+
+@njit(cache=True, nogil=True)
+def _build_n_nodes_per_face(face_nodes):
+    """Constructs ``n_nodes_per_face``, which contains the number of non-fill-
+    value nodes for each face in ``face_node_connectivity``"""
+
+    n_face, n_max_face_nodes = face_nodes.shape
+    n_nodes_per_face = np.empty(n_face, dtype=INT_DTYPE)
+    for i in range(n_face):
+        c = 0
+        for j in range(n_max_face_nodes):
+            if face_nodes[i, j] != INT_FILL_VALUE:
+                c += 1
+        n_nodes_per_face[i] = c
+    return n_nodes_per_face
 
 
 def _populate_edge_node_connectivity(grid):

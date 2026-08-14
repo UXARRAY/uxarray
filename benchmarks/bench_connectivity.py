@@ -111,9 +111,6 @@ class Connectivity(GridBenchmark):
     def time_n_nodes_per_face(self, resolution):
         _ = self.uxgrid.n_nodes_per_face.compute()
 
-    def time_n_nodes_per_face(self, resolution):
-        _ = self.uxgrid.n_nodes_per_face
-
     def time_face_node(self, resolution):
         _ = self.uxgrid.face_node_connectivity.compute()
 

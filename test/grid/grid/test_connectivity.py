@@ -22,6 +22,39 @@ def test_connectivity_build_n_nodes_per_face(gridpath):
     # All values should be positive
     assert np.all(uxgrid.n_nodes_per_face > 0)
 
+def test_connectivity_n_nodes_per_face_ragged(gridpath):
+    """n_nodes_per_face counts non-fill-value nodes on a grid with mixed face sizes."""
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
+
+    face_nodes = uxgrid.face_node_connectivity.values
+    expected = (face_nodes != INT_FILL_VALUE).sum(axis=1).astype(INT_DTYPE)
+
+    nt.assert_array_equal(uxgrid.n_nodes_per_face.values, expected)
+    assert uxgrid.n_nodes_per_face.dtype == INT_DTYPE
+    # a ragged grid is the point of the test; a uniform one would pass trivially
+    assert len(np.unique(expected)) > 1
+
+def test_connectivity_n_nodes_per_face_chunked(gridpath):
+    """n_nodes_per_face is counted blockwise and stays chunked over ``n_face``."""
+    path = gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")
+    expected = ux.open_grid(path).n_nodes_per_face.values
+
+    uxgrid = ux.open_grid(path, chunks={"n_face": 20})
+    n_nodes_per_face = uxgrid.n_nodes_per_face
+
+    # never materialized, and partitioned the same way as its input
+    assert hasattr(n_nodes_per_face.data, "dask")
+    assert n_nodes_per_face.chunks == uxgrid.face_node_connectivity.chunks[:1]
+    nt.assert_array_equal(n_nodes_per_face.values, expected)
+
+def test_connectivity_n_nodes_per_face_chunked_core_dim(gridpath):
+    """Chunking ``n_max_face_nodes`` is refused rather than silently rechunked."""
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"),
+                          chunks={"n_face": 20, "n_max_face_nodes": 2})
+
+    with pytest.raises(ValueError, match="n_max_face_nodes"):
+        uxgrid.n_nodes_per_face.compute()
+
 def test_connectivity_edge_nodes_euler(gridpath):
     """Test edge-node connectivity using Euler's formula."""
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
