@@ -158,4 +158,3 @@ def test_agg_drops_node_spanning_coords(gridpath, destination):
     assert "node_lon" not in result.coords
     assert "n_node" not in result.dims
     assert "time" in result.coords
-
