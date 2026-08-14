@@ -1,5 +1,4 @@
 import warnings
-from abc import ABC, abstractmethod
 from typing import Callable
 
 import numpy as np
@@ -1646,75 +1645,85 @@ class Neighborhood:
         return UxDataArray(filtered, uxgrid=getattr(uxda, "uxgrid", self._grid))
 
 
-class _BoundNeighborhoodReductions(ABC):
+class _BoundNeighborhoodReductions:
     """The reduction vocabulary of a :class:`Neighborhood` whose data is already
     supplied, spelled once for every class that carries it.
 
-    Each method names the :class:`Neighborhood` reduction it stands for and hands
-    it to :meth:`_map`, which subclasses implement to say *which data* it runs
-    on. Only that one method varies between a neighborhood bound to a single
-    variable and one bound to a whole dataset, so the reductions themselves are
-    written once rather than once per binding.
+    A reduction has to be an attribute of ``Neighborhood``, which takes its data
+    as an argument, and of the classes below, which already hold theirs. Those
+    two signatures cannot share a definition, so the vocabulary is spelled twice
+    in all -- but only twice, and only one of the two chooses a kernel.
 
-    Choosing a kernel and preparing its parameter stays in ``Neighborhood``
-    alone: a bound method reaches a kernel only through the unbound method it
-    names, so it cannot pass a different kernel, or a different ``ddof``, than
-    the reduction it claims to be.
+    This is the half that does not. Each method here hands ``_map`` the
+    ``Neighborhood`` method it stands for, as the function object itself rather
+    than a name to look up later, and subclasses implement ``_map`` to say
+    *which data* to call it on. That is the only thing that differs between a
+    neighborhood bound to one variable and one bound to a whole dataset, so
+    everything else is written once.
+
+    Passing the method rather than a name is what keeps the two halves honest:
+    the reference is resolved when this class is created, so a reduction that
+    ``Neighborhood`` does not define cannot be spelled here at all, and a bound
+    method cannot reach a different kernel, or a different ``ddof``, than the
+    unbound one it names.
     """
 
-    @abstractmethod
-    def _map(self, reduction: Callable):
-        """Applies ``reduction(neighborhood, uxda)`` to the data this is bound
-        to, and returns the result in the same container as that data."""
+    def _map(self, reduction: Callable, *args, **kwargs):
+        """Calls ``reduction(neighborhood, uxda, *args, **kwargs)`` on the data
+        this is bound to, returning the result in the same container.
+
+        Subclasses must implement this; it is the only thing they need to.
+        """
+        raise NotImplementedError
 
     def mean(self):
         """Mean of each neighborhood."""
-        return self._map(lambda nb, uxda: nb.mean(uxda))
+        return self._map(Neighborhood.mean)
 
     def sum(self):
         """Sum of each neighborhood."""
-        return self._map(lambda nb, uxda: nb.sum(uxda))
+        return self._map(Neighborhood.sum)
 
     def min(self):
         """Smallest value in each neighborhood."""
-        return self._map(lambda nb, uxda: nb.min(uxda))
+        return self._map(Neighborhood.min)
 
     def max(self):
         """Largest value in each neighborhood."""
-        return self._map(lambda nb, uxda: nb.max(uxda))
+        return self._map(Neighborhood.max)
 
     def ptp(self):
         """Peak-to-peak spread (``max - min``) of each neighborhood."""
-        return self._map(lambda nb, uxda: nb.ptp(uxda))
+        return self._map(Neighborhood.ptp)
 
     def median(self):
         """Median of each neighborhood."""
-        return self._map(lambda nb, uxda: nb.median(uxda))
+        return self._map(Neighborhood.median)
 
     def var(self, ddof: int = 0):
         """Variance of each neighborhood, with ``ddof`` delta degrees of
         freedom."""
-        return self._map(lambda nb, uxda: nb.var(uxda, ddof=ddof))
+        return self._map(Neighborhood.var, ddof=ddof)
 
     def std(self, ddof: int = 0):
         """Standard deviation of each neighborhood, with ``ddof`` delta degrees
         of freedom."""
-        return self._map(lambda nb, uxda: nb.std(uxda, ddof=ddof))
+        return self._map(Neighborhood.std, ddof=ddof)
 
     def quantile(self, q: float):
         """Quantile ``q`` (between 0 and 1) of each neighborhood."""
-        return self._map(lambda nb, uxda: nb.quantile(uxda, q))
+        return self._map(Neighborhood.quantile, q)
 
     def percentile(self, q: float):
         """Percentile ``q`` (between 0 and 100) of each neighborhood."""
-        return self._map(lambda nb, uxda: nb.percentile(uxda, q))
+        return self._map(Neighborhood.percentile, q)
 
     def reduce(self, func: Callable):
         """Reduces each neighborhood with an arbitrary callable.
 
         See :meth:`Neighborhood.reduce`, which this supplies the data to.
         """
-        return self._map(lambda nb, uxda: nb.reduce(uxda, func))
+        return self._map(Neighborhood.reduce, func)
 
 
 class DataArrayNeighborhood(_BoundNeighborhoodReductions):
@@ -1783,9 +1792,9 @@ class DataArrayNeighborhood(_BoundNeighborhoodReductions):
             f"<DataArrayNeighborhood of {self._uxda.name!r} on {self._neighborhood!r}>"
         )
 
-    def _map(self, reduction: Callable):
+    def _map(self, reduction: Callable, *args, **kwargs):
         """Applies ``reduction`` to the one variable this is bound to."""
-        return reduction(self._neighborhood, self._uxda)
+        return reduction(self._neighborhood, self._uxda, *args, **kwargs)
 
 
 class DatasetNeighborhood(_BoundNeighborhoodReductions):
@@ -1828,7 +1837,7 @@ class DatasetNeighborhood(_BoundNeighborhoodReductions):
             f"<DatasetNeighborhood r={self._r} data_vars={len(self._uxds.data_vars)}>"
         )
 
-    def _map(self, reduction: Callable):
+    def _map(self, reduction: Callable, *args, **kwargs):
         """Applies ``reduction`` to every grid-mapped variable, sharing a
         neighbor query between variables at the same grid location."""
         destination_uxds = self._uxds._copy()
@@ -1848,6 +1857,8 @@ class DatasetNeighborhood(_BoundNeighborhoodReductions):
 
             # The Neighborhood methods restore the input dimension order, so
             # it is always preserved.
-            destination_uxds[var_name] = reduction(self._by_location[location], uxda)
+            destination_uxds[var_name] = reduction(
+                self._by_location[location], uxda, *args, **kwargs
+            )
 
         return destination_uxds
