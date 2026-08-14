@@ -1,5 +1,7 @@
+import dask.array as da
 import numpy as np
 import uxarray as ux
+import uxarray.grid.slice as slice_module
 from uxarray.grid.slice import _remap_dense, _remap_kernel, _remap_searchsorted
 
 import pytest
@@ -271,3 +273,61 @@ def test_remap_kernels_agree():
     np.testing.assert_array_equal(
         _remap_searchsorted(conn, empty), np.full(conn.shape, fill, dtype=dtype)
     )
+
+
+def test_isel_dask_connectivity(gridpath, monkeypatch):
+    """Chunked connectivity must stay lazy through a slice and still match the
+    eager result.
+
+    The remapping kernels run per block, so a bug that only shows up on a partial
+    chunk is invisible when the connectivity is a single eager array. Both kernels
+    are exercised, since only one of them is selected for any given grid.
+    """
+    grid_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+
+    def open_with_edges(**kwargs):
+        grid = ux.open_grid(grid_path, **kwargs)
+        # build the edge connectivity so the edge remap is exercised as well
+        _ = grid.face_edge_connectivity
+        return grid
+
+    eager_grid = open_with_edges()
+    face_indices = np.arange(0, eager_grid.n_face, 2)
+    eager_subset = eager_grid.isel(n_face=face_indices)
+
+    for force_sparse in (False, True):
+        grid = open_with_edges(chunks=-1)
+
+        # split each connectivity into several blocks; `chunks=-1` alone is
+        # dask-backed but single-block, which would not cover the blockwise path
+        for name in list(grid._ds.data_vars):
+            if "_connectivity" in name:
+                dim = grid._ds[name].dims[0]
+                grid._ds[name] = grid._ds[name].chunk(
+                    {dim: max(grid._ds.sizes[dim] // 5, 1)}
+                )
+
+        if force_sparse:
+            monkeypatch.setattr(slice_module, "_DENSE_REMAP_MAX_SIZE", 0)
+            monkeypatch.setattr(slice_module, "_DENSE_REMAP_MAX_RATIO", 0)
+        subset = grid.isel(n_face=face_indices)
+        monkeypatch.undo()
+
+        remapped = {
+            name: var
+            for name, var in subset._ds.data_vars.items()
+            if "_connectivity" in name
+        }
+        assert remapped
+        assert set(remapped) == {
+            name for name in eager_subset._ds.data_vars if "_connectivity" in name
+        }
+
+        for name, var in remapped.items():
+            assert isinstance(var.data, da.Array), f"{name} was computed eagerly"
+            assert len(var.data.chunks[0]) > 1, f"{name} did not span multiple blocks"
+            np.testing.assert_array_equal(
+                var.values,
+                eager_subset._ds[name].values,
+                err_msg=f"force_sparse={force_sparse}: {name}",
+            )
