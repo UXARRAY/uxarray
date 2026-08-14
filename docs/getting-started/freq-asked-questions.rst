@@ -4,6 +4,20 @@
 Frequently Asked Questions
 ==========================
 
+I want to learn more about unstructured grids (or other topics of the Earth System Sciences), where should I start?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Check out:
+`Project Pythia <https://cookbooks.projectpythia.org/>`_ , a home for Python-justified learning resources that are open-source, community-owned, geoscience-focused, and high-quality. For instance,
+`Pythia Cookbooks <https://cookbooks.projectpythia.org/>`_ provide a variety of advanced, domain-specific workflows. In particular, the
+`Unstructured Grid Visualization Cookbook <https://projectpythia.org/unstructured-grid-viz-cookbook/>`_ houses
+`foundational information <https://projectpythia.org/unstructured-grid-viz-cookbook/notebooks/foundations/unstructured-grids/>`_ along with a comprehensive
+showcase of workflows & techniques for working with Unstructured Grids.
+
+
+Read through `UGRID Conventions <https://ugrid-conventions.github.io/ugrid-conventions/>`_, which is what UXarray is written around to represent several
+different unstructured mesh types in a unified, `Climate and Forecast metadata convention (CF) <https://cfconventions.org/>`_-compliant format.
+
+
 What foundational assumptions does UXarray make about grids and geometry?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 UXarray assumes horizontally unstructured grids, consistent with the
