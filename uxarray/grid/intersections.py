@@ -432,6 +432,17 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     numpy.ndarray
         Intersection points, shape ``(2, 3)``, with unused rows filled with NaN
         (0, 1, or 2 valid rows).
+
+    References
+    ----------
+    Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+    Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+    algorithms for regridding on the sphere. Geoscientific Model
+    Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
+
+    Chen, H., Ullrich, P. A., and Panetta, J. (2026). Fast and accurate
+    intersections on a sphere. SIAM Journal on Scientific Computing, 48(2),
+    B208-B232. https://doi.org/10.1137/25M1737614
     """
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
         raise DimensionError("The two GCAs must be in the cartesian [x, y, z] format")
@@ -664,6 +675,17 @@ def gca_const_lat_intersection(gca_cart, const_z):
     numpy.ndarray
         Intersection points, shape ``(2, 3)``, with unused rows filled with NaN
         (0, 1, or 2 valid rows).
+
+    References
+    ----------
+    Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+    Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+    algorithms for regridding on the sphere. Geoscientific Model
+    Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
+
+    Chen, H., Ullrich, P. A., and Panetta, J. (2026). Fast and accurate
+    intersections on a sphere. SIAM Journal on Scientific Computing, 48(2),
+    B208-B232. https://doi.org/10.1137/25M1737614
     """
     res = np.empty((2, 3))
     res.fill(np.nan)
@@ -727,6 +749,17 @@ def get_number_of_intersections(arr):
     -------
     int
         Number of non-NaN intersection points (0, 1, or 2).
+
+    References
+    ----------
+    Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+    Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+    algorithms for regridding on the sphere. Geoscientific Model
+    Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
+
+    Chen, H., Ullrich, P. A., and Panetta, J. (2026). Fast and accurate
+    intersections on a sphere. SIAM Journal on Scientific Computing, 48(2),
+    B208-B232. https://doi.org/10.1137/25M1737614
     """
     row1_is_nan = np.all(np.isnan(arr[0]))
     row2_is_nan = np.all(np.isnan(arr[1]))

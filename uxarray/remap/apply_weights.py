@@ -7,6 +7,7 @@ import xarray as xr
 
 import uxarray.core.dataarray
 from uxarray.errors import DimensionError
+from uxarray.utils.coords import _preserve_valid_coords
 
 from .utils import (
     LABEL_TO_COORD,
@@ -90,12 +91,7 @@ def _apply_weights(
         da_t = da.transpose(*other_dims, variable_source_dim)
         remapped_values = weights_obj._apply(np.asarray(da_t.values))
 
-        other_dims_set = set(other_dims)
-        coords = {
-            coord_name: coord
-            for coord_name, coord in da.coords.items()
-            if set(coord.dims).issubset(other_dims_set)
-        }
+        coords = _preserve_valid_coords(da, variable_source_dim, other_dims)
         da_out = uxarray.core.dataarray.UxDataArray(
             remapped_values,
             dims=other_dims + [destination_dim],

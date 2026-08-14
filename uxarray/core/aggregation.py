@@ -3,6 +3,7 @@ import numpy as np
 import uxarray.core.dataarray
 from uxarray.errors import DataCenteringError
 from uxarray.grid.connectivity import get_face_node_partitions
+from uxarray.utils.coords import _preserve_valid_coords
 
 NUMPY_AGGREGATIONS = {
     "mean": np.mean,
@@ -90,12 +91,14 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
             uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
         )
     else:
-        raise ValueError
+        raise TypeError
 
     return uxarray.core.dataarray.UxDataArray(
         uxgrid=uxda.uxgrid,
         data=aggregated_var,
         dims=uxda.dims,
+        coords=_preserve_valid_coords(uxda, "n_node"),
+        attrs=uxda.attrs,
         name=uxda.name,
     ).rename({"n_node": "n_face"})
 
@@ -158,12 +161,14 @@ def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
             uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
         )
     else:
-        raise ValueError
+        raise TypeError
 
     return uxarray.core.dataarray.UxDataArray(
         uxgrid=uxda.uxgrid,
         data=aggregation_var,
         dims=uxda.dims,
+        coords=_preserve_valid_coords(uxda, "n_node"),
+        attrs=uxda.attrs,
         name=uxda.name,
     ).rename({"n_node": "n_edge"})
 

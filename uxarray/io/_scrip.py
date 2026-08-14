@@ -120,7 +120,7 @@ def _to_ugrid(in_ds, out_ds):
         )
 
     else:
-        raise Exception("Structured scrip files are not yet supported")
+        raise NotImplementedError("Structured scrip files are not yet supported")
 
     # populate source dims
     source_dims_dict[in_ds["grid_center_lon"].dims[0]] = "n_face"
