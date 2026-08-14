@@ -60,12 +60,13 @@ class FaceBounds:
     track_peakmem_face_bounds.unit = "bytes"
 
 
-class FaceBoundsTracemalloc:
+class FaceBoundsColdStartRss:
     """Peak memory of a cold start: import uxarray, open a grid, get its bounds.
 
-    Whole-process ``ru_maxrss``, so the ~250MB uxarray import is part of the
-    number by design -- this is the cold-start cost, not the cost of ``bounds``.
-    For that, see ``FaceBounds.track_peakmem_face_bounds``.
+    Whole-process ``ru_maxrss``, not tracemalloc -- the ~250MB uxarray import is
+    part of the number by design, because the cold start is the subject. For the
+    cost of ``bounds`` alone see ``FaceBounds.track_peakmem_face_bounds``, which
+    runs one to three orders of magnitude lower.
     """
 
     params = FaceBounds.params
