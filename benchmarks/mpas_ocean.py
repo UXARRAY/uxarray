@@ -123,7 +123,7 @@ class Integrate(DatasetBenchmark):
     track_nbytes_integrate.unit = "bytes"
 
 
-class GradientPeakMem:
+class GradientTracemalloc:
     """Peak memory of a cold start: import uxarray, open a dataset, take a gradient.
 
     Whole-process ``ru_maxrss``, so the ~250MB uxarray import is part of the
