@@ -39,6 +39,7 @@ from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
+from uxarray.utils.coords import _preserve_valid_coords
 
 if TYPE_CHECKING:
     import cartopy.crs as ccrs
@@ -742,11 +743,7 @@ class UxDataArray(xr.DataArray):
             dims[face_axis] = "latitudes"
 
             # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
-            new_coords = {
-                k: v
-                for k, v in self.coords.items()
-                if self.dims[face_axis] not in v.dims
-            }
+            new_coords = _preserve_valid_coords(self, "n_face")
             # Add latitudes to the resulting coords
             new_coords["latitudes"] = latitudes
 
@@ -796,11 +793,7 @@ class UxDataArray(xr.DataArray):
             dims[face_axis] = "latitudes"
 
             # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
-            new_coords = {
-                k: v
-                for k, v in self.coords.items()
-                if self.dims[face_axis] not in v.dims
-            }
+            new_coords = _preserve_valid_coords(self, "n_face")
             # Add latitudes to the resulting coords
             new_coords["latitudes"] = centers
 
@@ -995,9 +988,7 @@ class UxDataArray(xr.DataArray):
         )
 
         # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
-        new_coords = {
-            k: v for k, v in self.coords.items() if self.dims[face_axis] not in v.dims
-        }
+        new_coords = _preserve_valid_coords(self, "n_face")
         # Add radii_deg to the resulting coords
         new_coords["radius"] = radii_deg
 
