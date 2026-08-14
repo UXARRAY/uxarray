@@ -268,7 +268,7 @@ def _apply_node_to_edge_aggregation_dask(
 
     Mirrors the node-to-face dask path: the data field and the edge-node
     connectivity enter ``apply_ufunc`` as dask inputs (nothing computed
-    eagerly), ``n_node`` is a single (uncrunked) core dimension, and the leading
+    eagerly), ``n_node`` is a single (unchunked) core dimension, and the leading
     dimensions are processed blockwise. Each edge reduces over its two endpoint
     nodes.
     """
