@@ -87,7 +87,9 @@ def _raise_hint_if_optional_deps_missing(*packages: str):
                 pass  # this package is already covered by other needed extras!
             elif len(many_extras) == 1:  # case (3)
                 need_extras.add(extras[0])
-                or_extras.extend(extra for extra in extras[1:] if extra not in or_extras)
+                or_extras.extend(
+                    extra for extra in extras[1:] if extra not in or_extras
+                )
                 if "all" not in or_extras:
                     or_extras.append("all")
             else:  # case (4)
@@ -103,8 +105,10 @@ def _raise_hint_if_optional_deps_missing(*packages: str):
         elif len(or_extras) == 2:
             errmsg += f', ``pip install "uxarray[{or_extras[0]}]"``, or ``pip install "uxarray[{or_extras[1]}]"``'
         elif len(or_extras) >= 3:
-            sorted_or_extras = sorted(or_extras, key=lambda s: (s=="all", s))  # put "all" last
-            options_str = ", ".join(f'[{extra}]' for extra in sorted_or_extras[:-1])
+            sorted_or_extras = sorted(
+                or_extras, key=lambda s: (s == "all", s)
+            )  # put "all" last
+            options_str = ", ".join(f"[{extra}]" for extra in sorted_or_extras[:-1])
             options_str += f", or [{sorted_or_extras[-1]}]"
             errmsg += f" or pip install with {options_str}"
         errmsg += ", then try again."
