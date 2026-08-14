@@ -1,11 +1,12 @@
 import os
-import tracemalloc
 import urllib.request
 from pathlib import Path
 
 import numpy as np
 
 import uxarray as ux
+
+from .helpers._peakmem import peak_allocated
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -66,15 +67,14 @@ CONNECTIVITY_NAMES = [
     "node_face_connectivity",
 ]
 
-# What each variable needs in place before its own construction routine can run,
-# read off the ``_populate_*`` functions in ``uxarray/grid/connectivity.py``.
-# Only direct prerequisites are listed: accessing one builds its own in turn.
+# Direct prerequisites only, read off the ``_populate_*`` functions in
+# ``uxarray/grid/connectivity.py``; accessing one builds its own in turn.
 CONNECTIVITY_PREREQUISITES = {
     "n_nodes_per_face": (),
     "face_node_connectivity": (),
     "edge_node_connectivity": ("n_nodes_per_face",),
-    # ``_populate_edge_node_connectivity`` writes ``face_edge_connectivity`` out
-    # alongside its own variable, so this one costs nothing once it has run.
+    # ``_populate_edge_node_connectivity`` writes this one out too, so it costs
+    # nothing once that has run.
     "face_edge_connectivity": ("edge_node_connectivity",),
     "node_edge_connectivity": ("edge_node_connectivity",),
     "face_face_connectivity": ("edge_face_connectivity",),
@@ -84,9 +84,8 @@ CONNECTIVITY_PREREQUISITES = {
 
 
 def _build_prerequisites(uxgrid, connectivity):
-    """Puts ``connectivity``'s prerequisites in place, so that what follows
-    measures the one construction routine rather than the whole chain rooted at
-    it."""
+    """Builds ``connectivity``'s prerequisites, so what follows measures one
+    construction routine rather than the whole chain rooted at it."""
     for prerequisite in CONNECTIVITY_PREREQUISITES[connectivity]:
         getattr(uxgrid, prerequisite)
     return uxgrid
@@ -97,15 +96,15 @@ _numba_warmed_up = False
 def _warmup():
     """Compiles the Numba kernels backing each connectivity variable.
 
-    ``_build_node_edge_connectivity`` is not disk-cached, so a fresh benchmark
-    process would otherwise charge ~240ms of JIT compilation to whichever sample
-    happened to touch it first.
+    Every kernel in ``uxarray/grid/connectivity.py`` is ``@njit(cache=True)``, so
+    this carries across processes through Numba's on-disk cache -- what makes it
+    usable from ``setup_cache``. Loading from that cache still allocates, so it
+    matters for ``track_peakmem_*`` too, not just timing.
     """
     global _numba_warmed_up
     if _numba_warmed_up:
         return
-    # The resolution only affects how long the kernels run, not which signatures get
-    # compiled, so the coarsest grid is enough to warm any of them.
+    # Resolution affects how long the kernels run, not which signatures compile.
     uxgrid = ux.Grid.from_topology(*_source_topology(GridBenchmark.params[0][0]))
     for name in CONNECTIVITY_NAMES:
         getattr(uxgrid, name)
@@ -118,14 +117,12 @@ _topology_cache = {}
 def _source_topology(resolution):
     """The minimal UGRID topology for ``resolution``, read once per process.
 
-    The benchmark grids are MPAS meshes, which carry every connectivity variable
-    on disk. Reading one would measure the MPAS parser rather than the
-    construction routines, so the grid is reduced to the minimal UGRID topology
-    and each variable is left to be built on demand.
+    The benchmark grids are MPAS meshes carrying every connectivity variable on
+    disk; reading one would measure the MPAS parser rather than the construction
+    routines, so each variable is left to be built on demand.
 
-    Cached because asv re-runs ``setup`` between timing repeats: at the dyamond
-    resolutions re-reading the source grid costs orders of magnitude more than
-    the sample it precedes.
+    Cached because asv re-runs ``setup`` between repeats, and at dyamond
+    resolutions re-reading the source grid dwarfs the sample it precedes.
     """
     if resolution not in _topology_cache:
         source_grid = ux.open_grid(file_path_dict[resolution])
@@ -147,8 +144,7 @@ class MinimalGridBenchmark(GridBenchmark):
     # Handover slot for ``_prerequisite_setup``; see its docstring.
     active_grid = None
 
-    # The default ``benchmark_timeout`` is not enough to build a connectivity
-    # variable on a 3.75km grid.
+    # asv's 60s default is not enough to build a connectivity variable at 3.75km.
     timeout = 1200
 
     def setup(self, resolution, *args, **kwargs):
@@ -163,8 +159,8 @@ class MinimalGridBenchmark(GridBenchmark):
         return ux.Grid.from_topology(*self.topology)
 
     def teardown(self, resolution, *args, **kwargs):
-        # Cleared so a per-benchmark setup can never reach a stale grid: it
-        # would quietly measure the wrong thing, where this raises instead.
+        # Cleared so a per-benchmark setup raises rather than quietly measuring
+        # a stale grid.
         MinimalGridBenchmark.active_grid = None
         del self.uxgrid
         del self.topology
@@ -174,12 +170,9 @@ def _prerequisite_setup(connectivity):
     """Builds a per-benchmark ``setup`` that puts ``connectivity``'s
     prerequisites in place before the clock starts.
 
-    asv collects ``setup`` from the benchmark function as well as from the
-    class, and runs the class one first, but it calls neither with the instance
-    -- only with the parameters. Hence the handover through
-    ``MinimalGridBenchmark.active_grid``, which the class ``setup`` has just
-    filled in. One benchmark runs per process, so there is nothing to collide
-    with.
+    asv collects ``setup`` from the benchmark function as well as the class and
+    runs the class one first, but passes neither the instance, hence the handover
+    through ``MinimalGridBenchmark.active_grid``.
     """
 
     def setup(resolution, *args, **kwargs):
@@ -191,16 +184,13 @@ def _prerequisite_setup(connectivity):
 class Connectivity(MinimalGridBenchmark):
     """Time to construct each connectivity variable.
 
-    Each variable's prerequisites are built during ``setup``, so a sample times
-    the one construction routine that produces that variable rather than the
-    whole chain rooted at it -- matching how
-    :class:`ConnectivityPeakAlloc` attributes memory.
+    Prerequisites are built during ``setup``, so a sample times the one routine
+    that produces that variable rather than the whole chain rooted at it --
+    matching how :class:`ConnectivityTracemalloc` attributes memory.
     """
 
-    # Each connectivity variable is cached in ``Grid._ds`` once constructed, so a
-    # sample may only contain a single call; otherwise every call but the first
-    # would time a dictionary lookup.
     number = 1
+    warmup_time = 0
 
     def time_n_nodes_per_face(self, resolution):
         _ = self.uxgrid.n_nodes_per_face.compute()
@@ -251,34 +241,19 @@ class Connectivity(MinimalGridBenchmark):
     time_node_face.setup = _prerequisite_setup("node_face_connectivity")
 
 
-def _peak_allocated(build):
-    """Bytes held at the high-water point of ``build``, counting only what it
-    allocated itself."""
-    tracemalloc.start()
-    try:
-        tracemalloc.reset_peak()
-        build()
-        _, peak = tracemalloc.get_traced_memory()
-    finally:
-        tracemalloc.stop()
-    return peak
-
-
-class ConnectivityPeakAlloc(MinimalGridBenchmark):
+class ConnectivityTracemalloc(MinimalGridBenchmark):
     """Peak memory of each connectivity routine on its own.
 
-    Reports the transient high-water allocation of the construction routine,
-    with the ~245MB the process is already holding subtracted out.
+    The transient high-water allocation of the construction routine, with the
+    ~245MB the process already holds excluded.
     """
 
-    # Applies to every ``track_*`` in the class; asv resolves benchmark
-    # attributes from the instance when the function does not carry them.
     unit = "bytes"
 
     def _peak_building(self, name):
         """Peak allocation of ``name``'s own construction routine."""
         uxgrid = _build_prerequisites(self.minimal_grid(), name)
-        return _peak_allocated(lambda: getattr(uxgrid, name).compute())
+        return peak_allocated(lambda: getattr(uxgrid, name).compute())
 
     def track_peakmem_n_nodes_per_face(self, resolution):
         return self._peak_building("n_nodes_per_face")
@@ -306,8 +281,12 @@ class ConnectivityPeakAlloc(MinimalGridBenchmark):
 
 
 def _save_topology(uxgrid, npz_path):
-    """Writes the minimal UGRID topology of ``uxgrid`` out to ``npz_path``."""
-    np.savez(
+    """Writes the minimal UGRID topology of ``uxgrid`` out to ``npz_path``.
+
+    Compressed because ``setup_cache`` writes into a ``tempfile.mkdtemp()`` and
+    ``face_node_connectivity`` alone is multi-GB at 3.75km.
+    """
+    np.savez_compressed(
         npz_path,
         node_lon=uxgrid.node_lon.data,
         node_lat=uxgrid.node_lat.data,
@@ -325,46 +304,35 @@ def _load_topology(npz_path):
         )
 
 
-class ConnectivityPeakMem:
+class ConnectivityChainRss:
     """Peak resident memory of the process while constructing each connectivity
     variable.
 
-    Unlike :class:`ConnectivityPeakAlloc`, no prerequisites are built during
-    ``setup``, so a sample covers the whole chain rooted at that variable --
-    which is what the resident footprint of asking for it actually costs.
+    Differs from :class:`ConnectivityTracemalloc` on two axes. Scope: no
+    prerequisites are built in ``setup``, so a sample covers
+    the whole chain rooted at that variable. Instrument: ``ru_maxrss`` for the
+    whole process, so the ~250MB import.
     """
 
-    # Declared rather than inherited from ``MinimalGridBenchmark`` -- only the
-    # parameterization is shared, not the ``setup`` that opens a grid in the
-    # process being measured.
+    # Only the parameterization is shared with ``MinimalGridBenchmark``
     param_names = GridBenchmark.param_names
     params = GridBenchmark.params
     timeout = 1200
 
     def setup_cache(self):
-        # asv runs this in its own process and passes the return value back as
-        # the leading argument of ``setup`` and of each benchmark, so nothing
-        # allocated here counts towards the samples.
         topology_paths = {}
         for resolution in self.params[0]:
             npz_path = os.path.abspath(f"topology_{resolution}.npz")
             _save_topology(ux.open_grid(file_path_dict[resolution]), npz_path)
             topology_paths[resolution] = npz_path
 
-        # Being a separate process, this only reaches the benchmarks through
-        # Numba's on-disk cache -- which is the point, since a compilation it
-        # saves is one that would otherwise land inside a measured region.
         _warmup()
 
         return topology_paths
 
-    # Reading every grid in ``file_path_dict`` exceeds the default
-    # ``benchmark_timeout`` once the Glade paths are available.
     setup_cache.timeout = 1800
 
     def setup(self, topology_paths, resolution):
-        # Each connectivity variable is cached in ``Grid._ds`` once constructed,
-        # so the measured call needs a ``Grid`` that does not hold it yet.
         self.uxgrid = _load_topology(topology_paths[resolution])
 
     def teardown(self, topology_paths, resolution):
