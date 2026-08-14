@@ -280,3 +280,17 @@ def test_healpix_round_trip_consistency(tmp_path):
     # Validate grid dimensions are preserved
     assert reloaded_ugrid.n_face == original_grid.n_face
     assert reloaded_exodus.n_face == original_grid.n_face
+
+def test_healpix_grid_attr_access_order():
+    """Ensure can access node_lon & node_lat attributes of healpix grid in any order.
+    (If problem turns out to exists with other attributes, can add them here later.)
+    Regression test for #1637.
+    """
+    grid = ux.Grid.from_healpix(zoom=1)
+    grid.node_lon
+    grid.node_lat
+
+    # just making sure this doesn't crash:
+    grid = ux.Grid.from_healpix(zoom=1)
+    grid.node_lat
+    grid.node_lon

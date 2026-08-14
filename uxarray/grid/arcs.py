@@ -214,6 +214,13 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     ------
     ValueError
         If `extreme_type` is not 'max' or 'min'.
+
+    References
+    ----------
+    Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+    Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+    algorithms for regridding on the sphere. Geoscientific Model
+    Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
     """
     # Validate extreme_type
     if (extreme_type != "max") and (extreme_type != "min"):
@@ -465,6 +472,12 @@ def orient3d_on_sphere(a, b, q, tol=_PREDICATE_ZERO_TOL):
     int
         +1 if q is to the left of a->b, -1 if to the right, 0 if collinear
         within ``tol``.
+
+    References
+    ----------
+    Shewchuk, J. R. (1997). Adaptive precision floating-point arithmetic and
+    fast robust geometric predicates. Discrete & Computational Geometry, 18,
+    305-363. https://doi.org/10.1007/PL00009321
     """
     v = _orient3d_on_sphere_value(a, b, q)
     if v > tol:
@@ -500,6 +513,12 @@ def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
         mask (not bool) so callers can multiply it into validity products. An
         attempt to implement a similar Python function that provides the same
         functionality as AccuSphGeom's ``on_minor_arc_tol_ptr``.
+
+    References
+    ----------
+    Shewchuk, J. R. (1997). Adaptive precision floating-point arithmetic and
+    fast robust geometric predicates. Discrete & Computational Geometry, 18,
+    305-363. https://doi.org/10.1007/PL00009321
     """
     return _on_minor_arc_xyz(q[0], q[1], q[2], a[0], a[1], a[2], b[0], b[1], b[2], tol)
 
