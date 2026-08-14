@@ -7,6 +7,7 @@ import numpy as np
 import uxarray as ux
 
 from .helpers._memsize import grid_nbytes
+from .helpers._peakmem import numba_threads, peak_allocated
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
@@ -59,11 +60,15 @@ class GridBenchmark:
 
 
 class FaceAreas(GridBenchmark):
-    number = 1 # face_areas only calculates once before being cached
+    number = 1
+    warmup_time = 0
 
     def setup(self, resolution, *args, **kwargs):
+        # The coarsest grid, purely to compile the njit kernel
+        warmup_grid = ux.open_grid(file_path_dict[self.params[0][0]][0])
+        _ = warmup_grid.face_areas
         super().setup(resolution, *args, **kwargs)
-        del self.uxgrid._ds["face_areas"] # guarantee it is empty
+        self.uxgrid._ds = self.uxgrid._ds.drop_vars("face_areas", errors="ignore")
 
     def time_face_areas(self, resolution):
         _ = self.uxgrid.face_areas
@@ -74,8 +79,21 @@ class FaceAreas(GridBenchmark):
 
     track_nbytes_face_areas.unit = "bytes"
 
+    def track_peakmem_face_areas(self, resolution):
+        """Transient high-water allocation of computing ``Grid.face_areas``."""
+        with numba_threads(1):
+            return peak_allocated(lambda: self.uxgrid.face_areas)
+
+    track_peakmem_face_areas.unit = "bytes"
+
 
 class Gradient(DatasetBenchmark):
+    def setup(self, resolution, *args, **kwargs):
+        super().setup(resolution, *args, **kwargs)
+        # Compiles the gradient kernels on the coarsest grid
+        grid, data = file_path_dict[self.params[0][0]]
+        _ = ux.open_dataset(grid, data)[data_var].gradient()
+
     def time_gradient(self, resolution):
         self.uxds[data_var].gradient()
 
@@ -85,8 +103,15 @@ class Gradient(DatasetBenchmark):
 
     track_nbytes_gradient.unit = "bytes"
 
+    def track_peakmem_gradient(self, resolution):
+        """Transient high-water allocation of taking a gradient."""
+        return peak_allocated(lambda: self.uxds[data_var].gradient())
+
+    track_peakmem_gradient.unit = "bytes"
+
 
 class Integrate(DatasetBenchmark):
+
     def time_integrate(self, resolution):
         self.uxds[data_var].integrate()
 
@@ -101,8 +126,9 @@ class Integrate(DatasetBenchmark):
 class GradientPeakMem:
     """Peak memory of a cold start: import uxarray, open a dataset, take a gradient.
 
-    Not a :class:`DatasetBenchmark` subclass -- that would open the dataset in
-    ``setup``, and asv counts setup memory towards ``peakmem_*``.
+    Whole-process ``ru_maxrss``, so the ~250MB uxarray import is part of the
+    number by design. For the cost of the gradient alone, see
+    ``Gradient.track_peakmem_gradient``.
     """
 
     param_names = ["resolution"]
@@ -113,6 +139,8 @@ class GradientPeakMem:
         for resolution in self.params[0]:
             grid, data = file_path_dict[resolution]
             ux.open_dataset(grid, data)[data_var].gradient()
+
+    setup_cache.timeout = 1800
 
     def peakmem_gradient(self, resolution):
         grid, data = file_path_dict[resolution]
