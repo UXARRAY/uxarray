@@ -1,4 +1,6 @@
+import numpy as np
 import uxarray as ux
+from uxarray.grid.slice import _remap_dense, _remap_kernel, _remap_searchsorted
 
 import pytest
 
@@ -207,3 +209,65 @@ def test_empty_subset(gridpath, datasetpath):
     assert res.size == 0
     # should still have all the same dim names even if resulting subset is empty:
     assert set(res.dims) == set(arr.dims)
+
+
+def test_remap_kernel_selection():
+    """The dense lookup table is only built when it is cheap in absolute terms,
+    or small relative to the slice itself."""
+
+    tiny_selection = np.arange(1000, dtype=ux.constants.INT_DTYPE)
+
+    # small grid, dense is affordable regardless of how little is selected
+    assert _remap_kernel(tiny_selection, 10_000)[0] is _remap_dense
+
+    # large grid, tiny slice: the lookup must stay proportional to the slice
+    func, kwargs = _remap_kernel(tiny_selection, 100_000_000)
+    assert func is _remap_searchsorted
+    assert kwargs["orig_indices"].size == tiny_selection.size
+
+    # large grid, most of it selected: dense is back within budget
+    big_selection = np.arange(50_000_000, dtype=ux.constants.INT_DTYPE)
+    assert _remap_kernel(big_selection, 100_000_000)[0] is _remap_dense
+
+
+def test_remap_kernels_agree():
+    """Both remapping kernels must produce identical results, including for
+    fill values and for indices that fall outside of the slice."""
+
+    fill = ux.constants.INT_FILL_VALUE
+    dtype = ux.constants.INT_DTYPE
+
+    n_node = 20
+    selected = np.array([2, 3, 7, 11, 19], dtype=dtype)
+    conn = np.array(
+        [
+            [2, 3, 7, fill],  # all within the slice
+            [11, 19, 2, 3],
+            [0, 5, 7, 18],  # 0, 5 and 18 are not part of the slice
+            [fill, fill, fill, fill],
+        ],
+        dtype=dtype,
+    )
+
+    dense = np.full(n_node, fill, dtype=dtype)
+    dense[selected] = np.arange(selected.size, dtype=dtype)
+
+    expected = np.array(
+        [
+            [0, 1, 2, fill],
+            [3, 4, 0, 1],
+            [fill, fill, 2, fill],
+            [fill, fill, fill, fill],
+        ],
+        dtype=dtype,
+    )
+
+    for result in (_remap_dense(conn, dense), _remap_searchsorted(conn, selected)):
+        assert result.dtype == dtype
+        np.testing.assert_array_equal(result, expected)
+
+    # an empty slice maps everything to the fill value
+    empty = np.array([], dtype=dtype)
+    np.testing.assert_array_equal(
+        _remap_searchsorted(conn, empty), np.full(conn.shape, fill, dtype=dtype)
+    )
