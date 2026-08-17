@@ -188,7 +188,7 @@ def test_to_raster_reuse_mapping(gridpath, tmpdir):
 
     # Modified pixel mapping raises error
     pixel_mapping.attrs["ax_shape"] = (2, 3)
-    with pytest.raises(ValueError, match=r"Pixel mapping incompatible with ax\. shape \(2, 3\) !="):
+    with pytest.raises(ValueError, match=r"Provided pixel_mapping values incompatible with ax raster attrs: shape \(2, 3\) !="):
         _ = uxds['bottomDepth'].to_raster(
             ax=ax, pixel_mapping=pixel_mapping
         )

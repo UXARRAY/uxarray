@@ -1668,7 +1668,7 @@ class UxDataArray(xr.DataArray):
         """
         # Input validation
         if not isinstance(other, UxDataArray):
-            raise TypeError(f"UxDataArray.curl(other) expected UxDataArray other; got type(other)={type(other)}")
+            raise TypeError(f"u.curl(v) expected UxDataArray v; got type(v)={type(other)}")
 
         if self.uxgrid != other.uxgrid:
             raise GridsMismatchError(
@@ -1766,7 +1766,7 @@ class UxDataArray(xr.DataArray):
         >>> div_field = u_component.divergence(v_component)
         """
         if not isinstance(other, UxDataArray):
-            raise TypeError(f"UxDataArray.divergence(other) expected UxDataArray other; got type(other)={type(other)}")
+            raise TypeError(f"u.divergence(v) expected UxDataArray v; got type(v)={type(other)}")
 
         if self.uxgrid != other.uxgrid:
             raise GridsMismatchError(

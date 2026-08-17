@@ -75,7 +75,7 @@ def test_open_dataset_single_argument_rejects_directory_grid(tmp_path):
     """Requires a separate data file for directory-based grids."""
 
     with pytest.raises(
-        ValueError, match="single directory argument is not supported"
+        ValueError, match="single directory is not supported"
     ):
         ux.open_dataset(tmp_path)
 
@@ -282,5 +282,5 @@ def test_open_multigrid_missing_grid_error(gridpath):
     """Requesting a missing grid should raise."""
     grid_file = gridpath("scrip", "oasis", "grids.nc")
 
-    with pytest.raises(ValueError, match="Grid 'land' not found"):
+    with pytest.raises(ValueError, match="grid 'land' not found in the provided file"):
         ux.open_multigrid(grid_file, gridnames=["land"])
