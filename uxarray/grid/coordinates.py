@@ -19,7 +19,7 @@ from uxarray.utils.numba_math import (
 def _lonlat_rad_to_xyz(
     lon: np.ndarray | float,
     lat: np.ndarray | float,
-) -> tuple[np.ndarray | float, np.ndarray | float, np.ndarray | float]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray] | tuple[float, float, float]:
     """Converts Spherical latitude and longitude coordinates into Cartesian x,
     y, z coordinates."""
     x = np.cos(lon) * np.cos(lat)
@@ -102,7 +102,7 @@ def _xyz_to_lonlat_rad(
     y: np.ndarray | float,
     z: np.ndarray | float,
     normalize: bool = True,
-) -> tuple[np.ndarray | float, np.ndarray | float]:
+) -> tuple[np.ndarray, np.ndarray] | tuple[float, float]:
     """Converts Cartesian x, y, z coordinates in Spherical longitude and
     latitude coordinates in radians.
 
