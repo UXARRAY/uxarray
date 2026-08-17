@@ -106,8 +106,14 @@ def open_grid(
         if os.path.isfile(nod2d_path) and os.path.isfile(elem2d_path):
             grid = Grid.from_dataset(grid_filename_or_obj)
         else:
+            _missing = []
+            if not os.path.isfile(nod2d_path):
+                _missing.append("'nod2d.out'")
+            if not os.path.isfile(elem2d_path):
+                _missing.append("'elem2d.out'")
             raise FileNotFoundError(
-                f"The directory '{grid_filename_or_obj}' must contain both 'nod2d.out' and 'elem2d.out'."
+                "open_grid(directory) expects FESOM2 ASCII dataset with 'nod2d.out' and 'elem2d.out' files, but "
+                f"got directory={os.path.abspath(grid_filename_or_obj)!r}, which is missing {' and '.join(_missing)}."
             )
 
     elif isinstance(grid_filename_or_obj, dict):
@@ -188,6 +194,12 @@ def open_multigrid(
             mask_ds = xr.open_dataset(mask_filename)
             mask_ds_opened = True
 
+    # human-readable str telling what was provided to open_multigrid(). Useful for error messages.
+    if isinstance(grid_filename_or_obj, (str, os.PathLike)):
+        _provided_input_str = f"file, {os.path.abspath(grid_filename_or_obj)!r}"
+    else:
+        _provided_input_str = str(type(grid_filename_or_obj))
+
     try:
         active_value_map: Mapping[str, MaskValue] | None = (
             mask_active_value if isinstance(mask_active_value, Mapping) else None
@@ -236,8 +248,8 @@ def open_multigrid(
         if format_type == "single_scrip":
             if gridnames is not None and "grid" not in gridnames:
                 raise ValueError(
-                    f"Requested grids {gridnames} not found. "
-                    "This file contains a single grid named 'grid'."
+                    f"Requested grids (gridnames={gridnames}) not found in the provided {_provided_input_str}, "
+                    "in open_multigrid(). Only 'grid' is available in single-grid SCRIP files."
                 )
             grid_ds_ugrid, source_dims_dict = _read_scrip(grid_ds)
             return {
@@ -249,7 +261,9 @@ def open_multigrid(
             }
 
         if not grids_dict:
-            raise GridInvalidError(f"No grids detected in file: {grid_filename_or_obj}")
+            raise GridInvalidError(
+                f"Failed to detect any grids in the provided {_provided_input_str}, in open_multigrid()."
+            )
 
         available_grids = list(grids_dict.keys())
 
@@ -265,7 +279,8 @@ def open_multigrid(
             for name in requested:
                 if name not in grids_dict:
                     raise ValueError(
-                        f"Grid '{name}' not found. Available grids: {available_grids}"
+                        f"open_multigrid() grid '{name}' not found in the provided {_provided_input_str}, "
+                        f"in open_multigrid(). Available grids: {available_grids}"
                     )
                 grids_to_load.append(name)
 
@@ -293,9 +308,14 @@ def open_multigrid(
                     active_indices = np.flatnonzero(active_mask)
                     grid = grid.isel(n_face=active_indices)
                 else:
+                    _provided_mask_str = (
+                        f"file, {os.path.abspath(mask_filename)!r}"
+                        if isinstance(mask_filename, (str, os.PathLike))
+                        else str(type(mask_filename))
+                    )
                     warn(
-                        f"Mask variable '{mask_var}' not found in mask file; "
-                        f"grid '{grid_name}' will be returned without masking."
+                        f"Mask variable {mask_var!r} not found in the provided mask {_provided_mask_str}. "
+                        f"Grid {grid_name!r} will be returned without masking."
                     )
 
             loaded_grids[grid_name] = grid
@@ -426,7 +446,8 @@ def open_dataset(
         if isinstance(grid_filename_or_obj, (str, os.PathLike)):
             if os.path.isdir(grid_filename_or_obj):
                 raise ValueError(
-                    "ux.open_dataset() with a single directory argument is not supported. "
+                    "ux.open_dataset(arg0) with no other arguments and arg0 a single directory is not supported, "
+                    f"but got arg0 indicating path to directory: {os.path.abspath(grid_filename_or_obj)!r}."
                     "Supply a path to a grid file instead. Directory-based grids (e.g. a "
                     "FESOM2 ASCII grid) are only recognized when a separate data file is "
                     "also provided, i.e. ux.open_dataset(grid_directory, data_file)."
@@ -440,8 +461,10 @@ def open_dataset(
         elif isinstance(grid_filename_or_obj, xr.Dataset):
             ds = grid_filename_or_obj
         else:
-            raise ValueError(
-                "If filename_or_obj is omitted, grid_filename_or_obj must be a file path or xarray.Dataset."
+            raise TypeError(
+                "Expected grid_filename_or_obj to be a file path or xarray.Dataset when filename_or_obj "
+                f"is not provided, but got type(grid_filename_or_obj)={type(grid_filename_or_obj)}, "
+                "in ux.open_dataset(grid_filename_or_obj, filename_or_obj=None)."
             )
 
         uxgrid, _ = _get_grid(ds, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs)

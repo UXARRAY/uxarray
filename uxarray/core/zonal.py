@@ -253,7 +253,10 @@ def _compute_face_band_weights(uxgrid, bands):
     """
     bands = np.asarray(bands, dtype=float)
     if bands.ndim != 1 or bands.size < 2:
-        raise DimensionError("bands must be 1D with at least two edges")
+        raise DimensionError(
+            "bands must be 1D with at least two values; "
+            f"got bands with ndim={bands.ndim}, size={bands.size}."
+        )
     if np.any(np.diff(bands) < 0):
         raise ValueError(
             f"bands must be monotonic non-decreasing; got diff(bands)={np.diff(bands)}"

@@ -369,8 +369,9 @@ class UxDataset(xr.Dataset):
 
         if face_dim not in ds.dims:
             raise DimensionError(
-                f"The provided face dimension '{face_dim}' is not present in the provided healpix dataset."
-                f"Please set 'face_dim' to the dimension corresponding to the healpix face dimension."
+                f"face_dim={face_dim!r} is not present in the provided dataset, which has dims {ds.dims}. "
+                "Please set face_dim to the dimension corresponding to the HEALPix face mapping "
+                "(typically 'cell', but could be something else)."
             )
 
         # Attach a HEALPix Grid
@@ -708,7 +709,7 @@ class UxDataset(xr.Dataset):
         """
 
         if _check_duplicate_nodes_indices(self.uxgrid):
-            raise GridInvalidError("Duplicate nodes found, cannot construct dual")
+            raise GridInvalidError("Duplicate nodes found in UxDataset's uxgrid; cannot get_dual()")
 
         if self.uxgrid.partial_sphere_coverage:
             warn(
