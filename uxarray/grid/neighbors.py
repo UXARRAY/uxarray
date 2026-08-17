@@ -7,6 +7,7 @@ from numba import guvectorize, njit
 from numpy import deg2rad
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
+from uxarray.errors import DimensionError
 
 
 class KDTree:
@@ -99,7 +100,7 @@ class KDTree:
                 ).T
 
             else:
-                raise TypeError(
+                raise ValueError(
                     f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
                     f"'spherical'"
                 )
@@ -195,7 +196,7 @@ class KDTree:
         elif self._coordinates == "edge centers":
             _tree = self._tree_from_edge_centers
         else:
-            raise TypeError(
+            raise ValueError(
                 f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
                 f"or 'edge centers'"
             )
@@ -1013,13 +1014,13 @@ def _prepare_xy_for_query(xy, use_radians, distance_metric):
 
     # expected shape is [n_pairs, 2]
     if xy.shape[1] == 3:
-        raise AssertionError(
+        raise DimensionError(
             "The dimension of each coordinate pair must be two (lon, lat). Did you attempt to query using Cartesian "
             "(x, y, z) coordinates?"
         )
 
     if xy.shape[1] != 2:
-        raise AssertionError(
+        raise DimensionError(
             "The dimension of each coordinate pair must be two (lon, lat).)"
         )
 
@@ -1047,13 +1048,13 @@ def _prepare_xyz_for_query(xyz):
 
     # expected shape is [n_pairs, 3]
     if xyz.shape[1] == 2:
-        raise AssertionError(
+        raise DimensionError(
             "The dimension of each coordinate pair must be three (x, y, z). Did you attempt to query using latlon "
             "(lat, lon) coordinates?"
         )
 
     if xyz.shape[1] != 3:
-        raise AssertionError(
+        raise DimensionError(
             "The dimension of each coordinate pair must be three (x, y, z).)"
         )
 

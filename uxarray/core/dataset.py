@@ -781,7 +781,7 @@ class UxDataset(xr.Dataset):
         """
 
         if _check_duplicate_nodes_indices(self.uxgrid):
-            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+            raise GridInvalidError("Duplicate nodes found, cannot construct dual")
 
         if self.uxgrid.partial_sphere_coverage:
             warn(
