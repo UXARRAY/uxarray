@@ -724,7 +724,9 @@ class UxDataArray(xr.DataArray):
             if isinstance(lat, tuple):
                 start, end, step = lat
                 if step <= 0:
-                    raise ValueError(f"Expected step>0 when lat=(min_lat, max_lat, step); got step={step}")
+                    raise ValueError(
+                        f"Expected step>0 when lat=(min_lat, max_lat, step); got step={step}"
+                    )
                 if step < 0.1:
                     warnings.warn(
                         f"Very small step size ({step}°) may lead to performance issues...",
@@ -771,7 +773,9 @@ class UxDataArray(xr.DataArray):
             if isinstance(lat, tuple):
                 start, end, step = lat
                 if step <= 0:
-                    raise ValueError(f"Expected step>0 when lat=(min_lat, max_lat, step); got step={step}")
+                    raise ValueError(
+                        f"Expected step>0 when lat=(min_lat, max_lat, step); got step={step}"
+                    )
                 if step < 0.1:
                     warnings.warn(
                         f"Very small step size ({step}°) may lead to performance issues...",
@@ -874,7 +878,9 @@ class UxDataArray(xr.DataArray):
         if isinstance(lat, tuple):
             start, end, step = lat
             if step <= 0:
-                raise ValueError(f"Expected step>0 when lat=(min_lat, max_lat, step); got step={step}")
+                raise ValueError(
+                    f"Expected step>0 when lat=(min_lat, max_lat, step); got step={step}"
+                )
             num_points = int(round((end - start) / step)) + 1
             edges = np.linspace(start, end, num_points)
             edges = np.clip(edges, -90, 90)
@@ -1668,7 +1674,9 @@ class UxDataArray(xr.DataArray):
         """
         # Input validation
         if not isinstance(other, UxDataArray):
-            raise TypeError(f"u.curl(v) expected UxDataArray v; got type(v)={type(other)}")
+            raise TypeError(
+                f"u.curl(v) expected UxDataArray v; got type(v)={type(other)}"
+            )
 
         if self.uxgrid != other.uxgrid:
             raise GridsMismatchError(
@@ -1766,7 +1774,9 @@ class UxDataArray(xr.DataArray):
         >>> div_field = u_component.divergence(v_component)
         """
         if not isinstance(other, UxDataArray):
-            raise TypeError(f"u.divergence(v) expected UxDataArray v; got type(v)={type(other)}")
+            raise TypeError(
+                f"u.divergence(v) expected UxDataArray v; got type(v)={type(other)}"
+            )
 
         if self.uxgrid != other.uxgrid:
             raise GridsMismatchError(
@@ -1790,12 +1800,16 @@ class UxDataArray(xr.DataArray):
         if not (self._face_centered() and other._face_centered()):
             _wrong_locs = []
             if not self._face_centered():
-                _wrong_locs.append(f"u.data_location={self.data_location}, u.sizes={dict(**self.sizes)}")
+                _wrong_locs.append(
+                    f"u.data_location={self.data_location}, u.sizes={dict(**self.sizes)}"
+                )
             if not other._face_centered():
-                _wrong_locs.append(f"v.data_location={self.data_location}, v.sizes={dict(**self.sizes)}")
+                _wrong_locs.append(
+                    f"v.data_location={self.data_location}, v.sizes={dict(**self.sizes)}"
+                )
             raise DataCenteringError(
                 "u.divergence(v) is only supported for face_centered data; got "
-                + ', '.join(_wrong_locs)
+                + ", ".join(_wrong_locs)
             )
 
         # Compute gradients of both components
@@ -1855,10 +1869,14 @@ class UxDataArray(xr.DataArray):
             Dot product ``self * dq/dx + v * dq/dy``.
         """
         if not isinstance(v, UxDataArray):
-            raise TypeError(f"u.scalardotgradient(v, q) expected UxDataArray v; got type(v)={type(v)}")
+            raise TypeError(
+                f"u.scalardotgradient(v, q) expected UxDataArray v; got type(v)={type(v)}"
+            )
 
         if not isinstance(q, UxDataArray):
-            raise TypeError(f"u.scalardotgradient(v, q) expected UxDataArray q; got type(q)={type(q)}")
+            raise TypeError(
+                f"u.scalardotgradient(v, q) expected UxDataArray q; got type(q)={type(q)}"
+            )
 
         if self.uxgrid != v.uxgrid or self.uxgrid != q.uxgrid:
             raise GridsMismatchError(
@@ -1869,7 +1887,7 @@ class UxDataArray(xr.DataArray):
         if self.dims != v.dims or self.dims != q.dims:
             raise DimensionError(
                 "All UxDataArrays must have the same dimensions during during u.scalardotgradient(v, q), "
-                f"but got u.dims={u.dims}, v.dims={v.dims}, q.dims={q.dims}."
+                f"but got u.dims={self.dims}, v.dims={v.dims}, q.dims={q.dims}."
             )
 
         if self.ndim > 1:
@@ -1882,14 +1900,20 @@ class UxDataArray(xr.DataArray):
         if not (self._face_centered() and v._face_centered() and q._face_centered()):
             _wrong_locs = []
             if not self._face_centered():
-                _wrong_locs.append(f"u.data_location={self.data_location}, u.sizes={dict(**self.sizes)}")
+                _wrong_locs.append(
+                    f"u.data_location={self.data_location}, u.sizes={dict(**self.sizes)}"
+                )
             if not v._face_centered():
-                _wrong_locs.append(f"v.data_location={self.data_location}, v.sizes={dict(**self.sizes)}")
+                _wrong_locs.append(
+                    f"v.data_location={self.data_location}, v.sizes={dict(**self.sizes)}"
+                )
             if not q._face_centered():
-                _wrong_locs.append(f"q.data_location={self.data_location}, q.sizes={dict(**self.sizes)}")
+                _wrong_locs.append(
+                    f"q.data_location={self.data_location}, q.sizes={dict(**self.sizes)}"
+                )
             raise DataCenteringError(
                 "u.scalardotgradient(v, q) is only supported for face_centered data; got "
-                + ', '.join(_wrong_locs)
+                + ", ".join(_wrong_locs)
             )
 
         # Validate coordinate alignment up-front so a misaligned input fails
@@ -2171,7 +2195,9 @@ class UxDataArray(xr.DataArray):
         """
 
         if not isinstance(da, xr.DataArray):
-            raise TypeError(f"UxDataArray.from_healpix(da) expected xr.DataArray da, got type(da)={type(da)}")
+            raise TypeError(
+                f"UxDataArray.from_healpix(da) expected xr.DataArray da, got type(da)={type(da)}"
+            )
 
         if face_dim not in da.dims:
             raise DimensionError(
@@ -2227,7 +2253,9 @@ class UxDataArray(xr.DataArray):
         """
 
         if _check_duplicate_nodes_indices(self.uxgrid):
-            raise GridInvalidError("Duplicate nodes found in UxDataArray's uxgrid; cannot get_dual()")
+            raise GridInvalidError(
+                "Duplicate nodes found in UxDataArray's uxgrid; cannot get_dual()"
+            )
 
         if self.uxgrid.partial_sphere_coverage:
             warn(
