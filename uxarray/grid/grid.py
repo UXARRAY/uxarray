@@ -107,6 +107,18 @@ if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
 
 
+def _drop_non_grid_coords(ds):
+    """Drop coordinates that aren't recognized grid coordinates (e.g. a stray ``time``
+    carried in from the source file).
+
+    Coordinate-only, so grid data variables — connectivity, descriptors, and the
+    subset's ``subgrid_*_indices`` — are always left intact.
+    """
+    grid_coords = set(ugrid.SPHERICAL_COORD_NAMES) | set(ugrid.CARTESIAN_COORD_NAMES)
+    stray = [coord for coord in ds.coords if coord not in grid_coords]
+    return ds.drop_vars(stray, errors="ignore")
+
+
 class Grid:
     """Represents a two-dimensional unstructured grid encoded following the
     UGRID conventions and provides grid-specific functionality.
@@ -190,8 +202,10 @@ class Grid:
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
 
-        # internal xarray dataset for storing grid variables
-        self._ds = grid_ds
+        # internal xarray dataset for storing grid variables.
+        # drop stray coordinates (e.g. a `time` carried in from the source file) so they
+        # can't leak onto the grid and collide during subsetting (see #1444).
+        self._ds = _drop_non_grid_coords(grid_ds)
 
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
