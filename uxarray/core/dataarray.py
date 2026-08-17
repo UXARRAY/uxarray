@@ -1669,8 +1669,17 @@ class UxDataArray(xr.DataArray):
             other, scale_by_radius=scale_by_radius
         )
 
-        # Compute curl = ∂v/∂x - ∂u/∂y
-        curl_values = grad_v_zonal.values - grad_u_meridional.values
+        # Compute curl = ∂v/∂x - ∂u/∂y + u·tan(φ)/a
+        #
+        # The trailing term is the spherical metric term. Dropping it is only
+        # valid on a plane; on the sphere it costs a factor of two on
+        # solid-body rotation. When the derivatives have been divided by the
+        # radius the term carries the same 1/a factor.
+        tan_lat = np.tan(np.deg2rad(self.uxgrid.face_lat.values))
+        metric = self.values * tan_lat
+        if scale_by_radius and "sphere_radius" in self.uxgrid._ds.attrs:
+            metric = metric / self.uxgrid._ds.attrs["sphere_radius"]
+        curl_values = grad_v_zonal.values - grad_u_meridional.values + metric
 
         u_units = self.attrs.get("units", "")
         has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
@@ -1686,7 +1695,9 @@ class UxDataArray(xr.DataArray):
             attrs={
                 "long_name": f"Curl of ({self.name}, {other.name})",
                 "units": curl_units,
-                "description": "Curl of vector field computed as ∂v/∂x - ∂u/∂y",
+                "description": (
+                    "Curl of vector field computed as ∂v/∂x - ∂u/∂y + u·tan(φ)/a"
+                ),
             },
             uxgrid=self.uxgrid,
             name=f"curl_{self.name}_{other.name}",
@@ -1762,7 +1773,7 @@ class UxDataArray(xr.DataArray):
         u_gradient = self.gradient(scale_by_radius=scale_by_radius)
         v_gradient = other.gradient(scale_by_radius=scale_by_radius)
 
-        # For divergence: div(V) = ∂u/∂x + ∂v/∂y
+        # For divergence: div(V) = ∂u/∂x + ∂v/∂y - v·tan(φ)/a
         # We use the zonal gradient (∂/∂lon) of u and meridional gradient (∂/∂lat) of v
         u = u_gradient["zonal_gradient"]
         v = v_gradient["meridional_gradient"]
@@ -1770,6 +1781,14 @@ class UxDataArray(xr.DataArray):
         # Align DataArrays to ensure coords/dims match, then perform xarray-aware addition
         u, v = xr.align(u, v)
         divergence = u + v
+
+        # Spherical metric term, the companion of the one in curl(). Omitting
+        # it is only valid on a plane.
+        tan_lat = np.tan(np.deg2rad(self.uxgrid.face_lat.values))
+        metric = other.values * tan_lat
+        if scale_by_radius and "sphere_radius" in self.uxgrid._ds.attrs:
+            metric = metric / self.uxgrid._ds.attrs["sphere_radius"]
+        divergence = divergence - metric
         divergence.name = "divergence"
 
         # Infer units consistently with gradient()/curl(): a divergence is a
