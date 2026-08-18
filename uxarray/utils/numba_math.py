@@ -73,7 +73,9 @@ def _numba_sqrt3(u):
 @njit(cache=True)
 def _numba_norm3(u):
     """Euclidean norm of a 3-vector; returns sqrt(u[0]**2 + u[1]**2 + u[2]**2)"""
-    return np.sqrt(u[0] ** 2 + u[1] ** 2 + u[2] ** 2)
+    return (u[0] ** 2 + u[1] ** 2 + u[2] ** 2) ** 0.5
+    # for some reason, using **0.5 instead of np.sqrt makes numba more likely to
+    # properly respect float64 inputs instead of using float32 precision.
 
 
 @njit(cache=True)
