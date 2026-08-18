@@ -69,34 +69,6 @@ def _xyz_to_lonlat_rad_no_norm(
 
     return lon, lat
 
-
-@njit(cache=True)
-def _xyz_to_lonlat_rad_scalar(x, y, z, normalize=True):
-    if normalize:
-        x, y, z = _normalize_xyz_scalar(x, y, z)
-
-    lon = np.arctan2(y, x)
-    lat = np.asin(z)
-
-    # Set longitude range to [0, 2*pi]
-    lon = lon % (2 * math.pi)
-
-    z_abs = abs(z)
-    if z_abs > (1.0 - ERROR_TOLERANCE):
-        lat = math.copysign(math.pi / 2, z)
-        lon = 0.0
-
-    # TODO: constructing tiny numpy array inside numba function is sub-optimal,
-    #  if function gets called many times. (see issue $1648). But, as of 2026-08-13,
-    #  it looks like this function isn't being used anywhere, so maybe it should
-    #  just be removed entirely, instead of being optimized?
-    lonlat = np.empty(2)
-    lonlat[0] = lon
-    lonlat[1] = lat
-
-    return lonlat
-
-
 def _xyz_to_lonlat_rad(
     x: np.ndarray | float,
     y: np.ndarray | float,
