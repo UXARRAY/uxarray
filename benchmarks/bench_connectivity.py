@@ -2,8 +2,6 @@ import os
 import urllib.request
 from pathlib import Path
 
-import numpy as np
-
 import uxarray as ux
 
 from .helpers._peakmem import peak_allocated
@@ -280,84 +278,46 @@ class ConnectivityTracemalloc(MinimalGridBenchmark):
         return self._peak_building("node_face_connectivity")
 
 
-def _save_topology(uxgrid, npz_path):
-    """Writes the minimal UGRID topology of ``uxgrid`` out to ``npz_path``.
+class ConnectivityChainTracemalloc(MinimalGridBenchmark):
+    """Peak memory of the whole chain rooted at each connectivity variable.
 
-    Compressed because ``setup_cache`` writes into a ``tempfile.mkdtemp()`` and
-    ``face_node_connectivity`` alone is multi-GB at 3.75km.
-    """
-    np.savez_compressed(
-        npz_path,
-        node_lon=uxgrid.node_lon.data,
-        node_lat=uxgrid.node_lat.data,
-        face_node_connectivity=uxgrid.face_node_connectivity.data,
-    )
+    Same instrument as :class:`ConnectivityTracemalloc` -- what the build
+    allocates, with the ~245MB the process already holds excluded -- but wider
+    in scope: no prerequisites are put in place beforehand, so a sample covers
+    everything the variable pulls in, not just the routine that produces it.
 
-
-def _load_topology(npz_path):
-    """Builds a ``Grid`` holding nothing beyond the minimal UGRID topology."""
-    with np.load(npz_path) as topology:
-        return ux.Grid.from_topology(
-            topology["node_lon"],
-            topology["node_lat"],
-            topology["face_node_connectivity"],
-        )
-
-
-class ConnectivityChainRss:
-    """Peak resident memory of the process while constructing each connectivity
-    variable.
-
-    Differs from :class:`ConnectivityTracemalloc` on two axes. Scope: no
-    prerequisites are built in ``setup``, so a sample covers
-    the whole chain rooted at that variable. Instrument: ``ru_maxrss`` for the
-    whole process, so the ~250MB import.
+    The two series coincide for ``n_nodes_per_face``, ``face_node_connectivity``
+    and ``node_face_connectivity``, which build straight off the minimal
+    topology; elsewhere the gap between them is what the prerequisites cost.
     """
 
-    # Only the parameterization is shared with ``MinimalGridBenchmark``
-    param_names = GridBenchmark.param_names
-    params = GridBenchmark.params
-    timeout = 1200
+    unit = "bytes"
 
-    def setup_cache(self):
-        topology_paths = {}
-        for resolution in self.params[0]:
-            npz_path = os.path.abspath(f"topology_{resolution}.npz")
-            _save_topology(ux.open_grid(file_path_dict[resolution]), npz_path)
-            topology_paths[resolution] = npz_path
+    def _peak_chain(self, name):
+        """Peak allocation of building ``name`` and everything it rests on."""
+        uxgrid = self.minimal_grid()
+        return peak_allocated(lambda: getattr(uxgrid, name).compute())
 
-        _warmup()
+    def track_peakmem_n_nodes_per_face(self, resolution):
+        return self._peak_chain("n_nodes_per_face")
 
-        return topology_paths
+    def track_peakmem_face_node(self, resolution):
+        return self._peak_chain("face_node_connectivity")
 
-    setup_cache.timeout = 1800
+    def track_peakmem_edge_node(self, resolution):
+        return self._peak_chain("edge_node_connectivity")
 
-    def setup(self, topology_paths, resolution):
-        self.uxgrid = _load_topology(topology_paths[resolution])
+    def track_peakmem_face_edge(self, resolution):
+        return self._peak_chain("face_edge_connectivity")
 
-    def teardown(self, topology_paths, resolution):
-        del self.uxgrid
+    def track_peakmem_node_edge(self, resolution):
+        return self._peak_chain("node_edge_connectivity")
 
-    def peakmem_n_nodes_per_face(self, topology_paths, resolution):
-        _ = self.uxgrid.n_nodes_per_face.compute()
+    def track_peakmem_face_face(self, resolution):
+        return self._peak_chain("face_face_connectivity")
 
-    def peakmem_face_node(self, topology_paths, resolution):
-        _ = self.uxgrid.face_node_connectivity.compute()
+    def track_peakmem_edge_face(self, resolution):
+        return self._peak_chain("edge_face_connectivity")
 
-    def peakmem_edge_node(self, topology_paths, resolution):
-        _ = self.uxgrid.edge_node_connectivity.compute()
-
-    def peakmem_face_edge(self, topology_paths, resolution):
-        _ = self.uxgrid.face_edge_connectivity.compute()
-
-    def peakmem_node_edge(self, topology_paths, resolution):
-        _ = self.uxgrid.node_edge_connectivity.compute()
-
-    def peakmem_face_face(self, topology_paths, resolution):
-        _ = self.uxgrid.face_face_connectivity.compute()
-
-    def peakmem_edge_face(self, topology_paths, resolution):
-        _ = self.uxgrid.edge_face_connectivity.compute()
-
-    def peakmem_node_face(self, topology_paths, resolution):
-        _ = self.uxgrid.node_face_connectivity.compute()
+    def track_peakmem_node_face(self, resolution):
+        return self._peak_chain("node_face_connectivity")
