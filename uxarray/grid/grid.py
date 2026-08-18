@@ -19,6 +19,7 @@ from uxarray.core.utils import _open_dataset_with_fallback
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
 from uxarray.formatting_html import grid_repr
+from uxarray.grid.angles import _compute_face_node_angles_convex
 from uxarray.grid.area import _get_all_face_area_from_coords
 from uxarray.grid.bounds import _populate_face_bounds
 from uxarray.grid.connectivity import (
@@ -1971,6 +1972,53 @@ class Grid:
             source_grid_spec=self.source_grid_spec,
             source_dims_dict=self._source_dims_dict,
         )
+
+    def compute_face_node_angles(
+        self,
+        *,
+        degrees: bool = False,
+        as_uxarray: bool = False,
+    ) -> xr.DataArray | UxDataArray:
+        """Compute the angles at each node of each face in the grid.
+        Assumes convex faces and a spherical geometry (consistent with other uxarray methods).
+
+        Parameters
+        ----------
+        degrees : bool, defaults to False
+            Whether to return angles in degrees (if True) or radians (if False).
+        as_uxarray : bool, defaults to False
+            Whether to return a uxarray.DataArray (if True) instead of an xarray.DataArray (if False).
+            If True, equivalent to uxarray.DataArray(self.compute_face_node_angles(..., as_uxarray=False), uxgrid=self).
+
+        Returns
+        -------
+        face_node_angles : xr.DataArray or uxarray.UxDataArray (if as_uxarray=True)
+            The internal angles at each node, for each face in the grid.
+            Has 'n_face' and 'n_max_face_nodes' dimensions, with same size as in self.
+            For faces with fewer than n_max_face_nodes, fill value is np.nan.
+        """
+        from uxarray.conventions.ugrid import FACE_DIM, N_MAX_FACE_NODES_DIM
+
+        result = _compute_face_node_angles_convex(
+            self.node_x.values,
+            self.node_y.values,
+            self.node_z.values,
+            self.face_node_connectivity.values,
+            self.n_nodes_per_face.values,
+        )
+        result = xr.DataArray(
+            data=result,
+            dims=[FACE_DIM, N_MAX_FACE_NODES_DIM],
+            name="face_node_angles",
+            attrs={"description": "Internal angles at each node of each face."},
+        )
+        if degrees:
+            result = np.rad2deg(result)
+        if as_uxarray:
+            from uxarray.core.dataarray import UxDataArray
+
+            result = UxDataArray(result, uxgrid=self)
+        return result
 
     def calculate_total_face_area(
         self,
