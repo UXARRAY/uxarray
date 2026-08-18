@@ -10,6 +10,67 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 if TYPE_CHECKING:
     pass
 
+# A dense lookup table remaps in O(1) per element, but costs O(n_node) / O(n_edge)
+# memory that is also captured by the Dask graph. It is only built when it stays
+# within this memory budget, or when it is within this factor of the subset being
+# created anyway.
+#
+# The binary search only becomes faster than the dense table once the source grid
+# is a few hundred times larger than the slice. The ratio below is deliberately
+# well under that crossover.
+_DENSE_REMAP_MAX_SIZE = 8_000_000 // np.dtype(INT_DTYPE).itemsize
+_DENSE_REMAP_MAX_RATIO = 32
+
+
+def _remap_dense(conn, remap):
+    """Remaps a connectivity array through a dense ``original -> new`` lookup
+    table."""
+    # blockwise-safe: mask fill values before the lookup, restore them after
+    is_fill = conn == INT_FILL_VALUE
+    return np.where(is_fill, INT_FILL_VALUE, remap[np.where(is_fill, 0, conn)])
+
+
+def _remap_searchsorted(conn, orig_indices):
+    """Remaps a connectivity array by locating each original index within the
+    sorted array of selected indices."""
+    if orig_indices.size == 0:
+        return np.full(conn.shape, INT_FILL_VALUE, dtype=INT_DTYPE)
+
+    pos = np.searchsorted(orig_indices, conn)
+    np.clip(pos, 0, orig_indices.size - 1, out=pos)
+
+    # entries that aren't part of the slice (fill values included) have no match
+    return np.where(orig_indices[pos] == conn, pos, INT_FILL_VALUE).astype(
+        INT_DTYPE, copy=False
+    )
+
+
+def _remap_kernel(orig_indices, size):
+    """Prepares a blockwise-safe kernel that maps each original element index
+    onto its position in ``orig_indices``, or to ``INT_FILL_VALUE`` if it isn't
+    part of the slice.
+
+    Parameters
+    ----------
+    orig_indices : np.ndarray
+        Sorted, unique indices of the elements kept by the slice
+    size : int
+        Number of elements along that dimension in the source grid
+
+    Returns
+    -------
+    tuple
+        The kernel and the keyword arguments to call it with
+    """
+    n_selected = len(orig_indices)
+
+    if size <= _DENSE_REMAP_MAX_SIZE or size <= _DENSE_REMAP_MAX_RATIO * n_selected:
+        remap = np.full(size, INT_FILL_VALUE, dtype=INT_DTYPE)
+        remap[orig_indices] = np.arange(n_selected, dtype=INT_DTYPE)
+        return _remap_dense, {"remap": remap}
+
+    return _remap_searchsorted, {"orig_indices": orig_indices}
+
 
 def _slice_node_indices(
     grid,
@@ -35,7 +96,9 @@ def _slice_node_indices(
         raise NotImplementedError("Exclusive slicing is not yet supported.")
 
     # faces that saddle nodes given in 'indices'
-    face_indices = np.unique(grid.node_face_connectivity.values[indices].ravel())
+    face_indices = np.unique(
+        grid.node_face_connectivity.isel(n_node=indices).values.ravel()
+    )
     face_indices = face_indices[face_indices != INT_FILL_VALUE]
 
     return _slice_face_indices(grid, face_indices)
@@ -65,7 +128,9 @@ def _slice_edge_indices(
         raise NotImplementedError("Exclusive slicing is not yet supported.")
 
     # faces that saddle nodes given in 'indices'
-    face_indices = np.unique(grid.edge_face_connectivity.values[indices].ravel())
+    face_indices = np.unique(
+        grid.edge_face_connectivity.isel(n_edge=indices).values.ravel()
+    )
     face_indices = face_indices[face_indices != INT_FILL_VALUE]
 
     return _slice_face_indices(grid, face_indices)
@@ -103,7 +168,9 @@ def _slice_face_indices(
     face_indices = np.atleast_1d(np.asarray(indices, dtype=INT_DTYPE))
 
     # nodes of each face (inclusive)
-    node_indices = np.unique(grid.face_node_connectivity.values[face_indices].ravel())
+    node_indices = np.unique(
+        grid.face_node_connectivity.isel(n_face=face_indices).values.ravel()
+    )
     node_indices = node_indices[node_indices != INT_FILL_VALUE]
 
     # Index Node and Face variables
@@ -113,7 +180,7 @@ def _slice_face_indices(
     # Only slice edge dimension if we have the face edge connectivity
     if "face_edge_connectivity" in ds:
         edge_indices = np.unique(
-            grid.face_edge_connectivity.values[face_indices].ravel()
+            grid.face_edge_connectivity.isel(n_face=face_indices).values.ravel()
         )
         edge_indices = edge_indices[edge_indices != INT_FILL_VALUE]
         ds = ds.isel(n_edge=edge_indices)
@@ -127,36 +194,22 @@ def _slice_face_indices(
     ds["subgrid_node_indices"] = xr.DataArray(node_indices, dims=["n_node"])
     ds["subgrid_face_indices"] = xr.DataArray(face_indices, dims=["n_face"])
 
-    # Construct updated Node Index Map
-    node_indices_dict = {orig: new for new, orig in enumerate(node_indices)}
-    node_indices_dict[INT_FILL_VALUE] = INT_FILL_VALUE
-
-    # Construct updated Edge Index Map
-    if edge_indices is not None:
-        edge_indices_dict = {orig: new for new, orig in enumerate(edge_indices)}
-        edge_indices_dict[INT_FILL_VALUE] = INT_FILL_VALUE
-    else:
-        edge_indices_dict = None
-
-    def map_node_indices(i):
-        return node_indices_dict.get(i, INT_FILL_VALUE)
-
-    if edge_indices is not None:
-
-        def map_edge_indices(i):
-            return edge_indices_dict.get(i, INT_FILL_VALUE)
-    else:
-        map_edge_indices = None
+    # `node_indices` and `edge_indices` come out of `np.unique`, so both kernels
+    # can rely on them being sorted and free of duplicates
+    node_remap = _remap_kernel(node_indices, grid.n_node)
+    edge_remap = (
+        _remap_kernel(edge_indices, grid.n_edge) if edge_indices is not None else None
+    )
 
     for conn_name in list(ds.data_vars):
         if conn_name.endswith("_node_connectivity"):
-            map_fn = map_node_indices
+            remap_func, remap_kwargs = node_remap
 
         elif conn_name.endswith("_edge_connectivity"):
-            if edge_indices_dict is None:
+            if edge_remap is None:
                 ds = ds.drop_vars(conn_name)
                 continue
-            map_fn = map_edge_indices
+            remap_func, remap_kwargs = edge_remap
 
         elif "_connectivity" in conn_name:
             # anything else we can't remap
@@ -167,11 +220,14 @@ def _slice_face_indices(
             # not a connectivity var, skip
             continue
 
-        # Apply Remapping
-        ds[conn_name] = xr.DataArray(
-            np.vectorize(map_fn, otypes=[INT_DTYPE])(ds[conn_name].values),
-            dims=ds[conn_name].dims,
-            attrs=ds[conn_name].attrs,
+        # Apply remapping (vectorized; stays lazy when the connectivity is dask)
+        ds[conn_name] = xr.apply_ufunc(
+            remap_func,
+            ds[conn_name],
+            kwargs=remap_kwargs,
+            dask="parallelized",
+            output_dtypes=[INT_DTYPE],
+            keep_attrs=True,
         )
 
     if inverse_indices:

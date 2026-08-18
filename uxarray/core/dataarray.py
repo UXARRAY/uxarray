@@ -268,7 +268,7 @@ class UxDataArray(xr.DataArray):
             same name as the ``UxDataArray`` (or named ``var`` if no name exists)
         """
 
-        if self.values.ndim > 1:
+        if self.ndim > 1:
             # data is multidimensional, must be a 1D slice
             raise DimensionError(
                 f"Data Variable must be 1-dimensional, with shape {self.uxgrid.n_face} "
@@ -351,7 +351,7 @@ class UxDataArray(xr.DataArray):
             Flag to indicate whether to override a cached PolyCollection, if it exists
         """
         # data is multidimensional, must be a 1D slice
-        if self.values.ndim > 1:
+        if self.ndim > 1:
             raise DimensionError(
                 f"Data Variable must be 1-dimensional, with shape {self.uxgrid.n_face} "
                 f"for face-centered data."
@@ -627,10 +627,15 @@ class UxDataArray(xr.DataArray):
         #    and remove the self.dims[-1] == "n_face" check.
         #    (uxarray/xarray features should be agnostic to dimension positions.)
         if self._face_centered() and self.dims[-1] == "n_face":
-            face_areas = self.uxgrid.face_areas.values
-
-            # perform dot product between face areas and last dimension of data
-            integral = np.einsum("i,...i", face_areas, self.values)
+            # dot product between face areas and the face dimension of the data
+            if isinstance(self.data, np.ndarray):
+                # eager data: a direct einsum avoids xr.dot's per-call overhead
+                integral = np.einsum(
+                    "i,...i", self.uxgrid.face_areas.values, self.values
+                )
+            else:
+                # dask-backed data: xr.dot keeps the reduction lazy
+                integral = xr.dot(self, self.uxgrid.face_areas, dim="n_face")
 
         elif not self._face_centered():
             raise DataCenteringError(
@@ -1670,7 +1675,7 @@ class UxDataArray(xr.DataArray):
         )
 
         # Compute curl = ∂v/∂x - ∂u/∂y
-        curl_values = grad_v_zonal.values - grad_u_meridional.values
+        curl_values = grad_v_zonal.data - grad_u_meridional.data
 
         u_units = self.attrs.get("units", "")
         has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
@@ -2192,11 +2197,10 @@ class UxDataArray(xr.DataArray):
         # Get correct dimensions for the dual
         dims = [dim_map.get(dim, dim) for dim in self.dims]
 
-        # Get the values from the data array
-        data = np.array(self.values)
-
         # Construct the new data array
-        uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=self.name)
+        uxda = uxarray.UxDataArray(
+            uxgrid=dual, data=self.data, dims=dims, name=self.name
+        )
 
         return uxda
 
