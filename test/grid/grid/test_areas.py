@@ -116,7 +116,6 @@ def test_latlon_bounds_populate_bounds_MPAS(gridpath):
     uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
     bounds_xarray = uxgrid.bounds
 
-
 def _sum_quadrature_jacobians(x, y, z, quadrature_rule, order):
     """Independently sum the Jacobian at each quadrature point of a triangle.
 
@@ -163,3 +162,37 @@ def test_calculate_face_area_jacobian_is_quadrature_sum(quadrature_rule, order):
 
     assert jacobian > 0
     nt.assert_allclose(jacobian, expected, rtol=1e-12)
+
+
+def test_face_areas_fesom(gridpath):
+    """Ensure correct total area for FESOM grid (~8.3780 sr). Regression test for #425."""
+    uxgrid = ux.open_grid(gridpath("ugrid", "fesom", "fesom.mesh.diag.nc"))
+    total_area = uxgrid.calculate_total_face_area()
+    nt.assert_almost_equal(total_area, 8.3780, decimal=4)
+
+
+def test_total_face_area_healpix_uses_cached_equal_areas():
+    """Default args must reuse the cached ``face_areas``, not recompute.
+
+    HEALPix faces are exactly equal-area, so the cached sum is exactly 4*pi.
+    Recomputing via quadrature drifts and loses that property.
+    """
+    uxgrid = ux.Grid.from_healpix(zoom=2)
+
+    total_area = uxgrid.calculate_total_face_area()
+
+    nt.assert_allclose(total_area, np.sum(uxgrid.face_areas.values), rtol=0)
+    nt.assert_allclose(total_area, 4 * np.pi, rtol=1e-12)
+
+
+def test_total_face_area_honors_quadrature_kwargs():
+    """Non-default quadrature settings must still trigger a fresh computation."""
+    uxgrid = ux.Grid.from_healpix(zoom=2)
+
+    recomputed = uxgrid.calculate_total_face_area(quadrature_rule="gaussian", order=2)
+
+    nt.assert_allclose(
+        recomputed,
+        np.sum(uxgrid.compute_face_areas(quadrature_rule="gaussian", order=2)),
+        rtol=0,
+    )

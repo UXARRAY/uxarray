@@ -17,7 +17,6 @@ from uxarray.errors import DataCenteringError, DimensionError, YacNotAvailableEr
 from uxarray.remap.structured import (
     RectilinearGridSpec,
     _normalize_rectilinear_target,
-    _preserve_valid_coords,
     _reshape_to_rectilinear,
 )
 from uxarray.remap.utils import (
@@ -27,6 +26,7 @@ from uxarray.remap.utils import (
     _get_remap_dims,
     _to_dataset,
 )
+from uxarray.utils.coords import _preserve_valid_coords
 
 
 @dataclass
@@ -122,7 +122,7 @@ def _get_lon_lat(grid, dim: str) -> tuple[np.ndarray, np.ndarray]:
     lon = getattr(grid, lon_attr, None)
     lat = getattr(grid, lat_attr, None)
     if lon is None or lat is None:
-        raise ValueError(
+        raise AttributeError(
             f"Grid does not provide {lon_attr}/{lat_attr} required for YAC remapping."
         )
     return np.deg2rad(np.asarray(lon.values, dtype=np.float64)), np.deg2rad(
@@ -448,7 +448,7 @@ def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwa
 
         out_shape = src_values.shape[:-1] + (remapper._tgt_size,)
         out_values = out_flat.reshape(out_shape)
-        coords = {dim: da.coords[dim] for dim in other_dims if dim in da.coords}
+        coords = _preserve_valid_coords(da, src_dim, other_dims)
         da_out = uxarray.core.dataarray.UxDataArray(
             out_values,
             dims=other_dims + [destination_dim],

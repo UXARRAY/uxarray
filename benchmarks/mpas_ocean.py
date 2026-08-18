@@ -6,6 +6,9 @@ import numpy as np
 
 import uxarray as ux
 
+from .helpers._memsize import grid_nbytes
+from .helpers._peakmem import numba_threads, peak_allocated
+
 current_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 data_var = 'bottomDepth'
@@ -57,27 +60,92 @@ class GridBenchmark:
 
 
 class FaceAreas(GridBenchmark):
-    def time_compute_face_areas(self, resolution):
-        self.uxgrid.compute_face_areas()
+    number = 1
+    warmup_time = 0
 
-    def peakmem_compute_face_areas(self, resolution):
-        self.uxgrid.compute_face_areas()
+    def setup(self, resolution, *args, **kwargs):
+        # The coarsest grid, purely to compile the njit kernel
+        warmup_grid = ux.open_grid(file_path_dict[self.params[0][0]][0])
+        _ = warmup_grid.face_areas
+        super().setup(resolution, *args, **kwargs)
+        self.uxgrid._ds = self.uxgrid._ds.drop_vars("face_areas", errors="ignore")
+
+    def time_face_areas(self, resolution):
+        _ = self.uxgrid.face_areas
+
+    def track_nbytes_face_areas(self, resolution):
+        """Size of the materialized ``Grid.face_areas`` array."""
+        return self.uxgrid.face_areas.nbytes
+
+    track_nbytes_face_areas.unit = "bytes"
+
+    def track_peakmem_face_areas(self, resolution):
+        """Transient high-water allocation of computing ``Grid.face_areas``."""
+        with numba_threads(1):
+            return peak_allocated(lambda: self.uxgrid.face_areas)
+
+    track_peakmem_face_areas.unit = "bytes"
 
 
 class Gradient(DatasetBenchmark):
+    def setup(self, resolution, *args, **kwargs):
+        super().setup(resolution, *args, **kwargs)
+        # Compiles the gradient kernels on the coarsest grid
+        grid, data = file_path_dict[self.params[0][0]]
+        _ = ux.open_dataset(grid, data)[data_var].gradient()
+
     def time_gradient(self, resolution):
         self.uxds[data_var].gradient()
 
-    def peakmem_gradient(self, resolution):
-        grad = self.uxds[data_var].gradient()
+    def track_nbytes_gradient(self, resolution):
+        """Size of the gradient result."""
+        return self.uxds[data_var].gradient().nbytes
+
+    track_nbytes_gradient.unit = "bytes"
+
+    def track_peakmem_gradient(self, resolution):
+        """Transient high-water allocation of taking a gradient."""
+        return peak_allocated(lambda: self.uxds[data_var].gradient())
+
+    track_peakmem_gradient.unit = "bytes"
 
 
 class Integrate(DatasetBenchmark):
+
     def time_integrate(self, resolution):
         self.uxds[data_var].integrate()
 
-    def peakmem_integrate(self, resolution):
-        integral = self.uxds[data_var].integrate()
+    def track_nbytes_integrate(self, resolution):
+        """Grid footprint after integrating."""
+        self.uxds[data_var].integrate()
+        return grid_nbytes(self.uxds.uxgrid)
+
+    track_nbytes_integrate.unit = "bytes"
+
+
+class GradientColdStartRss:
+    """Peak memory of a cold start: import uxarray, open a dataset, take a gradient.
+
+    Whole-process ``ru_maxrss``, not tracemalloc -- the ~250MB uxarray import is
+    part of the number by design, because the cold start is the subject. For the
+    gradient's own transient cost see ``Gradient.track_peakmem_gradient``, which
+    runs one to three orders of magnitude lower.
+    """
+
+    param_names = ["resolution"]
+    params = [["480km", "120km"]]
+
+    def setup_cache(self):
+        """Compile the njit kernels before anything is measured."""
+        for resolution in self.params[0]:
+            grid, data = file_path_dict[resolution]
+            ux.open_dataset(grid, data)[data_var].gradient()
+
+    setup_cache.timeout = 1800
+
+    def peakmem_gradient(self, resolution):
+        grid, data = file_path_dict[resolution]
+        ux.open_dataset(grid, data)[data_var].gradient()
 
 
 class GeoDataFrame(DatasetBenchmark):
@@ -90,7 +158,7 @@ class GeoDataFrame(DatasetBenchmark):
 
 class ConnectivityConstruction(DatasetBenchmark):
     def time_n_nodes_per_face(self, resolution):
-        self.uxds.uxgrid.n_nodes_per_face
+        _ = self.uxds.uxgrid.n_nodes_per_face
 
     def time_face_face_connectivity(self, resolution):
         ux.grid.connectivity._populate_face_face_connectivity(self.uxds.uxgrid)
@@ -237,3 +305,46 @@ class ZonalAverage(DatasetBenchmark):
     def time_zonal_average(self, resolution):
         lat_step = 10
         self.uxds['bottomDepth'].zonal_mean(lat=(-45, 45, lat_step))
+
+
+class ZonalAveragePeakMem:
+    """Peak memory of a cold-start non-conservative zonal-mean sweep."""
+
+    param_names = ["resolution"]
+    params = [["480km", "120km"]]
+
+    def setup_cache(self):
+        """Compile the njit kernels before anything is measured."""
+        for resolution in self.params[0]:
+            grid, data = file_path_dict[resolution]
+            uxds = ux.open_dataset(grid, data)
+            uxds.uxgrid.bounds
+            uxds[data_var].zonal_mean(lat=(-45, 45, 10))
+
+    def peakmem_zonal_average(self, resolution):
+        grid, data = file_path_dict[resolution]
+        uxds = ux.open_dataset(grid, data)
+        uxds.uxgrid.bounds
+        uxds[data_var].zonal_mean(lat=(-45, 45, 10))
+
+
+class CrossSectionsPeakMem:
+    """Peak memory of a cold-start constant-latitude cross-section sweep."""
+
+    param_names = ["resolution", "lat_step"]
+    params = [["480km", "120km"], [1, 2, 4]]
+
+    def setup_cache(self):
+        """Compile the njit kernels before anything is measured."""
+        for resolution in self.params[0]:
+            uxgrid = ux.open_grid(file_path_dict[resolution][0])
+            uxgrid.normalize_cartesian_coordinates()
+            uxgrid.bounds
+            uxgrid.cross_section.constant_latitude(0.0)
+
+    def peakmem_const_lat(self, resolution, lat_step):
+        uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        uxgrid.normalize_cartesian_coordinates()
+        uxgrid.bounds
+        for lat in np.arange(-45, 45, lat_step):
+            uxgrid.cross_section.constant_latitude(lat)

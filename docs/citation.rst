@@ -27,3 +27,16 @@ For example:
 **UXarray Organization. (2021).
 UXarray (version 2025.06.0) [Software].
 Project Raijin & Project SEATS. doi:10.5281/zenodo.15757812.**
+
+.. admonition:: Algorithm-Level Citations
+
+   Several algorithms in UXarray (e.g., spherical geometry, regridding, etc.)
+   implement methods from peer-reviewed publications. Citing them, in addition to
+   or instead of citing UXarray as a software tool via Zenodo, may be needed in
+   your case. Please visit our :doc:`Algorithm-Level Citations <citations-for-algorithms>`
+   page for detailed information and the list of our publications.
+
+.. toctree::
+   :hidden:
+
+   citations-for-algorithms

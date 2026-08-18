@@ -6,7 +6,6 @@ from html import escape
 from typing import IO, Any, Hashable, Mapping
 from warnings import warn
 
-import numpy as np
 import xarray as xr
 from xarray.core import dtypes
 from xarray.core.options import OPTIONS
@@ -708,7 +707,7 @@ class UxDataset(xr.Dataset):
         """
 
         if _check_duplicate_nodes_indices(self.uxgrid):
-            raise RuntimeError("Duplicate nodes found, cannot construct dual")
+            raise GridInvalidError("Duplicate nodes found, cannot construct dual")
 
         if self.uxgrid.partial_sphere_coverage:
             warn(
@@ -737,11 +736,10 @@ class UxDataset(xr.Dataset):
             # Get correct dimensions for the dual
             dims = [dim_map.get(dim, dim) for dim in self[var].dims]
 
-            # Get the values from the data array
-            data = np.array(self[var].values)
-
             # Construct the new data array
-            uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=var)
+            uxda = uxarray.UxDataArray(
+                uxgrid=dual, data=self[var].data, dims=dims, name=var
+            )
 
             # Add data array to dataset
             dataset[var] = uxda
