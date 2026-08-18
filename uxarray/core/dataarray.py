@@ -2030,7 +2030,7 @@ class UxDataArray(xr.DataArray):
             indexers, indexers_kwargs, "isel", ignore_grid
         )
 
-        if ignore_grid or len(grid_dims)==0:
+        if ignore_grid or len(grid_dims) == 0:
             # no grid dims, or ignore_grid=True --> just call xarray's isel
             return type(self)(
                 super().isel(
@@ -2062,7 +2062,7 @@ class UxDataArray(xr.DataArray):
             # no other dims, return the grid‐sliced da
             return da
         else:  # len(grid_dims)>1; _validate_indexers should have crashed.
-            assert False, 'internal implementation error if reached this line'
+            assert False, "internal implementation error if reached this line"
 
     @classmethod
     def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):

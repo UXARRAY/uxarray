@@ -478,7 +478,7 @@ class UxDataset(xr.Dataset):
             indexers, indexers_kwargs, "isel", ignore_grid
         )
 
-        if ignore_grid or len(grid_dims)==0:
+        if ignore_grid or len(grid_dims) == 0:
             # no grid dims, or ignore_grid=True --> just call xarray's isel
             return type(self)(
                 super().isel(
@@ -511,7 +511,7 @@ class UxDataset(xr.Dataset):
 
             return type(self)(ds, uxgrid=sliced_grid)
         else:  # len(grid_dims)>1; _validate_indexers should have crashed.
-            assert False, 'internal implementation error if reached this line'
+            assert False, "internal implementation error if reached this line"
 
     def __getattribute__(self, name):
         """Intercept accessor method calls to return Ux-aware accessors."""
