@@ -29,9 +29,9 @@ def test_face_node_angles_triangle():
     angle_at_n0 = angles_deg.isel(n_face=0, n_max_face_nodes=0)
     angle_at_n1 = angles_deg.isel(n_face=0, n_max_face_nodes=1)
     angle_at_n2 = angles_deg.isel(n_face=0, n_max_face_nodes=2)
-    assert angle_at_n0 == 90  # this turns out to be exact... from arctan2(any_value, 0)
-    assert np.abs(angle_at_n1 - 60) < 1e-2   # basically 60 degrees
-    assert np.abs(angle_at_n2 - 30) < 1e-2   # basically 30 degrees
+    assert np.isclose(angle_at_n0, 90.0, atol=0, rtol=1e-16)  # rad2deg(arctan2(any_value, 0)) == 90
+    assert np.isclose(angle_at_n1, 60.0, atol=0, rtol=1e-2)   # basically 60 degrees
+    assert np.isclose(angle_at_n2, 30.0, atol=0, rtol=1e-2)   # basically 30 degrees
     # on a unit sphere, spherical excess == face area, via Girard's theorem.
     spherical_excess = angles_rad.sum('n_max_face_nodes') - np.pi
     face_areas = grid.compute_face_areas()
@@ -42,7 +42,7 @@ def test_face_node_angles_hexagons_and_pentagons():
     grid = ux.tutorial.open_grid('quad-hexagon')  # has multiple faces, all hexagons.
     angles_deg = grid.compute_face_node_angles(degrees=True)
     # every hexagon in this grid is close to regular (all 120 degree angles):
-    regular_hex_deviation = angles_deg - 120
+    regular_hex_deviation = angles_deg - 120.0
     assert np.max(np.abs(regular_hex_deviation)) < 4.0
     # generalized spherical excess formula uses (n - 2) * np.pi; n==6 for all of these faces
     angles = grid.compute_face_node_angles()  # (need to use radians for this formula)
