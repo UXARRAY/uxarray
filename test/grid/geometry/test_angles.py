@@ -30,8 +30,8 @@ def test_face_node_angles_triangle():
     angle_at_n1 = angles_deg.isel(n_face=0, n_max_face_nodes=1)
     angle_at_n2 = angles_deg.isel(n_face=0, n_max_face_nodes=2)
     assert np.isclose(angle_at_n0, 90.0, atol=0, rtol=1e-16)  # rad2deg(arctan2(any_value, 0)) == 90
-    assert np.isclose(angle_at_n1, 60.0, atol=0, rtol=1e-2)   # basically 60 degrees
-    assert np.isclose(angle_at_n2, 30.0, atol=0, rtol=1e-2)   # basically 30 degrees
+    assert np.isclose(angle_at_n1, 60.0, atol=1e-2, rtol=0)   # basically 60 degrees
+    assert np.isclose(angle_at_n2, 30.0, atol=1e-2, rtol=0)   # basically 30 degrees
     # on a unit sphere, spherical excess == face area, via Girard's theorem.
     spherical_excess = angles_rad.sum('n_max_face_nodes') - np.pi
     face_areas = grid.compute_face_areas()
