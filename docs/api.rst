@@ -151,6 +151,8 @@ Connectivity
    Grid.node_face_connectivity
 
 
+.. _descriptors:
+
 Descriptors
 ~~~~~~~~~~~
 .. autosummary::
@@ -566,6 +568,8 @@ Azimuthal aggregations apply an aggregation (i.e. averaging) along circles of co
    UxDataArray.azimuthal_mean
 
 
+.. _zonal-average:
+
 Zonal Average
 ~~~~~~~~~~~~~
 .. autosummary::
@@ -587,6 +591,8 @@ Weighted
 Spherical Geometry
 ------------------
 
+.. _intersections:
+
 Intersections
 ~~~~~~~~~~~~~
 
@@ -597,6 +603,8 @@ Intersections
    grid.intersections.gca_const_lat_intersection
    grid.intersections.get_number_of_intersections
 
+
+.. _arcs:
 
 Arcs
 ~~~~
@@ -610,6 +618,8 @@ Arcs
    grid.arcs.orient3d_on_sphere
    grid.arcs.on_minor_arc
 
+
+.. _compensated-arithmetic:
 
 Compensated Arithmetic
 ----------------------
