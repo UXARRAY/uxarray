@@ -1,3 +1,5 @@
+
+import dask.array as da
 import numpy as np
 import numpy.testing as nt
 import pytest
@@ -27,6 +29,7 @@ def test_multi_dim(gridpath):
     integral = uxda.integrate()
     assert integral.ndim == len(dims) - 1
     nt.assert_almost_equal(integral, np.ones((5, 5)) * 4 * np.pi)
+
 
 def test_integrate_crashes_when_nnode_equals_nface():
     """Ensure UxDataArray.integrate() crashes for non-face_centered data, even if n_node==n_face.
@@ -79,3 +82,89 @@ def test_integrate_crashes_when_nnode_equals_nface():
     # ensure integrate() crashes for non-face_centered data, even if n_node==n_face
     with pytest.raises(ValueError):
         uxarr.integrate()
+
+
+def _random_uxda(gridpath, shape, dims):
+    """Non-uniform test data, so a reordered reduction actually shows up."""
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    rng = np.random.default_rng(0)
+    return ux.UxDataArray(
+        data=rng.random(shape), dims=dims, uxgrid=uxgrid, name='var2'
+    )
+
+
+@pytest.mark.parametrize(
+    "shape_dims",
+    [((5400,), ("n_face",)), ((4, 5, 5400), ("a", "b", "n_face"))],
+    ids=["single_dim", "multi_dim"],
+)
+def test_integrate_returns_uxdataarray_matching_numpy(gridpath, shape_dims):
+    """Both branches of integrate() return a UxDataArray matching a plain numpy dot product."""
+    shape, dims = shape_dims
+    uxda = _random_uxda(gridpath, shape, dims)
+
+    # independent reference, computed without going through integrate()
+    expected = uxda.values @ uxda.uxgrid.face_areas.values
+
+    numpy_integral = uxda.integrate()
+    dask_integral = uxda.chunk({"n_face": 100}).integrate()
+
+    # backing type is preserved: eager stays eager, chunked stays lazy
+    assert isinstance(numpy_integral.data, np.ndarray)
+    assert isinstance(dask_integral.data, da.Array)
+
+    for integral in (numpy_integral, dask_integral):
+        assert isinstance(integral, ux.UxDataArray)
+        assert integral.uxgrid is uxda.uxgrid
+        assert integral.dims == dims[:-1]
+        nt.assert_allclose(integral.values, expected, rtol=1e-12, atol=0.0)
+
+
+@pytest.mark.parametrize(
+    "shape_dims",
+    [((5400,), ("n_face",)), ((4, 5, 5400), ("a", "b", "n_face"))],
+    ids=["single_dim", "multi_dim"],
+)
+def test_integrate_dask_reproduces_numpy_whole_face_dim(gridpath, shape_dims):
+    # 'n_face' in a single chunk: xr.dot performs one reduction per block, in the
+    # same order as the numpy path's einsum, so agreement must be exact.
+    shape, dims = shape_dims
+    uxda = _random_uxda(gridpath, shape, dims)
+
+    numpy_integral = uxda.integrate()
+
+    for chunks in ({"n_face": -1}, {"a": 2, "n_face": -1}):
+        chunks = {d: s for d, s in chunks.items() if d in dims}
+        dask_integral = uxda.chunk(chunks).integrate()
+
+        assert isinstance(dask_integral.data, da.Array)
+        assert numpy_integral.dims == dask_integral.dims
+        assert numpy_integral.dtype == dask_integral.dtype
+        nt.assert_array_equal(numpy_integral.values, dask_integral.values)
+
+
+@pytest.mark.parametrize(
+    "shape_dims",
+    [((5400,), ("n_face",)), ((4, 5, 5400), ("a", "b", "n_face"))],
+    ids=["single_dim", "multi_dim"],
+)
+def test_integrate_dask_reproduces_numpy_chunked_face_dim(gridpath, shape_dims):
+    # Splitting 'n_face' splits the reduction: xr.dot sums per-chunk partials, so
+    # the result differs from the numpy path's single einsum in the last few ULP.
+    # This is the one changed routine that is close-but-not-bitwise, hence a
+    # tolerance rather than assert_array_equal. Observed worst case is ~2e-15
+    # relative on this mesh, independent of chunk size.
+    shape, dims = shape_dims
+    uxda = _random_uxda(gridpath, shape, dims)
+
+    numpy_integral = uxda.integrate()
+
+    for chunks in ({"n_face": 100}, {"n_face": 1350}, {"n_face": 7}):
+        dask_integral = uxda.chunk(chunks).integrate()
+
+        assert isinstance(dask_integral.data, da.Array)
+        assert numpy_integral.dims == dask_integral.dims
+        assert numpy_integral.dtype == dask_integral.dtype
+        nt.assert_allclose(
+            numpy_integral.values, dask_integral.values, rtol=1e-12, atol=0.0
+        )
