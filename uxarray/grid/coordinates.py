@@ -1,4 +1,3 @@
-import math
 import warnings
 
 import numpy as np
@@ -68,6 +67,7 @@ def _xyz_to_lonlat_rad_no_norm(
     lon = np.where(z_mask, 0.0, lon)
 
     return lon, lat
+
 
 def _xyz_to_lonlat_rad(
     x: np.ndarray | float,
