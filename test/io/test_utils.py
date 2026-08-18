@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+from uxarray.errors import GridInvalidError
 from uxarray.io.utils import _parse_grid_type
 
 
@@ -61,5 +62,5 @@ def test_parse_grid_type_detects_structured_grid():
     ],
 )
 def test_parse_grid_type_rejects_incomplete_format_signals(dataset):
-    with pytest.raises(RuntimeError, match="Failed to parse uxgrid information from xarray.Dataset."):
+    with pytest.raises(GridInvalidError, match="Failed to parse uxgrid information from xarray.Dataset."):
         _parse_grid_type(dataset)

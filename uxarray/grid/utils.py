@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-from numba import njit
+from numba import njit, prange
 
 from uxarray.constants import INT_FILL_VALUE
 
@@ -12,9 +12,9 @@ def _small_angle_of_2_vectors(u, v):
 
     Parameters
     ----------
-    u : numpy.ndarray
+    u : numpy.ndarray or iterable of length 3
         The first 3D vector.
-    v : numpy.ndarray
+    v : numpy.ndarray or iterable of length 3
         The second 3D vector.
 
     Returns
@@ -22,12 +22,51 @@ def _small_angle_of_2_vectors(u, v):
     float
         The smallest angle between `u` and `v` in radians.
     """
-    v_norm_times_u = np.linalg.norm(v) * u
-    u_norm_times_v = np.linalg.norm(u) * v
-    vec_minus = v_norm_times_u - u_norm_times_v
-    vec_sum = v_norm_times_u + u_norm_times_v
-    angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus), np.linalg.norm(vec_sum))
+    # don't convert to numpy array if not already numpy array.
+    # The formula is: angle = 2 * arctan2(| |v|*u - |u|*v |, | |v|*u + |u|*v |)
+    v_norm = _numba_norm3(v)
+    u_norm = _numba_norm3(u)
+    v_norm_times_u = (v_norm * u[0], v_norm * u[1], v_norm * u[2])
+    u_norm_times_v = (u_norm * v[0], u_norm * v[1], u_norm * v[2])
+    vec_minus = (
+        v_norm_times_u[0] - u_norm_times_v[0],
+        v_norm_times_u[1] - u_norm_times_v[1],
+        v_norm_times_u[2] - u_norm_times_v[2],
+    )
+    vec_sum = (
+        v_norm_times_u[0] + u_norm_times_v[0],
+        v_norm_times_u[1] + u_norm_times_v[1],
+        v_norm_times_u[2] + u_norm_times_v[2],
+    )
+    norm_vec_minus = _numba_norm3(vec_minus)
+    norm_vec_sum = _numba_norm3(vec_sum)
+    angle_u_v_rad = 2 * np.arctan2(norm_vec_minus, norm_vec_sum)
     return angle_u_v_rad
+
+
+# TODO: move _numba_norm3 to a higher-level utils file. For more details, see issue #1648.
+@njit(cache=True)
+def _numba_norm3(u):
+    """
+    Compute the Euclidean norm of a 3D vector.
+    Implementation is currently equivalent to np.linalg.norm:
+        sqrt(u[0]**2 + u[1]**2 + u[2]**2)
+
+    Does NOT internally convert u to a list or numpy array;
+    utilizing tuples in numba instead of many tiny lists/arrays
+    can improve performance significantly.
+
+    Parameters
+    ----------
+    u : iterable of length 3, possibly a numpy array
+        The 3D vector.
+
+    Returns
+    -------
+    float
+        The Euclidean norm of the vector `u`.
+    """
+    return (u[0] ** 2 + u[1] ** 2 + u[2] ** 2) ** 0.5
 
 
 @njit(cache=True)
@@ -260,6 +299,60 @@ def _get_cartesian_face_edge_nodes_array(
     return face_edges_cartesian.reshape(n_face, n_max_face_edges, 2, 3)
 
 
+@njit(cache=True, parallel=True)
+def _get_cartesian_face_edge_nodes_array_subset(
+    face_indices,
+    face_node_connectivity,
+    n_nodes_per_face,
+    n_max_face_edges,
+    node_x,
+    node_y,
+    node_z,
+):
+    """Build the Cartesian edge array for a subset of faces.
+
+    Parameters
+    ----------
+    face_indices : np.ndarray
+        1D array of face indices to build, shape ``(n_selected,)``.
+    face_node_connectivity : np.ndarray
+        Face-node connectivity, shape ``(n_face, n_max_face_edges)``.
+    n_nodes_per_face : np.ndarray
+        Number of non-fill nodes (== edges) for each face, shape ``(n_face,)``.
+    n_max_face_edges : int
+        Maximum number of edges for any face in the grid.
+    node_x, node_y, node_z : np.ndarray
+        Cartesian node coordinates, each shape ``(n_node,)``.
+
+    Returns
+    -------
+    np.ndarray
+        Array of shape ``(n_selected, n_max_face_edges, 2, 3)``. Unused edge
+        slots are padded with ``INT_FILL_VALUE`` cast to float
+    """
+    n_selected = face_indices.shape[0]
+    out = np.full(
+        (n_selected, n_max_face_edges, 2, 3), INT_FILL_VALUE, dtype=np.float64
+    )
+
+    for i in prange(n_selected):
+        f = face_indices[i]
+        n_edges = n_nodes_per_face[f]
+        for e in range(n_edges):
+            n_start = face_node_connectivity[f, e]
+            # Wrap the last edge back to the first node to close the polygon,
+            # mirroring the np.roll(-1) used by the whole-grid builder.
+            n_end = face_node_connectivity[f, (e + 1) % n_edges]
+            out[i, e, 0, 0] = node_x[n_start]
+            out[i, e, 0, 1] = node_y[n_start]
+            out[i, e, 0, 2] = node_z[n_start]
+            out[i, e, 1, 0] = node_x[n_end]
+            out[i, e, 1, 1] = node_y[n_end]
+            out[i, e, 1, 2] = node_z[n_end]
+
+    return out
+
+
 def _get_lonlat_rad_face_edge_nodes_array(
     face_node_conn, n_face, n_max_face_edges, node_lon, node_lat
 ):
@@ -439,7 +532,7 @@ def make_setter(key: str):
 
     def setter(self, value):
         if not isinstance(value, xr.DataArray):
-            raise ValueError(f"{key} must be an xr.DataArray")
+            raise TypeError(f"{key} must be an xr.DataArray")
         self._ds[key] = value
 
     return setter

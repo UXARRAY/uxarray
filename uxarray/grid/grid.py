@@ -17,8 +17,9 @@ from uxarray.conventions import ugrid
 # Import the utility function for opening datasets with fallback
 from uxarray.core.utils import _open_dataset_with_fallback
 from uxarray.cross_sections import GridCrossSectionAccessor
-from uxarray.errors import DataCenteringError, GridInvalidError
+from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
 from uxarray.formatting_html import grid_repr
+from uxarray.grid.angles import _compute_face_node_angles_convex
 from uxarray.grid.area import _get_all_face_area_from_coords
 from uxarray.grid.bounds import _populate_face_bounds
 from uxarray.grid.connectivity import (
@@ -570,7 +571,7 @@ class Grid:
             Indicates whether the inputted vertices are in lat/lon, with units in degrees
         """
         if not isinstance(face_vertices, (list, tuple, np.ndarray)):
-            raise ValueError("Input must be either a list, tuple, or np.ndarray")
+            raise TypeError("Input must be either a list, tuple, or np.ndarray")
 
         face_vertices = np.asarray(face_vertices)
 
@@ -581,7 +582,7 @@ class Grid:
             grid_ds = _read_face_vertices(np.array([face_vertices]), latlon)
 
         else:
-            raise RuntimeError(
+            raise DimensionError(
                 f"Invalid Input Dimension: {face_vertices.ndim}. Expected dimension should be "
                 f"3: [n_face, n_node, two/three] or 2 when only "
                 f"one face is passed in."
@@ -634,7 +635,7 @@ class Grid:
             print("Mesh validation successful.")
             return True
         else:
-            raise RuntimeError("Mesh validation failed.")
+            raise GridInvalidError("Mesh validation failed.")
 
     def construct_face_centers(self, method="cartesian average"):
         """Constructs face centers, this method provides users direct control
@@ -1003,7 +1004,7 @@ class Grid:
         """
         if "node_lat" not in self._ds:
             if self.source_grid_spec == "HEALPix":
-                _populate_healpix_boundaries(self)
+                _populate_healpix_boundaries(self._ds)
             else:
                 _set_desired_longitude_range(self)
                 _populate_node_latlon(self)
@@ -1249,7 +1250,7 @@ class Grid:
             _populate_healpix_boundaries(self._ds)
 
         if self._ds["face_node_connectivity"].ndim == 1:
-            face_node_connectivity_1d = self._ds["face_node_connectivity"].values
+            face_node_connectivity_1d = self._ds["face_node_connectivity"].data
             face_node_connectivity_2d = np.expand_dims(
                 face_node_connectivity_1d, axis=0
             )
@@ -1547,6 +1548,13 @@ class Grid:
         -------
         bounds: :py:class:`xr.DataArray`
             An array of shape (:py:attr:`~uxarray.Grid.n_face`, `two`, `two`)
+
+        References
+        ----------
+        Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+        Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+        algorithms for regridding on the sphere. Geoscientific Model
+        Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
         """
         if "bounds" not in self._ds:
             _populate_face_bounds(self)
@@ -1556,7 +1564,15 @@ class Grid:
 
     @property
     def face_bounds_lon(self):
-        """Longitude bounds for each face in degrees."""
+        """Longitude bounds for each face in degrees.
+
+        References
+        ----------
+        Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+        Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+        algorithms for regridding on the sphere. Geoscientific Model
+        Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
+        """
 
         if "face_bounds_lon" not in self._ds:
             bounds = self.bounds.values
@@ -1576,7 +1592,15 @@ class Grid:
 
     @property
     def face_bounds_lat(self):
-        """Latitude bounds for each face in degrees."""
+        """Latitude bounds for each face in degrees.
+
+        References
+        ----------
+        Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+        Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+        algorithms for regridding on the sphere. Geoscientific Model
+        Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
+        """
 
         if "face_bounds_lat" not in self._ds:
             bounds = self.bounds.values
@@ -1613,7 +1637,7 @@ class Grid:
         """Indices of nodes that border regions not covered by any geometry
         (holes) in a partial grid."""
         if "boundary_node_indices" not in self._ds:
-            raise ValueError
+            raise NotImplementedError
 
         return self._ds["boundary_node_indices"]
 
@@ -1664,7 +1688,7 @@ class Grid:
         if self.is_subset:
             return self._inverse_indices
         else:
-            raise Exception(
+            raise AttributeError(
                 "Grid is not a subset, therefore no inverse face indices exist"
             )
 
@@ -2002,6 +2026,53 @@ class Grid:
             source_dims_dict=self._source_dims_dict,
         )
 
+    def compute_face_node_angles(
+        self,
+        *,
+        degrees: bool = False,
+        as_uxarray: bool = False,
+    ) -> xr.DataArray | UxDataArray:
+        """Compute the angles at each node of each face in the grid.
+        Assumes convex faces and a spherical geometry (consistent with other uxarray methods).
+
+        Parameters
+        ----------
+        degrees : bool, defaults to False
+            Whether to return angles in degrees (if True) or radians (if False).
+        as_uxarray : bool, defaults to False
+            Whether to return a uxarray.DataArray (if True) instead of an xarray.DataArray (if False).
+            If True, equivalent to uxarray.DataArray(self.compute_face_node_angles(..., as_uxarray=False), uxgrid=self).
+
+        Returns
+        -------
+        face_node_angles : xr.DataArray or uxarray.UxDataArray (if as_uxarray=True)
+            The internal angles at each node, for each face in the grid.
+            Has 'n_face' and 'n_max_face_nodes' dimensions, with same size as in self.
+            For faces with fewer than n_max_face_nodes, fill value is np.nan.
+        """
+        from uxarray.conventions.ugrid import FACE_DIM, N_MAX_FACE_NODES_DIM
+
+        result = _compute_face_node_angles_convex(
+            self.node_x.values,
+            self.node_y.values,
+            self.node_z.values,
+            self.face_node_connectivity.values,
+            self.n_nodes_per_face.values,
+        )
+        result = xr.DataArray(
+            data=result,
+            dims=[FACE_DIM, N_MAX_FACE_NODES_DIM],
+            name="face_node_angles",
+            attrs={"description": "Internal angles at each node of each face."},
+        )
+        if degrees:
+            result = np.rad2deg(result)
+        if as_uxarray:
+            from uxarray.core.dataarray import UxDataArray
+
+            result = UxDataArray(result, uxgrid=self)
+        return result
+
     def calculate_total_face_area(
         self,
         quadrature_rule: str = "triangular",
@@ -2011,7 +2082,12 @@ class Grid:
         """Calculate the total surface area of all the faces in a mesh.
 
         Equivalent to ``self.compute_face_areas(...).sum()``; provided as a
-        convenience.
+        convenience. (Note: for HEALPix grids, when called with default arguments,
+        this method actually returns ``self.face_areas.sum()`` instead,
+        which respects HEALPix equal-area property.)
+
+        Additionally, raises a warning if the result is larger than
+        the total area of a sphere (4 * pi * self.sphere_radius**2).
 
         Parameters
         ----------
@@ -2039,15 +2115,26 @@ class Grid:
             and order == 4
             and not latitude_adjusted_area
         ):
-            return np.sum(self.face_areas.values)
-
-        return np.sum(
-            self.compute_face_areas(
-                quadrature_rule=quadrature_rule,
-                order=order,
-                latitude_adjusted_area=latitude_adjusted_area,
+            result = float(self.face_areas.data.sum())
+        else:
+            result = np.sum(
+                self.compute_face_areas(
+                    quadrature_rule=quadrature_rule,
+                    order=order,
+                    latitude_adjusted_area=latitude_adjusted_area,
+                )
             )
-        )
+
+        # Choose RTOL. Mostly just an arbitrary decision....
+        # but noting that 1e-9 had warnings in existing CI tests (as of 2026-08-06), while 1e-8 did not.
+        RTOL = 1e-7
+        if result > 4 * np.pi * self.sphere_radius**2 * (1 + RTOL):
+            warnings.warn(
+                f"Total face area (={result}) exceeds the surface area of the whole sphere "
+                f"(={4 * np.pi * self.sphere_radius**2}) (with sphere_radius={self.sphere_radius}).",
+            )
+
+        return result
 
     def compute_face_areas(
         self,
@@ -2587,14 +2674,14 @@ class Grid:
         if check_duplicate_nodes:
             if _check_duplicate_nodes_indices(self):
                 # TODO: This is very slow
-                raise RuntimeError("Duplicate nodes found, cannot construct dual")
+                raise GridInvalidError("Duplicate nodes found, cannot construct dual")
 
         # Get dual mesh node face connectivity
         dual_node_face_conn = construct_dual(grid=self)
 
         # Construct dual mesh
         dual = self.from_topology(
-            self.face_lon.values, self.face_lat.values, dual_node_face_conn
+            self.face_lon.data, self.face_lat.data, dual_node_face_conn
         )
 
         return dual
@@ -2678,9 +2765,14 @@ class Grid:
                 "is not yet supported."
             )
         else:
-            edges = constant_lat_intersections_no_extreme(
-                lat, self.edge_node_z.values, self.n_edge
-            )
+            # Gather per-edge z-coords positionally, mirroring the longitude
+            # sibling. A concrete connectivity indexer against node_z.data keeps
+            # node coords lazy on a chunked grid (dask indexed by a numpy array)
+            # and — unlike xarray indexing with a dask connectivity — does not
+            # raise. The screener then reduces the gathered array to candidates.
+            edge_nodes = self.edge_node_connectivity.values
+            edge_node_z = self.node_z.data[edge_nodes.ravel()].reshape(edge_nodes.shape)
+            edges = constant_lat_intersections_no_extreme(lat, edge_node_z)
 
         return edges.squeeze()
 
@@ -2710,7 +2802,7 @@ class Grid:
 
         faces = constant_lat_intersections_face_bounds(
             lat=lat,
-            face_bounds_lat=self.face_bounds_lat.values,
+            face_bounds_lat=self.face_bounds_lat.data,
         )
         return faces
 
@@ -2745,11 +2837,14 @@ class Grid:
                 "is not yet supported."
             )
         else:
-            edge_node_x = self.node_x[self.edge_node_connectivity].values
-            edge_node_y = self.node_y[self.edge_node_connectivity].values
-            edges = constant_lon_intersections_no_extreme(
-                lon, edge_node_x, edge_node_y, self.n_edge
-            )
+            # Positional gather of edge endpoint coords: a concrete connectivity
+            # indexer against node_[xy].data keeps node coords lazy on a chunked
+            # grid and does not raise (xarray vindex rejects a dask indexer).
+            edge_nodes = self.edge_node_connectivity.values
+            flat = edge_nodes.ravel()
+            edge_node_x = self.node_x.data[flat].reshape(edge_nodes.shape)
+            edge_node_y = self.node_y.data[flat].reshape(edge_nodes.shape)
+            edges = constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y)
             return edges.squeeze()
 
     def get_faces_at_constant_longitude(self, lon: float):
@@ -2773,7 +2868,7 @@ class Grid:
                 f"Longitude must be between -180 and 180 degrees. Received {lon}"
             )
 
-        faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.values)
+        faces = constant_lon_intersections_face_bounds(lon, self.face_bounds_lon.data)
         return faces
 
     def get_faces_between_longitudes(self, lons: tuple[float, float]):
@@ -2790,7 +2885,7 @@ class Grid:
             An array of face indices that are strictly between two lines of constant longitude.
 
         """
-        return faces_within_lon_bounds(lons, self.face_bounds_lon.values)
+        return faces_within_lon_bounds(lons, self.face_bounds_lon.data)
 
     def get_faces_between_latitudes(self, lats: tuple[float, float]):
         """Identifies the indices of faces that are strictly between two lines of constant latitude.
@@ -2806,7 +2901,7 @@ class Grid:
             An array of face indices that are strictly between two lines of constant latitude.
 
         """
-        return faces_within_lat_bounds(lats, self.face_bounds_lat.values)
+        return faces_within_lat_bounds(lats, self.face_bounds_lat.data)
 
     def get_faces_containing_point(
         self,
