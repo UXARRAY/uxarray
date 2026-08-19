@@ -314,9 +314,7 @@ def _accux_gca(w0, w1, v0, v1):
 
 
 @njit(cache=True, inline="always", error_model="numpy")
-def _accux_gca_scalar(
-    w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
-):
+def _accux_gca_scalar(w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12):
     """Scalar-argument form of :func:`_accux_gca`: returns the six components.
 
     Compute the candidate intersection points of two great-circle arcs.
@@ -442,15 +440,9 @@ def _try_gca_gca_intersection_scalar(
         w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
     )
 
-    pos_fin = (
-        int(math.isfinite(px))
-        * int(math.isfinite(py))
-        * int(math.isfinite(pz))
-    )
+    pos_fin = int(math.isfinite(px)) * int(math.isfinite(py)) * int(math.isfinite(pz))
     neg_fin = (
-        int(math.isfinite(ngx))
-        * int(math.isfinite(ngy))
-        * int(math.isfinite(ngz))
+        int(math.isfinite(ngx)) * int(math.isfinite(ngy)) * int(math.isfinite(ngz))
     )
     pos_on_a = pos_fin * _on_minor_arc_xyz(px, py, pz, w00, w01, w02, w10, w11, w12)
     pos_on_b = pos_fin * _on_minor_arc_xyz(px, py, pz, v00, v01, v02, v10, v11, v12)
