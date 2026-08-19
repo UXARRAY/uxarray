@@ -313,6 +313,55 @@ def _accux_gca(w0, w1, v0, v1):
     return pos, neg
 
 
+@njit(cache=True, inline="always", error_model="numpy")
+def _accux_gca_scalar(
+    w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
+):
+    """Scalar-argument form of :func:`_accux_gca`: returns the six components.
+
+    Takes the twelve endpoint components directly and returns the candidate
+    components as scalars, so hot loops pay no heap allocation per edge. The
+    array form allocates two ``(3,)`` arrays per call; in the face-bounds path
+    that is two of the four allocations ``gca_gca_intersection`` used to make
+    for every edge of every face.
+
+    Arithmetic is identical to :func:`_accux_gca`, operation for operation, so
+    results are bit-for-bit the same.
+    """
+    n1x_hi, n1y_hi, n1z_hi, n1x_lo, n1y_lo, n1z_lo = accucross(
+        w00, w01, w02, w10, w11, w12
+    )
+    n2x_hi, n2y_hi, n2z_hi, n2x_lo, n2y_lo, n2z_lo = accucross(
+        v00, v01, v02, v10, v11, v12
+    )
+    vx_hi, vy_hi, vz_hi, vx_lo, vy_lo, vz_lo = accucross_pair(
+        n1x_hi,
+        n1y_hi,
+        n1z_hi,
+        n1x_lo,
+        n1y_lo,
+        n1z_lo,
+        n2x_hi,
+        n2y_hi,
+        n2z_hi,
+        n2x_lo,
+        n2y_lo,
+        n2z_lo,
+    )
+    vx = vx_hi + vx_lo
+    vy = vy_hi + vy_lo
+    vz = vz_hi + vz_lo
+    sum_hi, sum_lo = _sum_of_squares_c((vx_hi, vy_hi, vz_hi), (vx_lo, vy_lo, vz_lo))
+    vn, _ = acc_sqrt_re(sum_hi, sum_lo)
+    # vn==0 (coplanar arcs) yields inf via IEEE division under error_model="numpy",
+    # so the candidates become non-finite and the status layer masks them out.
+    inv = 1.0 / vn
+    pos_x = vx * inv
+    pos_y = vy * inv
+    pos_z = vz * inv
+    return pos_x, pos_y, pos_z, -pos_x, -pos_y, -pos_z
+
+
 @njit(cache=True, error_model="numpy")
 def _try_gca_gca_intersection(w0, w1, v0, v1):
     """Select the valid great-circle intersection and report a status code.
@@ -361,6 +410,55 @@ def _try_gca_gca_intersection(w0, w1, v0, v1):
     return point, status, pos, neg
 
 
+@njit(cache=True, inline="always", error_model="numpy")
+def _try_gca_gca_intersection_scalar(
+    w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
+):
+    """Scalar-argument form of :func:`_try_gca_gca_intersection`.
+
+    Same mask arithmetic and the same status codes, but allocation-free: no
+    ``(3,)`` candidate arrays and no ``point`` array. Returns the selected point
+    components, the status code, and both candidates as scalars.
+
+    Note the selected point is still formed by multiply-add masking, exactly as
+    in the array form. That is safe *only because* the caller branches on
+    ``status``: when both candidates are non-finite the masks are zero,
+    ``0.0 * nan`` makes the selected point ``nan``, and ``status == 2`` routes
+    the caller away from it. Do not replace the caller's status branch with mask
+    arithmetic -- a zero mask propagates a non-finite discarded operand rather
+    than discarding it.
+    """
+    px, py, pz, ngx, ngy, ngz = _accux_gca_scalar(
+        w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
+    )
+
+    pos_fin = (
+        int(math.isfinite(px)) * int(math.isfinite(py)) * int(math.isfinite(pz))
+    )
+    neg_fin = (
+        int(math.isfinite(ngx)) * int(math.isfinite(ngy)) * int(math.isfinite(ngz))
+    )
+    pos_on_a = pos_fin * _on_minor_arc_xyz(px, py, pz, w00, w01, w02, w10, w11, w12)
+    pos_on_b = pos_fin * _on_minor_arc_xyz(px, py, pz, v00, v01, v02, v10, v11, v12)
+    neg_on_a = neg_fin * _on_minor_arc_xyz(ngx, ngy, ngz, w00, w01, w02, w10, w11, w12)
+    neg_on_b = neg_fin * _on_minor_arc_xyz(ngx, ngy, ngz, v00, v01, v02, v10, v11, v12)
+
+    pos_valid = pos_fin * pos_on_a * pos_on_b
+    neg_valid = neg_fin * neg_on_a * neg_on_b
+
+    pos_mask = pos_valid * (1 - neg_valid)
+    neg_mask = neg_valid * (1 - pos_valid)
+
+    point_x = pos_mask * px + neg_mask * ngx
+    point_y = pos_mask * py + neg_mask * ngy
+    point_z = pos_mask * pz + neg_mask * ngz
+
+    both = pos_valid * neg_valid
+    none = (1 - pos_valid) * (1 - neg_valid)
+    status = both + none * 2
+    return point_x, point_y, point_z, status, px, py, pz, ngx, ngy, ngz
+
+
 @njit(cache=True, error_model="numpy")
 def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     """Return the intersection points of two great-circle arcs.
@@ -396,40 +494,71 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
         raise DimensionError("The two GCAs must be in the cartesian [x, y, z] format")
 
-    w0 = gca_a_xyz[0]
-    w1 = gca_a_xyz[1]
-    v0 = gca_b_xyz[0]
-    v1 = gca_b_xyz[1]
+    # Unpack to scalars and run the allocation-free scalar chain. The array
+    # forms (_accux_gca, _try_gca_gca_intersection) allocated four (3,)/(2,3)
+    # arrays per call -- pos, neg, point, res -- which dominated this function
+    # in the face-bounds path, where it runs once per edge of every face. Only
+    # the (2, 3) result array remains, because the public return type is an
+    # array. The arithmetic is unchanged, so results are bit-for-bit identical.
+    w00 = gca_a_xyz[0, 0]
+    w01 = gca_a_xyz[0, 1]
+    w02 = gca_a_xyz[0, 2]
+    w10 = gca_a_xyz[1, 0]
+    w11 = gca_a_xyz[1, 1]
+    w12 = gca_a_xyz[1, 2]
+    v00 = gca_b_xyz[0, 0]
+    v01 = gca_b_xyz[0, 1]
+    v02 = gca_b_xyz[0, 2]
+    v10 = gca_b_xyz[1, 0]
+    v11 = gca_b_xyz[1, 1]
+    v12 = gca_b_xyz[1, 2]
 
-    point, status, pos, neg = _try_gca_gca_intersection(w0, w1, v0, v1)
+    (
+        point_x,
+        point_y,
+        point_z,
+        status,
+        pos_x,
+        pos_y,
+        pos_z,
+        neg_x,
+        neg_y,
+        neg_z,
+    ) = _try_gca_gca_intersection_scalar(
+        w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
+    )
 
     res = np.empty((2, 3))
     count = 0
+    # The branch on ``status`` is load-bearing, not stylistic: when no candidate
+    # is valid both are non-finite, and the masked ``point_*`` above is nan. A
+    # mask-arithmetic rewrite of this dispatch would propagate that nan into the
+    # coplanar result (0.0 * nan == nan) instead of discarding it.
     if status == 0:
-        res[0, 0] = point[0]
-        res[0, 1] = point[1]
-        res[0, 2] = point[2]
+        res[0, 0] = point_x
+        res[0, 1] = point_y
+        res[0, 2] = point_z
         count = 1
     elif status == 1:
-        res[0, 0] = pos[0]
-        res[0, 1] = pos[1]
-        res[0, 2] = pos[2]
-        res[1, 0] = neg[0]
-        res[1, 1] = neg[1]
-        res[1, 2] = neg[2]
+        res[0, 0] = pos_x
+        res[0, 1] = pos_y
+        res[0, 2] = pos_z
+        res[1, 0] = neg_x
+        res[1, 1] = neg_y
+        res[1, 2] = neg_z
         count = 2
     else:
         # status == 2: no candidate on both arcs.
         # Check for coplanar overlap (shared endpoints) outside the kernel.
-        if on_minor_arc(v0, w0, w1):
-            res[count, 0] = v0[0]
-            res[count, 1] = v0[1]
-            res[count, 2] = v0[2]
+        if _on_minor_arc_xyz(v00, v01, v02, w00, w01, w02, w10, w11, w12):
+            res[count, 0] = v00
+            res[count, 1] = v01
+            res[count, 2] = v02
             count += 1
-        if on_minor_arc(v1, w0, w1):
-            res[count, 0] = v1[0]
-            res[count, 1] = v1[1]
-            res[count, 2] = v1[2]
+        if _on_minor_arc_xyz(v10, v11, v12, w00, w01, w02, w10, w11, w12):
+            res[count, 0] = v10
+            res[count, 1] = v11
+            res[count, 2] = v12
             count += 1
     return res[:count]
 
