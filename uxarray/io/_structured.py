@@ -21,7 +21,7 @@ def _read_structured_grid(lon, lat, tol=1e-10):
     lat : array_like
         1D array of latitude coordinates in degrees.
     tol : float, optional
-        Tolerance for considering nodes as identical (default is `1e-10`).
+        Tolerance in degrees for considering nodes as identical (default is `1e-10`).
 
     Returns
     -------
@@ -92,8 +92,12 @@ def _read_structured_grid(lon, lat, tol=1e-10):
     # Build KDTree
     tree = KDTree(node_xyz)
 
+    # ``tol`` is an angle in degrees; on the unit sphere the matching radius is the
+    # chord subtended by that angle, so the threshold keeps its documented meaning.
+    chord_tol = 2.0 * np.sin(np.deg2rad(tol) / 2.0)
+
     # Find all pairs of nodes within the tolerance
-    pairs = tree.query_pairs(r=tol)
+    pairs = tree.query_pairs(r=chord_tol)
 
     n_nodes = len(nodes)
     if pairs:
