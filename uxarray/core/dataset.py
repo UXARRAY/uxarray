@@ -511,7 +511,7 @@ class UxDataset(xr.Dataset):
 
             return type(self)(ds, uxgrid=sliced_grid)
         else:  # len(grid_dims)>1; _validate_indexers should have crashed.
-            assert False, "internal implementation error if reached this line"
+            raise AssertionError("internal implementation error if reached this line")
 
     def __getattribute__(self, name):
         """Intercept accessor method calls to return Ux-aware accessors."""

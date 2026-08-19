@@ -2062,7 +2062,7 @@ class UxDataArray(xr.DataArray):
             # no other dims, return the grid‐sliced da
             return da
         else:  # len(grid_dims)>1; _validate_indexers should have crashed.
-            assert False, "internal implementation error if reached this line"
+            raise AssertionError("internal implementation error if reached this line")
 
     @classmethod
     def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
