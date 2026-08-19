@@ -1,18 +1,6 @@
 import numpy as np
-from numba import njit, prange
 
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
-
-
-@njit(parallel=True)
-def _fill_numba(flat_orig, face_idx, n_face, n_steps):
-    M = flat_orig.shape[0]
-    out = np.full((M, n_steps), np.nan, np.float64)
-    for i in prange(n_steps):
-        f = face_idx[i]
-        if 0 <= f < n_face:
-            out[:, i] = flat_orig[:, f]
-    return out
 
 
 def sample_geodesic(
