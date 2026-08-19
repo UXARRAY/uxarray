@@ -2,7 +2,10 @@
 Purpose: utils related to imports, e.g. handling optional dependency imports
 """
 
+import ast
 import importlib
+from dataclasses import dataclass, field
+from pathlib import Path
 
 from uxarray.errors import OptionalDependencyNotFoundError
 
@@ -23,6 +26,9 @@ _OPTIONAL_DEPS_TO_EXTRAS = {
     "holoviews": "viz",
     "hvplot": "viz",
 }
+
+# Name of the helper that raises a hint when optional deps are missing.
+_HINT_FUNC_NAME = "_raise_hint_if_optional_deps_missing"
 
 
 def _raise_hint_if_optional_deps_missing(*packages: str):
@@ -113,3 +119,143 @@ def _raise_hint_if_optional_deps_missing(*packages: str):
             errmsg += f" or pip install with {options_str}"
         errmsg += ", then try again."
         raise OptionalDependencyNotFoundError(errmsg) from last_err
+
+
+# ------- help methods to check for _raise_hint_... calls ------- #
+# (used by pytest test suite to ensure that all optional-dependency imports
+# are properly guarded by a call to _raise_hint_if_optional_deps_missing().)
+
+@dataclass
+class OptionalImportCheckResult:
+    """Result of checking a function for optional import usage; contains:
+        qualname: str
+            dotted qualname of the function/method,
+            e.g. "method1" or "MyClass.method2" or "outer_func.inner_func"
+        filepath: Path
+            path to the source file containing the function/method
+        lineno: int
+            line number of the function/method definition in the source file
+        imported_deps: set
+            all deps from _OPTIONAL_DEPS_TO_EXTRAS that were
+            imported directly in the function
+        hinted_deps: set
+            all deps from _OPTIONAL_DEPS_TO_EXTRAS that were passed
+            to _raise_hint_if_optional_deps_missing() in the function
+        """
+    qualname: str
+    filepath: Path
+    lineno: int
+    imported_deps: set = field(default_factory=set)
+    hinted_deps: set = field(default_factory=set)
+
+    @property
+    def missing_deps(self) -> set:
+        """Deps imported but not covered by the hint call. Should be empty."""
+        return self.imported_deps - self.hinted_deps
+
+    @property
+    def extra_deps(self) -> set:
+        """Deps hinted but never actually imported. Worth a warning, not fatal."""
+        return self.hinted_deps - self.imported_deps
+
+
+def _top_level_module_from_dotted_name(dotted_name: str) -> str:
+    """returns top-level module name, from full dotted name.
+    E.g. "cartopy.crs" --> "cartopy", "matplotlib.pyplot" --> "matplotlib"
+    """
+    return dotted_name.split(".")[0]
+
+
+def _find_package_source_files(root: Path):
+    """
+    Yield .py files under `root` that live in a real package, i.e. whose
+    immediate parent directory also contains an __init__.py. Directories
+    without an __init__.py are treated as scripts and skipped.
+    """
+    for path in sorted(root.rglob("*.py")):
+        if (path.parent / "__init__.py").exists():
+            yield path
+
+
+def _analyze_optional_imports_in_function(
+        func_node,
+        filepath: Path,
+        qualname: str
+    ) -> OptionalImportCheckResult:
+    """Returns OptionalImportCheckResult for a function,
+    telling which optional dependencies were imported and which were hinted
+    via _raise_hint_if_optional_deps_missing().
+
+    Inspects only the *direct* statements of a function body (not nested
+    blocks, not nested functions). _raise_hint_if_optional_deps_missing()
+    should be called directly in all functions with optional imports.
+    """
+    result = OptionalImportCheckResult(qualname=qualname, filepath=filepath, lineno=func_node.lineno)
+
+    for stmt in func_node.body:
+        if isinstance(stmt, ast.Import):
+            for alias in stmt.names:
+                top = _top_level_module_from_dotted_name(alias.name)
+                if top in _OPTIONAL_DEPS_TO_EXTRAS:
+                    result.imported_deps.add(top)
+
+        elif isinstance(stmt, ast.ImportFrom):
+            # skip relative imports (`from . import x`) -- not external deps
+            if stmt.module and stmt.level == 0:
+                top = _top_level_module_from_dotted_name(stmt.module)
+                if top in _OPTIONAL_DEPS_TO_EXTRAS:
+                    result.imported_deps.add(top)
+
+        elif isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
+            call = stmt.value
+            func = call.func
+            name = None
+            if isinstance(func, ast.Name):
+                name = func.id
+            elif isinstance(func, ast.Attribute):
+                name = func.attr
+
+            if name == _HINT_FUNC_NAME:
+                for arg in call.args:
+                    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                        result.hinted_deps.add(arg.value)
+
+    return result
+
+
+def _iter_functions_optional_import_checks(tree: ast.AST, filepath: Path):
+    """
+    Walk the module, descending through classes and nested functions while
+    tracking a dotted qualname, yielding one OptionalImportCheckResult per
+    function/method encountered. Assumes for now that optional imports are
+    not used inside lambdas; do not visit any lambdas here.
+    """
+    def walk(node, scope_parts):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                qualname = ".".join(scope_parts + [child.name])
+                yield _analyze_optional_imports_in_function(child, filepath, qualname)
+                yield from walk(child, scope_parts + [child.name])
+            elif isinstance(child, ast.ClassDef):
+                yield from walk(child, scope_parts + [child.name])
+            else:
+                yield from walk(child, scope_parts)
+
+    yield from walk(tree, [])
+
+
+def _optional_import_usage_throughout(src_root: str | Path) -> list[OptionalImportCheckResult]:
+    """Returns list of OptionalImportCheckResult for all functions/methods in the package
+    source files under `src_root` which either imports a known optional dependency directly,
+    or calls the _raise_hint_if_optional_deps_missing() function, or both.
+    """
+    if not isinstance(src_root, Path):
+        src_root = Path(src_root)
+    results = []
+    for filepath in _find_package_source_files(src_root):
+        source = filepath.read_text()
+        tree = ast.parse(source, filename=str(filepath))
+        for check in _iter_functions_optional_import_checks(tree, filepath):
+            if check.imported_deps or check.hinted_deps:
+                results.append(check)
+    return results
