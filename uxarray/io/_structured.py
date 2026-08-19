@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 
-from uxarray.constants import INT_DTYPE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
 
 
@@ -79,8 +79,18 @@ def _read_structured_grid(lon, lat, tol=1e-10):
     # Stack longitude and latitude for processing
     nodes = np.column_stack((node_lon, node_lat))
 
+    # Match nodes on the sphere rather than in the lon/lat plane, so that the poles
+    # (many lon values, one point) and the antimeridian seam (lon differing by 360)
+    # are recognized as coincident.
+    lon_rad = np.deg2rad(node_lon)
+    lat_rad = np.deg2rad(node_lat)
+    cos_lat = np.cos(lat_rad)
+    node_xyz = np.column_stack(
+        (cos_lat * np.cos(lon_rad), cos_lat * np.sin(lon_rad), np.sin(lat_rad))
+    )
+
     # Build KDTree
-    tree = KDTree(nodes)
+    tree = KDTree(node_xyz)
 
     # Find all pairs of nodes within the tolerance
     pairs = tree.query_pairs(r=tol)
@@ -137,6 +147,20 @@ def _read_structured_grid(lon, lat, tol=1e-10):
 
     # Stack the node indices to form face_node_connectivity
     face_node_conn = np.vstack((n1, n2, n3, n4), dtype=INT_DTYPE).T
+
+    # Merging the poles leaves their quads with a repeated corner; drop it so those
+    # faces are stored as the triangles they are, padded with the fill value.
+    keep = face_node_conn != np.roll(face_node_conn, 1, axis=1)
+    if not keep.all():
+        n_nodes_per_face = keep.sum(axis=1)
+        order = np.argsort(~keep, axis=1, kind="stable")
+        compacted = np.take_along_axis(face_node_conn, order, axis=1)
+        n_max_face_nodes = n_nodes_per_face.max()
+        compacted = compacted[:, :n_max_face_nodes]
+        compacted[np.arange(n_max_face_nodes) >= n_nodes_per_face[:, None]] = (
+            INT_FILL_VALUE
+        )
+        face_node_conn = compacted
 
     out_ds["node_lon"] = xr.DataArray(
         data=unique_node_lon, dims=ugrid.NODE_DIM, attrs=ugrid.NODE_LON_ATTRS
