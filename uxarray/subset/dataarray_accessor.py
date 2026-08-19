@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from uxarray.errors import DataCenteringError
+
 
 class DataArraySubsetAccessor:
     """Accessor for performing unstructured grid subsetting with a data
@@ -147,8 +149,10 @@ class DataArraySubsetAccessor:
 
         Raises
         ------
+        DataCenteringError (subclass of ValueError)
+            If the data variable is not face-centered.
         ValueError
-            If no intersections are found at the specified longitude or the data variable is not face-centered.
+            If no intersections are found at the specified longitude.
 
         Examples
         --------
@@ -157,7 +161,7 @@ class DataArraySubsetAccessor:
 
         """
         if not self.uxda._face_centered():
-            raise ValueError(
+            raise DataCenteringError(
                 "Cross sections are only supported for face-centered data variables."
             )
 
@@ -201,8 +205,10 @@ class DataArraySubsetAccessor:
 
         Raises
         ------
+        DataCenteringError (subclass of ValueError)
+            If the data variable is not face-centered.
         ValueError
-            If no intersections are found at the specified longitude or the data variable is not face-centered.
+            If no intersections are found at the specified longitude.
 
         Examples
         --------
@@ -210,7 +216,7 @@ class DataArraySubsetAccessor:
         >>> cross_section = uxda.cross_section.constant_longitude(lon=0.0)
         """
         if not self.uxda._face_centered():
-            raise ValueError(
+            raise DataCenteringError(
                 "Cross sections are only supported for face-centered data variables."
             )
 

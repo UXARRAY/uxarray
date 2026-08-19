@@ -1,6 +1,7 @@
 import numpy as np
 from numba import njit
 
+from uxarray.errors import DimensionError
 from uxarray.grid.area import calculate_face_area
 from uxarray.grid.geometry import _unique_points
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
@@ -9,7 +10,7 @@ from uxarray.grid.intersections import (
     get_number_of_intersections,
 )
 from uxarray.grid.utils import (
-    _get_cartesian_face_edge_nodes_array,
+    _get_cartesian_face_edge_nodes_array_subset,
     _small_angle_of_2_vectors,
 )
 
@@ -40,14 +41,15 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
         # Create a NumPy array for storing results
         result = np.full(shape, np.nan, dtype=result_dtype)
 
-    faces_edge_nodes_xyz = _get_cartesian_face_edge_nodes_array(
-        uxgrid.face_node_connectivity.values,
-        uxgrid.n_face,
-        uxgrid.n_max_face_nodes,
-        uxgrid.node_x.values,
-        uxgrid.node_y.values,
-        uxgrid.node_z.values,
-    )
+    # Grid arrays are read once here and passed to the per-latitude subset
+    # builder. The whole-grid (n_face, n_max, 2, 3) edge array is never
+    # materialized; only the faces intersecting each latitude are built, so peak
+    # memory scales with the candidate count (~1% of n_face) instead of n_face.
+    face_node_connectivity = uxgrid.face_node_connectivity.values
+    n_max_face_edges = uxgrid.n_max_face_nodes
+    node_x = uxgrid.node_x.values
+    node_y = uxgrid.node_y.values
+    node_z = uxgrid.node_z.values
 
     bounds = uxgrid.bounds.values
 
@@ -63,7 +65,16 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
 
         z = np.sin(np.deg2rad(lat))
 
-        fe = faces_edge_nodes_xyz[face_indices]
+        fe = _get_cartesian_face_edge_nodes_array_subset(
+            face_indices,
+            face_node_connectivity,
+            n_nodes_per_face,
+            n_max_face_edges,
+            node_x,
+            node_y,
+            node_z,
+        )
+
         nn = n_nodes_per_face[face_indices]
         b = bounds[face_indices]
 
@@ -252,20 +263,19 @@ def _compute_face_band_weights(uxgrid, bands):
     """
     bands = np.asarray(bands, dtype=float)
     if bands.ndim != 1 or bands.size < 2:
-        raise ValueError("bands must be 1D with at least two edges")
+        raise DimensionError("bands must be 1D with at least two edges")
     if np.any(np.diff(bands) < 0):
         raise ValueError(
             f"bands must be monotonic non-decreasing; got diff(bands)={np.diff(bands)}"
         )
 
-    faces_edge_nodes_xyz = _get_cartesian_face_edge_nodes_array(
-        uxgrid.face_node_connectivity.values,
-        uxgrid.n_face,
-        uxgrid.n_max_face_nodes,
-        uxgrid.node_x.values,
-        uxgrid.node_y.values,
-        uxgrid.node_z.values,
-    )
+    # Read grid arrays once; the per-band partial-face edge subsets are built
+    # on demand below rather than materializing the whole-grid edge array.
+    face_node_connectivity = uxgrid.face_node_connectivity.values
+    n_max_face_edges = uxgrid.n_max_face_nodes
+    node_x = uxgrid.node_x.values
+    node_y = uxgrid.node_y.values
+    node_z = uxgrid.node_z.values
     n_nodes_per_face = uxgrid.n_nodes_per_face.values
     face_bounds_lat = uxgrid.face_bounds_lat.values
     face_areas = uxgrid.face_areas.values
@@ -301,11 +311,22 @@ def _compute_face_band_weights(uxgrid, bands):
 
         partial = all_overlapping[~fc_mask]
         partial_pos = np.nonzero(~fc_mask)[0]
-        for pos, f in zip(partial_pos, partial):
-            nedge = n_nodes_per_face[f]
-            weights[pos] = _compute_band_overlap_area(
-                faces_edge_nodes_xyz[f, :nedge], zmin, zmax
+        if partial.size:
+            # Build edges for only the partially-overlapping faces of this band.
+            fe_partial = _get_cartesian_face_edge_nodes_array_subset(
+                partial,
+                face_node_connectivity,
+                n_nodes_per_face,
+                n_max_face_edges,
+                node_x,
+                node_y,
+                node_z,
             )
+            for k, (pos, f) in enumerate(zip(partial_pos, partial)):
+                nedge = n_nodes_per_face[f]
+                weights[pos] = _compute_band_overlap_area(
+                    fe_partial[k, :nedge], zmin, zmax
+                )
 
         per_band.append((all_overlapping.astype(np.int64), weights))
 
@@ -393,7 +414,7 @@ def _compute_zonal_anomaly(uxda, bands, conservative=False):
 
     bands = np.asarray(bands, dtype=float)
     if bands.ndim != 1 or bands.size < 2:
-        raise ValueError("Band edges must be 1D with at least two values.")
+        raise DimensionError("Band edges must be 1D with at least two values.")
     if np.any(np.diff(bands) < 0):
         raise ValueError(
             "Band edges must be monotonic non-decreasing; got "

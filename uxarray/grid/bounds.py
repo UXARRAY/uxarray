@@ -766,7 +766,7 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     else:
         # Validate longitude point
         if not np.isnan(lon_pt) and (lon_pt < 0.0 or lon_pt > 2.0 * np.pi):
-            raise Exception("Longitude point out of range")
+            raise ValueError("Longitude point out of range")
 
         # Check for pole points
         is_pole_point = False
@@ -815,7 +815,7 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
                         # Ensure widths are non-negative
                         if (d_width_a < 0.0) or (d_width_b < 0.0):
-                            raise Exception(
+                            raise AssertionError(
                                 "Logic error in longitude box width calculation"
                             )
 

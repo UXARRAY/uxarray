@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 import uxarray.plot.utils
+from uxarray.errors import DataCenteringError
 
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
@@ -505,7 +506,7 @@ class UxDataArrayPlotAccessor:
 
         Raises
         ------
-        ValueError
+        DataCenteringError (subclass of ValueError)
             If the data is not mapped to the nodes, edges, or faces.
         """
 
@@ -521,7 +522,7 @@ class UxDataArrayPlotAccessor:
         elif data_mapping == "edges":
             lon, lat = uxgrid.edge_lon.values, uxgrid.edge_lat.values
         else:
-            raise ValueError(
+            raise DataCenteringError(
                 "Data is not mapped to the nodes, edges, or faces of the grid."
             )
 

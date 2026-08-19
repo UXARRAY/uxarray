@@ -5,6 +5,7 @@ import xarray as xr
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
+from uxarray.errors import GridInvalidError
 
 
 def _esmf_to_ugrid_dims(in_ds):
@@ -75,7 +76,7 @@ def _read_esmf(in_ds):
             )
 
     else:
-        raise ValueError(
+        raise NotImplementedError(
             "Reading in ESMF grids with Cartesian coordinates not yet supported"
         )
 
@@ -138,7 +139,7 @@ def _encode_esmf(ds: xr.Dataset) -> xr.Dataset:
             if attr in out_ds["nodeCoords"].attrs:
                 del out_ds["nodeCoords"].attrs[attr]
     else:
-        raise ValueError("Input dataset must contain 'node_lon' and 'node_lat'.")
+        raise GridInvalidError("Input dataset must contain 'node_lon' and 'node_lat'.")
 
     # Face Node Connectivity (elementConn)
     if "face_node_connectivity" in ds:
@@ -153,7 +154,7 @@ def _encode_esmf(ds: xr.Dataset) -> xr.Dataset:
         )
         out_ds["elementConn"].encoding = {"dtype": np.int32}
     else:
-        raise ValueError("Input dataset must contain 'face_node_connectivity'.")
+        raise GridInvalidError("Input dataset must contain 'face_node_connectivity'.")
 
     # Number of nodes per face (numElementConn)
     if "n_nodes_per_face" in ds:

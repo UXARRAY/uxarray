@@ -117,7 +117,7 @@ homepage <https://git-scm.com/>`_).
     Git has lots and lots of commands, each with lots and lots of options. Even if we
     can cover some of them throughout this guide, your best friend for figuring out
     to do things with Git may be Google, and in particular
-    `StackOverflow <https://stackoverflow.com/>`_.
+    `StackOverflow <https://stackoverflow.com/questions>`_.
 
 Configure your environment to authenticate with GitHub from Git. This is a
 complicated process, so we suggest that you refer to the details in the

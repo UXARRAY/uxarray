@@ -6,11 +6,12 @@ import xarray as xr
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
+from uxarray.errors import DimensionError, GridInvalidError
 from uxarray.grid.connectivity import _replace_fill_values
 
 
 def _values_in_degrees(data_array):
-    """Return data_array.values, converting to degrees if necessary,
+    """Return data_array's backing array, converting to degrees if necessary,
     i.e., if data_array.attrs["units"] in ["radians", "radian", "rad"].
 
     Parameters
@@ -22,10 +23,11 @@ def _values_in_degrees(data_array):
 
     Returns
     -------
-    numpy.ndarray
-        data_array.values, converted to degrees if necessary.
+    numpy.ndarray or dask.array.Array
+        data_array's backing array (``.data``, so a lazily-opened array stays
+        lazy), converted to degrees if necessary.
     """
-    values = data_array.values
+    values = data_array.data
     units = data_array.attrs.get("units", "").lower()
 
     # Check if units indicate radians
@@ -49,8 +51,9 @@ def _to_ugrid(in_ds, out_ds):
         # Create node_lon & node_lat variables from grid_corner_lat/lon
         # Turn latitude and longitude scrip arrays into 1D
         # Convert to degrees if needed
-        corner_lat = _values_in_degrees(in_ds["grid_corner_lat"]).ravel()
-        corner_lon = _values_in_degrees(in_ds["grid_corner_lon"]).ravel()
+        # materialized here: fed to polars and numpy fancy-indexing below
+        corner_lat = np.asarray(_values_in_degrees(in_ds["grid_corner_lat"])).ravel()
+        corner_lon = np.asarray(_values_in_degrees(in_ds["grid_corner_lon"])).ravel()
 
         # Use Polars to find unique coordinate pairs
         df = pl.DataFrame({"lon": corner_lon, "lat": corner_lat}).with_row_count(
@@ -119,7 +122,7 @@ def _to_ugrid(in_ds, out_ds):
         )
 
     else:
-        raise Exception("Structured scrip files are not yet supported")
+        raise NotImplementedError("Structured scrip files are not yet supported")
 
     # populate source dims
     source_dims_dict[in_ds["grid_center_lon"].dims[0]] = "n_face"
@@ -422,7 +425,7 @@ def _resolve_cell_dims(
         cell_dims = [dim for dim in data_dims if dim != corner_dim]
 
     if not cell_dims:
-        raise ValueError("Unable to determine cell dimensions for grid variable.")
+        raise DimensionError("Unable to determine cell dimensions for grid variable.")
 
     return cell_dims
 
@@ -436,7 +439,7 @@ def _stack_cell_dims(
     if not dims_in_array:
         if new_dim in data_array.dims:
             return data_array
-        raise ValueError(
+        raise DimensionError(
             f"Unable to stack dimensions {cell_dims}; none are present in {data_array.dims}"
         )
 
@@ -475,14 +478,16 @@ def _extract_single_grid(
     """
 
     if "corner_lat" not in metadata or "corner_lon" not in metadata:
-        raise ValueError(f"Grid '{grid_name}' is missing corner variables.")
+        raise GridInvalidError(f"Grid '{grid_name}' is missing corner variables.")
 
     corner_lat = ds[metadata["corner_lat"]]
     corner_lon = ds[metadata["corner_lon"]]
 
     dims = list(corner_lat.dims)
     if len(dims) < 2:
-        raise ValueError(f"Corner variable for grid '{grid_name}' must be at least 2D.")
+        raise DimensionError(
+            f"Corner variable for grid '{grid_name}' must be at least 2D."
+        )
 
     corner_dim = metadata.get("corner_dim", dims[-1])
     cell_dims = _resolve_cell_dims(metadata, dims, corner_dim)

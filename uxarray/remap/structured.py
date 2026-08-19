@@ -5,6 +5,9 @@ from dataclasses import dataclass
 import numpy as np
 import xarray as xr
 
+from uxarray.errors import DimensionError
+from uxarray.utils.coords import _preserve_valid_coords
+
 
 @dataclass(frozen=True)
 class RectilinearGridSpec:
@@ -65,7 +68,7 @@ def _as_1d_coord(coord, default_name: str) -> xr.DataArray:
     if isinstance(coord, xr.DataArray):
         values = np.asarray(coord.values, dtype=np.float64)
         if coord.ndim != 1:
-            raise ValueError(
+            raise DimensionError(
                 f"Rectilinear {default_name!r} coordinate must be 1-D, "
                 f"got {coord.ndim}-D."
             )
@@ -75,7 +78,7 @@ def _as_1d_coord(coord, default_name: str) -> xr.DataArray:
     else:
         values = np.asarray(coord, dtype=np.float64)
         if values.ndim != 1:
-            raise ValueError(
+            raise DimensionError(
                 f"Rectilinear {default_name!r} coordinate must be 1-D, "
                 f"got {values.ndim}-D."
             )
@@ -84,7 +87,7 @@ def _as_1d_coord(coord, default_name: str) -> xr.DataArray:
         attrs = {}
 
     if values.size < 2:
-        raise ValueError(
+        raise DimensionError(
             f"Rectilinear {default_name!r} coordinate must contain at least two values."
         )
     return xr.DataArray(values, dims=(dim,), name=name, attrs=attrs)
@@ -125,21 +128,6 @@ def _normalize_rectilinear_target(lon, lat) -> RectilinearGridSpec:
     )
 
 
-def _preserve_valid_coords(
-    da: xr.DataArray,
-    dropped_dim: str,
-    output_dims: tuple[str, ...] | list[str],
-) -> dict[str, xr.DataArray]:
-    """Keep only coords that remain valid after replacing ``dropped_dim``."""
-
-    output_dims = set(output_dims)
-    return {
-        name: coord
-        for name, coord in da.coords.items()
-        if dropped_dim not in coord.dims and set(coord.dims).issubset(output_dims)
-    }
-
-
 def _reshape_array_to_rectilinear(
     da: xr.DataArray, spec: RectilinearGridSpec
 ) -> xr.DataArray:
@@ -148,24 +136,23 @@ def _reshape_array_to_rectilinear(
 
     axis = da.get_axis_num("n_face")
     if da.sizes["n_face"] != spec.size:
-        raise ValueError(
+        raise DimensionError(
             "Cannot reshape remapped data to the requested rectilinear grid. "
             f"Expected {spec.size} face values, got {da.sizes['n_face']}."
         )
 
     shape = da.shape[:axis] + spec.shape + da.shape[axis + 1 :]
     dims = da.dims[:axis] + (spec.lat_dim, spec.lon_dim) + da.dims[axis + 1 :]
-    coords = {
-        name: coord
-        for name, coord in da.coords.items()
-        if "n_face" not in coord.dims
-        and name not in {spec.lat_name, spec.lon_name, spec.lat_dim, spec.lon_dim}
-    }
+    coords = _preserve_valid_coords(
+        da,
+        "n_face",
+        exclude={spec.lat_name, spec.lon_name, spec.lat_dim, spec.lon_dim},
+    )
     coords[spec.lat_name] = spec.lat
     coords[spec.lon_name] = spec.lon
 
     return xr.DataArray(
-        np.asarray(da.values).reshape(shape),
+        da.data.reshape(shape),
         dims=dims,
         coords=coords,
         name=da.name,
@@ -189,12 +176,11 @@ def _reshape_to_rectilinear(obj, spec: RectilinearGridSpec):
         name: _reshape_array_to_rectilinear(da, spec)
         for name, da in xr_obj.data_vars.items()
     }
-    coords = {
-        name: coord
-        for name, coord in xr_obj.coords.items()
-        if "n_face" not in coord.dims
-        and name not in {spec.lat_name, spec.lon_name, spec.lat_dim, spec.lon_dim}
-    }
+    coords = _preserve_valid_coords(
+        xr_obj,
+        "n_face",
+        exclude={spec.lat_name, spec.lon_name, spec.lat_dim, spec.lon_dim},
+    )
     coords[spec.lat_name] = spec.lat
     coords[spec.lon_name] = spec.lon
     return xr.Dataset(data_vars=data_vars, coords=coords, attrs=xr_obj.attrs)

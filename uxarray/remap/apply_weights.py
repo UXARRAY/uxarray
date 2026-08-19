@@ -6,6 +6,8 @@ import numpy as np
 import xarray as xr
 
 import uxarray.core.dataarray
+from uxarray.errors import DimensionError
+from uxarray.utils.coords import _preserve_valid_coords
 
 from .utils import (
     LABEL_TO_COORD,
@@ -25,21 +27,21 @@ def _get_source_dim(
     spatial_dims = [dim for dim in da.dims if dim in SPATIAL_DIMS]
 
     if len(spatial_dims) > 1:
-        raise ValueError(
+        raise DimensionError(
             f"Weight application does not support variables with multiple "
             f"spatial dimensions. Got {spatial_dims!r} for variable {da.name!r}."
         )
 
     if source_dim is not None:
         if source_dim not in SPATIAL_DIMS:
-            raise ValueError(
+            raise DimensionError(
                 f"source_dim {source_dim!r} is not a spatial dimension. "
                 f"Expected one of {sorted(SPATIAL_DIMS)}."
             )
         if source_dim not in da.dims:
             return None
         if da.sizes[source_dim] != weights.source_size:
-            raise ValueError(
+            raise DimensionError(
                 f"Variable {da.name!r} dimension {source_dim!r} has size "
                 f"{da.sizes[source_dim]}, expected {weights.source_size}."
             )
@@ -58,9 +60,10 @@ def _apply_weights(
 ):
     """Apply a sparse remap operator to UXarray data.
 
-    Note: this path materializes dask-backed inputs eagerly when applying
-    the sparse operator. For lazy/chunked execution, use one of the other
-    remap methods (e.g., ``nearest_neighbor``, ``inverse_distance_weighted``).
+    Dask-backed inputs are remapped lazily: the sparse operator is applied
+    blockwise over the leading (non-source) dimensions via ``apply_ufunc``, with
+    the source dimension kept in a single chunk. Numpy-backed inputs are applied
+    eagerly.
     """
     _assert_dimension(remap_to)
 
@@ -69,7 +72,7 @@ def _apply_weights(
     destination_size = destination_grid.sizes[destination_dim]
 
     if destination_size != weights_obj.destination_size:
-        raise ValueError(
+        raise DimensionError(
             f"Destination grid size for {destination_dim!r} is {destination_size}, "
             f"but weights target size is {weights_obj.destination_size}."
         )
@@ -87,14 +90,25 @@ def _apply_weights(
         remapped_any = True
         other_dims = [dim for dim in da.dims if dim != variable_source_dim]
         da_t = da.transpose(*other_dims, variable_source_dim)
-        remapped_values = weights_obj._apply(np.asarray(da_t.values))
+        if isinstance(da_t.data, np.ndarray):
+            # eager: apply the sparse operator directly
+            remapped_values = weights_obj._apply(np.asarray(da_t.values))
+        else:
+            # dask: apply blockwise over the leading dims; the sparse multiply
+            # spans the whole source dimension, so keep it in a single chunk
+            remapped_values = xr.apply_ufunc(
+                weights_obj._apply,
+                da_t.chunk({variable_source_dim: -1}),
+                input_core_dims=[[variable_source_dim]],
+                output_core_dims=[[destination_dim]],
+                dask="parallelized",
+                output_dtypes=[np.result_type(weights_obj.matrix.dtype, da_t.dtype)],
+                dask_gufunc_kwargs={
+                    "output_sizes": {destination_dim: weights_obj.destination_size}
+                },
+            ).data
 
-        other_dims_set = set(other_dims)
-        coords = {
-            coord_name: coord
-            for coord_name, coord in da.coords.items()
-            if set(coord.dims).issubset(other_dims_set)
-        }
+        coords = _preserve_valid_coords(da, variable_source_dim, other_dims)
         da_out = uxarray.core.dataarray.UxDataArray(
             remapped_values,
             dims=other_dims + [destination_dim],
@@ -107,10 +121,10 @@ def _apply_weights(
 
     if not remapped_any:
         if is_da:
-            raise ValueError(
+            raise DimensionError(
                 f"No spatial dimension matched the weight source size {weights_obj.source_size}."
             )
-        raise ValueError(
+        raise DimensionError(
             "No dataset variables matched the supplied weight source size."
         )
 

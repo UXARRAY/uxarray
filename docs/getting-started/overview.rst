@@ -13,6 +13,9 @@ used formats such as UGRID, SCRIP, and Exodus. Furthermore, UXarray provides bas
 for generating unstructured grid topology from structured grid or point-cloud inputs to
 enable model intercomparison workflows.
 
+.. note::
+  For new users who are looking to learn more about unstructured grids (or other topics of the Earth System Sciences),
+  check out our `Frequently Asked Questions <https://uxarray.readthedocs.io/en/latest/getting-started/freq-asked-questions.html>`_.
 
 Unstructured Grids
 ==================
@@ -29,10 +32,16 @@ single convention for our grid representation instead of having separate ones fo
 grid format, meaning that we encode all supported unstructured grid formats in the
 UGRID conventions at the data loading step.
 
-Specifically, our core functionality is built around horizontally Unstructured Grids as
-defined by the 2D Flexible Mesh Topology in the UGRID conventions, which can contain a
-mix of triangles, quadrilaterals, or other geometric faces. These types of Unstructured
-Grids may have structured vertical levels.
+Specifically, our core functionality is built around horizontally Unstructured Grids as defined by the
+`UGRID conventions' 2D flexible mesh topology <https://ugrid-conventions.github.io/ugrid-conventions/#2d-flexible-mesh-mixed-triangles-quadrilaterals-etc-topology>`_,
+which can contain a mix of triangles, quadrilaterals, or other geometric faces. These types of Unstructured
+Grids may have structured vertical levels, as described by the
+`UGRID conventions' 3D layered mesh topology <https://ugrid-conventions.github.io/ugrid-conventions/#3d-layered-mesh-topology>`_.
+
+.. note::
+   While 3D grids with vertical levels are supported, fully 3D unstructured topology is not.
+   Also, UXarray additionally assumes the grid lies on a spherical surface,
+   and that all grid faces/cells are convex (all angles less than 180 degrees).
 
 
 Core Data Structures

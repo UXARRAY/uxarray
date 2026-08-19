@@ -13,10 +13,10 @@ import numpy as np
 import xarray as xr
 
 import uxarray.core.dataarray
+from uxarray.errors import DataCenteringError, DimensionError, YacNotAvailableError
 from uxarray.remap.structured import (
     RectilinearGridSpec,
     _normalize_rectilinear_target,
-    _preserve_valid_coords,
     _reshape_to_rectilinear,
 )
 from uxarray.remap.utils import (
@@ -26,10 +26,7 @@ from uxarray.remap.utils import (
     _get_remap_dims,
     _to_dataset,
 )
-
-
-class YacNotAvailableError(RuntimeError):
-    """Raised when the YAC backend is requested but unavailable."""
+from uxarray.utils.coords import _preserve_valid_coords
 
 
 @dataclass
@@ -125,7 +122,7 @@ def _get_lon_lat(grid, dim: str) -> tuple[np.ndarray, np.ndarray]:
     lon = getattr(grid, lon_attr, None)
     lat = getattr(grid, lat_attr, None)
     if lon is None or lat is None:
-        raise ValueError(
+        raise AttributeError(
             f"Grid does not provide {lon_attr}/{lat_attr} required for YAC remapping."
         )
     return np.deg2rad(np.asarray(lon.values, dtype=np.float64)), np.deg2rad(
@@ -327,11 +324,11 @@ class _YacRemapper:
         if values.ndim == 1:
             values = values.reshape(1, -1)
         elif values.ndim != 2:
-            raise ValueError(
+            raise DimensionError(
                 f"YAC remap expects a 1-D or 2-D array, got {values.ndim}-D input."
             )
         if values.shape[1] != self._src_size:
-            raise ValueError(
+            raise DimensionError(
                 f"YAC remap expects {self._src_size} values, got {values.shape[1]}."
             )
 
@@ -340,12 +337,12 @@ class _YacRemapper:
             if frac_mask.ndim == 1:
                 frac_mask = frac_mask.reshape(1, -1)
             elif frac_mask.ndim != 2:
-                raise ValueError(
+                raise DimensionError(
                     "YAC fractional mask expects a 1-D or 2-D array, "
                     f"got {frac_mask.ndim}-D input."
                 )
             if frac_mask.shape != values.shape:
-                raise ValueError(
+                raise DimensionError(
                     "YAC fractional mask must match remap input shape. "
                     f"Got mask shape {frac_mask.shape} and value shape {values.shape}."
                 )
@@ -376,7 +373,7 @@ def _prepare_frac_mask(frac_mask, da_t, src_values, src_dim: str) -> np.ndarray:
         frac_mask_values = np.asarray(frac_mask)
 
     if frac_mask_values.shape != src_values.shape:
-        raise ValueError(
+        raise DimensionError(
             "YAC fractional mask must match the remapped source variable shape. "
             f"Got mask shape {frac_mask_values.shape} and source shape {src_values.shape}."
         )
@@ -401,14 +398,14 @@ def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwa
 
     if options.method == "conservative":
         if destination_dim != "n_face":
-            raise ValueError(
+            raise ValueError(  # not DataCenteringError; the issue here is the remap_to kwarg.
                 "YAC conservative remapping requires the destination to be "
                 "face-centered (remap_to='faces'). "
                 f"Got remap_to={remap_to!r} which maps to dimension {destination_dim!r}."
             )
         non_face_src = dims_to_remap - {"n_face"}
         if non_face_src:
-            raise ValueError(
+            raise DataCenteringError(
                 "YAC conservative remapping requires all source data to be "
                 f"face-centered (dimension 'n_face'). "
                 f"Found non-face source dimension(s): {non_face_src}. "
@@ -451,7 +448,7 @@ def _yac_remap(source, destination_grid, remap_to: str, yac_method: str, yac_kwa
 
         out_shape = src_values.shape[:-1] + (remapper._tgt_size,)
         out_values = out_flat.reshape(out_shape)
-        coords = {dim: da.coords[dim] for dim in other_dims if dim in da.coords}
+        coords = _preserve_valid_coords(da, src_dim, other_dims)
         da_out = uxarray.core.dataarray.UxDataArray(
             out_values,
             dims=other_dims + [destination_dim],
@@ -481,7 +478,7 @@ def _yac_remap_to_rectilinear(source, lon, lat, yac_method: str, yac_kwargs):
     if options.method == "conservative":
         non_face_src = dims_to_remap - {"n_face"}
         if non_face_src:
-            raise ValueError(
+            raise DataCenteringError(
                 "YAC conservative remapping to a rectilinear grid requires all "
                 "source data to be face-centered (dimension 'n_face'). "
                 f"Found non-face source dimension(s): {non_face_src}. "
