@@ -76,24 +76,21 @@ def _compute_face_node_angles_convex(
     return result
 
 
-def _regular_polygon_angle(n, *, degrees=False):
-    """returns the internal angle for a regular polygon with n sides.
-    Equivalent to (n-2)*180/n degrees or (n-2)*pi/n radians.
-
-    n can be a scalar or an array of integers (e.g., can use n = n_nodes_per_face)
-    """
-    if degrees:
-        return (n - 2) * 180 / n
-    else:
-        return (n - 2) * np.pi / n
-
-
 def _compute_equiangle_skewness(face_node_angles, n_nodes_per_face):
     """Returns the equiangle skewness at each face:
         max((Amax - Areg) / (pi - Areg), (Amin - Areg) / Areg)
     where
         Amin, Amax = min, max of the angles at the nodes of the face
-        Areg = ideal angle for a regular polygon with n_nodes_per_face sides.
+        Areg = internal angle at all nodes for a regular polygon with
+            the same number of sides and covering the same area as this face.
+
+    In a flat geometry, the sum of angles in a polygon with n sides is (n-2)*pi.
+    Splitting the angles equally to form a regular polygon yields Areg_flat = (n-2)*pi/n.
+    However, for a spherical geometry, the sum of angles depends on face area:
+        sum(angles) = (n-2)*pi + face_area / sphere_radius^2
+    Areg should be based on a regular polygon with same area as the corresponding face,
+    so, splitting the angles equally to form a regular polygon yields simply:
+        Areg = sum(angles)/n.
 
     Parameters
     ----------
@@ -110,7 +107,7 @@ def _compute_equiangle_skewness(face_node_angles, n_nodes_per_face):
     """
     Amin = face_node_angles.min("n_max_face_nodes", skipna=True)
     Amax = face_node_angles.max("n_max_face_nodes", skipna=True)
-    Areg = _regular_polygon_angle(n_nodes_per_face, degrees=False)
+    Areg = face_node_angles.sum("n_max_face_nodes", skipna=True) / n_nodes_per_face
     term0 = (Amax - Areg) / (np.pi - Areg)
     term1 = (Amin - Areg) / Areg
     # Should just use np.maximum(term0, term1), but that drops UxDataArray type currently,

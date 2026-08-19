@@ -1978,12 +1978,19 @@ class Grid:
 
     def compute_skewness(self, *, method: str = "equiangle", as_uxarray: bool = False):
         """Returns the skewness of each face in the grid, computed using the specified method.
+        Skewness is a measure of how much a face deviates from being regular,
+        e.g. having equal angles at all nodes. Values close to 0 indicate a regular face,
+        while values close to 1 indicate a highly skewed / nearly degenerate face.
 
         Parameters
         ----------
         method: str, defaults to "equiangle"
             The method to use for computing skewness. Options are:
-            - "equiangle": computes the equiangular skewness of each face.
+            - "equiangle": computes the equiangular skewness of each face:
+                equiangle_skewness = max((Amax - Areg) / (pi - Areg), (Amin - Areg) / Areg)
+                where Amin, Amax = min, max of the angles at the nodes of the face,
+                and Areg = internal angle at all nodes for a regular polygon with
+                the same number of sides and covering the same area as this face.
             - (other options not yet implemented)
         as_uxarray: bool, defaults to False
             Whether to return a uxarray.DataArray (if True) or an xarray.DataArray (if False).
