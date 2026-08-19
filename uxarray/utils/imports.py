@@ -258,7 +258,7 @@ def _optional_import_usage_throughout(
         src_root = Path(src_root)
     results = []
     for filepath in _find_package_source_files(src_root):
-        source = filepath.read_text()
+        source = filepath.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(filepath))
         for check in _iter_functions_optional_import_checks(tree, filepath):
             if check.imported_deps or check.hinted_deps:
