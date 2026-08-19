@@ -1,4 +1,8 @@
+import dask.array as da
+import numpy as np
 import uxarray as ux
+import uxarray.grid.slice as slice_module
+from uxarray.grid.slice import _remap_dense, _remap_kernel, _remap_searchsorted
 
 import numpy as np
 import pytest
@@ -209,6 +213,126 @@ def test_empty_subset(gridpath, datasetpath):
     assert res.size == 0
     # should still have all the same dim names even if resulting subset is empty:
     assert set(res.dims) == set(arr.dims)
+
+
+def test_remap_kernel_selection():
+    """The dense lookup table is only built when it is cheap in absolute terms,
+    or small relative to the slice itself."""
+
+    tiny_selection = np.arange(1000, dtype=ux.constants.INT_DTYPE)
+
+    # small grid, dense is affordable regardless of how little is selected
+    assert _remap_kernel(tiny_selection, 10_000)[0] is _remap_dense
+
+    # large grid, tiny slice: the lookup must stay proportional to the slice
+    func, kwargs = _remap_kernel(tiny_selection, 100_000_000)
+    assert func is _remap_searchsorted
+    assert kwargs["orig_indices"].size == tiny_selection.size
+
+    # large grid, most of it selected: dense is back within budget
+    big_selection = np.arange(50_000_000, dtype=ux.constants.INT_DTYPE)
+    assert _remap_kernel(big_selection, 100_000_000)[0] is _remap_dense
+
+
+def test_remap_kernels_agree():
+    """Both remapping kernels must produce identical results, including for
+    fill values and for indices that fall outside of the slice."""
+
+    fill = ux.constants.INT_FILL_VALUE
+    dtype = ux.constants.INT_DTYPE
+
+    n_node = 20
+    selected = np.array([2, 3, 7, 11, 19], dtype=dtype)
+    conn = np.array(
+        [
+            [2, 3, 7, fill],  # all within the slice
+            [11, 19, 2, 3],
+            [0, 5, 7, 18],  # 0, 5 and 18 are not part of the slice
+            [fill, fill, fill, fill],
+        ],
+        dtype=dtype,
+    )
+
+    dense = np.full(n_node, fill, dtype=dtype)
+    dense[selected] = np.arange(selected.size, dtype=dtype)
+
+    expected = np.array(
+        [
+            [0, 1, 2, fill],
+            [3, 4, 0, 1],
+            [fill, fill, 2, fill],
+            [fill, fill, fill, fill],
+        ],
+        dtype=dtype,
+    )
+
+    for result in (_remap_dense(conn, dense), _remap_searchsorted(conn, selected)):
+        assert result.dtype == dtype
+        np.testing.assert_array_equal(result, expected)
+
+    # an empty slice maps everything to the fill value
+    empty = np.array([], dtype=dtype)
+    np.testing.assert_array_equal(
+        _remap_searchsorted(conn, empty), np.full(conn.shape, fill, dtype=dtype)
+    )
+
+
+def test_isel_dask_connectivity(gridpath, monkeypatch):
+    """Chunked connectivity must stay lazy through a slice and still match the
+    eager result.
+
+    The remapping kernels run per block, so a bug that only shows up on a partial
+    chunk is invisible when the connectivity is a single eager array. Both kernels
+    are exercised, since only one of them is selected for any given grid.
+    """
+    grid_path = gridpath("mpas", "QU", "oQU480.231010.nc")
+
+    def open_with_edges(**kwargs):
+        grid = ux.open_grid(grid_path, **kwargs)
+        # build the edge connectivity so the edge remap is exercised as well
+        _ = grid.face_edge_connectivity
+        return grid
+
+    eager_grid = open_with_edges()
+    face_indices = np.arange(0, eager_grid.n_face, 2)
+    eager_subset = eager_grid.isel(n_face=face_indices)
+
+    for force_sparse in (False, True):
+        grid = open_with_edges(chunks=-1)
+
+        # split each connectivity into several blocks; `chunks=-1` alone is
+        # dask-backed but single-block, which would not cover the blockwise path
+        for name in list(grid._ds.data_vars):
+            if "_connectivity" in name:
+                dim = grid._ds[name].dims[0]
+                grid._ds[name] = grid._ds[name].chunk(
+                    {dim: max(grid._ds.sizes[dim] // 5, 1)}
+                )
+
+        if force_sparse:
+            monkeypatch.setattr(slice_module, "_DENSE_REMAP_MAX_SIZE", 0)
+            monkeypatch.setattr(slice_module, "_DENSE_REMAP_MAX_RATIO", 0)
+        subset = grid.isel(n_face=face_indices)
+        monkeypatch.undo()
+
+        remapped = {
+            name: var
+            for name, var in subset._ds.data_vars.items()
+            if "_connectivity" in name
+        }
+        assert remapped
+        assert set(remapped) == {
+            name for name in eager_subset._ds.data_vars if "_connectivity" in name
+        }
+
+        for name, var in remapped.items():
+            assert isinstance(var.data, da.Array), f"{name} was computed eagerly"
+            assert len(var.data.chunks[0]) > 1, f"{name} did not span multiple blocks"
+            np.testing.assert_array_equal(
+                var.values,
+                eager_subset._ds[name].values,
+                err_msg=f"force_sparse={force_sparse}: {name}",
+            )
 
 
 def test_bounding_box_with_stray_grid_time(gridpath):
