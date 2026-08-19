@@ -40,3 +40,18 @@ def test_load_xarray_with_from_file(gridpath):
     nc_filename = gridpath("scrip", "outCSne8", "outCSne8.nc")
     uxgrid = ux.Grid.from_file(nc_filename, backend="xarray")
     uxgrid.validate()
+
+
+def test_read_failure_raises(tmp_path):
+    """A read failure must surface its cause, not an UnboundLocalError.
+    Regression test for issue #1693."""
+    import pytest
+
+    from uxarray.errors import GridInvalidError
+    from uxarray.io._geopandas import _gpd_read
+
+    not_geospatial = tmp_path / "not_geospatial.shp"
+    not_geospatial.write_text("this is not a shapefile")
+
+    with pytest.raises(GridInvalidError, match="Could not read"):
+        _gpd_read(str(not_geospatial))

@@ -3,6 +3,7 @@ import xarray as xr
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, WGS84_CRS
 from uxarray.conventions import ugrid
+from uxarray.errors import GridInvalidError
 
 
 def _read_geodataframe(filepath, driver=None, **kwargs):
@@ -68,9 +69,12 @@ def _gpd_read(filepath, driver=None, **kwargs):
 
     try:
         gdf = gpd.read_file(filepath, driver=driver, **kwargs)
-        gdf = _set_crs(gdf)
     except Exception as e:
-        print(f"An error occurred while reading the geospatial data: {e}")
+        raise GridInvalidError(
+            f"Could not read geospatial data from {filepath!r}: {e}"
+        ) from e
+
+    gdf = _set_crs(gdf)
 
     max_polygon_nodes = gdf["geometry"].apply(_get_num_nodes).max()
 
