@@ -1976,11 +1976,7 @@ class Grid:
             source_dims_dict=self._source_dims_dict,
         )
 
-    def compute_skewness(self,
-        *,
-        method: str = "equiangle",
-        as_uxarray: bool = False
-    ):
+    def compute_skewness(self, *, method: str = "equiangle", as_uxarray: bool = False):
         """Returns the skewness of each face in the grid, computed using the specified method.
 
         Parameters

@@ -75,6 +75,7 @@ def _compute_face_node_angles_convex(
             result[i, j] = _small_angle_of_2_vectors(v1, v2)
     return result
 
+
 def _regular_polygon_angle(n, *, degrees=False):
     """returns the internal angle for a regular polygon with n sides.
     Equivalent to (n-2)*180/n degrees or (n-2)*pi/n radians.
@@ -85,6 +86,7 @@ def _regular_polygon_angle(n, *, degrees=False):
         return (n - 2) * 180 / n
     else:
         return (n - 2) * np.pi / n
+
 
 def _compute_equiangle_skewness(face_node_angles, n_nodes_per_face):
     """Returns the equiangle skewness at each face:
@@ -106,8 +108,8 @@ def _compute_equiangle_skewness(face_node_angles, n_nodes_per_face):
         Equiangle skewness for each face.
         Type matches the input type (xr.DataArray or UxDataArray).
     """
-    Amin = face_node_angles.min('n_max_face_nodes', skipna=True)
-    Amax = face_node_angles.max('n_max_face_nodes', skipna=True)
+    Amin = face_node_angles.min("n_max_face_nodes", skipna=True)
+    Amax = face_node_angles.max("n_max_face_nodes", skipna=True)
     Areg = _regular_polygon_angle(n_nodes_per_face, degrees=False)
     term0 = (Amax - Areg) / (np.pi - Areg)
     term1 = (Amin - Areg) / Areg
