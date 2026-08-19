@@ -71,7 +71,6 @@ from uxarray.grid.validation import (
     _check_area,
     _check_connectivity,
     _check_duplicate_nodes,
-    _check_duplicate_nodes_indices,
     _check_normalization,
 )
 from uxarray.io._delaunay import (
@@ -2606,22 +2605,30 @@ class Grid:
 
         return copy.deepcopy(line_collection)
 
-    def get_dual(self, check_duplicate_nodes: bool = False):
+    def get_dual(self, check_duplicate_nodes: bool | None = None):
         """Compute the dual for a grid, which constructs a new grid centered
         around the nodes, where the nodes of the primal become the face centers
         of the dual, and the face centers of the primal become the nodes of the
         dual. Returns a new `Grid` object.
+
+        Parameters
+        ----------
+        check_duplicate_nodes : bool, optional
+            Deprecated and ignored. Duplicate nodes are now merged while
+            constructing the dual, so they no longer prevent it.
 
         Returns
         --------
         dual : Grid
             Dual Mesh Grid constructed
         """
-
-        if check_duplicate_nodes:
-            if _check_duplicate_nodes_indices(self):
-                # TODO: This is very slow
-                raise GridInvalidError("Duplicate nodes found, cannot construct dual")
+        if check_duplicate_nodes is not None:
+            warnings.warn(
+                "`check_duplicate_nodes` is deprecated and ignored; duplicate nodes "
+                "are now merged when constructing the dual.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         # Get dual mesh node face connectivity
         dual_node_face_conn = construct_dual(grid=self)

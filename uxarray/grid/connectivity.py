@@ -299,6 +299,14 @@ def _build_face_edge_connectivity(inverse_indices, n_face, n_max_face_nodes):
     return inverse_indices
 
 
+def _remap_node_connectivity(connectivity, duplicate_node_indices):
+    """Return a copy of connectivity with duplicate node indices canonicalized."""
+    remapped_connectivity = connectivity.copy()
+    for duplicate_index, source_index in duplicate_node_indices.items():
+        remapped_connectivity[remapped_connectivity == duplicate_index] = source_index
+    return remapped_connectivity
+
+
 def _populate_node_face_connectivity(grid):
     """Constructs the UGRID connectivity variable (``node_face_connectivity``)
     and stores it within the internal (``Grid._ds``) and through the attribute

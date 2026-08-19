@@ -77,30 +77,19 @@ def _check_area(grid):
 
 
 def _find_duplicate_nodes(grid):
-    # list of tuple indices
-    lonlat_t = [
-        (lon, lat) for lon, lat in zip(grid.node_lon.values, grid.node_lat.values)
-    ]
+    """Map duplicate node indices to the first index with the same coordinates."""
+    node_coordinates = np.column_stack((grid.node_lon.values, grid.node_lat.values))
+    _, first_indices, inverse_indices = np.unique(
+        node_coordinates, axis=0, return_index=True, return_inverse=True
+    )
 
-    # # Dictionary to track first occurrence and subsequent indices
-    occurrences = {}
-
-    # Iterate through the list and track occurrences
-    for index, tpl in enumerate(lonlat_t):
-        if tpl in occurrences:
-            occurrences[tpl].append((INT_DTYPE(index)))
-        else:
-            occurrences[tpl] = [INT_DTYPE(index)]
-
-    duplicate_dict = {}
-
-    for tpl, indices in occurrences.items():
-        if len(indices) > 1:
-            source_idx = indices[0]
-            for duplicate_idx in indices[1:]:
-                duplicate_dict[duplicate_idx] = source_idx
-
-    return duplicate_dict
+    duplicate_indices = np.flatnonzero(
+        np.arange(grid.n_node, dtype=INT_DTYPE) != first_indices[inverse_indices]
+    )
+    return {
+        INT_DTYPE(index): INT_DTYPE(first_indices[inverse_indices[index]])
+        for index in duplicate_indices
+    }
 
 
 def _check_normalization(grid):
