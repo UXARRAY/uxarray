@@ -16,8 +16,7 @@ def _compute_face_node_angles_convex(
     face_node_connectivity,
     n_nodes_per_face,
 ):
-    """
-    Calculate the angles at each node for each face, assuming convex faces
+    """Returns angles [in radians] at each node for each face, assuming convex faces
     and a spherical geometry (these assumptions occur throughout uxarray).
 
     Parameters
@@ -75,3 +74,43 @@ def _compute_face_node_angles_convex(
             )
             result[i, j] = _small_angle_of_2_vectors(v1, v2)
     return result
+
+def _regular_polygon_angle(n, *, degrees=False):
+    """returns the internal angle for a regular polygon with n sides.
+    Equivalent to (n-2)*180/n degrees or (n-2)*pi/n radians.
+
+    n can be a scalar or an array of integers (e.g., can use n = n_nodes_per_face)
+    """
+    if degrees:
+        return (n - 2) * 180 / n
+    else:
+        return (n - 2) * np.pi / n
+
+def _compute_equiangle_skewness(face_node_angles, n_nodes_per_face):
+    """Returns the equiangle skewness at each face:
+        max((Amax - Areg) / (pi - Areg), (Amin - Areg) / Areg)
+    where
+        Amin, Amax = min, max of the angles at the nodes of the face
+        Areg = ideal angle for a regular polygon with n_nodes_per_face sides.
+
+    Parameters
+    ----------
+    face_node_angles : xr.DataArray or UxDataArray with dims 'n_face', 'n_max_face_nodes'
+        Angles [in radians] at each node of each face.
+    n_nodes_per_face : xr.DataArray or UxDataArray with dims 'n_face'
+        Number of nodes for each face.
+
+    Returns
+    -------
+    xr.DataArray or UxDataArray with dims 'n_face'
+        Equiangle skewness for each face.
+        Type matches the input type (xr.DataArray or UxDataArray).
+    """
+    Amin = face_node_angles.min('n_max_face_nodes', skipna=True)
+    Amax = face_node_angles.max('n_max_face_nodes', skipna=True)
+    Areg = _regular_polygon_angle(n_nodes_per_face, degrees=False)
+    term0 = (Amax - Areg) / (np.pi - Areg)
+    term1 = (Amin - Areg) / Areg
+    # Should just use np.maximum(term0, term1), but that drops UxDataArray type currently,
+    # so use where as a workaround for now. TODO: swap to np.maximum after fixing issue #1685.
+    return term0.where(term0 > term1, term1)
