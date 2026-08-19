@@ -125,23 +125,25 @@ def _raise_hint_if_optional_deps_missing(*packages: str):
 # (used by pytest test suite to ensure that all optional-dependency imports
 # are properly guarded by a call to _raise_hint_if_optional_deps_missing().)
 
+
 @dataclass
 class OptionalImportCheckResult:
     """Result of checking a function for optional import usage; contains:
-        qualname: str
-            dotted qualname of the function/method,
-            e.g. "method1" or "MyClass.method2" or "outer_func.inner_func"
-        filepath: Path
-            path to the source file containing the function/method
-        lineno: int
-            line number of the function/method definition in the source file
-        imported_deps: set
-            all deps from _OPTIONAL_DEPS_TO_EXTRAS that were
-            imported directly in the function
-        hinted_deps: set
-            all deps from _OPTIONAL_DEPS_TO_EXTRAS that were passed
-            to _raise_hint_if_optional_deps_missing() in the function
-        """
+    qualname: str
+        dotted qualname of the function/method,
+        e.g. "method1" or "MyClass.method2" or "outer_func.inner_func"
+    filepath: Path
+        path to the source file containing the function/method
+    lineno: int
+        line number of the function/method definition in the source file
+    imported_deps: set
+        all deps from _OPTIONAL_DEPS_TO_EXTRAS that were
+        imported directly in the function
+    hinted_deps: set
+        all deps from _OPTIONAL_DEPS_TO_EXTRAS that were passed
+        to _raise_hint_if_optional_deps_missing() in the function
+    """
+
     qualname: str
     filepath: Path
     lineno: int
@@ -178,10 +180,8 @@ def _find_package_source_files(root: Path):
 
 
 def _analyze_optional_imports_in_function(
-        func_node,
-        filepath: Path,
-        qualname: str
-    ) -> OptionalImportCheckResult:
+    func_node, filepath: Path, qualname: str
+) -> OptionalImportCheckResult:
     """Returns OptionalImportCheckResult for a function,
     telling which optional dependencies were imported and which were hinted
     via _raise_hint_if_optional_deps_missing().
@@ -190,7 +190,9 @@ def _analyze_optional_imports_in_function(
     blocks, not nested functions). _raise_hint_if_optional_deps_missing()
     should be called directly in all functions with optional imports.
     """
-    result = OptionalImportCheckResult(qualname=qualname, filepath=filepath, lineno=func_node.lineno)
+    result = OptionalImportCheckResult(
+        qualname=qualname, filepath=filepath, lineno=func_node.lineno
+    )
 
     for stmt in func_node.body:
         if isinstance(stmt, ast.Import):
@@ -230,6 +232,7 @@ def _iter_functions_optional_import_checks(tree: ast.AST, filepath: Path):
     function/method encountered. Assumes for now that optional imports are
     not used inside lambdas; do not visit any lambdas here.
     """
+
     def walk(node, scope_parts):
         for child in ast.iter_child_nodes(node):
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -244,7 +247,9 @@ def _iter_functions_optional_import_checks(tree: ast.AST, filepath: Path):
     yield from walk(tree, [])
 
 
-def _optional_import_usage_throughout(src_root: str | Path) -> list[OptionalImportCheckResult]:
+def _optional_import_usage_throughout(
+    src_root: str | Path,
+) -> list[OptionalImportCheckResult]:
     """Returns list of OptionalImportCheckResult for all functions/methods in the package
     source files under `src_root` which either imports a known optional dependency directly,
     or calls the _raise_hint_if_optional_deps_missing() function, or both.
