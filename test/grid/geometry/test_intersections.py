@@ -3,7 +3,7 @@ import pytest
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
 from uxarray.grid.arcs import extreme_gca_z, on_minor_arc
-from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad,_xyz_to_lonlat_rad_scalar
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_rad
 from uxarray.grid.intersections import gca_gca_intersection, gca_const_lat_intersection, get_number_of_intersections
 
 def test_get_GCA_GCA_intersections_antimeridian():

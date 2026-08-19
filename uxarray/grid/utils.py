@@ -3,6 +3,12 @@ import xarray as xr
 from numba import njit, prange
 
 from uxarray.constants import INT_FILL_VALUE
+from uxarray.utils.numba_math import (
+    _numba_add3,
+    _numba_mul3_scalar,
+    _numba_norm3,
+    _numba_sub3,
+)
 
 
 @njit(cache=True)
@@ -12,9 +18,9 @@ def _small_angle_of_2_vectors(u, v):
 
     Parameters
     ----------
-    u : numpy.ndarray
+    u : iterable of length 3
         The first 3D vector.
-    v : numpy.ndarray
+    v : iterable of length 3
         The second 3D vector.
 
     Returns
@@ -22,11 +28,11 @@ def _small_angle_of_2_vectors(u, v):
     float
         The smallest angle between `u` and `v` in radians.
     """
-    v_norm_times_u = np.linalg.norm(v) * u
-    u_norm_times_v = np.linalg.norm(u) * v
-    vec_minus = v_norm_times_u - u_norm_times_v
-    vec_sum = v_norm_times_u + u_norm_times_v
-    angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus), np.linalg.norm(vec_sum))
+    u_times_v_norm = _numba_mul3_scalar(v, _numba_norm3(u))
+    v_times_u_norm = _numba_mul3_scalar(u, _numba_norm3(v))
+    vec_minus = _numba_sub3(u_times_v_norm, v_times_u_norm)
+    vec_sum = _numba_add3(u_times_v_norm, v_times_u_norm)
+    angle_u_v_rad = 2 * np.arctan2(_numba_norm3(vec_minus), _numba_norm3(vec_sum))
     return angle_u_v_rad
 
 
