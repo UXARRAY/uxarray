@@ -319,14 +319,24 @@ def _accux_gca_scalar(
 ):
     """Scalar-argument form of :func:`_accux_gca`: returns the six components.
 
-    Takes the twelve endpoint components directly and returns the candidate
-    components as scalars, so hot loops pay no heap allocation per edge. The
-    array form allocates two ``(3,)`` arrays per call; in the face-bounds path
-    that is two of the four allocations ``gca_gca_intersection`` used to make
-    for every edge of every face.
+    Compute the candidate intersection points of two great-circle arcs.
 
-    Arithmetic is identical to :func:`_accux_gca`, operation for operation, so
-    results are bit-for-bit the same.
+    Pure numerical kernel (mirrors AccuSphGeom ``accux_gca``).
+
+    Computes the two antipodal candidate intersection points of the great-circle
+    arcs w0-w1 and v0-v1.  No branching, no validity filtering.
+
+    Parameters
+    ----------
+    w00, w01, w02, w10, w11, w12 : float
+        Cartesian endpoints of the first arc.
+    v00, v01, v02, v10, v11, v12 : float
+        Cartesian endpoints of the second arc.
+
+    Returns
+    -------
+    pos_x, pos_y, pos_z, neg_x, neg_y, neg_z : float
+        Two antipodal candidate unit vectors.
     """
     n1x_hi, n1y_hi, n1z_hi, n1x_lo, n1y_lo, n1z_lo = accucross(
         w00, w01, w02, w10, w11, w12
@@ -416,27 +426,31 @@ def _try_gca_gca_intersection_scalar(
 ):
     """Scalar-argument form of :func:`_try_gca_gca_intersection`.
 
-    Same mask arithmetic and the same status codes, but allocation-free: no
-    ``(3,)`` candidate arrays and no ``point`` array. Returns the selected point
-    components, the status code, and both candidates as scalars.
+    Select the valid great-circle intersection and report a status code.
 
-    Note the selected point is still formed by multiply-add masking, exactly as
-    in the array form. That is safe *only because* the caller branches on
-    ``status``: when both candidates are non-finite the masks are zero,
-    ``0.0 * nan`` makes the selected point ``nan``, and ``status == 2`` routes
-    the caller away from it. Do not replace the caller's status branch with mask
-    arithmetic -- a zero mask propagates a non-finite discarded operand rather
-    than discarding it.
+    Batch/status layer (mirrors AccuSphGeom ``try_gca_gca_intersection``).
+
+    Calls the pure numerical kernel, applies integer mask arithmetic to determine
+    validity, selects the output point without if/else branching in the hot path.
+
+    Status codes mirror AccuSphGeom:
+        0  exactly one candidate is valid
+        1  both candidates are valid
+        2  neither candidate is valid  (includes coplanar/parallel case)
     """
     px, py, pz, ngx, ngy, ngz = _accux_gca_scalar(
         w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
     )
 
     pos_fin = (
-        int(math.isfinite(px)) * int(math.isfinite(py)) * int(math.isfinite(pz))
+        int(math.isfinite(px))
+        * int(math.isfinite(py))
+        * int(math.isfinite(pz))
     )
     neg_fin = (
-        int(math.isfinite(ngx)) * int(math.isfinite(ngy)) * int(math.isfinite(ngz))
+        int(math.isfinite(ngx))
+        * int(math.isfinite(ngy))
+        * int(math.isfinite(ngz))
     )
     pos_on_a = pos_fin * _on_minor_arc_xyz(px, py, pz, w00, w01, w02, w10, w11, w12)
     pos_on_b = pos_fin * _on_minor_arc_xyz(px, py, pz, v00, v01, v02, v10, v11, v12)
