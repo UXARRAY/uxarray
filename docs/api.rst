@@ -195,6 +195,7 @@ Methods
    Grid.calculate_total_face_area
    Grid.compute_face_areas
    Grid.compute_face_node_angles
+   Grid.compute_skewness
    Grid.construct_face_centers
    Grid.get_ball_tree
    Grid.get_kd_tree
