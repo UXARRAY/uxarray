@@ -5,6 +5,15 @@ on:
   schedule:
      - cron: '0 0 * * *' # Daily “At 00:00”
 
+permissions:
+  contents: read
+
+# Replaces styfle/cancel-workflow-action: same behaviour with no third-party
+# action and no actions: write token grant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     # if: |
@@ -23,18 +32,14 @@ jobs:
         os: [ "ubuntu-latest", "macos-latest", "windows-latest"]
         python-version: [ "3.11", "3.12", "3.13"]
     steps:
-      - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.13.1
-        with:
-          access_token: ${{ github.token }}
-
       - name: checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           token: ${{ github.token }}
+          persist-credentials: false
 
       - name: conda_setup (x64)
-        uses: conda-incubator/setup-miniconda@v4
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
         if: matrix.os != 'macos-14'
         with:
           activate-environment: uxarray_build
@@ -46,7 +51,7 @@ jobs:
           miniforge-version: latest
 
       - name: conda_setup (ARM64)
-        uses: conda-incubator/setup-miniconda@v4
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
         if: matrix.os == 'macos-14'
         with:
           activate-environment: uxarray_build
@@ -76,12 +81,14 @@ jobs:
           shell: bash -l {0}
       steps:
         - name: checkout
-          uses: actions/checkout@v7
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+          with:
+            persist-credentials: false
 
         - name: environment setup
           id: link-env-setup
           continue-on-error: true
-          uses: mamba-org/setup-micromamba@d7c9bd84e824b79d2af72a2d4196c7f4300d3476 # v2
+          uses: mamba-org/setup-micromamba@d7c9bd84e824b79d2af72a2d4196c7f4300d3476 # v3.0.0
           with:
             environment-file: ci/docs.yml
             cache-environment: true
@@ -91,7 +98,7 @@ jobs:
 
         - name: retry environment set up if failed
           if: steps.link-env-setup.outcome == 'failure'
-          uses: mamba-org/setup-micromamba@d7c9bd84e824b79d2af72a2d4196c7f4300d3476 # v2
+          uses: mamba-org/setup-micromamba@d7c9bd84e824b79d2af72a2d4196c7f4300d3476 # v3.0.0
           with:
             download-micromamba: false
             environment-file: ci/docs.yml

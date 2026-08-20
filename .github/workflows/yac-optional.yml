@@ -8,6 +8,9 @@ on:
       - "test/test_remap_yac.py"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   yac-optional:
     name: YAC core v3.20.2 (Ubuntu)
@@ -27,12 +30,13 @@ jobs:
       OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
     steps:
       - name: checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           token: ${{ github.token }}
+          persist-credentials: false
 
       - name: conda_setup
-        uses: conda-incubator/setup-miniconda@v4
+        uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4.0.1
         with:
           activate-environment: uxarray_build
           channel-priority: strict

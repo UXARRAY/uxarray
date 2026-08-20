@@ -26,13 +26,14 @@ jobs:
       CONDA_ENV_FILE: ci/environment.yml
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
 
       - name: Set up Conda environment
-        uses: mamba-org/setup-micromamba@v3
+        uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39 # v3.2.1
         with:
           environment-file: ${{env.CONDA_ENV_FILE}}
           cache-environment: true
@@ -50,7 +51,7 @@ jobs:
           set -x
           # ID this runner
           asv machine --yes
-          echo "Baseline:  ${{ github.event.pull_request.base.sha }} (${{ github.event.pull_request.base.label }})"
+          echo "Baseline:  ${{ github.event.pull_request.base.sha }} (${GITHUB_EVENT_PULL_REQUEST_BASE_LABEL})"
           echo "Contender: ${GITHUB_SHA} ($PR_HEAD_LABEL)"
           # Run benchmarks for current commit against base
           ASV_OPTIONS="--split --show-stderr"
@@ -58,12 +59,14 @@ jobs:
           # Save compare results
           asv compare --split ${{ github.event.pull_request.base.sha }} ${GITHUB_SHA} > asv_compare_results.txt
         working-directory: ${{ env.ASV_DIR }}
+        env:
+          GITHUB_EVENT_PULL_REQUEST_BASE_LABEL: ${{ github.event.pull_request.base.label }}
 
       - name: Save PR number
         if: always()
         run: echo "${{ github.event.pull_request.number }}" > ${{ env.ASV_DIR }}/pr_number.txt
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: asv-benchmark-results-${{ runner.os }}

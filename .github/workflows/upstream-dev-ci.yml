@@ -8,6 +8,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   upstream-dev:
     name: upstream-dev
@@ -25,12 +28,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           token: ${{ github.token }}
+          persist-credentials: false
 
       - name: Set up environment
-        uses: mamba-org/setup-micromamba@v3
+        uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39 # v3.2.1
         with:
           environment-file: ci/environment.yml
           create-args: >-
@@ -65,12 +69,17 @@ jobs:
       && github.repository == 'UXARRAY/uxarray'
       && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write # `gh issue create/edit` below
     defaults:
       run:
         shell: bash -l {0}
     steps:
       - name: checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Create or update failure issue
         shell: bash
@@ -79,7 +88,7 @@ jobs:
           template=$(cat .github/upstream-failure-issue-template.md)
 
           # Replace placeholders
-          issue_body="${template//\{\{WORKFLOW\}\}/${{ github.workflow }}}"
+          issue_body="${template//\{\{WORKFLOW\}\}/${GITHUB_WORKFLOW}}"
           issue_body="${issue_body//\{\{RUN_ID\}\}/${{ github.run_id }}}"
           issue_body="${issue_body//\{\{RUN_URL\}\}/${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}}"
           issue_body="${issue_body//\{\{DATE\}\}/$(date -u)}"
@@ -115,6 +124,7 @@ jobs:
     needs: [ upstream-dev, failure-issue ]
     if: ${{needs.upstream-dev.outputs.testresults != 'success'}}
     runs-on: ubuntu-latest
+    permissions: {}
     defaults:
       run:
         shell: bash -l {0}
