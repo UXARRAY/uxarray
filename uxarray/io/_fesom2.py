@@ -89,7 +89,10 @@ def _parse_nod2d(grid_path):
 
     file_path = os.path.join(grid_path, "nod2d.out")
     if not os.path.isfile(file_path):
-        raise FileNotFoundError("TODO: ")
+        raise FileNotFoundError(
+            f"Expected a FESOM2 ASCII grid directory containing 'nod2d.out', "
+            f"but no such file exists under {grid_path!r}."
+        )
 
     nodes = pd.read_csv(
         file_path,
@@ -120,7 +123,10 @@ def _parse_elem2d(grid_path):
     """
     file_path = os.path.join(grid_path, "elem2d.out")
     if not os.path.isfile(file_path):
-        raise FileNotFoundError("TODO: ")
+        raise FileNotFoundError(
+            f"Expected a FESOM2 ASCII grid directory containing 'elem2d.out', "
+            f"but no such file exists under {grid_path!r}."
+        )
 
     file_content = pd.read_csv(
         file_path,

@@ -63,3 +63,42 @@ def test_read_failure_raises(tmp_path):
         _gpd_read(str(not_geospatial))
 
     assert not isinstance(excinfo.value, UnboundLocalError)
+
+
+def test_set_crs_warns_when_crs_is_missing():
+    """Assuming WGS84 for CRS-less data is a guess and must be announced."""
+    import pytest
+    gpd = pytest.importorskip("geopandas")
+    from shapely.geometry import Polygon
+
+    from uxarray.io._geopandas import _set_crs
+
+    gdf = gpd.GeoDataFrame(
+        geometry=[Polygon([(0, 0), (1, 0), (1, 1)])], crs=None
+    )
+
+    with pytest.warns(UserWarning, match="no CRS"):
+        out = _set_crs(gdf)
+
+    assert out.crs is not None
+
+
+def test_unsupported_geometry_is_reported():
+    """Dropping a geometry silently would yield a grid missing a face with no
+    indication that anything was skipped."""
+    import pytest
+    gpd = pytest.importorskip("geopandas")
+    from shapely.geometry import Point, Polygon
+
+    from uxarray.io._geopandas import _extract_geometry_info
+
+    gdf = gpd.GeoDataFrame(
+        geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 0)]), Point(5, 5)],
+        crs="EPSG:4326",
+    )
+
+    with pytest.warns(UserWarning, match="unsupported geometry type"):
+        node_lon, node_lat, connectivity = _extract_geometry_info(gdf, 4)
+
+    # Only the polygon contributes a face; the point is skipped.
+    assert connectivity.shape[0] == 1
