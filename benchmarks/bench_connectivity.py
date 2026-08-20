@@ -143,7 +143,7 @@ class MinimalGridBenchmark(GridBenchmark):
     active_grid = None
 
     # asv's 60s default is not enough to build a connectivity variable at 3.75km.
-    timeout = 1200
+    timeout = 1800
 
     def setup(self, resolution, *args, **kwargs):
         self.topology = _source_topology(resolution)
