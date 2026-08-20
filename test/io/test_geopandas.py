@@ -43,15 +43,23 @@ def test_load_xarray_with_from_file(gridpath):
 
 
 def test_read_failure_raises(tmp_path):
-    """A read failure must surface its cause, not an UnboundLocalError.
-    Regression test for issue #1693."""
+    """A read failure must surface the backend's own error rather than being
+    printed and swallowed into an UnboundLocalError.
+
+    Regression test for issue #1693. Requires a geopandas file-IO backend,
+    otherwise read_file raises ImportError and the test would pass for the
+    wrong reason.
+    """
     import pytest
 
-    from uxarray.errors import GridInvalidError
+    pytest.importorskip("pyogrio")
+
     from uxarray.io._geopandas import _gpd_read
 
     not_geospatial = tmp_path / "not_geospatial.shp"
     not_geospatial.write_text("this is not a shapefile")
 
-    with pytest.raises(GridInvalidError, match="Could not read"):
+    with pytest.raises(Exception) as excinfo:
         _gpd_read(str(not_geospatial))
+
+    assert not isinstance(excinfo.value, UnboundLocalError)
