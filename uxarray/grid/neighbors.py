@@ -1,12 +1,17 @@
 import warnings
-from typing import Callable, NamedTuple
+from typing import Callable
 
 import numpy as np
 import xarray as xr
 from numba import guvectorize, njit
 from numpy import deg2rad
 
-from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import (
+    ERROR_TOLERANCE,
+    GRID_DIMS,
+    INT_DTYPE,
+    INT_FILL_VALUE,
+)
 from uxarray.errors import DimensionError
 
 
@@ -1241,27 +1246,9 @@ def _make_kernel(reduce_fn):
     return kernel
 
 
-class _Reduction(NamedTuple):
-    """A named reduction, and the single scalar parameter it accepts (if any).
-
-    Limiting reductions to one parameter is what keeps the gufunc layout above
-    down to one; it covers every reduction implemented here.
-    """
-
-    kernel: object
-    param: str | None = None
-    default: float = 0.0
-
-
-# Reductions with a compiled kernel, addressed by name. A name always takes the
-# fast path, which is why the public API documents names rather than callables:
-# dispatching on a function object cannot see through ``functools.partial``, so
-# a parameterized reduction could never hit a kernel that way.
-#
-# Adding a reduction is one line here. Reducers take ``(window, param)``;
-# those with no parameter ignore the second argument. Numba keys its cache by
-# code object rather than qualified name, so the identically-named lambdas do
-# not collide.
+# Reducers take ``(window, param)``; those without a parameter ignore the
+# second argument. Numba keys its cache by code object rather than qualified
+# name, so the identically-named lambdas below do not collide.
 @njit(cache=True)
 def _variance(window, ddof):
     """Variance with a delta degrees of freedom. Numba's ``np.var`` takes no
@@ -1278,113 +1265,44 @@ def _variance(window, ddof):
 
 @njit(cache=True)
 def _median(window, _):
-    # numba's ``np.median`` selects by partitioning, and whether a NaN survives
-    # that depends on where it lands -- so unlike numpy's, it propagates NaN
-    # only sometimes. This spelling short-circuits and allocates nothing:
-    # ``np.any(np.isnan(window))`` costs ~14% more, and routing through
-    # ``np.quantile``, which does propagate, costs 2.5x.
+    """numba's ``np.median`` selects by partitioning, and whether a NaN survives
+    that depends on where it lands -- so unlike numpy's, it propagates NaN
+    only sometimes. This spelling short-circuits and allocates nothing:
+    ``np.any(np.isnan(window))`` costs ~14% more, and routing through
+    ``np.quantile``, which does propagate, costs 2.5x.
+    """
     for value in window:
         if np.isnan(value):
             return np.nan
     return np.median(window)
 
 
-_quantile_kernel = _make_kernel(lambda window, q: np.quantile(window, q))
-
-_REDUCTIONS = {
-    "mean": _Reduction(_make_kernel(lambda window, _: np.mean(window))),
-    "sum": _Reduction(_make_kernel(lambda window, _: np.sum(window))),
-    "min": _Reduction(_make_kernel(lambda window, _: np.min(window))),
-    "max": _Reduction(_make_kernel(lambda window, _: np.max(window))),
-    "ptp": _Reduction(_make_kernel(lambda window, _: np.max(window) - np.min(window))),
-    "median": _Reduction(_make_kernel(_median)),
-    "var": _Reduction(_make_kernel(_variance), param="ddof"),
-    "std": _Reduction(
-        _make_kernel(lambda window, ddof: np.sqrt(_variance(window, ddof))),
-        param="ddof",
-    ),
-    "quantile": _Reduction(_quantile_kernel, param="q"),
-    "percentile": _Reduction(_quantile_kernel, param="q"),
-}
-
-# Callables accepted for backwards compatibility, so that code written against
-# the original ``func=np.mean`` signature keeps the fast path instead of
-# silently dropping to the generic loop.
-_CALLABLE_ALIASES = {
-    np.mean: "mean",
-    np.sum: "sum",
-    np.max: "max",
-    np.amax: "max",
-    np.min: "min",
-    np.amin: "min",
-    np.median: "median",
-    np.std: "std",
-    np.var: "var",
-    np.ptp: "ptp",
-}
+# One compiled kernel per reduction. The methods on ``Neighborhood`` below name
+# these directly, so there is no dispatch table between the public API and the
+# gufuncs: a reduction is reachable only if a method exists for it, and a method
+# can only reach the kernel it names. ``Neighborhood`` is the only class that
+# names them -- the data-bound classes reach a kernel by naming the
+# ``Neighborhood`` method for it, so there is one place per reduction where its
+# kernel and parameter are chosen.
+_MEAN_KERNEL = _make_kernel(lambda window, _: np.mean(window))
+_SUM_KERNEL = _make_kernel(lambda window, _: np.sum(window))
+_MIN_KERNEL = _make_kernel(lambda window, _: np.min(window))
+_MAX_KERNEL = _make_kernel(lambda window, _: np.max(window))
+_PTP_KERNEL = _make_kernel(lambda window, _: np.max(window) - np.min(window))
+_MEDIAN_KERNEL = _make_kernel(_median)
+_VAR_KERNEL = _make_kernel(_variance)
+_STD_KERNEL = _make_kernel(lambda window, ddof: np.sqrt(_variance(window, ddof)))
+# ``percentile`` is ``quantile`` on a 0-100 scale, so both methods rescale onto
+# this one kernel rather than compiling a near-duplicate.
+_QUANTILE_KERNEL = _make_kernel(lambda window, q: np.quantile(window, q))
 
 
-def _resolve_reduction(func, kwargs):
-    """Maps ``func`` (a name or a callable) onto a kernel and its parameter.
-
-    Returns ``(kernel, param_value)`` for a compiled reduction, or
-    ``(None, None)`` when ``func`` is a callable that has to go through the
-    generic loop.
-    """
-    name = func if isinstance(func, str) else _CALLABLE_ALIASES.get(func)
-
-    if name is None:
-        if not callable(func):
-            raise TypeError(
-                f"`func` must be the name of a reduction or a callable, but got "
-                f"{func!r}. Valid names: {', '.join(sorted(_REDUCTIONS))}."
-            )
-        if kwargs:
-            raise TypeError(
-                f"Got unexpected keyword argument(s) {', '.join(sorted(kwargs))} "
-                f"for a callable `func`. Parameters are only supported for named "
-                f"reductions; use `functools.partial` to bind them to a callable."
-            )
-        return None, None
-
-    if name not in _REDUCTIONS:
-        raise ValueError(
-            f"Unknown reduction {name!r}. Expected one of: "
-            f"{', '.join(sorted(_REDUCTIONS))}."
-        )
-
-    reduction = _REDUCTIONS[name]
-    unexpected = set(kwargs) - ({reduction.param} if reduction.param else set())
-    if unexpected:
-        raise TypeError(
-            f"Reduction {name!r} got unexpected keyword argument(s) "
-            f"{', '.join(sorted(unexpected))}."
-            + (f" It accepts {reduction.param!r}." if reduction.param else "")
-        )
-
-    if reduction.param is None:
-        # The kernel still takes a parameter; this one ignores it.
-        return reduction.kernel, 0.0
-
-    if reduction.param in kwargs:
-        value = float(kwargs[reduction.param])
-    elif name in ("quantile", "percentile"):
-        raise TypeError(
-            f"Reduction {name!r} requires the {reduction.param!r} keyword argument."
-        )
-    else:
-        value = reduction.default
-
-    # `percentile` is `quantile` on a 0-100 scale; normalize so both share one
-    # kernel rather than compiling a near-duplicate.
-    if name == "percentile":
-        if not 0.0 <= value <= 100.0:
-            raise ValueError(f"`q` must be between 0 and 100, but got {value}.")
-        value /= 100.0
-    elif name == "quantile" and not 0.0 <= value <= 1.0:
-        raise ValueError(f"`q` must be between 0 and 1, but got {value}.")
-
-    return reduction.kernel, value
+def _as_quantile(q, scale: float):
+    """Validates ``q`` on a 0-``scale`` scale and returns it as a 0-1 fraction."""
+    value = float(q)
+    if not 0.0 <= value <= scale:
+        raise ValueError(f"`q` must be between 0 and {scale:g}, but got {q!r}.")
+    return value / scale
 
 
 def _csr_neighbors(grid, data_mapping: str, r: float):
@@ -1467,7 +1385,7 @@ def _rechunk_grid_dim(uxda, grid_dim: str):
     """Collapses the grid dimension to a single chunk, warning if that changes
     the user's chunking.
 
-    Neighborhoods are global — an element near a chunk boundary draws on
+    A neighborhood is global — an element near a chunk boundary draws on
     elements in other chunks — so the grid dimension cannot be chunked. This is
     done explicitly rather than through ``allow_rechunk``, which would do it
     silently and also disable ``apply_gufunc``'s other consistency checks.
@@ -1498,7 +1416,7 @@ ELEMENT_DIMS = {
 }
 
 
-class Neighborhoods:
+class Neighborhood:
     """The set of grid elements within a radius ``r`` of every element of one
     grid location, ready to be reduced over.
 
@@ -1507,27 +1425,33 @@ class Neighborhoods:
     itself. Holding onto the result lets several reductions, or several
     variables, share that one query instead of repeating it.
 
+    Each reduction is a method: :meth:`mean`, :meth:`std`, :meth:`percentile`
+    and so on run a compiled kernel, and :meth:`reduce` takes an arbitrary
+    callable for anything without one. Every one takes the data to reduce as
+    its first argument, so several variables can share one query.
+
     Parameters
     ----------
     grid : Grid
-        Grid whose elements define the neighborhoods.
+        Grid whose elements define the neighborhood.
     r : float, default=1.
         Radius of the neighborhood, in degrees of great-circle distance.
     on : str, default="face centers"
-        Grid location the neighborhoods are built around: "nodes",
+        Grid location the neighborhood is built around: "nodes",
         "edge centers", or "face centers".
 
     Examples
     --------
     >>> import uxarray as ux
     >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")  # doctest: +SKIP
-    >>> nb = uxds.uxgrid.neighborhoods(r=5.0)  # doctest: +SKIP
-    >>> smooth = nb.reduce(uxds["psi"], "mean")  # doctest: +SKIP
-    >>> spread = nb.reduce(uxds["psi"], "std")  # doctest: +SKIP
+    >>> nb = uxds.uxgrid.neighborhood(r=5.0)  # doctest: +SKIP
+    >>> smooth = nb.mean(uxds["psi"])  # doctest: +SKIP
+    >>> spread = nb.std(uxds["psi"], ddof=1)  # doctest: +SKIP
 
     See Also
     --------
-    UxDataArray.neighborhood_filter : One-shot filter that builds this internally.
+    UxDataArray.neighborhood : Neighborhood around a single variable's elements.
+    UxDataset.neighborhood : Neighborhood around every variable in a dataset.
     """
 
     def __init__(self, grid, r: float = 1.0, on: str = "face centers"):
@@ -1544,7 +1468,7 @@ class Neighborhoods:
 
     @property
     def grid(self):
-        """Grid the neighborhoods were built from."""
+        """Grid the neighborhood was built from."""
         return self._grid
 
     @property
@@ -1554,7 +1478,7 @@ class Neighborhoods:
 
     @property
     def on(self) -> str:
-        """Grid location the neighborhoods are centered on."""
+        """Grid location the neighborhood is centered on."""
         return self._on
 
     @property
@@ -1578,26 +1502,69 @@ class Neighborhoods:
 
     def __repr__(self) -> str:
         return (
-            f"<Neighborhoods on={self._on!r} r={self._r} "
+            f"<Neighborhood on={self._on!r} r={self._r} "
             f"n_elements={self._counts.size} "
             f"neighbors_per_element=[{self._counts.min()}, {self._counts.max()}]>"
         )
 
-    def reduce(self, uxda, func="mean", **kwargs):
-        """Reduces ``uxda`` over each neighborhood.
+    def mean(self, uxda):
+        """Mean of each neighborhood."""
+        return self._apply_kernel(uxda, _MEAN_KERNEL, 0.0)
+
+    def sum(self, uxda):
+        """Sum of each neighborhood."""
+        return self._apply_kernel(uxda, _SUM_KERNEL, 0.0)
+
+    def min(self, uxda):
+        """Smallest value in each neighborhood."""
+        return self._apply_kernel(uxda, _MIN_KERNEL, 0.0)
+
+    def max(self, uxda):
+        """Largest value in each neighborhood."""
+        return self._apply_kernel(uxda, _MAX_KERNEL, 0.0)
+
+    def ptp(self, uxda):
+        """Peak-to-peak spread (``max - min``) of each neighborhood."""
+        return self._apply_kernel(uxda, _PTP_KERNEL, 0.0)
+
+    def median(self, uxda):
+        """Median of each neighborhood."""
+        return self._apply_kernel(uxda, _MEDIAN_KERNEL, 0.0)
+
+    def var(self, uxda, ddof: int = 0):
+        """Variance of each neighborhood, with ``ddof`` delta degrees of
+        freedom."""
+        return self._apply_kernel(uxda, _VAR_KERNEL, float(ddof))
+
+    def std(self, uxda, ddof: int = 0):
+        """Standard deviation of each neighborhood, with ``ddof`` delta degrees
+        of freedom."""
+        return self._apply_kernel(uxda, _STD_KERNEL, float(ddof))
+
+    def quantile(self, uxda, q: float):
+        """Quantile ``q`` (between 0 and 1) of each neighborhood."""
+        return self._apply_kernel(uxda, _QUANTILE_KERNEL, _as_quantile(q, 1.0))
+
+    def percentile(self, uxda, q: float):
+        """Percentile ``q`` (between 0 and 100) of each neighborhood."""
+        return self._apply_kernel(uxda, _QUANTILE_KERNEL, _as_quantile(q, 100.0))
+
+    def reduce(self, uxda, func: Callable):
+        """Reduces each neighborhood with an arbitrary callable.
+
+        This is the escape hatch for reductions with no method of their own.
+        ``func`` is applied as ``func(values, axis=-1)`` over a block whose last
+        axis is the neighborhood, once per grid element, in Python — which is
+        considerably slower than the compiled methods above. Prefer a method
+        where one exists.
 
         Parameters
         ----------
         uxda : UxDataArray
-            Data to reduce, mapped to the same grid location as ``on``. The
-            grid dimension may sit at any position.
-        func : str or Callable, default="mean"
-            Name of a compiled reduction — "mean", "sum", "min", "max",
-            "median", "ptp", "std", "var", "quantile", "percentile" — or a
-            callable taking an ``axis`` keyword (see Notes).
-        **kwargs
-            Parameter for the named reduction: ``q`` for "quantile" (0-1) and
-            "percentile" (0-100), ``ddof`` for "std" and "var".
+            Data to reduce.
+        func : Callable
+            Reduction to apply. Must accept an ``axis`` keyword argument. Use
+            ``functools.partial`` to bind any further arguments.
 
         Returns
         -------
@@ -1605,13 +1572,33 @@ class Neighborhoods:
             Reduced data as float64, with the input's dimension order. Lazy if
             the input was lazy.
 
-        Notes
-        -----
-        A callable is an escape hatch for reductions not implemented here. It
-        is applied as ``func(values, axis=-1)`` over a block whose last axis is
-        the neighborhood, once per element, in Python — considerably slower
-        than a named reduction. Named reductions run compiled.
+        Examples
+        --------
+        >>> from scipy.stats import skew  # doctest: +SKIP
+        >>> nb.reduce(uxds["psi"], skew)  # doctest: +SKIP
         """
+
+        def run(block, arrays):
+            return _neighborhood_reduce(block, *arrays, func)
+
+        return self._apply(uxda, run)
+
+    def _apply_kernel(self, uxda, kernel, param: float):
+        """Runs a compiled ``kernel`` over every neighborhood."""
+
+        def run(block, arrays):
+            # The kernels are compiled for float32/float64 only; anything
+            # else (integer fields, say) is promoted, which the generic
+            # path does too by writing into a float64 output.
+            if block.dtype not in (np.float64, np.float32):
+                block = block.astype(np.float64)
+            return kernel(block, *arrays, param)
+
+        return self._apply(uxda, run)
+
+    def _apply(self, uxda, run):
+        """Validates ``uxda`` against this neighborhood and maps ``run`` over
+        it, one NumPy block at a time with the grid dimension last."""
         # Local import: uxarray.core.dataarray imports this module.
         from uxarray.core.dataarray import UxDataArray
         from uxarray.errors import DataCenteringError
@@ -1619,33 +1606,20 @@ class Neighborhoods:
         grid_dim = self.grid_dim
         if grid_dim not in uxda.dims:
             raise DataCenteringError(
-                f"These neighborhoods are built on {self._on!r} and reduce over "
+                f"This neighborhood is built on {self._on!r} and reduces over "
                 f"{grid_dim!r}, but the data has dimensions {tuple(uxda.dims)!r}."
             )
         if uxda.sizes[grid_dim] != self._counts.size:
             raise DataCenteringError(
                 f"Data has {uxda.sizes[grid_dim]} elements along {grid_dim!r}, but "
-                f"these neighborhoods describe {self._counts.size}. The data is "
+                f"this neighborhood describes {self._counts.size}. The data is "
                 f"probably mapped to a different grid."
             )
 
-        kernel, param = _resolve_reduction(func, kwargs)
+        arrays = (self._flat, self._starts, self._counts)
 
-        if kernel is None:
-
-            def _apply(block):
-                return _neighborhood_reduce(
-                    block, self._flat, self._starts, self._counts, func
-                )
-        else:
-
-            def _apply(block):
-                # The kernels are compiled for float32/float64 only; anything
-                # else (integer fields, say) is promoted, which the generic
-                # path does too by writing into a float64 output.
-                if block.dtype not in (np.float64, np.float32):
-                    block = block.astype(np.float64)
-                return kernel(block, self._flat, self._starts, self._counts, param)
+        def _apply(block):
+            return run(block, arrays)
 
         work = _rechunk_grid_dim(uxda, grid_dim)
 
@@ -1670,3 +1644,222 @@ class Neighborhoods:
         # ``apply_ufunc`` returns a plain xr.DataArray, dropping the subclass
         # and its grid. Name, coords and attrs are carried through already.
         return UxDataArray(filtered, uxgrid=getattr(uxda, "uxgrid", self._grid))
+
+
+class _BoundNeighborhoodReductions:
+    """The reduction vocabulary of a :class:`Neighborhood` whose data is already
+    supplied, spelled once for every class that carries it.
+
+    A reduction has to be an attribute of ``Neighborhood``, which takes its data
+    as an argument, and of the classes below, which already hold theirs. Those
+    two signatures cannot share a definition, so the vocabulary is spelled twice
+    in all -- but only twice, and only one of the two chooses a kernel.
+
+    This is the half that does not. Each method here hands ``_map`` the
+    ``Neighborhood`` method it stands for, as the function object itself rather
+    than a name to look up later, and subclasses implement ``_map`` to say
+    *which data* to call it on. That is the only thing that differs between a
+    neighborhood bound to one variable and one bound to a whole dataset, so
+    everything else is written once.
+
+    Passing the method rather than a name is what keeps the two halves honest:
+    the reference is resolved when this class is created, so a reduction that
+    ``Neighborhood`` does not define cannot be spelled here at all, and a bound
+    method cannot reach a different kernel, or a different ``ddof``, than the
+    unbound one it names.
+    """
+
+    def _map(self, reduction: Callable, *args, **kwargs):
+        """Calls ``reduction(neighborhood, uxda, *args, **kwargs)`` on the data
+        this is bound to, returning the result in the same container.
+
+        Subclasses must implement this; it is the only thing they need to.
+        """
+        raise NotImplementedError
+
+    def mean(self):
+        """Mean of each neighborhood."""
+        return self._map(Neighborhood.mean)
+
+    def sum(self):
+        """Sum of each neighborhood."""
+        return self._map(Neighborhood.sum)
+
+    def min(self):
+        """Smallest value in each neighborhood."""
+        return self._map(Neighborhood.min)
+
+    def max(self):
+        """Largest value in each neighborhood."""
+        return self._map(Neighborhood.max)
+
+    def ptp(self):
+        """Peak-to-peak spread (``max - min``) of each neighborhood."""
+        return self._map(Neighborhood.ptp)
+
+    def median(self):
+        """Median of each neighborhood."""
+        return self._map(Neighborhood.median)
+
+    def var(self, ddof: int = 0):
+        """Variance of each neighborhood, with ``ddof`` delta degrees of
+        freedom."""
+        return self._map(Neighborhood.var, ddof=ddof)
+
+    def std(self, ddof: int = 0):
+        """Standard deviation of each neighborhood, with ``ddof`` delta degrees
+        of freedom."""
+        return self._map(Neighborhood.std, ddof=ddof)
+
+    def quantile(self, q: float):
+        """Quantile ``q`` (between 0 and 1) of each neighborhood."""
+        return self._map(Neighborhood.quantile, q)
+
+    def percentile(self, q: float):
+        """Percentile ``q`` (between 0 and 100) of each neighborhood."""
+        return self._map(Neighborhood.percentile, q)
+
+    def reduce(self, func: Callable):
+        """Reduces each neighborhood with an arbitrary callable.
+
+        See :meth:`Neighborhood.reduce`, which this supplies the data to.
+        """
+        return self._map(Neighborhood.reduce, func)
+
+
+class DataArrayNeighborhood(_BoundNeighborhoodReductions):
+    """Neighborhood of radius ``r`` around the elements of one data variable,
+    ready to be reduced over.
+
+    Carries the same reduction methods as :class:`Neighborhood`, with the data
+    already supplied, so they take only the parameters of the reduction itself.
+    The underlying neighbor query is built once and reused by every reduction
+    called on this object.
+
+    Returned by :meth:`UxDataArray.neighborhood`; not constructed directly.
+
+    Examples
+    --------
+    >>> import uxarray as ux
+    >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")  # doctest: +SKIP
+    >>> nb = uxds["psi"].neighborhood(r=5.0)  # doctest: +SKIP
+    >>> smooth, spread = nb.mean(), nb.std(ddof=1)  # doctest: +SKIP
+
+    See Also
+    --------
+    Neighborhood : The unbound neighborhood this wraps.
+    """
+
+    def __init__(self, neighborhood: Neighborhood, uxda):
+        self._neighborhood = neighborhood
+        self._uxda = uxda
+
+    @property
+    def neighborhood(self) -> Neighborhood:
+        """The unbound :class:`Neighborhood` these reductions run on.
+
+        Reusable across other variables at the same grid location, without
+        repeating the neighbor query.
+        """
+        return self._neighborhood
+
+    @property
+    def grid(self):
+        """Grid the neighborhood was built from."""
+        return self._neighborhood.grid
+
+    @property
+    def r(self) -> float:
+        """Neighborhood radius, in degrees."""
+        return self._neighborhood.r
+
+    @property
+    def on(self) -> str:
+        """Grid location the neighborhood is centered on."""
+        return self._neighborhood.on
+
+    @property
+    def grid_dim(self) -> str:
+        """Name of the grid dimension this reduces over."""
+        return self._neighborhood.grid_dim
+
+    @property
+    def n_neighbors(self) -> xr.DataArray:
+        """Number of elements in each neighborhood."""
+        return self._neighborhood.n_neighbors
+
+    def __repr__(self) -> str:
+        return (
+            f"<DataArrayNeighborhood of {self._uxda.name!r} on {self._neighborhood!r}>"
+        )
+
+    def _map(self, reduction: Callable, *args, **kwargs):
+        """Applies ``reduction`` to the one variable this is bound to."""
+        return reduction(self._neighborhood, self._uxda, *args, **kwargs)
+
+
+class DatasetNeighborhood(_BoundNeighborhoodReductions):
+    """Neighborhood of radius ``r`` around every grid-mapped variable of a
+    dataset, ready to be reduced over.
+
+    Carries the same reduction methods as :class:`Neighborhood`, applying each
+    to every data variable at once. Variables without a grid dimension pass
+    through unchanged, and variables mapped to the same grid location share one
+    neighbor query, so a reduction costs one query per location present rather
+    than one per variable.
+
+    Returned by :meth:`UxDataset.neighborhood`; not constructed directly.
+
+    Examples
+    --------
+    >>> import uxarray as ux
+    >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")  # doctest: +SKIP
+    >>> smooth = uxds.neighborhood(r=5.0).mean()  # doctest: +SKIP
+
+    See Also
+    --------
+    Neighborhood : The single-location neighborhood this builds on.
+    """
+
+    def __init__(self, uxds, r: float = 1.0):
+        self._uxds = uxds
+        self._r = float(r)
+        # Built on first use, keyed by grid location, since the query depends
+        # only on (grid, location, radius) -- not on the data.
+        self._by_location: dict[str, Neighborhood] = {}
+
+    @property
+    def r(self) -> float:
+        """Neighborhood radius, in degrees."""
+        return self._r
+
+    def __repr__(self) -> str:
+        return (
+            f"<DatasetNeighborhood r={self._r} data_vars={len(self._uxds.data_vars)}>"
+        )
+
+    def _map(self, reduction: Callable, *args, **kwargs):
+        """Applies ``reduction`` to every grid-mapped variable, sharing a
+        neighbor query between variables at the same grid location."""
+        destination_uxds = self._uxds._copy()
+
+        for var_name in self._uxds.data_vars:
+            uxda = self._uxds[var_name]
+
+            # Skip variables that are not mapped to a grid element.
+            if not any(dim in GRID_DIMS for dim in uxda.dims):
+                continue
+
+            location = uxda._neighborhood_location("neighborhood")
+            if location not in self._by_location:
+                self._by_location[location] = Neighborhood(
+                    self._uxds.uxgrid, r=self._r, on=location
+                )
+
+            # The Neighborhood methods restore the input dimension order, so
+            # it is always preserved.
+            destination_uxds[var_name] = reduction(
+                self._by_location[location], uxda, *args, **kwargs
+            )
+
+        return destination_uxds

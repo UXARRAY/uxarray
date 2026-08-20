@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from html import escape
-from typing import TYPE_CHECKING, Any, Callable, Hashable, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, Optional
 from warnings import warn
 
 import numpy as np
@@ -35,7 +35,7 @@ from uxarray.errors import (
 from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
-from uxarray.grid.neighbors import Neighborhoods
+from uxarray.grid.neighbors import DataArrayNeighborhood, Neighborhood
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
@@ -2212,7 +2212,7 @@ class UxDataArray(xr.DataArray):
         return uxda
 
     def _neighborhood_location(self, caller: str) -> str:
-        """Grid location this data is mapped to, in ``Neighborhoods`` terms."""
+        """Grid location this data is mapped to, in ``Neighborhood`` terms."""
         if self._face_centered():
             return "face centers"
         if self._node_centered():
@@ -2220,64 +2220,51 @@ class UxDataArray(xr.DataArray):
         if self._edge_centered():
             return "edge centers"
         raise DataCenteringError(
-            f"{caller} requires data mapped to nodes, edges, or faces, "
+            f"`{caller}()` requires data mapped to nodes, edges, or faces, "
             f"but the dimensions {self.dims!r} do not match any grid dimension "
             f"{GRID_DIMS}."
         )
 
-    def neighborhood_filter(
-        self,
-        func: str | Callable = "mean",
-        r: float = 1.0,
-        **kwargs,
-    ) -> UxDataArray:
-        """Apply a neighborhood filter, replacing the value at each grid
-        element with a reduction of all elements within a circular
-        neighborhood of radius ``r``.
+    def neighborhood(self, r: float = 1.0) -> DataArrayNeighborhood:
+        """Groups this data by the elements within ``r`` degrees of each grid
+        element, to be reduced over by a method of the returned
+        :class:`DataArrayNeighborhood`.
+
+        Each reduction replaces the value at every grid element with a
+        reduction of all elements within a circular neighborhood of radius
+        ``r``, as in a smoothing filter.
 
         Parameters
         ----------
-        func : str or Callable, default="mean"
-            Name of the reduction to apply: "mean", "sum", "min", "max",
-            "median", "ptp", "std", "var", "quantile", or "percentile". Named
-            reductions run compiled. A callable is accepted as an escape hatch
-            for anything not in that list; see Notes.
         r : float, default=1.
             Radius of the neighborhood, in degrees.
-        **kwargs
-            Parameter for the named reduction: ``q`` for "quantile" (0-1) and
-            "percentile" (0-100), ``ddof`` for "std" and "var".
 
         Returns
         -------
-        uxda_filter : UxDataArray
-            Filtered data, as float64.
+        DataArrayNeighborhood
+            Bound to this data, so its reduction methods take only the
+            parameters of the reduction: ``mean()``, ``sum()``, ``min()``,
+            ``max()``, ``median()``, ``ptp()``, ``std(ddof)``, ``var(ddof)``,
+            ``quantile(q)``, ``percentile(q)``, or ``reduce(func)`` for
+            anything else. Each returns a ``UxDataArray`` of float64.
 
         Raises
         ------
         DataCenteringError (subclass of ValueError)
             If the data is not mapped to nodes, edges, or faces.
-        ValueError
-            If ``func`` names a reduction that does not exist.
-        TypeError
-            If ``func`` is a callable that does not accept an ``axis`` keyword
-            argument, or if a keyword argument does not apply to ``func``.
 
         Notes
         -----
-        ``r`` is a great-circle distance in degrees. Neighborhoods overlap, and
-        every element is its own neighbor at distance 0, so ``r = 0`` returns
-        the data unchanged and the result never contains spurious ``NaN``.
+        ``r`` is a great-circle distance in degrees. An element's neighborhood
+        overlaps those of the elements around it, and every element is its own
+        neighbor at distance 0, so ``r = 0`` returns the data unchanged and the
+        result never contains spurious ``NaN``.
 
-        A callable ``func`` is applied as ``func(values, axis=-1)`` over a block
-        whose last axis is the neighborhood, once per grid element, in Python.
-        That is considerably slower than a named reduction, so prefer a name
-        where one exists.
-
-        Each call queries the grid for neighbors, which usually costs more than
-        the reduction itself. To apply several reductions at one radius, build
-        the neighborhoods once with :meth:`Grid.neighborhoods` and call
-        :meth:`Neighborhoods.reduce` on it.
+        Building this queries the grid for neighbors, which usually costs more
+        than the reduction itself. That query is what the returned object holds
+        on to, so several reductions at one radius should share one call rather
+        than repeat it. To share it across variables too, build the
+        neighborhood from the grid instead, with :meth:`Grid.neighborhood`.
 
         A neighborhood may span the whole grid, so the grid dimension cannot be
         chunked; it is collapsed to a single chunk (with a warning) for
@@ -2291,26 +2278,32 @@ class UxDataArray(xr.DataArray):
         >>> import uxarray as ux
         >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
         >>> uxda = uxds["psi"]
-        >>> smoothed = uxda.neighborhood_filter("mean", r=5.0)
+        >>> smoothed = uxda.neighborhood(r=5.0).mean()
 
         Reductions taking a parameter receive it as a keyword argument:
 
-        >>> p90 = uxda.neighborhood_filter("percentile", r=5.0, q=90)
-        >>> spread = uxda.neighborhood_filter("std", r=5.0, ddof=1)
+        >>> p90 = uxda.neighborhood(r=5.0).percentile(90)
+        >>> spread = uxda.neighborhood(r=5.0).std(ddof=1)
+
+        Several reductions at one radius share the neighbor query:
+
+        >>> nb = uxda.neighborhood(r=5.0)
+        >>> smoothed, spread = nb.mean(), nb.std()
 
         See Also
         --------
-        Grid.neighborhoods : Reusable neighborhoods, for several reductions at one radius.
+        DataArrayNeighborhood : The reductions available on the returned object.
+        Grid.neighborhood : Neighborhood shared across several variables.
         UxDataArray.topological_mean : Aggregate values across neighboring grid element types.
         UxDataArray.zonal_mean : Average over latitude bands.
         UxDataArray.azimuthal_mean : Average over rings of constant great-circle distance.
         """
-        neighborhoods = Neighborhoods(
+        neighborhood = Neighborhood(
             self.uxgrid,
             r=r,
-            on=self._neighborhood_location("neighborhood_filter"),
+            on=self._neighborhood_location("neighborhood"),
         )
-        return neighborhoods.reduce(self, func=func, **kwargs)
+        return DataArrayNeighborhood(neighborhood, self)
 
     def __getattribute__(self, name):
         """Intercept accessor method calls to return Ux-aware accessors."""

@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from html import escape
-from typing import IO, Any, Callable, Hashable, Mapping
+from typing import IO, Any, Hashable, Mapping
 from warnings import warn
 
 import xarray as xr
@@ -12,14 +12,13 @@ from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
 import uxarray
-from uxarray.constants import GRID_DIMS
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.utils import _map_dims_to_ugrid, _open_dataset_with_fallback
 from uxarray.errors import DimensionError, GridInvalidError
 from uxarray.formatting_html import dataset_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
-from uxarray.grid.neighbors import Neighborhoods
+from uxarray.grid.neighbors import DatasetNeighborhood
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDatasetPlotAccessor
@@ -678,31 +677,30 @@ class UxDataset(xr.Dataset):
         return UxDataArray(xarr, uxgrid=self._uxgrid)
         # _uxgrid not uxgrid; converting to UxDataArray is not a grid-aware method.
 
-    def neighborhood_filter(
-        self,
-        func: str | Callable = "mean",
-        r: float = 1.0,
-        **kwargs,
-    ) -> UxDataset:
-        """Apply a neighborhood filter, replacing the value at each grid
-        element of every data variable with a reduction of all elements within
-        a circular neighborhood of radius ``r``.
+    def neighborhood(self, r: float = 1.0) -> DatasetNeighborhood:
+        """Groups every grid-mapped data variable by the elements within ``r``
+        degrees of each grid element, to be reduced over by a method of the
+        returned :class:`DatasetNeighborhood`.
 
-        Parameters are as for :meth:`UxDataArray.neighborhood_filter`, which
-        documents the available reductions and their keyword arguments.
+        Parameters
+        ----------
+        r : float, default=1.
+            Radius of the neighborhood, in degrees.
 
         Returns
         -------
-        destination_uxds : UxDataset
-            Filtered dataset.
+        DatasetNeighborhood
+            Carrying the same reductions as :meth:`UxDataArray.neighborhood`,
+            applied to every data variable at once. Each returns a
+            ``UxDataset``.
 
         Notes
         -----
         Variables without a grid dimension are passed through unchanged.
 
         Variables mapped to the same grid location share one neighbor query, so
-        filtering a dataset costs one query per location present rather than
-        one per variable.
+        reducing a dataset costs one query per location present rather than one
+        per variable.
 
         Examples
         --------
@@ -710,44 +708,16 @@ class UxDataset(xr.Dataset):
 
         >>> import uxarray as ux
         >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
-        >>> uxds_smooth = uxds.neighborhood_filter("mean", r=5.0)
+        >>> uxds_smooth = uxds.neighborhood(r=5.0).mean()
 
         See Also
         --------
-        UxDataArray.neighborhood_filter : Filter a single data variable.
-        Grid.neighborhoods : Reusable neighborhoods, for several reductions at one radius.
+        UxDataArray.neighborhood : Reduce a single data variable.
+        Grid.neighborhood : Neighborhood for one grid location, without data.
         UxDataArray.zonal_mean : Average over latitude bands.
         UxDataArray.azimuthal_mean : Average over rings of constant great-circle distance.
         """
-
-        destination_uxds = self._copy()
-
-        # The neighbor query dominates the cost of a reduction, and it depends
-        # only on (grid, location, radius) -- not on the data. Variables mapped
-        # to the same location therefore share one query, built on first use.
-        neighborhoods: dict[str, Neighborhoods] = {}
-
-        # Loop through UxDataArrays in UxDataset and apply the filter to every
-        # variable that is mapped to a grid element (node, edge, or face).
-        # Variables without a grid dimension are left unchanged.
-        for var_name in self.data_vars:
-            uxda = self[var_name]
-
-            # Skip if UxDataArray has no GRID dimension.
-            if not any(dim in GRID_DIMS for dim in uxda.dims):
-                continue
-
-            location = uxda._neighborhood_location("neighborhood_filter")
-            if location not in neighborhoods:
-                neighborhoods[location] = Neighborhoods(self.uxgrid, r=r, on=location)
-
-            # Neighborhoods.reduce restores the input dimension order, so it is
-            # always preserved.
-            destination_uxds[var_name] = neighborhoods[location].reduce(
-                uxda, func=func, **kwargs
-            )
-
-        return destination_uxds
+        return DatasetNeighborhood(self, r=r)
 
     def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
         """
