@@ -66,7 +66,7 @@ class DataArraySubsetAccessor:
         self,
         center_coord: tuple | list | np.ndarray,
         r: float | int,
-        element: str | None = "face centers",
+        element: str = "face centers",
         inverse_indices: list[str] | set[str] | bool = False,
         **kwargs,
     ):
@@ -96,7 +96,7 @@ class DataArraySubsetAccessor:
         self,
         center_coord: tuple | list | np.ndarray,
         k: int,
-        element: str | None = "face centers",
+        element: str = "face centers",
         inverse_indices: list[str] | set[str] | bool = False,
         **kwargs,
     ):
