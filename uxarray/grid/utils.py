@@ -3,12 +3,34 @@ import xarray as xr
 from numba import njit, prange
 
 from uxarray.constants import INT_FILL_VALUE
+from uxarray.conventions import ugrid
 from uxarray.utils.numba_math import (
     _numba_add3,
     _numba_mul3_scalar,
     _numba_norm3,
     _numba_sub3,
 )
+
+
+def _drop_non_grid_coords(ds):
+    """Drop scalar (0-d) coordinates that aren't recognized grid coordinates
+    (e.g. a stray ``time`` carried in from the source file).
+
+    Only 0-d strays can cause the subset collision behind issue #1444: a scalar
+    coordinate attaches to every variable, including the ``(n_face,)``
+    ``subgrid_*_indices`` indexer, where it can clash with a like-named dimension
+    on the data being indexed. A coordinate with its own dimension (e.g. ICON's
+    1-d ``clon``/``clat`` or FESOM2's ``lon``/``lat``) never attaches to that
+    indexer, so it is left in place and those grids round-trip unchanged.
+
+    Coordinate-only, so grid data variables — connectivity, descriptors, and the
+    subset's ``subgrid_*_indices`` — are always left intact.
+    """
+    grid_coords = set(ugrid.SPHERICAL_COORD_NAMES) | set(ugrid.CARTESIAN_COORD_NAMES)
+    stray = [
+        coord for coord in ds.coords if coord not in grid_coords and ds[coord].ndim == 0
+    ]
+    return ds.drop_vars(stray, errors="ignore")
 
 
 @njit(cache=True)
