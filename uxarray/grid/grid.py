@@ -192,8 +192,8 @@ class Grid:
         self.source_grid_spec = source_grid_spec
 
         # internal xarray dataset for storing grid variables.
-        # drop stray coordinates (e.g. a `time` carried in from the source file) so they
-        # can't leak onto the grid and collide during subsetting (see #1444).
+        # drop stray scalar coordinates (e.g. a `time` carried in from the source file)
+        # so they can't leak onto the grid and collide during subsetting (see #1444).
         self._ds = _drop_non_grid_coords(grid_ds)
 
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
