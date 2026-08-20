@@ -66,7 +66,7 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 from uxarray.grid.point_in_face import _point_in_face_query
-from uxarray.grid.utils import make_setter
+from uxarray.grid.utils import _drop_non_grid_coords, make_setter
 from uxarray.grid.validation import (
     _check_area,
     _check_connectivity,
@@ -106,18 +106,6 @@ if TYPE_CHECKING:
     import cartopy.crs as ccrs
 
     from uxarray.core.dataarray import UxDataArray
-
-
-def _drop_non_grid_coords(ds):
-    """Drop coordinates that aren't recognized grid coordinates (e.g. a stray ``time``
-    carried in from the source file).
-
-    Coordinate-only, so grid data variables — connectivity, descriptors, and the
-    subset's ``subgrid_*_indices`` — are always left intact.
-    """
-    grid_coords = set(ugrid.SPHERICAL_COORD_NAMES) | set(ugrid.CARTESIAN_COORD_NAMES)
-    stray = [coord for coord in ds.coords if coord not in grid_coords]
-    return ds.drop_vars(stray, errors="ignore")
 
 
 class Grid:

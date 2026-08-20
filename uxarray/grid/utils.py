@@ -3,12 +3,25 @@ import xarray as xr
 from numba import njit, prange
 
 from uxarray.constants import INT_FILL_VALUE
+from uxarray.conventions import ugrid
 from uxarray.utils.numba_math import (
     _numba_add3,
     _numba_mul3_scalar,
     _numba_norm3,
     _numba_sub3,
 )
+
+
+def _drop_non_grid_coords(ds):
+    """Drop coordinates that aren't recognized grid coordinates (e.g. a stray ``time``
+    carried in from the source file).
+
+    Coordinate-only, so grid data variables — connectivity, descriptors, and the
+    subset's ``subgrid_*_indices`` — are always left intact.
+    """
+    grid_coords = set(ugrid.SPHERICAL_COORD_NAMES) | set(ugrid.CARTESIAN_COORD_NAMES)
+    stray = [coord for coord in ds.coords if coord not in grid_coords]
+    return ds.drop_vars(stray, errors="ignore")
 
 
 @njit(cache=True)
