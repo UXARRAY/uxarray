@@ -78,7 +78,7 @@ def _compute_face_node_angles_convex(
 
 def _compute_equiangle_skewness(face_node_angles, n_nodes_per_face):
     """Returns the equiangle skewness at each face:
-        max((Amax - Areg) / (pi - Areg), (Amin - Areg) / Areg)
+        max((Amax - Areg) / (pi - Areg), (Areg - Amin) / Areg)
     where
         Amin, Amax = min, max of the angles at the nodes of the face
         Areg = internal angle at all nodes for a regular polygon with
@@ -109,7 +109,7 @@ def _compute_equiangle_skewness(face_node_angles, n_nodes_per_face):
     Amax = face_node_angles.max("n_max_face_nodes", skipna=True)
     Areg = face_node_angles.sum("n_max_face_nodes", skipna=True) / n_nodes_per_face
     term0 = (Amax - Areg) / (np.pi - Areg)
-    term1 = (Amin - Areg) / Areg
+    term1 = (Areg - Amin) / Areg
     # Should just use np.maximum(term0, term1), but that drops UxDataArray type currently,
     # so use where as a workaround for now. TODO: swap to np.maximum after fixing issue #1685.
     return term0.where(term0 > term1, term1)
