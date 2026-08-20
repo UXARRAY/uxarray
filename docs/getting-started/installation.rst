@@ -5,61 +5,47 @@
 Installation
 ============
 
+UXarray is built **on top of** `Xarray <https://docs.xarray.dev/en/latest/getting-started-guide/installing.html#installation>`__,
+so we **strongly** recommend becoming familiar with Xarray’s installation
+process and dependencies first.
+
+Installing with Conda (recommended)
+-----------------------------------
+
 UXarray itself is a pure Python package, but its dependencies are not.
-The easiest way to get everything installed is to use conda or pip.
-
-.. admonition:: Conda versus Pip
-
-    Conda installs UXarray with all optional depencies.
-    Pip installs only the minimal required dependencies by default, but it
-    is also easy to include any/all optional dependencies too, if desired.
-
-
-Installing with Conda
----------------------
-
+The easiest way to get everything installed is to use conda.
 To install UXarray with its recommended dependencies using the conda command line tool:
+
 
 .. code-block:: bash
 
    conda install -c conda-forge uxarray
 
+.. note::
+
+   Conda automatically installs Xarray, all other required depdencies,
+   and all optional dependencies too (including non‑Python libraries).
 
 Installing with pip
 -------------------
-For a lightweight installation with **only required dependencies**:
-
 .. code-block:: bash
 
    pip install uxarray
 
-
-For a complete installation which also includes **all optional dependencies**:
+This installs the *minimal* required dependencies. UXarray also provides optional extras:
 
 .. code-block:: bash
 
-   pip install "uxarray[complete]"
+   pip install "uxarray[dev]"       # development tools
+   pip install "uxarray[geo]"       # geospatial tools (e.g. geopandas, healpix)
+   pip install "uxarray[viz]"       # plotting tools (e.g. matplotlib, hvplot)
+   pip install "uxarray[complete]"  # all optional features
 
+A complete list of optional dependencies lives in the ``[project.optional-dependencies]``
+section of our `pyproject.toml <https://github.com/UXARRAY/uxarray/blob/main/pyproject.toml>`_
 
-For an installation including **only some optional dependencies**,
-consider using one of the following extras:
-
-- ``pip install "uxarray[dev]"`` includes development tools (e.g. pytest, ruff)
-- ``pip install "uxarray[geo]"`` includes geospatial packages (e.g. geopandas, healpix)
-- ``pip install "uxarray[viz]"`` includes plotting packages (e.g. matplotlib, hvplot)
-
-It is also possible to combine extras, for example:
-
-- ``pip install "uxarray[geo,viz]"`` includes all geospatial and plotting packages.
-
-
-To see the full lists of which optional dependencies are included with each extra group,
-take a look at the ``[project.optional-dependencies]`` section in ``pyproject.toml``:
-
-.. literalinclude:: ../../pyproject.toml
-   :language: toml
-   :start-at: [project.optional-dependencies]
-   :end-before: [project.urls]
+Optional extras can also be combined, e.g. ``pip install "uxarray[geo,viz]"`` installs with
+all required dependencies plus all optional dependencies for geospatial and plotting tools.
 
 
 Installing from source
@@ -88,10 +74,7 @@ Installing from source is intended mainly for developers.
 
       pip install ".[complete]"   # test suite relies on optional dependencies
 
-#. **Optional: run the test suite**
-
-    Running the test suite is a good way to verify that the installation is working correctly.
-    It should take roughly a minute to run on modern machines.
+#. **Run the test suite**
 
    .. code-block:: bash
 

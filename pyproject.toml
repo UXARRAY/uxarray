@@ -67,8 +67,7 @@ viz = [
 Documentation = "https://uxarray.readthedocs.io/"
 Source = "https://github.com/UXARRAY/uxarray"
 Tracker = "https://github.com/UXARRAY/uxarray/issues"
-# please keep [project.urls] immediately after [project.optional-dependencies],
-# or, if rearranging sections, make sure to edit installation.rst accordingly.
+
 
 [build-system]
 build-backend = "setuptools.build_meta"
