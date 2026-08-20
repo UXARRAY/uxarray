@@ -1,0 +1,40 @@
+# zizmor configuration - https://docs.zizmor.sh/configuration/
+#
+# The workflows are clean as of 2026-08-20 on zizmor 1.29.0 at the default
+# `regular` persona: 0 findings, with the single ignore below. Keep it that way
+# rather than growing this file - prefer fixing a finding over ignoring it.
+#
+# Note that `unpinned-uses` is deliberately left at its default blanket
+# hash-pin policy. Every `uses:` in this repository is pinned to a full commit
+# SHA with a trailing `# vX.Y.Z` comment, and Dependabot (see dependabot.yml)
+# updates both the SHA and the comment together. Do not relax this to
+# `ref-pin`: asv-benchmarking.yml passes the push-capable
+# secrets.UXARRAY_ASV_PAT to a third-party action, and `ref-pin` would accept a
+# mutable branch ref there.
+#
+# CAUTION: zizmor silently accepts audit identifiers it does not recognise. A
+# typo like `unpinned-usez` does not error, it just quietly does nothing. After
+# editing this file, confirm the finding count actually moved.
+#
+# Ignore syntax is `filename.yml[:line[:column]]`, 1-based. Line numbers go
+# stale as workflows change, so prefer whole-file entries where the reason
+# applies to the whole file.
+
+rules:
+  # asv-benchmarking-comment.yml is triggered by `workflow_run` so that it can
+  # post a benchmark comment with the repository's write token even when the
+  # benchmark itself ran from a fork PR with a read-only token (see #1547).
+  # This is deliberate and the reasoning is documented in that file's header.
+  #
+  # What makes it acceptable: the workflow never checks out or executes PR/fork
+  # code. It only downloads an artifact and posts text.
+  #
+  # What still deserves review: it trusts `pr_number.txt` from an artifact
+  # produced by the fork-triggered run, without validating that number against
+  # github.event.workflow_run.pull_requests. A malicious fork could therefore
+  # influence which PR gets commented on, and the comment body. Tracked as
+  # follow-up work; the write scope is narrow (issues + pull-requests) and no
+  # code execution is possible.
+  dangerous-triggers:
+    ignore:
+      - asv-benchmarking-comment.yml

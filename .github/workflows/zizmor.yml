@@ -1,0 +1,79 @@
+name: GHA Security (zizmor)
+# Static analysis of this repository's own GitHub Actions workflows.
+# Findings are reported to the repository's Security tab under "Code scanning".
+# Per-rule configuration lives in .github/zizmor.yml.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**'
+      - '.github/dependabot.yml'
+      - '.github/zizmor.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**'
+      - '.github/dependabot.yml'
+      - '.github/zizmor.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1' # Weekly "Mondays at 06:00" - catches advisories against unchanged workflows
+
+# Deny everything at the top level; each job opts in to exactly what it needs.
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    name: zizmor audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read         # clone the repository
+      security-events: write # upload SARIF results to code scanning
+      actions: read          # only required if this repository ever becomes private
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          inputs: .
+          persona: regular
+          # Pin the zizmor version rather than tracking `latest`. The audit set
+          # changes between releases and silently moves the finding count: this
+          # repository reports 33 findings on 1.16.3 and 49 on 1.29.0, because
+          # 1.29 made hash-pinning the default `unpinned-uses` policy. Bump this
+          # deliberately, and re-baseline .github/zizmor.yml when you do.
+          version: v1.29.0
+          # `advanced-security` (default: true) emits SARIF and uploads it to the
+          # Security tab. zizmor always exits 0 in SARIF mode, so this step
+          # REPORTS findings but never fails the job. To make findings actually
+          # block a merge, either add a code scanning ruleset in the repository
+          # settings, or enable the gate step below.
+          advanced-security: true
+
+      # The workflows are clean at the `regular` persona, so this gate is on:
+      # outside SARIF mode zizmor propagates its exit code (11-14 = findings
+      # found, 14 = highest is high severity), which fails the job and blocks
+      # the PR. Drop `min-severity` to gate on everything, or delete this step
+      # to go back to report-only.
+      #
+      # Note this step also runs the online audits (impostor-commit,
+      # known-vulnerable-actions, stale-action-refs) that cannot run locally,
+      # so it can surface findings a local `zizmor .` does not.
+      - name: Fail on high-severity findings
+        uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          inputs: .
+          version: v1.29.0
+          advanced-security: false
+          annotations: true
+          min-severity: high
