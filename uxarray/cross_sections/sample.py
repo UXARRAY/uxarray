@@ -1,9 +1,12 @@
 import numpy as np
 
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
+
 
 def sample_geodesic(
     start: tuple[float, float], end: tuple[float, float], steps: int
 ) -> tuple[np.ndarray, np.ndarray]:
+    _raise_hint_if_optional_deps_missing("pyproj")
     from pyproj import Geod
 
     lon0, lat0 = start
