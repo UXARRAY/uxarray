@@ -4,7 +4,7 @@ from numba import njit, prange
 from uxarray.constants import ERROR_TOLERANCE
 from uxarray.utils.numba_math import (
     _numba_cross3,
-    _numba_div3_scalar,
+    _numba_mul3_scalar,
     _numba_dot3,
 )
 
@@ -386,8 +386,8 @@ def _calculate_spherical_triangle_jacobian(node1, node2, node3, d_a, d_b):
 
     d_denom_term = d_inv_r * d_inv_r * d_inv_r
 
-    d_da_g = _numba_div3_scalar(d_da_g, d_denom_term)
-    d_db_g = _numba_div3_scalar(d_db_g, d_denom_term)
+    d_da_g = _numba_mul3_scalar(d_da_g, d_denom_term)
+    d_db_g = _numba_mul3_scalar(d_db_g, d_denom_term)
 
     #  Cross product gives local Jacobian
     node_cross = _numba_cross3(d_da_g, d_db_g)
@@ -457,8 +457,8 @@ def _calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, d_a,
     d_denom_term = d_inv_r * d_inv_r * d_inv_r
 
     # Scale the gradients
-    d_da_g = _numba_div3_scalar(d_da_g, d_denom_term)
-    d_db_g = _numba_div3_scalar(d_db_g, d_denom_term)
+    d_da_g = _numba_mul3_scalar(d_da_g, d_denom_term)
+    d_db_g = _numba_mul3_scalar(d_db_g, d_denom_term)
 
     # Calculate the cross product
     node_cross = _numba_cross3(d_da_g, d_db_g)
