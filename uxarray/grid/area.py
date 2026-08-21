@@ -347,41 +347,41 @@ def _calculate_spherical_triangle_jacobian(node1, node2, node3, d_a, d_b):
     #   d_da_f = _numba_mul3_scalar(_numba_sub3(node2, node1), 1.0 - d_b)
 
     d_f = (
-            (1.0 - d_b) * ((1.0 - d_a) * node1[0] + d_a * node2[0]) + d_b * node3[0],
-            (1.0 - d_b) * ((1.0 - d_a) * node1[1] + d_a * node2[1]) + d_b * node3[1],
-            (1.0 - d_b) * ((1.0 - d_a) * node1[2] + d_a * node2[2]) + d_b * node3[2],
+        (1.0 - d_b) * ((1.0 - d_a) * node1[0] + d_a * node2[0]) + d_b * node3[0],
+        (1.0 - d_b) * ((1.0 - d_a) * node1[1] + d_a * node2[1]) + d_b * node3[1],
+        (1.0 - d_b) * ((1.0 - d_a) * node1[2] + d_a * node2[2]) + d_b * node3[2],
     )
 
     d_da_f = (
-            (1.0 - d_b) * (node2[0] - node1[0]),
-            (1.0 - d_b) * (node2[1] - node1[1]),
-            (1.0 - d_b) * (node2[2] - node1[2]),
+        (1.0 - d_b) * (node2[0] - node1[0]),
+        (1.0 - d_b) * (node2[1] - node1[1]),
+        (1.0 - d_b) * (node2[2] - node1[2]),
     )
 
     d_db_f = (
-            -(1.0 - d_a) * node1[0] - d_a * node2[0] + node3[0],
-            -(1.0 - d_a) * node1[1] - d_a * node2[1] + node3[1],
-            -(1.0 - d_a) * node1[2] - d_a * node2[2] + node3[2],
+        -(1.0 - d_a) * node1[0] - d_a * node2[0] + node3[0],
+        -(1.0 - d_a) * node1[1] - d_a * node2[1] + node3[1],
+        -(1.0 - d_a) * node1[2] - d_a * node2[2] + node3[2],
     )
 
     d_inv_r = 1.0 / np.sqrt(d_f[0] * d_f[0] + d_f[1] * d_f[1] + d_f[2] * d_f[2])
 
     d_da_g = (
-            d_da_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
-            - d_f[0] * (d_da_f[1] * d_f[1] + d_da_f[2] * d_f[2]),
-            d_da_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
-            - d_f[1] * (d_da_f[0] * d_f[0] + d_da_f[2] * d_f[2]),
-            d_da_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
-            - d_f[2] * (d_da_f[0] * d_f[0] + d_da_f[1] * d_f[1]),
+        d_da_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
+        - d_f[0] * (d_da_f[1] * d_f[1] + d_da_f[2] * d_f[2]),
+        d_da_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
+        - d_f[1] * (d_da_f[0] * d_f[0] + d_da_f[2] * d_f[2]),
+        d_da_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
+        - d_f[2] * (d_da_f[0] * d_f[0] + d_da_f[1] * d_f[1]),
     )
 
     d_db_g = (
-            d_db_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
-            - d_f[0] * (d_db_f[1] * d_f[1] + d_db_f[2] * d_f[2]),
-            d_db_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
-            - d_f[1] * (d_db_f[0] * d_f[0] + d_db_f[2] * d_f[2]),
-            d_db_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
-            - d_f[2] * (d_db_f[0] * d_f[0] + d_db_f[1] * d_f[1]),
+        d_db_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
+        - d_f[0] * (d_db_f[1] * d_f[1] + d_db_f[2] * d_f[2]),
+        d_db_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
+        - d_f[1] * (d_db_f[0] * d_f[0] + d_db_f[2] * d_f[2]),
+        d_db_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
+        - d_f[2] * (d_db_f[0] * d_f[0] + d_db_f[1] * d_f[1]),
     )
 
     d_denom_term = d_inv_r * d_inv_r * d_inv_r
@@ -422,9 +422,9 @@ def _calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, d_a,
     """
     # Calculate the position vector d_f
     d_f = (
-            d_a * node1[0] + d_b * node2[0] + (1.0 - d_a - d_b) * node3[0],
-            d_a * node1[1] + d_b * node2[1] + (1.0 - d_a - d_b) * node3[1],
-            d_a * node1[2] + d_b * node2[2] + (1.0 - d_a - d_b) * node3[2],
+        d_a * node1[0] + d_b * node2[0] + (1.0 - d_a - d_b) * node3[0],
+        d_a * node1[1] + d_b * node2[1] + (1.0 - d_a - d_b) * node3[1],
+        d_a * node1[2] + d_b * node2[2] + (1.0 - d_a - d_b) * node3[2],
     )
 
     # Calculate the gradients d_da_f and d_db_f
@@ -436,21 +436,21 @@ def _calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, d_a,
 
     # Calculate the gradients d_da_g and d_db_g
     d_da_g = (
-            d_da_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
-            - d_f[0] * (d_da_f[1] * d_f[1] + d_da_f[2] * d_f[2]),
-            d_da_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
-            - d_f[1] * (d_da_f[0] * d_f[0] + d_da_f[2] * d_f[2]),
-            d_da_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
-            - d_f[2] * (d_da_f[0] * d_f[0] + d_da_f[1] * d_f[1]),
+        d_da_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
+        - d_f[0] * (d_da_f[1] * d_f[1] + d_da_f[2] * d_f[2]),
+        d_da_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
+        - d_f[1] * (d_da_f[0] * d_f[0] + d_da_f[2] * d_f[2]),
+        d_da_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
+        - d_f[2] * (d_da_f[0] * d_f[0] + d_da_f[1] * d_f[1]),
     )
 
     d_db_g = (
-            d_db_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
-            - d_f[0] * (d_db_f[1] * d_f[1] + d_db_f[2] * d_f[2]),
-            d_db_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
-            - d_f[1] * (d_db_f[0] * d_f[0] + d_db_f[2] * d_f[2]),
-            d_db_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
-            - d_f[2] * (d_db_f[0] * d_f[0] + d_db_f[1] * d_f[1]),
+        d_db_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
+        - d_f[0] * (d_db_f[1] * d_f[1] + d_db_f[2] * d_f[2]),
+        d_db_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
+        - d_f[1] * (d_db_f[0] * d_f[0] + d_db_f[2] * d_f[2]),
+        d_db_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
+        - d_f[2] * (d_db_f[0] * d_f[0] + d_db_f[1] * d_f[1]),
     )
 
     # Calculate the denominator term
