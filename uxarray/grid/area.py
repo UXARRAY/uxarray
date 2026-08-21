@@ -4,8 +4,8 @@ from numba import njit, prange
 from uxarray.constants import ERROR_TOLERANCE
 from uxarray.utils.numba_math import (
     _numba_cross3,
-    _numba_mul3_scalar,
     _numba_dot3,
+    _numba_mul3_scalar,
 )
 
 
