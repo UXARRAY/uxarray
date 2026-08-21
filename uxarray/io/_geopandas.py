@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import xarray as xr
 
@@ -66,11 +68,8 @@ def _gpd_read(filepath, driver=None, **kwargs):
 
     import geopandas as gpd
 
-    try:
-        gdf = gpd.read_file(filepath, driver=driver, **kwargs)
-        gdf = _set_crs(gdf)
-    except Exception as e:
-        print(f"An error occurred while reading the geospatial data: {e}")
+    gdf = gpd.read_file(filepath, driver=driver, **kwargs)
+    gdf = _set_crs(gdf)
 
     max_polygon_nodes = gdf["geometry"].apply(_get_num_nodes).max()
 
@@ -92,11 +91,14 @@ def _set_crs(gdf):
     """
     if gdf.crs is None:
         gdf = gdf.set_crs(WGS84_CRS)
-        print("Original CRS: None\nAssigned CRS:", gdf.crs)
+        warnings.warn(
+            f"The geospatial data declares no CRS; assuming {WGS84_CRS}. "
+            f"Coordinates will be wrong if the source uses a different CRS.",
+            stacklevel=2,
+        )
 
     if gdf.crs != WGS84_CRS:
         gdf = gdf.to_crs(WGS84_CRS)
-        print("Transformed CRS:", gdf.crs)
 
     return gdf
 
@@ -137,7 +139,14 @@ def _extract_geometry_info(gdf, max_coord_size):
                 geometry, node_lat_list, node_lon_list, connectivity, node_index
             )
         else:
-            print(f"Unsupported geometry type: {geometry.geom_type}")
+            # Skipping a geometry silently would yield a grid that is missing
+            # faces without any indication that data was dropped.
+            warnings.warn(
+                f"Skipping unsupported geometry type {geometry.geom_type!r}; "
+                f"only Polygon and MultiPolygon are read. The resulting grid "
+                f"will not contain a face for this geometry.",
+                stacklevel=2,
+            )
 
     # Convert lists to numpy arrays at the end
     node_lon = np.array(node_lon_list)

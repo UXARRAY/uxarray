@@ -1,4 +1,8 @@
+import geopandas as gpd
 import numpy as np
+import pytest
+from shapely.geometry import Point, Polygon
+
 import uxarray as ux
 
 def test_read_shpfile(test_data_dir):
@@ -40,3 +44,51 @@ def test_load_xarray_with_from_file(gridpath):
     nc_filename = gridpath("scrip", "outCSne8", "outCSne8.nc")
     uxgrid = ux.Grid.from_file(nc_filename, backend="xarray")
     uxgrid.validate()
+
+
+def test_read_failure_raises(tmp_path):
+    """A read failure must surface the backend's own error rather than being
+    printed and swallowed into an UnboundLocalError.
+
+    Regression test for issue #1693.
+    """
+    from uxarray.io._geopandas import _gpd_read
+
+    not_geospatial = tmp_path / "not_geospatial.shp"
+    not_geospatial.write_text("this is not a shapefile")
+
+    with pytest.raises(Exception) as excinfo:
+        _gpd_read(str(not_geospatial))
+
+    assert not isinstance(excinfo.value, UnboundLocalError)
+
+
+def test_set_crs_warns_when_crs_is_missing():
+    """Assuming WGS84 for CRS-less data is a guess and must be announced."""
+    from uxarray.io._geopandas import _set_crs
+
+    gdf = gpd.GeoDataFrame(
+        geometry=[Polygon([(0, 0), (1, 0), (1, 1)])], crs=None
+    )
+
+    with pytest.warns(UserWarning, match="no CRS"):
+        out = _set_crs(gdf)
+
+    assert out.crs is not None
+
+
+def test_unsupported_geometry_is_reported():
+    """Dropping a geometry silently would yield a grid missing a face with no
+    indication that anything was skipped."""
+    from uxarray.io._geopandas import _extract_geometry_info
+
+    gdf = gpd.GeoDataFrame(
+        geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 0)]), Point(5, 5)],
+        crs="EPSG:4326",
+    )
+
+    with pytest.warns(UserWarning, match="unsupported geometry type"):
+        node_lon, node_lat, connectivity = _extract_geometry_info(gdf, 4)
+
+    # Only the polygon contributes a face; the point is skipped.
+    assert connectivity.shape[0] == 1

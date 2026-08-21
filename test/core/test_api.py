@@ -218,6 +218,21 @@ def test_open_dataset_with_fallback():
             os.unlink(tmp_path)
 
 
+def test_open_dataset_with_fallback_chains_both_engine_errors(tmp_path):
+    """When both engines fail, the fallback error must be chained onto the
+    default engine's error rather than replacing it."""
+
+    not_netcdf = tmp_path / "not_netcdf.nc"
+    not_netcdf.write_text("this is not a netcdf file")
+
+    with pytest.raises(Exception) as excinfo:
+        _open_dataset_with_fallback(str(not_netcdf))
+
+    assert excinfo.value.__cause__ is not None, (
+        "the default engine's error was discarded"
+    )
+
+
 def test_list_grid_names_multigrid(gridpath):
     """List grids from an OASIS-style multi-grid file."""
     grid_file = gridpath("scrip", "oasis", "grids.nc")
