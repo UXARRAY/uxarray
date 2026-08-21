@@ -23,6 +23,7 @@ from uxarray.grid.angles import _compute_face_node_angles_convex
 from uxarray.grid.area import _get_all_face_area_from_coords
 from uxarray.grid.bounds import _populate_face_bounds
 from uxarray.grid.connectivity import (
+    _dedupe_grid_ds_nodes,
     _populate_edge_face_connectivity,
     _populate_edge_node_connectivity,
     _populate_face_edge_connectivity,
@@ -186,6 +187,11 @@ class Grid:
                 Warning,
             )
             # TODO: more checks for validate grid (lat/lon coords, etc)
+
+        # canonicalize duplicate (coincident) node indices in connectivity before
+        # this dataset is wrapped in a Grid, so every construction path benefits
+        # and no lazily-computed connectivity is ever built from stale indices.
+        grid_ds = _dedupe_grid_ds_nodes(grid_ds)
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict or {}
