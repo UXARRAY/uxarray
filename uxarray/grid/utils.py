@@ -2,12 +2,7 @@ import numpy as np
 import xarray as xr
 from numba import njit, prange
 
-from uxarray.constants import (
-    INT_DTYPE,
-    INT_FILL_VALUE,
-    MIN_ADAPTIVE_SORT_SIZE,
-    MAX_SHIFTS_PER_EDGE,
-)
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.utils.numba_math import (
     _numba_add3,
     _numba_mul3_scalar,
