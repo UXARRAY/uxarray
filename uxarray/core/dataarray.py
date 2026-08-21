@@ -271,8 +271,7 @@ class UxDataArray(xr.DataArray):
         if self.ndim > 1:
             # data is multidimensional, must be a 1D slice
             raise DimensionError(
-                f"Data Variable must be 1-dimensional, with shape {self.uxgrid.n_face} "
-                f"for face-centered data."
+                f"to_geodataframe() expected 1D data, got {self.ndim}D data with dims={self.dims}."
             )
 
         if self._face_centered():
@@ -353,8 +352,7 @@ class UxDataArray(xr.DataArray):
         # data is multidimensional, must be a 1D slice
         if self.ndim > 1:
             raise DimensionError(
-                f"Data Variable must be 1-dimensional, with shape {self.uxgrid.n_face} "
-                f"for face-centered data."
+                f"to_polycollection() expected 1D data, got {self.ndim}D data with dims={self.dims}."
             )
 
         if self._face_centered():
@@ -403,7 +401,11 @@ class UxDataArray(xr.DataArray):
             else:
                 return poly_collection
         else:
-            raise DataCenteringError("Data variable must be face centered.")
+            raise DataCenteringError(
+                f"to_polycollection() expects face_centered data; got {self.data_location} data "
+                f"(with sizes={dict(**self.sizes)}). Consider running "
+                "``UxDataArray.topological_mean(destination='face')`` to aggregate the data onto faces."
+            )
 
     def to_raster(
         self,
@@ -486,7 +488,10 @@ class UxDataArray(xr.DataArray):
         data = _ensure_dimensions(self)
 
         if not isinstance(ax, GeoAxes):
-            raise TypeError("`ax` must be an instance of cartopy.mpl.geoaxes.GeoAxes")
+            raise TypeError(
+                f"to_raster(ax) expected `ax` to be an instance of cartopy.mpl.geoaxes.GeoAxes; "
+                f"got type(ax)={type(ax)}"
+            )
 
         pixel_ratio_set = pixel_ratio is not None
         if not pixel_ratio_set:
@@ -499,15 +504,15 @@ class UxDataArray(xr.DataArray):
                 if pixel_ratio_set and pixel_ratio_input != pixel_ratio:
                     warn(
                         "Pixel ratio mismatch: "
-                        f"{pixel_ratio_input} passed but {pixel_ratio} in pixel_mapping. "
-                        "Using the pixel_mapping attribute.",
+                        f"pixel_ratio (={pixel_ratio_input}) != pixel_mapping['pixel_ratio'] (={pixel_ratio})."
+                        f"Defaulting to pixel_ratio=pixel_mapping['pixel_ratio'] (={pixel_ratio})",
                         stacklevel=2,
                     )
                 input_ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
                 pm_ax_attrs = _RasterAxAttrs.from_xr_attrs(pixel_mapping.attrs)
                 if input_ax_attrs != pm_ax_attrs:
                     raise ValueError(
-                        "Pixel mapping incompatible with ax. "
+                        "Provided pixel_mapping values incompatible with ax raster attrs: "
                         + input_ax_attrs._value_comparison_message(pm_ax_attrs)
                     )
             pixel_mapping = np.asarray(pixel_mapping, dtype=INT_DTYPE)
@@ -640,7 +645,8 @@ class UxDataArray(xr.DataArray):
         elif not self._face_centered():
             raise DataCenteringError(
                 "Integration of non-face_centered data is not yet supported. "
-                f"(Got {self.data_location} data with sizes={dict(**self.sizes)})"
+                f"(Got {self.data_location} data with sizes={dict(**self.sizes)}.) "
+                "Consider applying .topological_mean('face') to aggregate data onto faces."
             )
 
         else:
@@ -711,7 +717,9 @@ class UxDataArray(xr.DataArray):
         """
         if not self._face_centered():
             raise DataCenteringError(
-                "Zonal mean computations are currently only supported for face-centered data variables."
+                "zonal_mean() of non-face_centered data is not currently supported. "
+                f"(Got {self.data_location} data with sizes={dict(**self.sizes)}.) "
+                "Consider applying .topological_mean('face') to aggregate data onto faces."
             )
 
         face_axis = self.dims.index("n_face")
@@ -721,7 +729,9 @@ class UxDataArray(xr.DataArray):
             if isinstance(lat, tuple):
                 start, end, step = lat
                 if step <= 0:
-                    raise ValueError("Step size must be positive.")
+                    raise ValueError(
+                        f"Expected step>0 when lat=(min_lat, max_lat, step); got step={step}"
+                    )
                 if step < 0.1:
                     warnings.warn(
                         f"Very small step size ({step}°) may lead to performance issues...",
@@ -736,8 +746,9 @@ class UxDataArray(xr.DataArray):
             elif isinstance(lat, (list, np.ndarray)):
                 latitudes = np.asarray(lat)
             else:
-                raise ValueError(
-                    "Invalid value for 'lat' provided. Must be a scalar, tuple (min_lat, max_lat, step), or array-like."
+                raise TypeError(
+                    "Expected lat to be a scalar, tuple of (min_lat, max_lat, step), or array-like; "
+                    f"got type(lat)={type(lat)}, during .zonal_mean(lat, conservative=False)."
                 )
 
             res = _compute_non_conservative_zonal_mean(
@@ -768,7 +779,7 @@ class UxDataArray(xr.DataArray):
                 start, end, step = lat
                 if step <= 0:
                     raise ValueError(
-                        "Step size must be positive for conservative averaging."
+                        f"Expected step>0 when lat=(min_lat, max_lat, step); got step={step}"
                     )
                 if step < 0.1:
                     warnings.warn(
@@ -782,12 +793,16 @@ class UxDataArray(xr.DataArray):
             elif isinstance(lat, (list, np.ndarray)):
                 edges = np.asarray(lat, dtype=float)
             else:
-                raise ValueError(
-                    "For conservative averaging, 'lat' must be a tuple (start, end, step) or array-like band edges."
+                raise TypeError(
+                    "Expected lat to be a tuple of (min_lat, max_lat, step), or array-like of band edges; "
+                    f"got type(lat)={type(lat)}, during .zonal_mean(lat, conservative=True)."
                 )
 
             if edges.ndim != 1 or edges.size < 2:
-                raise DimensionError("Band edges must be 1D with at least two values")
+                raise DimensionError(
+                    "Band edges must be 1D with at least two values; "
+                    f"got edges with ndim={edges.ndim}, size={edges.size}."
+                )
 
             res = _compute_conservative_zonal_mean_bands(self, edges)
 
@@ -860,13 +875,17 @@ class UxDataArray(xr.DataArray):
         """
         if not self._face_centered():
             raise DataCenteringError(
-                "Zonal anomaly is only supported for face-centered data variables."
+                "zonal_anomaly() of non-face_centered data is not currently supported. "
+                f"(Got {self.data_location} data with sizes={dict(**self.sizes)}.) "
+                "Consider applying .topological_mean('face') to aggregate data onto faces."
             )
 
         if isinstance(lat, tuple):
             start, end, step = lat
             if step <= 0:
-                raise ValueError("Step size must be positive.")
+                raise ValueError(
+                    f"Expected step>0 when lat=(min_lat, max_lat, step); got step={step}"
+                )
             num_points = int(round((end - start) / step)) + 1
             edges = np.linspace(start, end, num_points)
             edges = np.clip(edges, -90, 90)
@@ -874,11 +893,15 @@ class UxDataArray(xr.DataArray):
             edges = np.asarray(lat, dtype=float)
         else:
             raise TypeError(
-                "Invalid value for 'lat'. Must be a tuple (start, end, step) or array-like band edges."
+                "Expected lat to be a tuple of (min_lat, max_lat, step), or array-like of band edges; "
+                f"got type(lat)={type(lat)}, during .zonal_anomaly(lat, ...)."
             )
 
         if edges.ndim != 1 or edges.size < 2:
-            raise DimensionError("Band edges must be 1D with at least two values.")
+            raise DimensionError(
+                "Band edges must be 1D with at least two values; "
+                f"got edges with ndim={edges.ndim}, size={edges.size}."
+            )
 
         res = _compute_zonal_anomaly(self, edges, conservative=conservative)
 
@@ -939,11 +962,15 @@ class UxDataArray(xr.DataArray):
 
         if not self._face_centered():
             raise DataCenteringError(
-                "Azimuthal mean computations are currently only supported for face-centered data variables."
+                "azimuthal_mean() of non-face_centered data is not currently supported. "
+                f"(Got {self.data_location} data with sizes={dict(**self.sizes)}.) "
+                "Consider applying .topological_mean('face') to aggregate data onto faces."
             )
 
         if outer_radius <= 0:
-            raise ValueError("Radius must be a positive scalar.")
+            raise ValueError(
+                f"outer_radius must be a positive scalar during azimuthal_mean(); got outer_radius={outer_radius}"
+            )
 
         kdtree = self.uxgrid._get_scipy_kd_tree()
 
@@ -1652,18 +1679,27 @@ class UxDataArray(xr.DataArray):
         """
         # Input validation
         if not isinstance(other, UxDataArray):
-            raise TypeError("other must be a UxDataArray")
+            raise TypeError(
+                f"u.curl(v) expected UxDataArray v; got type(v)={type(other)}"
+            )
 
         if self.uxgrid != other.uxgrid:
-            raise GridsMismatchError("Both vector components must be on the same grid")
+            raise GridsMismatchError(
+                "Both vector components must be on the same grid "
+                "during u.curl(v), but got u.uxgrid != v.uxgrid."
+            )
 
         if self.dims != other.dims:
-            raise DimensionError("Both vector components must have the same dimensions")
+            raise DimensionError(
+                "Both vector components must have the same dimensions during u.curl(v), "
+                f"but got u.dims={self.dims}, v.dims={other.dims}"
+            )
 
         if len(self.dims) != 1:
             raise DimensionError(
-                "Curl computation currently only supports 1-dimensional data. "
-                "Use .isel() to select a single time slice or level."
+                "curl() computation currently only supports 1-dimensional data; "
+                f"got data.dims={self.dims}. Consider reducing dimensionality along non-grid dimensions, "
+                "e.g. by applying something like .isel(time=0), .sel(lev=500), or .mean('Time')."
             )
 
         # Compute gradients of both components
@@ -1743,24 +1779,42 @@ class UxDataArray(xr.DataArray):
         >>> div_field = u_component.divergence(v_component)
         """
         if not isinstance(other, UxDataArray):
-            raise TypeError("other must be a UxDataArray")
+            raise TypeError(
+                f"u.divergence(v) expected UxDataArray v; got type(v)={type(other)}"
+            )
 
         if self.uxgrid != other.uxgrid:
-            raise GridsMismatchError("Both UxDataArrays must have the same grid")
+            raise GridsMismatchError(
+                "Both vector components must be on the same grid "
+                "during u.divergence(v), but got u.uxgrid != v.uxgrid."
+            )
 
         if self.dims != other.dims:
-            raise DimensionError("Both UxDataArrays must have the same dimensions")
+            raise DimensionError(
+                "Both vector components must have the same dimensions during u.divergence(v), "
+                f"but got u.dims={self.dims}, v.dims={other.dims}"
+            )
 
         if self.ndim > 1:
             raise DimensionError(
-                "Divergence currently requires 1D face-centered data. Consider "
-                "reducing the dimension by selecting data across leading dimensions (e.g., `.isel(time=0)`, "
-                "`.sel(lev=500)`, or `.mean('time')`)."
+                "divergence() computation currently only supports 1-dimensional data; "
+                f"got data.dims={self.dims}. Consider reducing dimensionality along non-grid dimensions, "
+                "e.g. by applying something like .isel(time=0), .sel(lev=500), or .mean('Time')."
             )
 
         if not (self._face_centered() and other._face_centered()):
+            _wrong_locs = []
+            if not self._face_centered():
+                _wrong_locs.append(
+                    f"u.data_location={self.data_location}, u.sizes={dict(**self.sizes)}"
+                )
+            if not other._face_centered():
+                _wrong_locs.append(
+                    f"v.data_location={self.data_location}, v.sizes={dict(**self.sizes)}"
+                )
             raise DataCenteringError(
-                "Computing the divergence is only supported for face-centered data variables."
+                "u.divergence(v) is only supported for face_centered data; got "
+                + ", ".join(_wrong_locs)
             )
 
         # Compute gradients of both components
@@ -1820,26 +1874,51 @@ class UxDataArray(xr.DataArray):
             Dot product ``self * dq/dx + v * dq/dy``.
         """
         if not isinstance(v, UxDataArray):
-            raise TypeError("v must be a UxDataArray")
+            raise TypeError(
+                f"u.scalardotgradient(v, q) expected UxDataArray v; got type(v)={type(v)}"
+            )
 
         if not isinstance(q, UxDataArray):
-            raise TypeError("q must be a UxDataArray")
+            raise TypeError(
+                f"u.scalardotgradient(v, q) expected UxDataArray q; got type(q)={type(q)}"
+            )
 
         if self.uxgrid != v.uxgrid or self.uxgrid != q.uxgrid:
-            raise GridsMismatchError("All UxDataArrays must have the same grid")
+            raise GridsMismatchError(
+                "All UxDataArrays must have the same grid during u.scalardotgradient(v, q), "
+                "but u.uxgrid, v.uxgrid, and q.uxgrid are not all the same."
+            )
 
         if self.dims != v.dims or self.dims != q.dims:
-            raise DimensionError("All UxDataArrays must have the same dimensions")
+            raise DimensionError(
+                "All UxDataArrays must have the same dimensions during during u.scalardotgradient(v, q), "
+                f"but got u.dims={self.dims}, v.dims={v.dims}, q.dims={q.dims}."
+            )
 
         if self.ndim > 1:
             raise DimensionError(
-                "Scalar dot gradient currently requires 1D face-centered data. "
-                "Consider selecting a single slice before computing."
+                "scalardotgradient() computation currently only supports 1-dimensional data; "
+                f"got data.dims={self.dims}. Consider reducing dimensionality along non-grid dimensions, "
+                "e.g. by applying something like .isel(time=0), .sel(lev=500), or .mean('Time')."
             )
 
         if not (self._face_centered() and v._face_centered() and q._face_centered()):
+            _wrong_locs = []
+            if not self._face_centered():
+                _wrong_locs.append(
+                    f"u.data_location={self.data_location}, u.sizes={dict(**self.sizes)}"
+                )
+            if not v._face_centered():
+                _wrong_locs.append(
+                    f"v.data_location={self.data_location}, v.sizes={dict(**self.sizes)}"
+                )
+            if not q._face_centered():
+                _wrong_locs.append(
+                    f"q.data_location={self.data_location}, q.sizes={dict(**self.sizes)}"
+                )
             raise DataCenteringError(
-                "Computing the scalar dot gradient is only supported for face-centered data variables."
+                "u.scalardotgradient(v, q) is only supported for face_centered data; got "
+                + ", ".join(_wrong_locs)
             )
 
         # Validate coordinate alignment up-front so a misaligned input fails
@@ -1902,13 +1981,11 @@ class UxDataArray(xr.DataArray):
                 name = f"{var_name}edge_face_difference"
             elif destination == "face":
                 raise DataCenteringError(
-                    "Invalid destination 'face' for a face-centered data variable, computing"
-                    "the difference and storing it on each face is not possible"
+                    "difference() for face_centered data does not permit destination='face'."
                 )
             elif destination == "node":
                 raise DataCenteringError(
-                    "Support for computing the difference of a face-centered data variable and storing"
-                    "the result on each node not yet supported."
+                    "difference() for face_centered data with destination='node' is not yet supported."
                 )
 
         elif self._node_centered():
@@ -1920,23 +1997,22 @@ class UxDataArray(xr.DataArray):
                 name = f"{var_name}edge_node_difference"
             elif destination == "node":
                 raise DataCenteringError(
-                    "Invalid destination 'node' for a node-centered data variable, computing"
-                    "the difference and storing it on each node is not possible"
+                    "difference() for node_centered data does not permit destination='node'."
                 )
 
             elif destination == "face":
                 raise DataCenteringError(
-                    "Support for computing the difference of a node-centered data variable and storing"
-                    "the result on each face not yet supported."
+                    "difference() for node_centered data with destination='face' is not yet supported."
                 )
 
         elif self._edge_centered():
-            raise NotImplementedError(
-                "Difference for edge centered data variables not yet implemented"
-            )
+            raise NotImplementedError("difference() for edge_centered data")
 
         else:
-            raise DataCenteringError("TODO: ")
+            raise DataCenteringError(
+                "Expected face_centered, node_centered, or edge_centered data; "
+                f"got data at data_location={self.data_location}, in difference()"
+            )
 
         uxda = UxDataArray(
             _difference,
@@ -2124,12 +2200,15 @@ class UxDataArray(xr.DataArray):
         """
 
         if not isinstance(da, xr.DataArray):
-            raise ValueError("`da` must be a xr.DataArray")
+            raise TypeError(
+                f"UxDataArray.from_healpix(da) expected xr.DataArray da, got type(da)={type(da)}"
+            )
 
         if face_dim not in da.dims:
             raise DimensionError(
-                f"The provided face dimension '{face_dim}' is present in the provided healpix data array."
-                f"Please set 'face_dim' to the dimension corresponding to the healpix face dimension."
+                f"face_dim={face_dim!r} is not present in the provided array, which has dims {da.dims}. "
+                "Please set face_dim to the dimension corresponding to the HEALPix face mapping "
+                "(typically 'cell', but could be something else)."
             )
 
         # Attach a HEALPix Grid
@@ -2162,7 +2241,8 @@ class UxDataArray(xr.DataArray):
 
         else:
             raise DataCenteringError(
-                "Data variable must be either node, edge, or face centered."
+                "Expected face_centered, node_centered, or edge_centered data; "
+                f"got data at data_location={self.data_location}, in _slice_from_grid()"
             )
 
         return UxDataArray(da_sliced, uxgrid=sliced_grid)
@@ -2178,7 +2258,9 @@ class UxDataArray(xr.DataArray):
         """
 
         if _check_duplicate_nodes_indices(self.uxgrid):
-            raise GridInvalidError("Duplicate nodes found, cannot construct dual")
+            raise GridInvalidError(
+                "Duplicate nodes found in UxDataArray's uxgrid; cannot get_dual()"
+            )
 
         if self.uxgrid.partial_sphere_coverage:
             warn(
