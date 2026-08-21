@@ -2,7 +2,12 @@ import numpy as np
 import xarray as xr
 from numba import njit, prange
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import (
+    INT_DTYPE,
+    INT_FILL_VALUE,
+    MIN_ADAPTIVE_SORT_SIZE,
+    MAX_SHIFTS_PER_EDGE,
+)
 from uxarray.utils.numba_math import (
     _numba_add3,
     _numba_mul3_scalar,
@@ -505,6 +510,11 @@ def make_setter(key: str):
     return setter
 
 
+# The following adaptive sorting algorithm is implemented for the sole purpose of
+# sorting edge_node connectivity quickly. Other usages are not recommended.
+#
+# ---------------------------------------------------------------------------------
+#
 # Bucket sorting and searching for the counting sorts in ``uxarray.grid.connectivity``, which
 # bucket half edges or edges on one of their two nodes and then order each bucket by the other.
 # Nothing below knows about meshes: a bucket is a contiguous ``[bucket_start, bucket_end)`` slice
@@ -755,3 +765,8 @@ def _search_bucket(high, row, bucket_start, bucket_end, key):
     if low < bucket_end and high[low] == key:
         return row[low]
     return INT_FILL_VALUE
+
+#
+# End edge_node connectivity sorting routines
+#
+# ------------------------------------------------------------------------------------------
