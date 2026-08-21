@@ -1,4 +1,8 @@
+import geopandas as gpd
 import numpy as np
+import pytest
+from shapely.geometry import Point, Polygon
+
 import uxarray as ux
 
 def test_read_shpfile(test_data_dir):
@@ -46,14 +50,8 @@ def test_read_failure_raises(tmp_path):
     """A read failure must surface the backend's own error rather than being
     printed and swallowed into an UnboundLocalError.
 
-    Regression test for issue #1693. Requires a geopandas file-IO backend,
-    otherwise read_file raises ImportError and the test would pass for the
-    wrong reason.
+    Regression test for issue #1693.
     """
-    import pytest
-
-    pytest.importorskip("pyogrio")
-
     from uxarray.io._geopandas import _gpd_read
 
     not_geospatial = tmp_path / "not_geospatial.shp"
@@ -67,10 +65,6 @@ def test_read_failure_raises(tmp_path):
 
 def test_set_crs_warns_when_crs_is_missing():
     """Assuming WGS84 for CRS-less data is a guess and must be announced."""
-    import pytest
-    gpd = pytest.importorskip("geopandas")
-    from shapely.geometry import Polygon
-
     from uxarray.io._geopandas import _set_crs
 
     gdf = gpd.GeoDataFrame(
@@ -86,10 +80,6 @@ def test_set_crs_warns_when_crs_is_missing():
 def test_unsupported_geometry_is_reported():
     """Dropping a geometry silently would yield a grid missing a face with no
     indication that anything was skipped."""
-    import pytest
-    gpd = pytest.importorskip("geopandas")
-    from shapely.geometry import Point, Polygon
-
     from uxarray.io._geopandas import _extract_geometry_info
 
     gdf = gpd.GeoDataFrame(
