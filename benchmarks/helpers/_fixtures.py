@@ -34,7 +34,6 @@ the cache from a batch script instead of from inside a benchmark.
 import hashlib
 import multiprocessing
 import os
-import tempfile
 import urllib.request
 import uuid
 from concurrent.futures import ProcessPoolExecutor
@@ -60,6 +59,7 @@ __all__ = [
     "cached_dataset",
     "cached_grid",
     "cached_topology",
+    "preload_topologies",
     "prime",
 ]
 
@@ -127,6 +127,7 @@ QUAD_HEXAGON_DATASET = (
 
 CACHE_DIR_VAR = "UXARRAY_BENCH_CACHE_DIR"
 PRIME_VAR = "UXARRAY_BENCH_PRIME"
+PRELOAD_VAR = "UXARRAY_BENCH_PRELOAD"
 
 # The arguments ``ux.Grid.from_topology`` takes, in order.
 _TOPOLOGY_ARRAYS = ("node_lon", "node_lat", "face_node_connectivity")
@@ -136,15 +137,9 @@ _loaded = {}
 
 
 def cache_dir():
-    """Directory the cached artifacts live in.
-
-    ``UXARRAY_BENCH_CACHE_DIR`` overrides the default, and on a cluster it
-    should: the cache only pays off on a filesystem faster than the one holding
-    the source grids, and putting it somewhere that outlives the job means each
-    grid is read once per machine rather than once per job.
-    """
-    root = Path(os.environ.get(CACHE_DIR_VAR) or tempfile.gettempdir())
-    cached = root / "uxarray-bench-fixtures"
+    """Directory the cached artifacts live in: ``benchmarks/_io_cache``."""
+    root = Path(os.environ.get(CACHE_DIR_VAR) or BENCHMARK_DIR)
+    cached = root / "_io_cache"
     cached.mkdir(parents=True, exist_ok=True)
     return cached
 
@@ -154,10 +149,18 @@ def _artifact(source, flavour, suffix):
 
     ``source`` is a grid path, or a (grid, data) pair. Keyed on each file's size
     and mtime as well as its path, so a replaced source misses rather than being
-    served something stale, and on the uxarray version, because the artifact is
-    that version's reader output.
+    served something stale.
+
+    Deliberately not keyed on the uxarray version. These meshes are stable and
+    the artifacts are meant to persist -- across jobs, and across the commits asv
+    walks. Including the version cost a fresh read per commit and produced two
+    full sets of artifacts here, because a benchmark run imports the uxarray
+    installed in asv's environment while a direct run from the repo root imports
+    the working tree, and those report different versions. The tradeoff is that a
+    change to how a reader parses these files does not invalidate the cache on
+    its own: delete ``_io_cache`` when that happens.
     """
-    parts = [ux.__version__]
+    parts = []
     for path in source:
         stat = os.stat(path)
         parts.append(f"{os.path.realpath(path)}:{stat.st_size}:{stat.st_mtime_ns}")
@@ -335,6 +338,34 @@ def prime(include_dyamond=None, workers=1):
         for source in missing:
             _build(source)
     return missing
+
+
+def preload_topologies(grid_paths):
+    """Loads topologies here so forked benchmarks inherit them.
+
+    Reading an artifact caches it on disk, not in the next process: under
+    ``launch_method: forkserver`` each benchmark is forked from the interpreter
+    that imported the suite, so it starts with whatever *that* process holds and
+    reads its own copy of everything else. Which is why a benchmark's memory
+    appears and then vanishes when it exits -- expected, but at 3.75km it means
+    re-reading gigabytes for every benchmark in the module.
+
+    Loading them in the parent instead means one read per resolution per run,
+    shared copy-on-write by every child. Off unless ``UXARRAY_BENCH_PRELOAD``
+    asks for it, because the parent then holds every resolution at once and asv's
+    discovery import pays for it too -- a poor trade unless the reads are slow,
+    which on campaign storage they are.
+
+    Safe to call at import: reading arrays starts no numba thread pool, which is
+    what a forked child cannot inherit (see :mod:`benchmarks.helpers._warmup`).
+    """
+    if not os.environ.get(PRELOAD_VAR):
+        return 0
+    loaded = 0
+    for grid_path in grid_paths:
+        cached_topology(grid_path)  # held by the process-level memo from here on
+        loaded += 1
+    return loaded
 
 
 class CachedFixtures:

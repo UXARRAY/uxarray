@@ -5,6 +5,7 @@ from .helpers._fixtures import (
     GRIDS_BY_RESOLUTION,
     CachedFixtures,
     cached_topology,
+    preload_topologies,
 )
 from .helpers._warmup import warm_in_parent
 
@@ -127,4 +128,11 @@ class Connectivity(GridBenchmark):
 # loading before it can build anything. Guarded, because this only stays safe
 # while the connectivity kernels are serial -- see
 # :mod:`benchmarks.helpers._warmup`.
-warm_in_parent(_warmup, "the connectivity kernels")
+def _warm_parent():
+    _warmup()
+    # And, if asked, the topologies themselves, so a forked benchmark inherits
+    # them instead of reading its resolution's artifact again.
+    preload_topologies(GRIDS_BY_RESOLUTION[res] for res in ALL_RESOLUTIONS)
+
+
+warm_in_parent(_warm_parent, "the connectivity kernels")
