@@ -23,6 +23,7 @@ from uxarray.grid.angles import _compute_face_node_angles_convex
 from uxarray.grid.area import _get_all_face_area_from_coords
 from uxarray.grid.bounds import _populate_face_bounds
 from uxarray.grid.connectivity import (
+    _dedupe_grid_ds_nodes,
     _populate_edge_face_connectivity,
     _populate_edge_node_connectivity,
     _populate_face_edge_connectivity,
@@ -71,7 +72,6 @@ from uxarray.grid.validation import (
     _check_area,
     _check_connectivity,
     _check_duplicate_nodes,
-    _check_duplicate_nodes_indices,
     _check_normalization,
 )
 from uxarray.io._delaunay import (
@@ -89,7 +89,10 @@ from uxarray.io._healpix import _pixels_to_ugrid, _populate_healpix_boundaries
 from uxarray.io._icon import _read_icon
 from uxarray.io._mpas import _read_mpas
 from uxarray.io._scrip import _encode_scrip, _read_scrip
-from uxarray.io._structured import _read_structured_grid
+from uxarray.io._structured import (
+    _DEFAULT_STRUCTURED_TOL_DEG,
+    _read_structured_grid,
+)
 from uxarray.io._topology import _read_topology
 from uxarray.io._ugrid import (
     _encode_ugrid,
@@ -184,6 +187,11 @@ class Grid:
                 Warning,
             )
             # TODO: more checks for validate grid (lat/lon coords, etc)
+
+        # canonicalize duplicate (coincident) node indices in connectivity before
+        # this dataset is wrapped in a Grid, so every construction path benefits
+        # and no lazily-computed connectivity is ever built from stale indices.
+        grid_ds = _dedupe_grid_ds_nodes(grid_ds)
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict or {}
@@ -501,7 +509,11 @@ class Grid:
 
     @classmethod
     def from_structured(
-        cls, ds: xr.Dataset = None, lon=None, lat=None, tol: float | None = 1e-10
+        cls,
+        ds: xr.Dataset = None,
+        lon=None,
+        lat=None,
+        tol: float | None = _DEFAULT_STRUCTURED_TOL_DEG,
     ):
         """
         Converts a structured ``xarray.Dataset`` or longitude and latitude coordinates into an unstructured ``uxarray.Grid``.
@@ -525,8 +537,9 @@ class Grid:
             Should be a one-dimensional or two-dimensional array following CF conventions.
 
         tol : float, optional
-            Tolerance for considering nodes as identical when constructing the grid from longitude and latitude.
-            Default is `1e-10`.
+            Tolerance in degrees for considering nodes as identical when constructing the grid from
+            longitude and latitude. Defaults to the angle whose chord length on the unit sphere equals
+            ``uxarray.constants.ERROR_TOLERANCE``.
 
         Returns
         -------
@@ -2606,22 +2619,30 @@ class Grid:
 
         return copy.deepcopy(line_collection)
 
-    def get_dual(self, check_duplicate_nodes: bool = False):
+    def get_dual(self, check_duplicate_nodes: bool | None = None):
         """Compute the dual for a grid, which constructs a new grid centered
         around the nodes, where the nodes of the primal become the face centers
         of the dual, and the face centers of the primal become the nodes of the
         dual. Returns a new `Grid` object.
+
+        Parameters
+        ----------
+        check_duplicate_nodes : bool, optional
+            Deprecated and ignored. Duplicate nodes are now merged while
+            constructing the dual, so they no longer prevent it.
 
         Returns
         --------
         dual : Grid
             Dual Mesh Grid constructed
         """
-
-        if check_duplicate_nodes:
-            if _check_duplicate_nodes_indices(self):
-                # TODO: This is very slow
-                raise GridInvalidError("Duplicate nodes found, cannot construct dual")
+        if check_duplicate_nodes is not None:
+            warnings.warn(
+                "`check_duplicate_nodes` is deprecated and ignored; duplicate nodes "
+                "are now merged when constructing the dual.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         # Get dual mesh node face connectivity
         dual_node_face_conn = construct_dual(grid=self)

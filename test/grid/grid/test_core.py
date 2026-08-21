@@ -129,7 +129,53 @@ def test_dual_mesh_mpas(gridpath):
 
 
 def test_dual_duplicate(gridpath):
-    """Test dual mesh creation with duplicate grids."""
-    dataset = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), gridpath("ugrid", "geoflow-small", "grid.nc"))
-    with pytest.raises(ux.errors.GridInvalidError):
-        dataset.get_dual()
+    """Test dual mesh creation on a grid whose source file has duplicate
+    (coincident) node indices, merged at construction time."""
+    from uxarray.grid.validation import _check_duplicate_nodes_indices, _find_duplicate_nodes
+
+    grid_path = gridpath("ugrid", "geoflow-small", "grid.nc")
+    grid = ux.open_grid(grid_path)
+
+    # source file has duplicate node coordinates; connectivity should already
+    # be canonicalized to a single index per coincident group
+    assert len(_find_duplicate_nodes(grid)) > 0
+    assert not _check_duplicate_nodes_indices(grid)
+    # duplicate coordinates are left in place by design, but connectivity is
+    # fully canonicalized, so validation passes
+    assert grid.validate()
+
+    dual = grid.get_dual()
+
+    assert dual.n_node == grid.n_face
+    assert dual.n_face == 3840
+
+    dataset = ux.open_dataset(grid_path, grid_path)
+    dual_ds = dataset.get_dual()
+    assert dual_ds.uxgrid.n_face == dual.n_face
+
+
+def test_dual_duplicate_geos_cs(gridpath):
+    """Test dual mesh creation on a cube-sphere grid with duplicate node
+    indices (issue #865)."""
+    from uxarray.grid.validation import _check_duplicate_nodes_indices, _find_duplicate_nodes
+
+    grid_path = gridpath("geos-cs", "c12", "test-c12.native.nc4")
+    grid = ux.open_grid(grid_path)
+
+    assert len(_find_duplicate_nodes(grid)) > 0
+    assert not _check_duplicate_nodes_indices(grid)
+
+    dual = grid.get_dual()
+    assert dual.n_node == grid.n_face
+    assert dual.n_face > 0
+
+
+def test_no_duplicate_nodes_ne30pg3(gridpath):
+    """``esmf/ne30/ne30pg3.grid.nc`` no longer reproduces issue #865's
+    duplicate-node bug; this only checks the general fix is a safe no-op."""
+    from uxarray.grid.validation import _find_duplicate_nodes
+
+    grid_path = gridpath("esmf", "ne30", "ne30pg3.grid.nc")
+    grid = ux.open_grid(grid_path)
+
+    assert len(_find_duplicate_nodes(grid)) == 0
