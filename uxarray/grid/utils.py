@@ -761,6 +761,7 @@ def _search_bucket(high, row, bucket_start, bucket_end, key):
         return row[low]
     return INT_FILL_VALUE
 
+
 #
 # End edge_node connectivity sorting routines
 #
