@@ -89,27 +89,45 @@ def _check_area(grid):
 
 def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
     """For each point, find the lowest-indexed point within ``tolerance`` chordal
-    distance on the unit sphere (a point with no coincident neighbor maps to itself)."""
+    distance on the unit sphere (a point with no coincident neighbor maps to itself).
+
+    Points at the geographic poles are never merged with one another: longitude is
+    singular there, and grid files (e.g. SCRIP cube-sphere) commonly give each face
+    touching a pole its own arbitrary-but-meaningful longitude for that corner, which
+    downstream lat/lon bounds and zonal-weight code relies on staying distinct per
+    face even though the xyz location is identical.
+    """
     from scipy.sparse import coo_matrix
     from scipy.sparse.csgraph import connected_components
     from scipy.spatial import KDTree
 
     n_points = len(points_xyz)
-    tree = KDTree(points_xyz)
+    canonical = np.arange(n_points, dtype=INT_DTYPE)
+
+    pole_mask = np.isclose(np.abs(points_xyz[:, 2]), 1.0, atol=tolerance)
+    mergeable_indices = np.flatnonzero(~pole_mask)
+
+    if len(mergeable_indices) < 2:
+        return canonical
+
+    tree = KDTree(points_xyz[mergeable_indices])
     pairs = tree.query_pairs(r=tolerance, output_type="ndarray")
 
     if len(pairs) == 0:
-        return np.arange(n_points, dtype=INT_DTYPE)
+        return canonical
 
     rows = np.concatenate([pairs[:, 0], pairs[:, 1]])
     cols = np.concatenate([pairs[:, 1], pairs[:, 0]])
+    n_mergeable = len(mergeable_indices)
     adj_matrix = coo_matrix(
-        (np.ones(len(rows)), (rows, cols)), shape=(n_points, n_points)
+        (np.ones(len(rows)), (rows, cols)), shape=(n_mergeable, n_mergeable)
     )
     _, labels = connected_components(csgraph=adj_matrix, directed=False)
 
     unique_labels, first_indices = np.unique(labels, return_index=True)
-    return first_indices[np.searchsorted(unique_labels, labels)].astype(INT_DTYPE)
+    sub_canonical = first_indices[np.searchsorted(unique_labels, labels)]
+    canonical[mergeable_indices] = mergeable_indices[sub_canonical]
+    return canonical
 
 
 def _find_duplicate_node_map(node_lon, node_lat, tolerance=ERROR_TOLERANCE):

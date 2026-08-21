@@ -147,7 +147,7 @@ def test_dual_duplicate(gridpath):
     dual = grid.get_dual()
 
     assert dual.n_node == grid.n_face
-    assert dual.n_face == 3842
+    assert dual.n_face == 3840
 
     dataset = ux.open_dataset(grid_path, grid_path)
     dual_ds = dataset.get_dual()
