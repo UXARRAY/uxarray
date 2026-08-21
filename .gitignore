@@ -163,3 +163,4 @@ docs/user-guide/psi_healpix.nc
 benchmarks/env
 benchmarks/results
 benchmarks/html
+benchmarks/_io_cache
