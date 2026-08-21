@@ -1,59 +1,51 @@
-import os
-import urllib.request
-from pathlib import Path
-
 import numpy as np
 
 import uxarray as ux
 
+from .helpers._fixtures import (
+    OQU_DATASETS,
+    OQU_GRIDS,
+    OQU_RESOLUTIONS,
+    CachedFixtures,
+)
 from .helpers._memsize import grid_nbytes
-from .helpers._peakmem import numba_threads, peak_allocated
-
-current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+from .helpers._peakmem import numba_threads, peak_allocated, subprocess_peak_rss
 
 data_var = 'bottomDepth'
 
-grid_filename_480 = "oQU480.grid.nc"
-data_filename_480 = "oQU480.data.nc"
-
-grid_filename_120 = "oQU120.grid.nc"
-data_filename_120 = "oQU120.data.nc"
-
-filenames = [grid_filename_480, data_filename_480, grid_filename_120, data_filename_120]
-
-for filename in filenames:
-    if not os.path.isfile(current_path / filename):
-        # downloads the files from Cookbook repo, if they haven't been downloaded locally yet
-        url = f"https://github.com/ProjectPythia/unstructured-grid-viz-cookbook/raw/main/meshfiles/{filename}"
-        _, headers = urllib.request.urlretrieve(url, filename=current_path / filename)
+# Paths, and fetching the files in the first place, both live in
+# ``helpers._fixtures`` now -- ``bench_connectivity`` draws the same grids from it.
+file_path_dict = OQU_DATASETS
 
 
-file_path_dict = {"480km": [current_path / grid_filename_480, current_path / data_filename_480],
-                  "120km": [current_path / grid_filename_120, current_path / data_filename_120]}
-
-
-
-class DatasetBenchmark:
+class DatasetBenchmark(CachedFixtures):
     """Class used as a template for benchmarks requiring a ``UxDataset`` in
-    this module across both resolutions."""
+    this module across both resolutions.
+
+    The dataset comes from the fixture cache rather than a fresh
+    ``open_dataset``: every benchmark below measures an algorithm over the mesh,
+    not the reader that produced it. The fixture is what the reader produced,
+    connectivity and ``face_areas`` included, so nothing here silently starts
+    measuring construction that used to come off disk.
+    """
     param_names = ['resolution', ]
-    params = [['480km', '120km'], ]
+    params = [OQU_RESOLUTIONS, ]
 
     def setup(self, resolution, *args, **kwargs):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        self.uxds = self.cached_dataset(*file_path_dict[resolution])
 
     def teardown(self, resolution, *args, **kwargs):
         del self.uxds
 
 
-class GridBenchmark:
+class GridBenchmark(CachedFixtures):
     """Class used as a template for benchmarks requiring a ``Grid`` in this
     module across both resolutions."""
     param_names = ['resolution', ]
-    params = [['480km', '120km'], ]
+    params = [OQU_RESOLUTIONS, ]
 
     def setup(self, resolution, *args, **kwargs):
-        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid = self.cached_grid(file_path_dict[resolution][0])
 
     def teardown(self, resolution, *args, **kwargs):
         del self.uxgrid
@@ -65,9 +57,11 @@ class FaceAreas(GridBenchmark):
 
     def setup(self, resolution, *args, **kwargs):
         # The coarsest grid, purely to compile the njit kernel
-        warmup_grid = ux.open_grid(file_path_dict[self.params[0][0]][0])
-        _ = warmup_grid.face_areas
+        _ = self.cached_grid(OQU_GRIDS[OQU_RESOLUTIONS[0]]).face_areas
         super().setup(resolution, *args, **kwargs)
+        # MPAS meshes carry ``face_areas`` on disk and the fixture keeps it, so
+        # it is dropped here to leave the computation to be measured. Safe to do
+        # to a fixture: each handout is a fresh ``Grid`` over a shallow copy.
         self.uxgrid._ds = self.uxgrid._ds.drop_vars("face_areas", errors="ignore")
 
     def time_face_areas(self, resolution):
@@ -91,8 +85,7 @@ class Gradient(DatasetBenchmark):
     def setup(self, resolution, *args, **kwargs):
         super().setup(resolution, *args, **kwargs)
         # Compiles the gradient kernels on the coarsest grid
-        grid, data = file_path_dict[self.params[0][0]]
-        _ = ux.open_dataset(grid, data)[data_var].gradient()
+        _ = self.cached_dataset(*file_path_dict[OQU_RESOLUTIONS[0]])[data_var].gradient()
 
     def time_gradient(self, resolution):
         self.uxds[data_var].gradient()
@@ -126,26 +119,44 @@ class Integrate(DatasetBenchmark):
 class GradientColdStartRss:
     """Peak memory of a cold start: import uxarray, open a dataset, take a gradient.
 
-    Whole-process ``ru_maxrss``, not tracemalloc -- the ~250MB uxarray import is
-    part of the number by design, because the cold start is the subject. For the
-    gradient's own transient cost see ``Gradient.track_peakmem_gradient``, which
-    runs one to three orders of magnitude lower.
+    Whole-process peak resident memory, not tracemalloc -- the ~226MB uxarray
+    import is part of the number by design, because the cold start is the
+    subject. For the gradient's own transient cost see
+    ``Gradient.track_peakmem_gradient``, which runs one to three orders of
+    magnitude lower.
+
+    Measured in a subprocess of its own rather than through asv's ``peakmem_*``,
+    which reports ``ru_maxrss`` for the benchmark process. Under
+    ``launch_method: forkserver`` that process is forked from an interpreter
+    that has already imported the suite, so ``peakmem_*`` would report a warm
+    start plus whatever the parent held. A fresh interpreter is the only way to
+    keep measuring the thing this benchmark is named for.
     """
 
     param_names = ["resolution"]
-    params = [["480km", "120km"]]
+    params = [OQU_RESOLUTIONS]
 
     def setup_cache(self):
-        """Compile the njit kernels before anything is measured."""
+        """Compile the njit kernels before anything is measured.
+
+        The subprocess inherits numba's on-disk cache rather than this process's
+        memory, so this keeps compilation out of the measured cold start.
+        """
         for resolution in self.params[0]:
             grid, data = file_path_dict[resolution]
             ux.open_dataset(grid, data)[data_var].gradient()
 
     setup_cache.timeout = 1800
 
-    def peakmem_gradient(self, resolution):
+    def track_peakmem_gradient(self, resolution):
         grid, data = file_path_dict[resolution]
-        ux.open_dataset(grid, data)[data_var].gradient()
+        return subprocess_peak_rss(
+            "import uxarray as ux\n"
+            f"uxds = ux.open_dataset({str(grid)!r}, {str(data)!r})\n"
+            f"uxds[{data_var!r}].gradient()\n"
+        )
+
+    track_peakmem_gradient.unit = "bytes"
 
 
 class GeoDataFrame(DatasetBenchmark):
@@ -181,11 +192,11 @@ class ConstructTreeStructures(DatasetBenchmark):
         self.uxds.uxgrid.get_ball_tree()
 
 
-class RemapDownsample:
+class RemapDownsample(CachedFixtures):
 
     def setup(self):
-        self.uxds_120 = ux.open_dataset(file_path_dict['120km'][0], file_path_dict['120km'][1])
-        self.uxds_480 = ux.open_dataset(file_path_dict['480km'][0], file_path_dict['480km'][1])
+        self.uxds_120 = self.cached_dataset(*file_path_dict['120km'])
+        self.uxds_480 = self.cached_dataset(*file_path_dict['480km'])
 
     def teardown(self):
         del self.uxds_120, self.uxds_480
@@ -199,11 +210,11 @@ class RemapDownsample:
     def time_bilinear_remapping(self):
         self.uxds_120["bottomDepth"].remap.bilinear(self.uxds_480.uxgrid)
 
-class RemapUpsample:
+class RemapUpsample(CachedFixtures):
 
     def setup(self):
-        self.uxds_120 = ux.open_dataset(file_path_dict['120km'][0], file_path_dict['120km'][1])
-        self.uxds_480 = ux.open_dataset(file_path_dict['480km'][0], file_path_dict['480km'][1])
+        self.uxds_120 = self.cached_dataset(*file_path_dict['120km'])
+        self.uxds_480 = self.cached_dataset(*file_path_dict['480km'])
 
     def teardown(self):
         del self.uxds_120, self.uxds_480
@@ -236,12 +247,12 @@ class ConstructFaceLatLon(GridBenchmark):
         self.uxgrid.construct_face_centers(method='cartesian average')
 
 
-class CheckNorm:
+class CheckNorm(CachedFixtures):
     param_names = ['resolution']
-    params = ['480km', '120km']
+    params = OQU_RESOLUTIONS
 
     def setup(self, resolution):
-        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid = self.cached_grid(file_path_dict[resolution][0])
 
     def teardown(self, resolution):
         del self.uxgrid
@@ -255,7 +266,7 @@ class CrossSections(DatasetBenchmark):
     params = DatasetBenchmark.params + [[1, 2, 4]]
 
     def setup(self, resolution, lat_step):
-        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid = self.cached_grid(file_path_dict[resolution][0])
         self.uxgrid.normalize_cartesian_coordinates()
         self.lats = np.arange(-45, 45, lat_step)
         _ = self.uxgrid.bounds
@@ -268,12 +279,12 @@ class CrossSections(DatasetBenchmark):
             self.uxgrid.cross_section.constant_latitude(lat)
 
 
-class PointInPolygon:
+class PointInPolygon(CachedFixtures):
     param_names = ['resolution']
-    params = ['480km', '120km']
+    params = OQU_RESOLUTIONS
 
     def setup(self, resolution):
-        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid = self.cached_grid(file_path_dict[resolution][0])
         self.uxgrid.normalize_cartesian_coordinates()
 
         # Construct variables needed to ensure that the benchmark doesn't measure construction time
@@ -299,7 +310,7 @@ class PointInPolygon:
 
 class ZonalAverage(DatasetBenchmark):
     def setup(self, resolution, *args, **kwargs):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        super().setup(resolution, *args, **kwargs)
         bounds = self.uxds.uxgrid.bounds
 
     def time_zonal_average(self, resolution):
@@ -308,10 +319,15 @@ class ZonalAverage(DatasetBenchmark):
 
 
 class ZonalAveragePeakMem:
-    """Peak memory of a cold-start non-conservative zonal-mean sweep."""
+    """Peak memory of a cold-start non-conservative zonal-mean sweep.
+
+    A fresh interpreter per sample, for the reason spelled out in
+    :class:`GradientColdStartRss`: the cold start is the subject, and a forked
+    benchmark process no longer has one.
+    """
 
     param_names = ["resolution"]
-    params = [["480km", "120km"]]
+    params = [OQU_RESOLUTIONS]
 
     def setup_cache(self):
         """Compile the njit kernels before anything is measured."""
@@ -321,18 +337,29 @@ class ZonalAveragePeakMem:
             uxds.uxgrid.bounds
             uxds[data_var].zonal_mean(lat=(-45, 45, 10))
 
-    def peakmem_zonal_average(self, resolution):
+    setup_cache.timeout = 1800
+
+    def track_peakmem_zonal_average(self, resolution):
         grid, data = file_path_dict[resolution]
-        uxds = ux.open_dataset(grid, data)
-        uxds.uxgrid.bounds
-        uxds[data_var].zonal_mean(lat=(-45, 45, 10))
+        return subprocess_peak_rss(
+            "import uxarray as ux\n"
+            f"uxds = ux.open_dataset({str(grid)!r}, {str(data)!r})\n"
+            "uxds.uxgrid.bounds\n"
+            f"uxds[{data_var!r}].zonal_mean(lat=(-45, 45, 10))\n"
+        )
+
+    track_peakmem_zonal_average.unit = "bytes"
 
 
 class CrossSectionsPeakMem:
-    """Peak memory of a cold-start constant-latitude cross-section sweep."""
+    """Peak memory of a cold-start constant-latitude cross-section sweep.
+
+    A fresh interpreter per sample, for the reason spelled out in
+    :class:`GradientColdStartRss`.
+    """
 
     param_names = ["resolution", "lat_step"]
-    params = [["480km", "120km"], [1, 2, 4]]
+    params = [OQU_RESOLUTIONS, [1, 2, 4]]
 
     def setup_cache(self):
         """Compile the njit kernels before anything is measured."""
@@ -342,9 +369,17 @@ class CrossSectionsPeakMem:
             uxgrid.bounds
             uxgrid.cross_section.constant_latitude(0.0)
 
-    def peakmem_const_lat(self, resolution, lat_step):
-        uxgrid = ux.open_grid(file_path_dict[resolution][0])
-        uxgrid.normalize_cartesian_coordinates()
-        uxgrid.bounds
-        for lat in np.arange(-45, 45, lat_step):
-            uxgrid.cross_section.constant_latitude(lat)
+    setup_cache.timeout = 1800
+
+    def track_peakmem_const_lat(self, resolution, lat_step):
+        grid = file_path_dict[resolution][0]
+        return subprocess_peak_rss(
+            "import numpy as np, uxarray as ux\n"
+            f"uxgrid = ux.open_grid({str(grid)!r})\n"
+            "uxgrid.normalize_cartesian_coordinates()\n"
+            "uxgrid.bounds\n"
+            f"for lat in np.arange(-45, 45, {lat_step}):\n"
+            "    uxgrid.cross_section.constant_latitude(lat)\n"
+        )
+
+    track_peakmem_const_lat.unit = "bytes"

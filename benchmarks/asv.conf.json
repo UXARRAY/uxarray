@@ -61,6 +61,15 @@
     // defaults to 10 min
     "install_timeout": 600,
 
+    // Fork each benchmark from one interpreter that has already imported the
+    // suite, instead of starting a fresh one per benchmark. Saves the ~0.9s
+    // uxarray import and the numba kernel load on every one of ~160 benchmark
+    // processes, and lets a fixture loaded at import be inherited rather than
+    // re-read. asv leaves this at "spawn" by default because fork and threads
+    // mix badly; nothing in this suite runs a parallel kernel at import time,
+    // which is what makes it safe here -- keep it that way.
+    "launch_method": "forkserver",
+
     "benchmark_timeout": 360,
 
     // the base URL to show a commit for the project.
