@@ -2,11 +2,6 @@ import numpy as np
 from numba import njit, prange
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.connectivity import (
-    _build_node_faces_connectivity,
-    _remap_node_connectivity,
-)
-from uxarray.grid.validation import _find_duplicate_nodes
 
 
 def construct_dual(grid):
@@ -34,16 +29,7 @@ def construct_dual(grid):
     node_x = grid.node_x.values
     node_y = grid.node_y.values
     node_z = grid.node_z.values
-    duplicate_node_indices = _find_duplicate_nodes(grid)
-    if duplicate_node_indices:
-        face_node_connectivity = _remap_node_connectivity(
-            grid.face_node_connectivity.values, duplicate_node_indices
-        )
-        node_face_connectivity, _ = _build_node_faces_connectivity(
-            face_node_connectivity, grid.n_node
-        )
-    else:
-        node_face_connectivity = grid.node_face_connectivity.values
+    node_face_connectivity = grid.node_face_connectivity.values
 
     # Get an array with the number of edges for each face
     n_edges_mask = node_face_connectivity != INT_FILL_VALUE
