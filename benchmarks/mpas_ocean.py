@@ -13,6 +13,12 @@ from .helpers._peakmem import numba_threads, peak_allocated, subprocess_peak_rss
 
 data_var = 'bottomDepth'
 
+# Sample budget for the benchmarks with long single call runtimes.
+#
+# Only the classes whose slowest parameter clears ~0.25s carry this; on the rest
+# the cap would never bind and would cost samples for nothing.
+SLOW_CALL_REPEAT = (2, 3, 8.0)
+
 # Paths, and fetching the files in the first place, both live in
 # ``helpers._fixtures`` now -- ``bench_connectivity`` draws the same grids from it.
 file_path_dict = OQU_DATASETS
@@ -165,6 +171,7 @@ class GradientColdStartRss:
 
 class GeoDataFrame(DatasetBenchmark):
     param_names = DatasetBenchmark.param_names + ['exclude_antimeridian']
+    repeat = SLOW_CALL_REPEAT
     params = DatasetBenchmark.params + [[True, False]]
 
     def time_to_geodataframe(self, resolution, exclude_antimeridian):
@@ -215,6 +222,7 @@ class RemapDownsample(CachedFixtures):
         self.uxds_120["bottomDepth"].remap.bilinear(self.uxds_480.uxgrid)
 
 class RemapUpsample(CachedFixtures):
+    repeat = SLOW_CALL_REPEAT
 
     def setup(self):
         self.uxds_120 = self.cached_dataset(*file_path_dict['120km'])
@@ -244,6 +252,8 @@ class DualMesh(DatasetBenchmark):
 
 
 class ConstructFaceLatLon(GridBenchmark):
+    repeat = SLOW_CALL_REPEAT
+
     def time_welzl(self, resolution):
         self.uxgrid.construct_face_centers(method='welzl')
 
@@ -267,6 +277,7 @@ class CheckNorm(CachedFixtures):
 
 class CrossSections(DatasetBenchmark):
     param_names = DatasetBenchmark.param_names + ['n_lat']
+    repeat = SLOW_CALL_REPEAT
     params = DatasetBenchmark.params + [[1, 2, 4]]
 
     def setup(self, resolution, lat_step):
