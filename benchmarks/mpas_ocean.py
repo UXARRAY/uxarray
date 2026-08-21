@@ -97,8 +97,12 @@ class Gradient(DatasetBenchmark):
     track_nbytes_gradient.unit = "bytes"
 
     def track_peakmem_gradient(self, resolution):
-        """Transient high-water allocation of taking a gradient."""
-        return peak_allocated(lambda: self.uxds[data_var].gradient())
+        """Transient high-water allocation of taking a gradient.
+
+        The kernel behind ``gradient`` is ``parallel=True``, hence the pinning
+        """
+        with numba_threads(1):
+            return peak_allocated(lambda: self.uxds[data_var].gradient())
 
     track_peakmem_gradient.unit = "bytes"
 

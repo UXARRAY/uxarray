@@ -70,7 +70,9 @@
     // which is what makes it safe here -- keep it that way.
     "launch_method": "forkserver",
 
-    "benchmark_timeout": 360,
+    // ``benchmark_timeout`` is not a key asv reads -- the one that sets the
+    // default is ``default_benchmark_timeout`` (asv/config.py)
+    "default_benchmark_timeout": 360,
 
     // the base URL to show a commit for the project.
     "show_commit_url": "https://github.com/UXARRAY/uxarray/commit/",
