@@ -32,9 +32,12 @@ the cache from a batch script instead of from inside a benchmark.
 """
 
 import hashlib
+import multiprocessing
 import os
 import tempfile
 import urllib.request
+import uuid
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -172,8 +175,13 @@ def _write(dataset, artifact_path, writer):
     Via a scratch name in the same directory, so a process racing this one sees
     either no artifact or a complete one, never a half-written file.
     """
+    if artifact_path.exists():
+        # A grid reached through both its own source and a (grid, data) pair
+        # would otherwise be written twice, and two writers racing on one
+        # scratch name is worse than wasteful.
+        return
     scratch = artifact_path.with_name(
-        f"{artifact_path.stem}.{os.getpid()}.tmp{artifact_path.suffix}"
+        f"{artifact_path.stem}.{uuid.uuid4().hex}.tmp{artifact_path.suffix}"
     )
     writer(dataset, scratch)
     os.replace(scratch, artifact_path)
@@ -268,7 +276,7 @@ def cached_dataset(grid_path, data_path):
     return ux.UxDataset(_loaded[artifact_path].copy(), uxgrid=cached_grid(grid_path))
 
 
-def prime(include_dyamond=None):
+def prime(include_dyamond=None, workers=1):
     """Fills the cache for every source the fixtures can serve.
 
     Returns the sources it had to read. Idempotent, and once warm costs a
@@ -278,6 +286,14 @@ def prime(include_dyamond=None):
     ``include_dyamond``) asks for them, because a filtered run should not pay
     for reading four grids off campaign storage that it will never touch. On a
     machine that does have them, prime from the CLI before ``asv run``.
+
+    ``workers`` reads that many sources at once, which is worth having when the
+    sources differ wildly in size and live somewhere slow: the small ones finish
+    while a dyamond grid is still being read, instead of queueing behind it. It
+    costs an interpreter per worker, so it only pays when a read is slower than
+    a process start -- the default stays sequential for that reason. Processes
+    rather than threads because the netCDF/HDF5 stack here is not thread-safe
+    for concurrent opens: threads produce HDF5 errors, measured, not assumed.
     """
     if include_dyamond is None:
         include_dyamond = os.environ.get(PRIME_VAR, "").lower() == "all"
@@ -288,13 +304,37 @@ def prime(include_dyamond=None):
     if include_dyamond and DYAMOND_AVAILABLE:
         sources += [(path,) for path in DYAMOND_GRIDS.values()]
 
-    read = []
+    missing = []
     for source in sources:
         flavour, suffix = ("data", ".nc") if len(source) == 2 else ("grid", ".nc")
         if not _artifact(source, flavour, suffix).exists():
+            missing.append(source)
+
+    # Reading a (grid, data) pair produces that grid's artifacts too, so a
+    # grid-only source covered by a pair here would just read the grid a second
+    # time to write nothing.
+    paired_grids = {source[0] for source in missing if len(source) == 2}
+    missing = [
+        source for source in missing if len(source) == 2 or source[0] not in paired_grids
+    ]
+
+    if workers > 1 and len(missing) > 1:
+        # Largest first: with a pool, the longest read should start earliest, or
+        # it lands last and everything waits on it.
+        missing.sort(key=lambda source: -sum(os.path.getsize(path) for path in source))
+        # Spawned, not forked: this process has the netCDF/HDF5 library loaded by
+        # the time it primes, and a fresh interpreter per worker keeps that state
+        # out of the children. The extra second of startup is nothing against a
+        # read this is worth parallelizing.
+        with ProcessPoolExecutor(
+            max_workers=min(workers, len(missing)),
+            mp_context=multiprocessing.get_context("spawn"),
+        ) as pool:
+            list(pool.map(_build, missing))
+    else:
+        for source in missing:
             _build(source)
-            read.append(source)
-    return read
+    return missing
 
 
 class CachedFixtures:
@@ -328,7 +368,11 @@ if __name__ == "__main__":
     # ``setup_cache`` -- pays for reading a source grid. Worth a line in a batch
     # script whenever the dyamond grids are in play.
     print(f"fixture cache: {cache_dir()}", flush=True)
-    for source in prime(include_dyamond=True) or [None]:
+    # Four at a time only where the dyamond grids are readable, since those are
+    # the reads worth overlapping: on the oQU pair alone, priming in parallel is
+    # slower than doing it sequentially (1.69s against 0.52s), because starting
+    # an interpreter costs more than reading a small local file.
+    for source in prime(include_dyamond=True, workers=4 if DYAMOND_AVAILABLE else 1) or [None]:
         # Unbuffered and one line per source, so a batch log shows how far the
         # reading has got.
         print(f"  read {' + '.join(Path(p).name for p in source)}" if source else "  nothing to do", flush=True)
