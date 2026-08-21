@@ -92,7 +92,10 @@ def test_to_geodataframe_preserves_antimeridian_faces(gridpath, datasetpath):
 
     assert gdf.shape == (uxds.uxgrid.n_face, 2)
     assert len(polygons.data) == uxds.uxgrid.n_face
-    assert len(uxds.uxgrid.antimeridian_face_indices) == 120
+    # construction-time node dedup now also merges pole-coincident corners
+    # (same physical point, different longitude) that the SCRIP reader's own
+    # exact lon/lat match missed, shifting a few faces' antimeridian crossing
+    assert len(uxds.uxgrid.antimeridian_face_indices) == 121
 
 
 def test_geodataframe_caching(gridpath, datasetpath):
