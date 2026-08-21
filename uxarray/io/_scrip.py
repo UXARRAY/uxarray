@@ -38,6 +38,49 @@ def _values_in_degrees(data_array):
     return values
 
 
+def _collapse_repeated_corners(face_nodes):
+    """Turn SCRIP's repeated corners back into fill values.
+
+    SCRIP has no fill value for corners, so a face with fewer than
+    ``grid_corners`` vertices repeats one of them. Left in place each repeat reads
+    as a real vertex, keeping the face full width and adding a zero-length edge.
+
+    Duplicates are dropped keeping the first occurrence, so winding order survives
+    and a closed ring (last corner repeating the first) collapses too.
+
+    Parameters
+    ----------
+    face_nodes : numpy.ndarray
+        ``(n_face, n_max_face_nodes)`` node indices, with repeated corners.
+
+    Returns
+    -------
+    numpy.ndarray
+        Connectivity with repeats replaced by ``INT_FILL_VALUE``, packed left.
+    """
+    n_face, n_corners = face_nodes.shape
+
+    keep = np.ones(face_nodes.shape, dtype=bool)
+    for corner in range(1, n_corners):
+        keep[:, corner] = (face_nodes[:, [corner]] != face_nodes[:, :corner]).all(
+            axis=1
+        )
+
+    # A cell that would collapse below three vertices is degenerate in the source
+    # file; leave it alone rather than invent a one- or two-node face.
+    keep[keep.sum(axis=1) < 3] = True
+
+    if keep.all():
+        return face_nodes
+
+    collapsed = np.full(face_nodes.shape, INT_FILL_VALUE, dtype=face_nodes.dtype)
+    rows = np.broadcast_to(np.arange(n_face)[:, None], face_nodes.shape)
+    destination = np.cumsum(keep, axis=1) - 1
+    collapsed[rows[keep], destination[keep]] = face_nodes[keep]
+
+    return collapsed
+
+
 def _to_ugrid(in_ds, out_ds):
     """If input dataset (``in_ds``) file is an unstructured SCRIP file,
     function will reassign SCRIP variables to UGRID conventions in output file
@@ -83,6 +126,9 @@ def _to_ugrid(in_ds, out_ds):
         # Reshape face nodes array into original shape for use in 'face_node_connectivity'
         unq_inv = np.reshape(unq_inv, (len(in_ds.grid_size), len(in_ds.grid_corners)))
 
+        # Recover the real face sizes from the degenerate corners SCRIP pads with
+        unq_inv = _collapse_repeated_corners(unq_inv)
+
         # Create node_lon & node_lat
         out_ds[ugrid.NODE_COORDINATES[0]] = xr.DataArray(
             unq_lon, dims=[ugrid.NODE_DIM], attrs=ugrid.NODE_LON_ATTRS
@@ -106,10 +152,11 @@ def _to_ugrid(in_ds, out_ds):
             attrs=ugrid.FACE_LAT_ATTRS,
         )
 
-        # standardize fill values and data type face nodes
+        # standardize fill values and data type face nodes. The padding here comes
+        # from the collapse above; SCRIP has no fill value of its own.
         face_nodes = _replace_fill_values(
             xr.DataArray(data=unq_inv),
-            original_fill=-1,
+            original_fill=INT_FILL_VALUE,
             new_fill=INT_FILL_VALUE,
             new_dtype=INT_DTYPE,
         )
@@ -204,30 +251,21 @@ def _encode_scrip(face_node_connectivity, node_lon, node_lat, face_areas):
     n_face = face_node_connectivity.shape[0]
     n_max_nodes = face_node_connectivity.shape[1]
 
-    # --- Core logic enhanced with Implementation 2's robust method ---
-    # Flatten the connectivity array to easily work with all node indices
-    f_nodes_flat = face_node_connectivity.values.astype(int).ravel()
+    conn = face_node_connectivity.values.astype(INT_DTYPE)
+    valid_nodes_mask = conn != INT_FILL_VALUE
 
-    # Create a mask to identify valid nodes vs. fill values
-    valid_nodes_mask = f_nodes_flat != INT_FILL_VALUE
+    # SCRIP has no fill value for corners. A face with fewer than grid_corners
+    # vertices is written as a degenerate polygon that repeats its last valid
+    # corner. Writing NaN into the padded slots instead makes the reader dedupe
+    # them into a phantom NaN node, which both inflates n_node and poisons the
+    # node coordinates for every downstream geometry calculation.
+    last_valid = np.maximum.accumulate(
+        np.where(valid_nodes_mask, np.arange(n_max_nodes), 0), axis=1
+    )
+    padded_conn = np.take_along_axis(conn, last_valid, axis=1)
 
-    # Create arrays to hold final lat/lon data, filled with NaN
-    lat_nodes_flat = np.full(f_nodes_flat.shape, np.nan, dtype=np.float64)
-    lon_nodes_flat = np.full(f_nodes_flat.shape, np.nan, dtype=np.float64)
-
-    # Get the flattened indices of the valid nodes (where the mask is True)
-    valid_indices = np.where(valid_nodes_mask)[0]
-    # Get the actual node indices from the connectivity array for those valid positions
-    valid_node_ids = f_nodes_flat[valid_indices]
-
-    # Use the valid indices to populate the coordinate arrays correctly
-    lon_nodes_flat[valid_indices] = node_lon.values[valid_node_ids]
-    lat_nodes_flat[valid_indices] = node_lat.values[valid_node_ids]
-
-    # Reshape the 1D arrays back to 2D
-    reshp_lat = lat_nodes_flat.reshape((n_face, n_max_nodes))
-    reshp_lon = lon_nodes_flat.reshape((n_face, n_max_nodes))
-    # --- End of enhanced logic ---
+    reshp_lon = node_lon.values[padded_conn]
+    reshp_lat = node_lat.values[padded_conn]
 
     # Add data to new scrip output file
     ds["grid_corner_lat"] = xr.DataArray(

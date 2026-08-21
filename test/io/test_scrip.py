@@ -7,7 +7,7 @@ import pytest
 
 import uxarray as ux
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.io._scrip import _detect_multigrid
+from uxarray.io._scrip import _collapse_repeated_corners, _detect_multigrid
 
 
 def test_read_ugrid(gridpath, mesh_constants):
@@ -137,3 +137,43 @@ def test_open_multigrid_mask_active_value_per_grid_override(gridpath):
 
     assert grids["ocn"].n_face == expected_ocn
     assert grids["atm"].n_face == expected_atm
+
+
+def test_collapse_repeated_corners():
+    """SCRIP pads a short face by repeating a corner; the reader undoes that.
+
+    Duplicates drop keeping the first occurrence, so winding order is preserved
+    and a closed ring collapses like a trailing repeat.
+    """
+    face_nodes = np.array(
+        [
+            [0, 1, 2, 3],  # a real quad, untouched
+            [4, 5, 6, 6],  # trailing repeat, as _encode_scrip writes it
+            [7, 8, 9, 7],  # closed ring, repeating the first corner
+            [1, 1, 2, 3],  # repeat in the middle of the row
+        ],
+        dtype=INT_DTYPE,
+    )
+
+    nt.assert_array_equal(
+        _collapse_repeated_corners(face_nodes),
+        np.array(
+            [
+                [0, 1, 2, 3],
+                [4, 5, 6, INT_FILL_VALUE],
+                [7, 8, 9, INT_FILL_VALUE],
+                [1, 2, 3, INT_FILL_VALUE],
+            ]
+        ),
+    )
+
+
+def test_collapse_repeated_corners_keeps_degenerate_faces():
+    """A cell that would collapse below three vertices is left alone.
+
+    It is degenerate in the source file; packing it to one or two nodes would
+    invent a face no polygon routine can use, so the degeneracy stays visible.
+    """
+    face_nodes = np.array([[0, 0, 0, 0], [1, 1, 2, 2]], dtype=INT_DTYPE)
+
+    nt.assert_array_equal(_collapse_repeated_corners(face_nodes), face_nodes)

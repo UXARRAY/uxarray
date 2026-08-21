@@ -9,6 +9,23 @@ from uxarray.conventions import ugrid
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _xyz_to_lonlat_deg
 
+# Producer name written into (and looked for in) "qa_records"
+_WRITER_NAME = "uxarray"
+
+
+def _written_by_uxarray(ext_ds):
+    """Whether ``ext_ds`` was produced by :func:`_encode_exodus`.
+
+    Exodus defines ``elem_num_map`` as each element's user-facing ID, not its
+    original position, so only files this writer produced can be reordered from
+    it. A third-party file keeps the face order it was written with.
+    """
+    if "qa_records" not in ext_ds:
+        return False
+
+    records = np.asarray(ext_ds["qa_records"].values, dtype="S").ravel()
+    return _WRITER_NAME.encode() in records
+
 
 # Exodus Number is one-based.
 def _read_exodus(ext_ds):
@@ -90,6 +107,18 @@ def _read_exodus(ext_ds):
         face_nodes = np.empty((0, max_face_nodes), dtype=INT_DTYPE)
     else:
         face_nodes = np.vstack(padded_blocks)
+
+    if "elem_num_map" in ext_ds and _written_by_uxarray(ext_ds):
+        # _encode_exodus groups elements into blocks by face size, permuting a
+        # mixed mesh, and records each original position here. Undo that, but only
+        # for a genuine permutation -- Exodus also allows arbitrary IDs.
+        elem_num_map = ext_ds["elem_num_map"].values.astype(INT_DTYPE) - 1
+        if elem_num_map.shape == (face_nodes.shape[0],) and np.array_equal(
+            np.sort(elem_num_map), np.arange(face_nodes.shape[0])
+        ):
+            unpermuted = np.empty_like(face_nodes)
+            unpermuted[elem_num_map] = face_nodes
+            face_nodes = unpermuted
 
     # standardize fill values and data type face nodes
     face_nodes = _replace_fill_values(
@@ -174,7 +203,7 @@ def _encode_exodus(ds, outfile=None):
 
     # --- QA Records ---
     ux_exodus_version = "1.0"
-    qa_records = [["uxarray"], [ux_exodus_version], [date], [time]]
+    qa_records = [[_WRITER_NAME], [ux_exodus_version], [date], [time]]
     exo_ds["qa_records"] = xr.DataArray(
         data=np.array(qa_records, dtype="S"),
         dims=["num_qa_rec", "four"],
@@ -200,8 +229,10 @@ def _encode_exodus(ds, outfile=None):
     conn_nofill = []
 
     for row in ds["face_node_connectivity"].values:
-        # Find the index of the first fill value (-1)
-        fill_val_idx = np.where(row == -1)[0]
+        # Find the index of the first fill value. Padding is stored as
+        # INT_FILL_VALUE, not -1; matching on -1 never fires, so every face is
+        # treated as full width and the padding is written out as a node index.
+        fill_val_idx = np.where(row == INT_FILL_VALUE)[0]
 
         if fill_val_idx.size > 0:
             num_nodes = fill_val_idx[0]
@@ -213,7 +244,13 @@ def _encode_exodus(ds, outfile=None):
             conn_nofill.append(row.astype(int).tolist())
 
     num_blks = np.count_nonzero(num_el_all_blks)
-    conn_nofill.sort(key=len)
+
+    # Exodus element blocks are homogeneous, so a mixed mesh has to be regrouped
+    # by face size. Sort stably and carry each face's original position along, so
+    # the ordering can be written out below and restored on read.
+    block_order = sorted(range(len(conn_nofill)), key=lambda i: len(conn_nofill[i]))
+    conn_nofill = [conn_nofill[i] for i in block_order]
+
     nonzero_el_index_blks = np.nonzero(num_el_all_blks)[0]
 
     start = 0
@@ -241,6 +278,13 @@ def _encode_exodus(ds, outfile=None):
 
         # Correctly increment the start index for the next block
         start += num_elem_in_blk
+
+    # Record where each written element came from in the original face ordering.
+    # Without this a mixed mesh comes back permuted, silently misaligning any
+    # face-centered data with the faces it describes.
+    exo_ds["elem_num_map"] = xr.DataArray(
+        data=np.asarray(block_order, dtype=np.int64) + 1, dims=["num_elem"]
+    )
 
     # --- Element Block Properties ---
     prop1_vals = np.arange(1, num_blks + 1, 1, dtype=np.int32)

@@ -1,9 +1,8 @@
-import uxarray as ux
-import os
-import pytest
-import xarray as xr
 import numpy as np
-from uxarray.constants import ERROR_TOLERANCE
+import pytest
+import uxarray as ux
+import xarray as xr
+from uxarray.constants import INT_FILL_VALUE
 
 
 def test_read_esmf(gridpath):
@@ -35,71 +34,55 @@ def test_read_esmf_dataset(gridpath, datasetpath):
     for dim in dims:
         assert dim in uxds.dims
 
-def test_esmf_round_trip_consistency(gridpath):
-    """Test round-trip serialization of grid objects through ESMF xarray format.
+def test_encode_esmf_structure(gridpath):
+    """Encoding to ESMF produces the variables the format requires.
 
-    Validates that grid objects can be successfully converted to ESMF xarray.Dataset
-    format, serialized to disk, and reloaded while maintaining numerical accuracy
-    and topological integrity.
-
-    The test verifies:
-    - Successful conversion to ESMF xarray format
-    - File I/O round-trip consistency
-    - Preservation of face-node connectivity (exact)
-    - Preservation of node coordinates (within numerical tolerance)
-
-    Raises:
-        AssertionError: If any round-trip validation fails
+    Round-trip fidelity is covered for every writable format by
+    ``TestIOWriteRoundTrip`` in test_io_common.py; this only pins down the
+    ESMF-specific layout.
     """
-    # Load original grid
-    original_grid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    esmf_dataset = uxgrid.to_xarray("ESMF")
 
-    # Convert to ESMF xarray format
-    esmf_dataset = original_grid.to_xarray("ESMF")
-
-    # Verify dataset structure
     assert isinstance(esmf_dataset, xr.Dataset)
     assert 'nodeCoords' in esmf_dataset
     assert 'elementConn' in esmf_dataset
+    assert 'numElementConn' in esmf_dataset
 
-    # Define output file path
-    esmf_filepath = "test_esmf_ne30.nc"
+    # elementConn is 1-based with -1 marking unused slots
+    assert esmf_dataset['elementConn'].attrs['_FillValue'] == -1
+    assert esmf_dataset['numElementConn'].values.sum() == (
+        uxgrid.n_nodes_per_face.values.sum()
+    )
 
-    # Remove existing test file to ensure clean state
-    if os.path.exists(esmf_filepath):
-        os.remove(esmf_filepath)
 
-    try:
-        # Serialize dataset to disk
-        esmf_dataset.to_netcdf(esmf_filepath)
+@pytest.mark.parametrize("mask_and_scale", [True, False])
+def test_read_esmf_padding_independent_of_cf_decoding(mask_and_scale, tmp_path):
+    """Padding is recognized whether or not xarray decoded the fill value.
 
-        # Reload grid from serialized file
-        reloaded_grid = ux.open_grid(esmf_filepath)
+    CF decoding replaces the ``-1`` padding with NaN and promotes elementConn to
+    float; an undecoded read hands back the raw int32. Neither survives the cast
+    to INT_DTYPE as INT_FILL_VALUE, so both must be identified before it.
+    """
+    uxgrid = ux.Grid.from_topology(
+        node_lon=np.array([0.0, 10.0, 10.0, 0.0, 20.0]),
+        node_lat=np.array([0.0, 0.0, 10.0, 10.0, 0.0]),
+        face_node_connectivity=np.array([
+            [0, 1, 2, 3],
+            [1, 4, 2, INT_FILL_VALUE],
+            [0, 3, 4, INT_FILL_VALUE],
+        ]),
+        fill_value=INT_FILL_VALUE,
+    )
 
-        # Validate topological consistency (face-node connectivity)
-        # Integer connectivity arrays must be exactly preserved
-        np.testing.assert_array_equal(
-            original_grid.face_node_connectivity.values,
-            reloaded_grid.face_node_connectivity.values,
-            err_msg="ESMF face connectivity mismatch"
-        )
+    path = tmp_path / "esmf_ragged.nc"
+    uxgrid.to_xarray("ESMF").to_netcdf(path)
 
-        # Validate coordinate consistency with numerical tolerance
-        # Coordinate transformations and I/O precision may introduce minor differences
-        np.testing.assert_allclose(
-            original_grid.node_lon.values,
-            reloaded_grid.node_lon.values,
-            err_msg="ESMF longitude mismatch",
-            rtol=ERROR_TOLERANCE
-        )
-        np.testing.assert_allclose(
-            original_grid.node_lat.values,
-            reloaded_grid.node_lat.values,
-            err_msg="ESMF latitude mismatch",
-            rtol=ERROR_TOLERANCE
-        )
+    with xr.open_dataset(path, mask_and_scale=mask_and_scale) as ds:
+        reloaded = ux.open_grid(ds)
 
-    finally:
-        # Clean up temporary test file
-        if os.path.exists(esmf_filepath):
-            os.remove(esmf_filepath)
+    np.testing.assert_array_equal(
+        reloaded.face_node_connectivity.values,
+        uxgrid.face_node_connectivity.values,
+    )
+    np.testing.assert_array_equal(reloaded.n_nodes_per_face.values, [4, 3, 3])

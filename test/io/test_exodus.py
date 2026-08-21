@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pytest
 import uxarray as ux
+import xarray as xr
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 
 
@@ -21,8 +22,76 @@ def test_init_verts():
 def test_encode_exodus(gridpath):
     """Read a UGRID dataset and encode that as an Exodus format."""
     uxgrid = ux.open_grid(gridpath("exodus", "outCSne8", "outCSne8.g"))
-    # Add encoding logic and assertions as needed
-    pass  # Placeholder for actual implementation
+    exo_ds = uxgrid.to_xarray("Exodus")
+
+    # A uniform quad mesh belongs in exactly one block, typed for a quad
+    blocks = [v for v in exo_ds.data_vars if v.startswith("connect")]
+    assert blocks == ["connect1"]
+    assert exo_ds["connect1"].attrs["elem_type"] == "SHELL4"
+    assert exo_ds["connect1"].shape == (uxgrid.n_face, 4)
+
+def test_encode_exodus_mixed_blocks():
+    """Faces of different sizes go into separate, correctly typed blocks.
+
+    Exodus element blocks are homogeneous, so a mixed mesh has to be split by
+    face size. Getting the fill value wrong collapses everything into one
+    max-width block and writes the padding out as a node index.
+    """
+    face_node_connectivity = np.array([
+        [0, 1, 2, 3],
+        [1, 4, 2, INT_FILL_VALUE],
+        [0, 3, 4, INT_FILL_VALUE],
+    ])
+    uxgrid = ux.Grid.from_topology(
+        node_lon=np.array([0.0, 10.0, 10.0, 0.0, 20.0]),
+        node_lat=np.array([0.0, 0.0, 10.0, 10.0, 0.0]),
+        face_node_connectivity=face_node_connectivity,
+        fill_value=INT_FILL_VALUE,
+    )
+
+    exo_ds = uxgrid.to_xarray("Exodus")
+
+    blocks = sorted(v for v in exo_ds.data_vars if v.startswith("connect"))
+    assert blocks == ["connect1", "connect2"]
+
+    by_type = {exo_ds[b].attrs["elem_type"]: exo_ds[b] for b in blocks}
+    assert set(by_type) == {"TRI", "SHELL4"}
+    assert by_type["TRI"].shape == (2, 3)
+    assert by_type["SHELL4"].shape == (1, 4)
+
+    # Blocks are written grouped by type, so the original face order has to be
+    # recorded or face-centered data silently misaligns on the way back in.
+    assert "elem_num_map" in exo_ds
+    assert sorted(exo_ds["elem_num_map"].values.tolist()) == [1, 2, 3]
+
+def test_read_exodus_ignores_third_party_elem_num_map(gridpath, tmp_path):
+    """Element IDs from another writer must not reorder the mesh.
+
+    ``_encode_exodus`` records the original face order in ``elem_num_map`` to undo
+    its own block grouping. Exodus defines that variable as a user-facing ID, which
+    a third-party file is free to renumber, so the reader only honors it on files
+    it wrote -- identified via ``qa_records``.
+    """
+    source = gridpath("exodus", "mixed", "mixed.exo")
+    original = ux.open_grid(source)
+
+    # Same mesh, same blocks, same connectivity -- only the element IDs change
+    with xr.open_dataset(source) as ds:
+        renumbered = ds.load()
+    n_elem = renumbered["elem_num_map"].sizes["num_elem"]
+    renumbered["elem_num_map"][:] = np.arange(n_elem, 0, -1)
+
+    assert b"uxarray" not in np.asarray(
+        renumbered["qa_records"].values, dtype="S"
+    ).ravel(), "fixture is no longer a third-party file"
+
+    path = tmp_path / "mixed_renumbered.exo"
+    renumbered.to_netcdf(path)
+
+    np.testing.assert_array_equal(
+        ux.open_grid(path).face_node_connectivity.values,
+        original.face_node_connectivity.values,
+    )
 
 def test_mixed_exodus(gridpath):
     """Read/write an exodus file with two types of faces (triangle and quadrilaterals) and writes a ugrid file."""
