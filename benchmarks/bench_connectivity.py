@@ -1,3 +1,5 @@
+import numba
+
 import uxarray as ux
 
 from .helpers._fixtures import (
@@ -74,6 +76,8 @@ class Connectivity(GridBenchmark):
         # fixture and lets each variable be built on demand.
         self.topology = self.cached_topology(GRIDS_BY_RESOLUTION[resolution])
 
+        # A no-op once the module-level warm below has run; kept so the class is
+        # still correct if that ever goes away.
         _warmup()
         self.uxgrid = self.minimal_grid()
 
@@ -115,3 +119,29 @@ class Connectivity(GridBenchmark):
 
     def time_node_face(self, resolution):
         _ = self.uxgrid.node_face_connectivity.compute()
+
+
+# Compiled at import rather than only in ``setup``: under
+# ``launch_method: forkserver`` asv imports the suite once and forks every
+# benchmark from that interpreter, so kernels compiled here are inherited by all
+# of them. A forked child otherwise spends 0.496s of its own on JIT and cache
+# loading before it can build anything.
+#
+# Safe only while the connectivity kernels are serial. Warming a
+# ``parallel=True`` kernel -- or even calling ``.compile()`` on one -- launches
+# numba's thread pool in the parent, and its OpenMP layer is not fork-safe, with
+# no at-fork handler to rebuild it in the child. So check, rather than trust:
+# this turns the day chunked connectivity lands into a loud import error instead
+# of a hung benchmark.
+_warmup()
+
+try:
+    numba.threading_layer()
+except ValueError:
+    pass  # nothing launched a pool, which is what we want to inherit
+else:
+    raise RuntimeError(
+        "warming the connectivity kernels started numba's thread pool, which a "
+        "forked benchmark cannot safely inherit -- move _warmup() back into "
+        "setup() now that these kernels run in parallel"
+    )
