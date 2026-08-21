@@ -60,6 +60,8 @@ from uxarray.grid.intersections import (
     gca_const_lat_intersection,
 )
 
+from .helpers._warmup import warm_in_parent
+
 # ---------------------------------------------------------------------------
 # L1 (FP64 body) — direct double-precision kernel, verbatim from
 # fp64_GCAconstLat.hh. Scalar in / scalar out so Numba keeps it in registers,
@@ -392,16 +394,33 @@ def main():
 # ---------------------------------------------------------------------------
 
 
+_prepared = None
+
+
+def _prepare():
+    """The packed cases, with the batched drivers warmed, once per process.
+
+    Hoisted out of ``setup`` so a forked benchmark inherits them: the seed is
+    fixed, so the arrays are the same ones ``setup`` used to build, and the
+    drivers are ``@njit(cache=True)`` either way.
+    """
+    global _prepared
+    if _prepared is None:
+        packed = _pack(_make_cases(20_000, seed=20251104))
+        A, B, Z, gcas = packed
+        _batch_fp64_kernel(A, B, Z)
+        _batch_accux_kernel(A, B, Z)
+        _batch_fp64_dispatch(gcas, Z)
+        _batch_accux_dispatch(gcas, Z)
+        _prepared = packed
+    return _prepared
+
+
 class SameBodyConstLat:
     """asv: same-body FP64 vs real AccuX at kernel (L1) and dispatch (L3) levels."""
 
     def setup(self):
-        cases = _make_cases(20_000, seed=20251104)
-        self.A, self.B, self.Z, self.gcas = _pack(cases)
-        _batch_fp64_kernel(self.A, self.B, self.Z)
-        _batch_accux_kernel(self.A, self.B, self.Z)
-        _batch_fp64_dispatch(self.gcas, self.Z)
-        _batch_accux_dispatch(self.gcas, self.Z)
+        self.A, self.B, self.Z, self.gcas = _prepare()
 
     def time_fp64_kernel(self):
         _batch_fp64_kernel(self.A, self.B, self.Z)
@@ -414,6 +433,11 @@ class SameBodyConstLat:
 
     def time_accux_dispatch(self):
         _batch_accux_dispatch(self.gcas, self.Z)
+
+
+# Prepared at import so every forked benchmark inherits it; see
+# :mod:`benchmarks.helpers._warmup`.
+warm_in_parent(_prepare, "the const-lat drivers")
 
 
 if __name__ == "__main__":

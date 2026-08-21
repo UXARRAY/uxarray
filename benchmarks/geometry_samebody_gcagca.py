@@ -23,6 +23,8 @@ from numba import njit
 from uxarray.grid.arcs import on_minor_arc
 from uxarray.grid.intersections import _accux_gca, gca_gca_intersection
 
+from .helpers._warmup import warm_in_parent
+
 
 @njit(cache=True, inline="always")
 def _fp64_gca(w0, w1, v0, v1):
@@ -307,6 +309,30 @@ def main(n_cases=100_000, seed=20251104):
     print("=" * 70)
 
 
+_prepared = None
+
+
+def _prepare():
+    """The packed cases, with the batched drivers warmed, once per process.
+
+    Building the cases is 4.06s of the 4.27s this used to spend in every
+    ``setup``; compiling the drivers is 0.08s, since they are all
+    ``@njit(cache=True)``. The seed is fixed, so hoisting the arrays out of
+    ``setup`` changes what is measured not at all -- and lets a forked benchmark
+    inherit them rather than generate them again.
+    """
+    global _prepared
+    if _prepared is None:
+        packed = _pack_gca(_make_gca_cases(100_000, seed=20251104))
+        wa, wb, va, vb, ga, gb = packed
+        _batch_fp64_gca_kernel(wa, wb, va, vb)
+        _batch_accux_gca_kernel(wa, wb, va, vb)
+        _batch_fp64_gca_dispatch(ga, gb)
+        _batch_accux_gca_dispatch(ga, gb)
+        _prepared = packed
+    return _prepared
+
+
 class SameBodyGcaGca:
     """
     asv timing class (Numba warmed in setup, distinct cases)
@@ -314,12 +340,7 @@ class SameBodyGcaGca:
     """
 
     def setup(self):
-        cases = _make_gca_cases(100_000, seed=20251104)
-        self.wa, self.wb, self.va, self.vb, self.ga, self.gb = _pack_gca(cases)
-        _batch_fp64_gca_kernel(self.wa, self.wb, self.va, self.vb)
-        _batch_accux_gca_kernel(self.wa, self.wb, self.va, self.vb)
-        _batch_fp64_gca_dispatch(self.ga, self.gb)
-        _batch_accux_gca_dispatch(self.ga, self.gb)
+        self.wa, self.wb, self.va, self.vb, self.ga, self.gb = _prepare()
 
     def time_fp64_kernel(self):
         _batch_fp64_gca_kernel(self.wa, self.wb, self.va, self.vb)
@@ -332,6 +353,12 @@ class SameBodyGcaGca:
 
     def time_accux_dispatch(self):
         _batch_accux_gca_dispatch(self.ga, self.gb)
+
+
+# Prepared at import so every forked benchmark inherits it; see
+# :mod:`benchmarks.helpers._warmup` for why that is safe only while these
+# kernels stay serial.
+warm_in_parent(_prepare, "the gca-gca drivers")
 
 
 if __name__ == "__main__":
