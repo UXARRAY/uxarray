@@ -50,6 +50,13 @@ def _read_structured_grid(lon, lat, tol=_DEFAULT_STRUCTURED_TOL_DEG):
 
     out_ds = xr.Dataset()
 
+    # Coincidence detection below relies on float64 precision (~1e-16); real-world
+    # datasets often store lon/lat as float32 (~1e-7), which silently propagates
+    # through this pipeline and causes pole/antimeridian merges to fail or merge
+    # only partially, regardless of ``tol``.
+    lon = np.asarray(lon, dtype=np.float64)
+    lat = np.asarray(lat, dtype=np.float64)
+
     sorted_indices = np.argsort(lon)
     lon = lon[sorted_indices]
 
