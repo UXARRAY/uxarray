@@ -19,6 +19,18 @@ artifact is one version's reader output and ASV diffs commits. Likewise, there's
 fresh read per commit. ``prime`` therefore leaves the dyamond grids out unless
 asked, and there is a CLI (``python -m benchmarks.helpers._fixtures``) to fill
 the cache from a batch script instead of from inside a benchmark.
+
+Three environment variables tune all of this:
+
+``UXARRAY_BENCH_CACHE_DIR``
+    root the ``_io_cache`` directory is created under, in place of
+    ``benchmarks/`` -- worth pointing at local scratch when the checkout itself
+    lives on a shared filesystem
+``UXARRAY_BENCH_PRIME``
+    ``all`` primes the dyamond grids as well, which ``prime`` skips by default
+``UXARRAY_BENCH_PRELOAD``
+    any non-empty value has ``preload_topologies`` do its work; unset, it is a
+    no-op, since preloading only pays off under ``launch_method: forkserver``
 """
 
 import hashlib
@@ -56,27 +68,27 @@ __all__ = [
 BENCHMARK_DIR = Path(__file__).resolve().parents[1]
 REPO_DIR = BENCHMARK_DIR.parent
 
-_COOKBOOK_URL = (
+_COOKBOOK_MESH_URL = (
     "https://github.com/ProjectPythia/unstructured-grid-viz-cookbook/raw/main/meshfiles"
 )
 
 
-def _cookbook(filename):
+def _cookbook_mesh(filename):
     """Path to a Cookbook mesh, fetched once if this checkout lacks it."""
     path = BENCHMARK_DIR / filename
     if not path.is_file():
-        urllib.request.urlretrieve(f"{_COOKBOOK_URL}/{filename}", filename=path)
+        urllib.request.urlretrieve(f"{_COOKBOOK_MESH_URL}/{filename}", filename=path)
     return path
 
 
 # Grids and grid/data pairs, by mesh resolution.
 OQU_GRIDS = {
-    "480km": _cookbook("oQU480.grid.nc"),
-    "120km": _cookbook("oQU120.grid.nc"),
+    "480km": _cookbook_mesh("oQU480.grid.nc"),
+    "120km": _cookbook_mesh("oQU120.grid.nc"),
 }
 OQU_DATASETS = {
-    "480km": (OQU_GRIDS["480km"], _cookbook("oQU480.data.nc")),
-    "120km": (OQU_GRIDS["120km"], _cookbook("oQU120.data.nc")),
+    "480km": (OQU_GRIDS["480km"], _cookbook_mesh("oQU480.data.nc")),
+    "120km": (OQU_GRIDS["120km"], _cookbook_mesh("oQU120.data.nc")),
 }
 
 DYAMOND_GRIDS = {
@@ -111,17 +123,13 @@ QUAD_HEXAGON_DATASET = (
     REPO_DIR / "test" / "meshfiles" / "ugrid" / "quad-hexagon" / "data.nc",
 )
 
-CACHE_DIR_VAR = "UXARRAY_BENCH_CACHE_DIR"
-PRIME_VAR = "UXARRAY_BENCH_PRIME"
-PRELOAD_VAR = "UXARRAY_BENCH_PRELOAD"
-
 # Per path, which artifacts are actually loaded
 _loaded = {}
 
 
 def cache_dir():
     """Directory the cached artifacts live in: ``benchmarks/_io_cache``."""
-    root = Path(os.environ.get(CACHE_DIR_VAR) or BENCHMARK_DIR)
+    root = Path(os.environ.get("UXARRAY_BENCH_CACHE_DIR") or BENCHMARK_DIR)
     cached = root / "_io_cache"
     cached.mkdir(parents=True, exist_ok=True)
     return cached
@@ -252,7 +260,7 @@ def prime(include_dyamond=None, workers=1):
     netCDF/HDF5 stack is not generally thread-safe for concurrent opens.
     """
     if include_dyamond is None:
-        include_dyamond = os.environ.get(PRIME_VAR, "").lower() == "all"
+        include_dyamond = os.environ.get("UXARRAY_BENCH_PRIME", "").lower() == "all"
 
     sources = [(path,) for path in OQU_GRIDS.values()]
     sources += [(path,) for path in GRIDS_BY_FORMAT.values()]
@@ -301,7 +309,7 @@ def preload_topologies(grid_paths):
     Safe to call at import: reading arrays starts no numba thread pool, which is
     what a forked child cannot inherit (see :mod:`benchmarks.helpers._warmup`).
     """
-    if not os.environ.get(PRELOAD_VAR):
+    if not os.environ.get("UXARRAY_BENCH_PRELOAD"):
         return 0
     loaded = 0
     for grid_path in grid_paths:
