@@ -1,15 +1,22 @@
-<!--  The PR title should summarize the changes, for example "Add `Grid._build_face_dimension` function".
+<!--  Thank you for opening a PR! To help us review your contribution, please follow instructions below
+      while filling out this form, and read the etiquette reminders at the bottom. -->
+
+<!--  Please ensure the PR title summarizes the changes, e.g. "Adds `Grid._build_face_dimension` function".
       Avoid non-descriptive titles such as "Addresses issue #229". -->
 
-<!--  Replace XXX with the issue number resolved by this PR, if this PR fully resolves an issue.
-      If it does not fully resolve any issues, replace with something like "Related to #XXX",
-          or "Fixes part of #YYY but does not fully close it."
-      If it resolves multiple issues, repeat "closes" for each, like "Closes #XXX, closes #YYY." -->
 Closes #XXX
+<!--  Replace XXX with the issue number resolved by this PR, if this PR fully resolves an issue.
+      If it resolves multiple issues, repeat "closes" for each, like "Closes #XXX, closes #YYY."
+      If it does not fully resolve any issues, replace with something like "Related to #XXX",
+          or "Fixes part of #YYY but does not fully close it." -->
 
 ## Overview
-<!--  Please provide a few bullet points summarizing the changes in this PR. This should include
-      points on any bug fixes, new functions, or other changes that have been made. -->
+<!--  Please summarize the changes in this PR. How does it solve the original issue? -->
+
+
+<!--  Does the scope of this PR do anything aside from just solving the original issue?
+      And/or, does it not fully solve the issue as originally reported? If so, please clarify. -->
+
 
 ## Expected Usage
 <!--  If this PR adds a new feature, please provide a short example of it in action.
@@ -30,7 +37,7 @@ other_output = uxds.some_function(some_param = True)
 ```
 
 ## PR Checklist
-<!-- Please mark any checkboxes that do not apply to this PR as [N/A]. -->
+<!-- Please mark each item as [X] when completed, or [N/A] if not applicable to this PR. -->
 
 **General**
 - [ ] An issue is created and linked
@@ -38,28 +45,21 @@ other_output = uxds.some_function(some_param = True)
 - [ ] Filled out Overview and Expected Usage (if applicable) sections
 
 **Testing & Benchmarking**
-<!--  If this PR does not update any functionality or tests and is unlikely to affect efficiency,
-    e.g. by affecting computation time or memory usage, remove this section (Testing & Benchmarking) -->
-- [ ] Adequate tests are created if there is new functionality
-- [ ] Tests are not too basic (such as simply calling a function and nothing else)
-- [ ] Tests cover all major paths in your new functions
+- [ ] There is adequate test coverage of changes from this PR (add new tests if needed)
 - [ ] If this PR could affect performance, ran ASV benchmarks and confirmed they show expected behavior (add a new benchmark if necessary)
 <!-- Adding the run-benchmark label (if your uxarray repo permissions allow it) will run ASV benchmarks.
     If you need benchmarks to be run but don't have permissions, leave this item unchecked for now. -->
 
 **Documentation**
-<!--  If this PR does not update any functionality or docstrings, remove this section (Documentation) -->
-- [ ] Docstrings have been added to all new functions
-- [ ] Docstrings have been updated with any function changes
-- [ ] User (public) functions have been added to `docs/api.rst`
-- [ ] Internal (private) function names start with an underscore (`_`)
+- [ ] Docstrings updated with any function changes, and included in all new functions
+- [ ] User (public) functions added to `docs/api.rst`; internal (private) function names start with an underscore (`_`)
 
 **Examples**
-<!--  If this PR does not affect any example notebooks, remove this section (Examples) -->
-- [ ] **All** notebook examples cleared the output of all cells before committing
-- [ ] New notebook examples added to appropriate folder (gallery: `docs/examples/`; guide: `docs/user-guide/`; quickstart: `docs/getting-started/`)
-- [ ] New notebook examples referenced in appropriate .rst file (gallery: `docs/gallery.rst`; guide: `docs/userguide.rst`; quickstart: `docs/quickstart.rst`)
-- [ ] New notebook gallery examples added entry in `docs/gallery.yml` with appropriate thumbnail photo in `docs/_static/thumbnails/`
+- [ ] If touched any notebook examples, cleared the output of all cells before committing
+- [ ] If added new notebook examples, put in appropriate folder(s) and referenced in appropriate docs files
+<!-- Appropriate folders for reference: (gallery: `docs/examples/`; guide: `docs/user-guide/`; quickstart: `docs/getting-started/`)
+    Appropriate .rst files for reference: (gallery: `docs/gallery.rst`; guide: `docs/userguide.rst`; quickstart: `docs/quickstart.rst`)
+    For gallery examples also add reference in `docs/gallery.yml` and thumbnail photo in `docs/_static/thumbnails/`-->
 
 
 ## AI Disclosure
@@ -71,19 +71,11 @@ other_output = uxds.some_function(some_param = True)
 
 AI Usage:
 
-- [ ] I take responsibility for all AI-generated content in my PR.
-- [ ] I have tested all AI-generated content in my PR.
+- [ ] I have tested and take responsibility for all AI-generated content in my PR.
 
-<!--
-Thank you so much for your PR!  To help us review your contribution, please
-consider the following points:
-
-**PR Etiquette Reminders**
-- This PR should be listed as a draft PR until you are ready for it to be reviewed
-
-- After making changes in accordance with any reviews, re-request reviews from the same reviewers
-
-- Do *not* mark conversations as resolved if you didn't start them
-
-- Do mark conversations as resolved *if you opened them* and are satisfied with the changes/discussion.
+<!-- **PR Etiquette Reminders**
+- Please list as "draft PR" until ready for review.
+- Please do NOT mark any review comment threads as resolved.
+- Instead, please notify reviewers after addressing their comments, via @username or the "re-request review" button.
+- (Reviewers: please mark your own threads as resolved after confirming your comments have been addressed.)
 -->
