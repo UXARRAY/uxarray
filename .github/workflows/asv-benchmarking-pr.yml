@@ -48,6 +48,8 @@ jobs:
         id: benchmark
         run: |
           set -x
+          # Fill the fixture cache before asv preimports the suite, which would otherwise build it serially in the forkserver parent
+          (cd .. && python -m benchmarks.helpers._fixtures)
           # ID this runner
           asv machine --yes
           echo "Baseline:  ${{ github.event.pull_request.base.sha }} (${{ github.event.pull_request.base.label }})"
