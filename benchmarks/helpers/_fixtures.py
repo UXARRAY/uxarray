@@ -16,21 +16,9 @@ Two flavors:
 
 Artifacts are keyed on both the uxarray build and the files, because an
 artifact is one version's reader output and ASV diffs commits. Likewise, there's a
-fresh read per commit. ``prime`` therefore leaves the dyamond grids out unless
-asked, and there is a CLI (``python -m benchmarks.helpers._fixtures``) to fill
-the cache from a batch script instead of from inside a benchmark.
-
-Three environment variables tune all of this:
-
-``UXARRAY_BENCH_CACHE_DIR``
-    root the ``_io_cache`` directory is created under, in place of
-    ``benchmarks/`` -- worth pointing at local scratch when the checkout itself
-    lives on a shared filesystem
-``UXARRAY_BENCH_PRIME``
-    ``all`` primes the dyamond grids as well, which ``prime`` skips by default
-``UXARRAY_BENCH_PRELOAD``
-    any non-empty value has ``preload_topologies`` do its work; unset, it is a
-    no-op, since preloading only pays off under ``launch_method: forkserver``
+fresh read per commit. ``prime`` covers every source that is readable here,
+and there is a CLI (``python -m benchmarks.helpers._fixtures``) to fill the
+cache from a batch script instead of from inside a benchmark.
 """
 
 import hashlib
@@ -246,7 +234,7 @@ def cached_dataset(grid_path, data_path):
     return ux.UxDataset(_loaded[artifact_path].copy(), uxgrid=cached_grid(grid_path))
 
 
-def prime(include_dyamond=None, workers=1):
+def prime(workers=1):
     """Fills the cache for every source the fixtures can serve.
 
     Returns the sources it had to read. Idempotent, and once warm costs a
@@ -259,13 +247,10 @@ def prime(include_dyamond=None, workers=1):
     the new interpreter startup. Processes rather than threads because the standard
     netCDF/HDF5 stack is not generally thread-safe for concurrent opens.
     """
-    if include_dyamond is None:
-        include_dyamond = os.environ.get("UXARRAY_BENCH_PRIME", "").lower() == "all"
-
     sources = [(path,) for path in OQU_GRIDS.values()]
     sources += [(path,) for path in GRIDS_BY_FORMAT.values()]
     sources += list(OQU_DATASETS.values())
-    if include_dyamond and DYAMOND_AVAILABLE:
+    if DYAMOND_AVAILABLE:
         sources += [(path,) for path in DYAMOND_GRIDS.values()]
 
     missing = []
@@ -309,8 +294,6 @@ def preload_topologies(grid_paths):
     Safe to call at import: reading arrays starts no numba thread pool, which is
     what a forked child cannot inherit (see :mod:`benchmarks.helpers._warmup`).
     """
-    if not os.environ.get("UXARRAY_BENCH_PRELOAD"):
-        return 0
     loaded = 0
     for grid_path in grid_paths:
         cached_topology(grid_path)  # held by the process-level memo from here on
@@ -353,5 +336,5 @@ if __name__ == "__main__":
     # the reads worth overlapping: on the oQU pair alone, priming in parallel is
     # slower than doing it sequentially (1.69s against 0.52s), because starting
     # an interpreter costs more than reading a small local file.
-    for source in prime(include_dyamond=True, workers=4 if DYAMOND_AVAILABLE else 1) or [None]:
+    for source in prime(workers=4 if DYAMOND_AVAILABLE else 1) or [None]:
         print(f"  read {' + '.join(Path(p).name for p in source)}" if source else "  nothing to do", flush=True)

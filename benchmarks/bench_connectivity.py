@@ -114,7 +114,7 @@ class Connectivity(GridBenchmark):
 # of them. Only safe while the connectivity kernels are serial
 def _warm_parent():
     _warmup()
-    # And, if asked, the topologies themselves...
+    # And the topologies themselves...
     preload_topologies(GRIDS_BY_RESOLUTION[res] for res in ALL_RESOLUTIONS)
 
 
