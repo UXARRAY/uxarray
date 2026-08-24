@@ -14,7 +14,6 @@ benchmark in this directory.
 """
 
 import numpy as np
-from asv_runner.benchmarks.mark import skip_benchmark_if
 
 
 def _unit(v):
@@ -143,54 +142,32 @@ class OrientPredicates:
         self.on_minor_arc(_V0, _W0, _W1)
 
 
-# ``gca_gca_intersection`` (Layer 3) calls scalar-argument L1/L2 kernels
-# (``_accux_gca_scalar``, ``_try_gca_gca_intersection_scalar``) rather than the
-# array-returning ``_accux_gca``/``_try_gca_gca_intersection`` that predate them
-# -- the array forms each allocated a ``(3,)`` (or ``(2,3)``) result per call,
-# which no longer happens on the hot path. Benchmarking the array forms would
-# time functions the dispatcher does not call, so they are skipped -- not
-# measured -- on commits before the scalar kernels existed.
-try:
-    from uxarray.grid.intersections import (  # noqa: F401
-        _accux_gca_scalar,
-        _try_gca_gca_intersection_scalar,
-    )
-
-    _HAS_SCALAR_GCA_KERNELS = True
-except ImportError:
-    _HAS_SCALAR_GCA_KERNELS = False
-
-
 class GCAGCAIntersection:
     """Benchmark all three layers of the GCA-GCA intersection stack."""
 
     def setup(self):
-        from uxarray.grid.intersections import gca_gca_intersection
+        from uxarray.grid.intersections import (
+            _accux_gca_scalar,
+            _try_gca_gca_intersection_scalar,
+            gca_gca_intersection
+        )
 
         self.gca_gca_intersection = gca_gca_intersection
         self.gca_a = np.stack([_W0, _W1])
         self.gca_b = np.stack([_V0, _V1])
         gca_gca_intersection(self.gca_a, self.gca_b)
 
-        if _HAS_SCALAR_GCA_KERNELS:
-            from uxarray.grid.intersections import (
-                _accux_gca_scalar,
-                _try_gca_gca_intersection_scalar,
-            )
+        self._accux_gca_scalar = _accux_gca_scalar
+        self._try_gca_gca_intersection_scalar = _try_gca_gca_intersection_scalar
+        _accux_gca_scalar(*_W0, *_W1, *_V0, *_V1)
+        _try_gca_gca_intersection_scalar(*_W0, *_W1, *_V0, *_V1)
 
-            self._accux_gca_scalar = _accux_gca_scalar
-            self._try_gca_gca_intersection_scalar = _try_gca_gca_intersection_scalar
-            _accux_gca_scalar(*_W0, *_W1, *_V0, *_V1)
-            _try_gca_gca_intersection_scalar(*_W0, *_W1, *_V0, *_V1)
-
-    @skip_benchmark_if(not _HAS_SCALAR_GCA_KERNELS)
     def time_accux_gca_kernel(self):
-        """Layer 1: pure numerical kernel (scalar form; allocation-free)."""
+        """Layer 1: pure numerical kernel."""
         self._accux_gca_scalar(*_W0, *_W1, *_V0, *_V1)
 
-    @skip_benchmark_if(not _HAS_SCALAR_GCA_KERNELS)
     def time_try_gca_gca_intersection(self):
-        """Layer 2: batch/status layer (scalar form; allocation-free)."""
+        """Layer 2: batch/status layer."""
         self._try_gca_gca_intersection_scalar(*_W0, *_W1, *_V0, *_V1)
 
     def time_gca_gca_intersection(self):
