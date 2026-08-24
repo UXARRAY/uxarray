@@ -27,12 +27,6 @@ file_path_dict = OQU_DATASETS
 class DatasetBenchmark(CachedFixtures):
     """Class used as a template for benchmarks requiring a ``UxDataset`` in
     this module across both resolutions.
-
-    The dataset comes from the fixture cache rather than a fresh
-    ``open_dataset``: every benchmark below measures an algorithm over the mesh,
-    not the reader that produced it. The fixture is what the reader produced,
-    connectivity and ``face_areas`` included, so nothing here silently starts
-    measuring construction that used to come off disk.
     """
     param_names = ['resolution', ]
     params = [OQU_RESOLUTIONS, ]
@@ -65,9 +59,9 @@ class FaceAreas(GridBenchmark):
         # The coarsest grid, purely to compile the njit kernel
         _ = self.cached_grid(OQU_GRIDS[OQU_RESOLUTIONS[0]]).face_areas
         super().setup(resolution, *args, **kwargs)
-        # MPAS meshes carry ``face_areas`` on disk and the fixture keeps it, so
-        # it is dropped here to leave the computation to be measured. Safe to do
-        # to a fixture: each handout is a fresh ``Grid`` over a shallow copy.
+
+        # MPAS meshes carry ``face_areas`` on disk and computation requires it to
+        # be dropped. Still safe, because each fixture ``Grid`` is a shallow copy.
         self.uxgrid._ds = self.uxgrid._ds.drop_vars("face_areas", errors="ignore")
 
     def time_face_areas(self, resolution):
@@ -136,11 +130,7 @@ class GradientColdStartRss:
     magnitude lower.
 
     Measured in a subprocess of its own rather than through asv's ``peakmem_*``,
-    which reports ``ru_maxrss`` for the benchmark process. Under
-    ``launch_method: forkserver`` that process is forked from an interpreter
-    that has already imported the suite, so ``peakmem_*`` would report a warm
-    start plus whatever the parent held. A fresh interpreter is the only way to
-    keep measuring the thing this benchmark is named for.
+    which reports ``ru_maxrss`` for the benchmark process.
     """
 
     param_names = ["resolution"]
@@ -336,8 +326,7 @@ class ZonalAverage(DatasetBenchmark):
 class ZonalAveragePeakMem:
     """Peak memory of a cold-start non-conservative zonal-mean sweep.
 
-    A fresh interpreter per sample, for the reason spelled out in
-    :class:`GradientColdStartRss`: the cold start is the subject, and a forked
+    A fresh interpreter per sample. The cold start is the subject, and a forked
     benchmark process no longer has one.
     """
 
@@ -369,8 +358,7 @@ class ZonalAveragePeakMem:
 class CrossSectionsPeakMem:
     """Peak memory of a cold-start constant-latitude cross-section sweep.
 
-    A fresh interpreter per sample, for the reason spelled out in
-    :class:`GradientColdStartRss`.
+    A fresh interpreter per sample,
     """
 
     param_names = ["resolution", "lat_step"]

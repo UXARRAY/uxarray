@@ -1,32 +1,22 @@
 """Cached inputs for benchmarks whose subject is not reading a file.
 
-asv gives every benchmark its own process, so a grid opened in ``setup`` is
-opened once per benchmark rather than once per run -- around 160 times across
-the suite once the dyamond resolutions are visible. For a mesh on local disk
-that is a rounding error. For one on campaign storage it is most of the run, and
-it is spent inside the benchmark's own timeout.
+ASV gives every benchmark its own process, so a grid opened in ``setup`` is
+opened once per benchmark rather than once per run. This module provides flexible
+access to files across benchmark runs by caching the needed files.
 
-Benchmarks that do measure opening a file keep reading the real thing:
-``quad_hexagon``, ``OpenGrid`` in ``mpas_dyamond``, ``import``, and the
-cold-start peak-memory benchmarks. They take their paths from the registries
-here too, so the suite declares its inputs in one place either way.
+Benchmarks that do measure opening a file behave as before.
 
-Two flavours, picked per benchmark:
+Two flavors:
 
 ``topology``
-    the three arrays ``Grid.from_topology`` needs and nothing else, for
-    benchmarks that mean to build the rest themselves -- 2.3MB of the 102MB
-    120km MPAS file.
+    the three arrays ``Grid.from_topology`` needs and nothing else
 ``grid`` / ``dataset``
-    everything the reader produced, so a benchmark still gets the
-    ``face_areas`` and connectivity variables an MPAS file carries on disk
-    rather than silently measuring their construction.
+    everything the reader produced from ``Grid.open_grid`` and
+    ``Grid.open_dataset``
 
-One source read produces both, so choosing between them costs nothing.
-
-Artifacts are keyed on the uxarray build as well as on the file, because an
-artifact is one version's reader output and asv walks commits. That means a
-fresh read per commit; ``prime`` therefore leaves the dyamond grids out unless
+Artifacts are keyed on both the uxarray build and the files, because an
+artifact is one version's reader output and ASV diffs commits. Likewise, there's a
+fresh read per commit. ``prime`` therefore leaves the dyamond grids out unless
 asked, and there is a CLI (``python -m benchmarks.helpers._fixtures``) to fill
 the cache from a batch script instead of from inside a benchmark.
 """
@@ -79,7 +69,7 @@ def _cookbook(filename):
     return path
 
 
-# Grids, and grid/data pairs, by mesh resolution.
+# Grids and grid/data pairs, by mesh resolution.
 OQU_GRIDS = {
     "480km": _cookbook("oQU480.grid.nc"),
     "120km": _cookbook("oQU120.grid.nc"),
@@ -96,17 +86,13 @@ DYAMOND_GRIDS = {
     "3.75km": Path("/glade/campaign/cisl/vast/uxarray/data/dyamond/3.75km/grid.nc"),
 }
 
-# Asked once here, rather than separately in each module that cares.
+# Find out which files are actually available
 DYAMOND_AVAILABLE = all(path.exists() for path in DYAMOND_GRIDS.values())
 
 GRIDS_BY_RESOLUTION = dict(OQU_GRIDS)
 if DYAMOND_AVAILABLE:
     GRIDS_BY_RESOLUTION |= DYAMOND_GRIDS
 
-# Two ladders rather than one, because which of them a benchmark belongs on is a
-# per-benchmark decision: an algorithm that does not care which model wrote the
-# mesh can take the wide one, while anything tied to the oQU pair -- or too slow
-# to run four dyamond resolutions of -- stays on the narrow one.
 OQU_RESOLUTIONS = list(OQU_GRIDS)
 ALL_RESOLUTIONS = list(GRIDS_BY_RESOLUTION)
 
@@ -129,10 +115,7 @@ CACHE_DIR_VAR = "UXARRAY_BENCH_CACHE_DIR"
 PRIME_VAR = "UXARRAY_BENCH_PRIME"
 PRELOAD_VAR = "UXARRAY_BENCH_PRELOAD"
 
-# The arguments ``ux.Grid.from_topology`` takes, in order.
-_TOPOLOGY_ARRAYS = ("node_lon", "node_lat", "face_node_connectivity")
-
-# Artifact path -> what it holds, for this process.
+# Per path, which artifacts are actually loaded
 _loaded = {}
 
 
@@ -144,21 +127,12 @@ def cache_dir():
     return cached
 
 
-def _artifact(source, flavour, suffix):
-    """Where ``flavour`` of ``source`` is cached.
+def _artifact(source, flavor, suffix):
+    """Where ``flavor`` of ``source`` is cached.
 
     ``source`` is a grid path, or a (grid, data) pair. Keyed on each file's size
     and mtime as well as its path, so a replaced source misses rather than being
     served something stale.
-
-    Deliberately not keyed on the uxarray version. These meshes are stable and
-    the artifacts are meant to persist -- across jobs, and across the commits asv
-    walks. Including the version cost a fresh read per commit and produced two
-    full sets of artifacts here, because a benchmark run imports the uxarray
-    installed in asv's environment while a direct run from the repo root imports
-    the working tree, and those report different versions. The tradeoff is that a
-    change to how a reader parses these files does not invalidate the cache on
-    its own: delete ``_io_cache`` when that happens.
     """
     parts = []
     for path in source:
@@ -169,19 +143,17 @@ def _artifact(source, flavour, suffix):
     # what tells one resolution from the next.
     grid_path = Path(source[0])
     stem = f"{grid_path.parent.name}-{grid_path.stem}"
-    return cache_dir() / f"{stem}-{flavour}-{digest}{suffix}"
+    return cache_dir() / f"{stem}-{flavor}-{digest}{suffix}"
 
 
 def _write(dataset, artifact_path, writer):
-    """Writes ``dataset`` to ``artifact_path``, atomically.
+    """Writes ``dataset`` to ``artifact_path`` atomically.
 
     Via a scratch name in the same directory, so a process racing this one sees
-    either no artifact or a complete one, never a half-written file.
+    either no artifact or a complete one.
     """
     if artifact_path.exists():
-        # A grid reached through both its own source and a (grid, data) pair
-        # would otherwise be written twice, and two writers racing on one
-        # scratch name is worse than wasteful.
+        # If the path exists, someone else is already working
         return
     scratch = artifact_path.with_name(
         f"{artifact_path.stem}.{uuid.uuid4().hex}.tmp{artifact_path.suffix}"
@@ -191,18 +163,12 @@ def _write(dataset, artifact_path, writer):
 
 
 def _read_dataset(artifact_path):
-    """Reads back a cached ``xr.Dataset``.
-
-    ``mask_and_scale=False`` is load-bearing: the connectivity variables carry
-    ``_FillValue``, which xarray would otherwise consume, handing back float64
-    where uxarray's njit kernels require int64 -- they fail to type rather than
-    returning something wrong, but they do fail.
-    """
+    """Reads back a cached ``xr.Dataset``."""
     return xr.open_dataset(artifact_path, mask_and_scale=False).load()
 
 
 def _build(source):
-    """Reads ``source`` and writes every flavour of it, from the one read."""
+    """Reads ``source`` and writes every flavor of it, from the one read."""
     grid_path = source[0]
     if len(source) == 1:
         uxgrid = ux.open_grid(grid_path)
@@ -213,12 +179,11 @@ def _build(source):
         uxds.load()
         uxgrid = uxds.uxgrid
         uxgrid._ds.load()
-        # A ``UxDataset`` is an ``xr.Dataset`` subclass, so it writes itself; the
-        # grid half is cached separately just below.
+        # A ``UxDataset`` grid is cached separately.
         data_ds = uxds
 
     _write(
-        {name: getattr(uxgrid, name).data for name in _TOPOLOGY_ARRAYS},
+        {name: getattr(uxgrid, name).data for name in ["node_lon", "node_lat", "face_node_connectivity"]},
         _artifact(source[:1], "topology", ".npz"),
         # Uncompressed: written once, read by every benchmark process after.
         lambda arrays, path: np.savez(path, **arrays),
@@ -228,11 +193,11 @@ def _build(source):
         _write(data_ds, _artifact(source, "data", ".nc"), lambda ds, path: ds.to_netcdf(path))
 
 
-def _ensure(source, flavour, suffix):
+def _ensure(source, flavor, suffix):
     """Path to a cached artifact, building the source's artifacts if need be."""
-    artifact_path = _artifact(source, flavour, suffix)
+    artifact_path = _artifact(source, flavor, suffix)
     if not artifact_path.exists():
-        _build(source if flavour == "data" else source[:1])
+        _build(source if flavor == "data" else source[:1])
     return artifact_path
 
 
@@ -247,7 +212,7 @@ def cached_topology(grid_path):
     artifact_path = _ensure((Path(grid_path),), "topology", ".npz")
     if artifact_path not in _loaded:
         with np.load(artifact_path) as cached:
-            _loaded[artifact_path] = tuple(cached[name] for name in _TOPOLOGY_ARRAYS)
+            _loaded[artifact_path] = tuple(cached[name] for name in ["node_lon", "node_lat", "face_node_connectivity"])
     return _loaded[artifact_path]
 
 
@@ -260,13 +225,7 @@ def _cached_grid_ds(grid_path):
 
 
 def cached_grid(grid_path):
-    """A ``Grid`` carrying everything the reader found in ``grid_path``.
-
-    A fresh ``Grid`` over a shallow copy each call, so a benchmark that
-    populates or normalizes something does not hand its leftovers to the next
-    repeat: uxarray assigns new variables into ``_ds`` rather than writing
-    through the arrays, so the copy isolates that while the data stays shared.
-    """
+    """A fresh ``Grid`` carrying everything the reader found in ``grid_path`` via shallow copy."""
     return ux.Grid(_cached_grid_ds(grid_path).copy())
 
 
@@ -285,18 +244,12 @@ def prime(include_dyamond=None, workers=1):
     Returns the sources it had to read. Idempotent, and once warm costs a
     ``stat`` per file, so it is cheap to call ahead of every run.
 
-    The dyamond grids are left out unless ``UXARRAY_BENCH_PRIME=all`` (or
-    ``include_dyamond``) asks for them, because a filtered run should not pay
-    for reading four grids off campaign storage that it will never touch. On a
-    machine that does have them, prime from the CLI before ``asv run``.
-
     ``workers`` reads that many sources at once, which is worth having when the
     sources differ wildly in size and live somewhere slow: the small ones finish
-    while a dyamond grid is still being read, instead of queueing behind it. It
-    costs an interpreter per worker, so it only pays when a read is slower than
-    a process start -- the default stays sequential for that reason. Processes
-    rather than threads because the netCDF/HDF5 stack here is not thread-safe
-    for concurrent opens: threads produce HDF5 errors, measured, not assumed.
+    while a larger grid is still being read, instead of queueing behind all the
+    file fetches. Only pays off when a read is slower than a process start due to
+    the new interpreter startup. Processes rather than threads because the standard
+    netCDF/HDF5 stack is not generally thread-safe for concurrent opens.
     """
     if include_dyamond is None:
         include_dyamond = os.environ.get(PRIME_VAR, "").lower() == "all"
@@ -309,13 +262,11 @@ def prime(include_dyamond=None, workers=1):
 
     missing = []
     for source in sources:
-        flavour, suffix = ("data", ".nc") if len(source) == 2 else ("grid", ".nc")
-        if not _artifact(source, flavour, suffix).exists():
+        flavor, suffix = ("data", ".nc") if len(source) == 2 else ("grid", ".nc")
+        if not _artifact(source, flavor, suffix).exists():
             missing.append(source)
 
-    # Reading a (grid, data) pair produces that grid's artifacts too, so a
-    # grid-only source covered by a pair here would just read the grid a second
-    # time to write nothing.
+    # Reading a (grid, data) pair produces that grid's artifacts too
     paired_grids = {source[0] for source in missing if len(source) == 2}
     missing = [
         source for source in missing if len(source) == 2 or source[0] not in paired_grids
@@ -325,10 +276,9 @@ def prime(include_dyamond=None, workers=1):
         # Largest first: with a pool, the longest read should start earliest, or
         # it lands last and everything waits on it.
         missing.sort(key=lambda source: -sum(os.path.getsize(path) for path in source))
-        # Spawned, not forked: this process has the netCDF/HDF5 library loaded by
-        # the time it primes, and a fresh interpreter per worker keeps that state
-        # out of the children. The extra second of startup is nothing against a
-        # read this is worth parallelizing.
+
+        # Spawned. This process has the netCDF/HDF5 library loaded by the time it primes,
+        # and a fresh interpreter per worker keeps that state out of the children.
         with ProcessPoolExecutor(
             max_workers=min(workers, len(missing)),
             mp_context=multiprocessing.get_context("spawn"),
@@ -346,15 +296,7 @@ def preload_topologies(grid_paths):
     Reading an artifact caches it on disk, not in the next process: under
     ``launch_method: forkserver`` each benchmark is forked from the interpreter
     that imported the suite, so it starts with whatever *that* process holds and
-    reads its own copy of everything else. Which is why a benchmark's memory
-    appears and then vanishes when it exits -- expected, but at 3.75km it means
-    re-reading gigabytes for every benchmark in the module.
-
-    Loading them in the parent instead means one read per resolution per run,
-    shared copy-on-write by every child. Off unless ``UXARRAY_BENCH_PRELOAD``
-    asks for it, because the parent then holds every resolution at once and asv's
-    discovery import pays for it too -- a poor trade unless the reads are slow,
-    which on campaign storage they are.
+    reads its own copy of everything else.
 
     Safe to call at import: reading arrays starts no numba thread pool, which is
     what a forked child cannot inherit (see :mod:`benchmarks.helpers._warmup`).
@@ -371,11 +313,10 @@ def preload_topologies(grid_paths):
 class CachedFixtures:
     """Mixin for benchmarks whose subject is not reading a file.
 
-    Holds the one ``setup_cache`` the suite shares. asv keys ``setup_cache`` on
-    where it is defined and groups benchmarks by that key, so this single
-    definition -- inherited by every such class in every module -- runs once per
-    ``asv run`` rather than once per class. It returns ``None``, which asv reads
-    as "no cache argument", so the benchmark signatures stay as they are.
+    Holds the one canonical ``setup_cache`` the suite shares. ASV keys ``setup_cache``
+    on where it is defined and groups benchmarks by that key, so this single
+    definition runs once per ``asv run`` rather than once per class. It returns
+    ``None``, which asv reads as "no cache argument".
 
     The accessors are re-exported as methods so a ``setup`` reads as
     ``self.cached_grid(...)`` instead of importing the module's functions
@@ -399,11 +340,10 @@ if __name__ == "__main__":
     # ``setup_cache`` -- pays for reading a source grid. Worth a line in a batch
     # script whenever the dyamond grids are in play.
     print(f"fixture cache: {cache_dir()}", flush=True)
+
     # Four at a time only where the dyamond grids are readable, since those are
     # the reads worth overlapping: on the oQU pair alone, priming in parallel is
     # slower than doing it sequentially (1.69s against 0.52s), because starting
     # an interpreter costs more than reading a small local file.
     for source in prime(include_dyamond=True, workers=4 if DYAMOND_AVAILABLE else 1) or [None]:
-        # Unbuffered and one line per source, so a batch log shows how far the
-        # reading has got.
         print(f"  read {' + '.join(Path(p).name for p in source)}" if source else "  nothing to do", flush=True)

@@ -317,9 +317,8 @@ def _prepare():
 
     Building the cases is 4.06s of the 4.27s this used to spend in every
     ``setup``; compiling the drivers is 0.08s, since they are all
-    ``@njit(cache=True)``. The seed is fixed, so hoisting the arrays out of
-    ``setup`` changes what is measured not at all -- and lets a forked benchmark
-    inherit them rather than generate them again.
+    ``@njit(cache=True)``. This method allows for reuse of cases in forked
+    benchmarks to reduce time spent on case generation.
     """
     global _prepared
     if _prepared is None:
@@ -355,9 +354,6 @@ class SameBodyGcaGca:
         _batch_accux_gca_dispatch(self.ga, self.gb)
 
 
-# Prepared at import so every forked benchmark inherits it; see
-# :mod:`benchmarks.helpers._warmup` for why that is safe only while these
-# kernels stay serial.
 warm_in_parent(_prepare, "the gca-gca drivers")
 
 

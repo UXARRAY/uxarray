@@ -213,10 +213,7 @@ def _warm_classes():
     """Compiles what each class's ``setup`` compiles, once per process.
 
     Runs the setups themselves rather than a copy of their warm calls, so this
-    cannot drift out of step with them. Failures are swallowed on purpose: this
-    module imports its kernels inside ``setup`` so that a commit missing a symbol
-    fails one benchmark rather than the whole module's collection, and warming
-    here must not take that away.
+    cannot drift out of step with them.
     """
     for cls in (
         EFTPrimitives,
@@ -231,6 +228,4 @@ def _warm_classes():
             pass
 
 
-# Warmed at import so every forked benchmark inherits the compiled kernels; see
-# :mod:`benchmarks.helpers._warmup`.
 warm_in_parent(_warm_classes, "the geometry kernels")

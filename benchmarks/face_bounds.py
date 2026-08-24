@@ -4,8 +4,6 @@ from .helpers._fixtures import GRIDS_BY_FORMAT, CachedFixtures
 from .helpers._memsize import grid_nbytes
 from .helpers._peakmem import numba_threads, peak_allocated, subprocess_peak_rss
 
-# One grid per reader, from the shared registry. ``mpas`` here is the same mesh
-# the oQU ``480km`` benchmarks use, through the copy in the repo.
 grid_quad_hex = GRIDS_BY_FORMAT["ugrid-quad-hexagon"]
 grid_geoflow = GRIDS_BY_FORMAT["ugrid-geoflow"]
 grid_scrip = GRIDS_BY_FORMAT["scrip-outCSne8"]
@@ -69,11 +67,7 @@ class FaceBoundsColdStartRss:
     magnitude lower.
 
     Measured in a subprocess of its own rather than through asv's ``peakmem_*``,
-    which reports ``ru_maxrss`` for the benchmark process. Under
-    ``launch_method: forkserver`` that process is forked from an interpreter that
-    has already imported the suite, so a ``peakmem_*`` here would be reporting a
-    warm start plus whatever the parent was holding. A fresh interpreter is the
-    only way to keep measuring what this benchmark is named for.
+    which reports ``ru_maxrss`` for the benchmark process.
     """
 
     params = FaceBounds.params
@@ -81,9 +75,6 @@ class FaceBoundsColdStartRss:
 
     def setup_cache(self):
         """Compile the njit kernels before anything is measured.
-
-        The subprocess inherits numba's on-disk cache, not this process's
-        memory, so this keeps compilation out of the measured cold start.
         """
         for grid_path in self.params:
             ux.open_grid(grid_path).bounds

@@ -1,17 +1,13 @@
 """Warming benchmark state in the interpreter every benchmark is forked from.
 
-Under ``launch_method: forkserver`` asv imports the suite once and forks each
+Under ``launch_method: forkserver`` ASV imports the suite once and forks each
 benchmark from that interpreter, so whatever a module prepares at import is
-inherited copy-on-write instead of being paid for again by every benchmark
-process. On this suite that is 0.5s of JIT and cache loading for the
-connectivity kernels and 4.1s of case generation for the gca-gca drivers, each
-of which was being repeated per benchmark.
+inherited copy-on-write.
 
-Only work that leaves no numba thread pool behind may be warmed this way.
-Running a ``parallel=True`` kernel -- or merely calling ``.compile()`` on one --
-launches the pool, and numba's OpenMP layer is not fork-safe, with no at-fork
-handler to rebuild it in the child. So this checks rather than trusts: the day a
-warmed kernel goes parallel becomes a loud import error rather than a benchmark
+Only tasks that leaves no numba thread pool behind may be warmed this way.
+Running a ``parallel=True`` kernel or  calling ``.compile()`` on one
+launches the pool, and numba's OpenMP layer is not fork-safe. So this checks when a
+warmed kernel goes parallel, it becomes an import error rather than a benchmark
 that hangs on a cluster.
 """
 

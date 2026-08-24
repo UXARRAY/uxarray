@@ -16,9 +16,7 @@ class BaseGridBenchmark(CachedFixtures):
     params = [list(DYAMOND_GRIDS), ]
 
     def setup(self, resolution, **kwargs):
-        # The cached grid, not a fresh read: what these benchmarks measure is
-        # ``bounds`` and ``to_geodataframe``, not the MPAS reader. ``OpenGrid``
-        # below is the one that measures reading, and it opens the real file.
+        # The cached grid, not a fresh read
         self.uxgrid = self.cached_grid(grid_path_dict[resolution])
 
     def teardown(self, resolution, **kwargs):

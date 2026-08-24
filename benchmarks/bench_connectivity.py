@@ -13,13 +13,9 @@ from .helpers._warmup import warm_in_parent
 class GridBenchmark(CachedFixtures):
     """Class used as a template for benchmarks requiring a ``Grid`` in this
     module across both resolutions."""
+
     param_names = ['resolution', ]
-
-    # Conditionally available; could get annoying if there are downstream tools relying on it.
     params = [ALL_RESOLUTIONS, ]
-
-    # A single connectivity build at 3.75km does not fit in the 360s default
-    # from ``asv.conf.json``.
     timeout = 1200
 
     def setup(self, resolution, *args, **kwargs):
@@ -47,12 +43,6 @@ def _warmup():
     ``_build_node_edge_connectivity`` is ``@njit`` without ``cache=True``, so a
     fresh benchmark process would otherwise charge ~240ms of JIT compilation to
     whichever sample happened to touch it first.
-
-    Warmed on the coarsest grid in ``params``, because resolution decides how
-    long the kernels run but not which signatures compile. Warming at the
-    benchmark's own resolution instead means eight full connectivity builds
-    before the sample -- 0.493s against a 0.106s sample at 120km, and the gap
-    only widens from there.
     """
     global _numba_warmed_up
     if _numba_warmed_up:
@@ -64,9 +54,7 @@ def _warmup():
 
 
 class Connectivity(GridBenchmark):
-    # Each connectivity variable is cached in ``Grid._ds`` once constructed, so a
-    # sample may only contain a single call; otherwise every call but the first
-    # would time a dictionary lookup.
+    # connectivity is cached in ``Grid._ds`` on construction, so only run them once
     number = 1
 
     def setup(self, resolution, *args, **kwargs):
@@ -121,17 +109,12 @@ class Connectivity(GridBenchmark):
         _ = self.uxgrid.node_face_connectivity.compute()
 
 
-# Compiled at import rather than only in ``setup``: under
-# ``launch_method: forkserver`` asv imports the suite once and forks every
-# benchmark from that interpreter, so kernels compiled here are inherited by all
-# of them. A forked child otherwise spends 0.496s of its own on JIT and cache
-# loading before it can build anything. Guarded, because this only stays safe
-# while the connectivity kernels are serial -- see
-# :mod:`benchmarks.helpers._warmup`.
+# Compiled at import rather than in ``setup``. ASV imports the suite once and forks
+# every benchmark from that parent, so kernels compiled here are inherited by all
+# of them. Only safe while the connectivity kernels are serial
 def _warm_parent():
     _warmup()
-    # And, if asked, the topologies themselves, so a forked benchmark inherits
-    # them instead of reading its resolution's artifact again.
+    # And, if asked, the topologies themselves...
     preload_topologies(GRIDS_BY_RESOLUTION[res] for res in ALL_RESOLUTIONS)
 
 
