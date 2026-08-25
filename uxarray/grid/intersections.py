@@ -394,7 +394,10 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     B208-B232. https://doi.org/10.1137/25M1737614
     """
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
-        raise DimensionError("The two GCAs must be in the cartesian [x, y, z] format")
+        raise DimensionError(
+            "The two GCAs must be in the cartesian [x, y, z] format, "
+            "but one or both had the wrong shape (expected shape=(2,3))."
+        )  # (numba doesn't like str(tuple) --> not including inputs' shapes here)
 
     w0 = gca_a_xyz[0]
     w1 = gca_a_xyz[1]

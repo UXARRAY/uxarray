@@ -93,7 +93,7 @@ def _slice_node_indices(
     """
 
     if inclusive is False:
-        raise NotImplementedError("Exclusive slicing is not yet supported.")
+        raise NotImplementedError("inclusive=False slicing is not yet supported.")
 
     # faces that saddle nodes given in 'indices'
     face_indices = np.unique(
@@ -125,7 +125,7 @@ def _slice_edge_indices(
     """
 
     if inclusive is False:
-        raise NotImplementedError("Exclusive slicing is not yet supported.")
+        raise NotImplementedError("inclusive=False slicing is not yet supported.")
 
     # faces that saddle nodes given in 'indices'
     face_indices = np.unique(
@@ -162,7 +162,7 @@ def _slice_face_indices(
     from uxarray.grid import Grid
 
     if inclusive is False:
-        raise ValueError("Exclusive slicing is not yet supported.")
+        raise NotImplementedError("inclusive=False slicing is not yet supported.")
 
     ds = grid._ds
     face_indices = np.atleast_1d(np.asarray(indices, dtype=INT_DTYPE))
@@ -244,13 +244,17 @@ def _slice_face_indices(
         if isinstance(inverse_indices, bool):
             inverse_indices_ds["face"] = face_indices
         else:
+            # TODO: inverse_indices[0] doesn't make sense for list/set of str;
+            # should probably just be "for index_type in inverse_indices".
             for index_type in inverse_indices[0]:
                 if index_type in index_types:
                     inverse_indices_ds[index_type] = index_types[index_type]
                 else:
                     raise ValueError(
-                        "Incorrect type of index for `inverse_indices`. Try passing one of the following "
-                        "instead: 'face', 'edge', 'node'"
+                        f"Invalid value in inverse_indices: {index_type!r}. "
+                        "Expected inverse_indices=True/False, or iterable of str "
+                        "including only values from ['face', 'edge', 'node'], "
+                        f"but got inverse_indices={inverse_indices}."
                     )
 
         return Grid.from_dataset(

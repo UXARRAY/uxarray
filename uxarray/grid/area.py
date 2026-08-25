@@ -53,7 +53,10 @@ def calculate_face_area(
         dG, dW = get_tri_quadrature_dg(order)
         is_gaussian = False
     else:
-        raise ValueError("Invalid quadrature rule, specify gaussian or triangular")
+        raise ValueError(
+            f"Invalid quadrature_rule. Expected 'triangular' or 'gaussian'; got {quadrature_rule!r}, "
+            "during calculate_face_area."
+        )
 
     return _face_area_from_quadrature(
         x, y, z, dG, dW, is_gaussian, latitude_adjusted_area
@@ -253,7 +256,10 @@ def _get_all_face_area_from_coords(
         dG, dW = get_tri_quadrature_dg(order)
         is_gaussian = False
     else:
-        raise ValueError("Invalid quadrature rule, specify gaussian or triangular")
+        raise ValueError(
+            f"Invalid quadrature_rule. Expected 'triangular' or 'gaussian'; got {quadrature_rule!r}, "
+            "during _get_all_face_area_from_coords."
+        )
 
     # set initial area of each face to 0
     area = np.zeros(n_face)
