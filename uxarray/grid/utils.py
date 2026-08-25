@@ -1,8 +1,14 @@
 import numpy as np
 import xarray as xr
-from numba import njit
+from numba import njit, prange
 
 from uxarray.constants import INT_FILL_VALUE
+from uxarray.utils.numba_math import (
+    _numba_add3,
+    _numba_mul3_scalar,
+    _numba_norm3,
+    _numba_sub3,
+)
 
 
 @njit(cache=True)
@@ -12,9 +18,9 @@ def _small_angle_of_2_vectors(u, v):
 
     Parameters
     ----------
-    u : numpy.ndarray
+    u : iterable of length 3
         The first 3D vector.
-    v : numpy.ndarray
+    v : iterable of length 3
         The second 3D vector.
 
     Returns
@@ -22,11 +28,11 @@ def _small_angle_of_2_vectors(u, v):
     float
         The smallest angle between `u` and `v` in radians.
     """
-    v_norm_times_u = np.linalg.norm(v) * u
-    u_norm_times_v = np.linalg.norm(u) * v
-    vec_minus = v_norm_times_u - u_norm_times_v
-    vec_sum = v_norm_times_u + u_norm_times_v
-    angle_u_v_rad = 2 * np.arctan2(np.linalg.norm(vec_minus), np.linalg.norm(vec_sum))
+    u_times_v_norm = _numba_mul3_scalar(v, _numba_norm3(u))
+    v_times_u_norm = _numba_mul3_scalar(u, _numba_norm3(v))
+    vec_minus = _numba_sub3(u_times_v_norm, v_times_u_norm)
+    vec_sum = _numba_add3(u_times_v_norm, v_times_u_norm)
+    angle_u_v_rad = 2 * np.arctan2(_numba_norm3(vec_minus), _numba_norm3(vec_sum))
     return angle_u_v_rad
 
 
@@ -258,6 +264,60 @@ def _get_cartesian_face_edge_nodes_array(
     face_edges_cartesian[valid_mask, 2] = node_z[valid_edges]
 
     return face_edges_cartesian.reshape(n_face, n_max_face_edges, 2, 3)
+
+
+@njit(cache=True, parallel=True)
+def _get_cartesian_face_edge_nodes_array_subset(
+    face_indices,
+    face_node_connectivity,
+    n_nodes_per_face,
+    n_max_face_edges,
+    node_x,
+    node_y,
+    node_z,
+):
+    """Build the Cartesian edge array for a subset of faces.
+
+    Parameters
+    ----------
+    face_indices : np.ndarray
+        1D array of face indices to build, shape ``(n_selected,)``.
+    face_node_connectivity : np.ndarray
+        Face-node connectivity, shape ``(n_face, n_max_face_edges)``.
+    n_nodes_per_face : np.ndarray
+        Number of non-fill nodes (== edges) for each face, shape ``(n_face,)``.
+    n_max_face_edges : int
+        Maximum number of edges for any face in the grid.
+    node_x, node_y, node_z : np.ndarray
+        Cartesian node coordinates, each shape ``(n_node,)``.
+
+    Returns
+    -------
+    np.ndarray
+        Array of shape ``(n_selected, n_max_face_edges, 2, 3)``. Unused edge
+        slots are padded with ``INT_FILL_VALUE`` cast to float
+    """
+    n_selected = face_indices.shape[0]
+    out = np.full(
+        (n_selected, n_max_face_edges, 2, 3), INT_FILL_VALUE, dtype=np.float64
+    )
+
+    for i in prange(n_selected):
+        f = face_indices[i]
+        n_edges = n_nodes_per_face[f]
+        for e in range(n_edges):
+            n_start = face_node_connectivity[f, e]
+            # Wrap the last edge back to the first node to close the polygon,
+            # mirroring the np.roll(-1) used by the whole-grid builder.
+            n_end = face_node_connectivity[f, (e + 1) % n_edges]
+            out[i, e, 0, 0] = node_x[n_start]
+            out[i, e, 0, 1] = node_y[n_start]
+            out[i, e, 0, 2] = node_z[n_start]
+            out[i, e, 1, 0] = node_x[n_end]
+            out[i, e, 1, 1] = node_y[n_end]
+            out[i, e, 1, 2] = node_z[n_end]
+
+    return out
 
 
 def _get_lonlat_rad_face_edge_nodes_array(
