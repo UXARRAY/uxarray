@@ -89,10 +89,7 @@ from uxarray.io._healpix import _pixels_to_ugrid, _populate_healpix_boundaries
 from uxarray.io._icon import _read_icon
 from uxarray.io._mpas import _read_mpas
 from uxarray.io._scrip import _encode_scrip, _read_scrip
-from uxarray.io._structured import (
-    _DEFAULT_STRUCTURED_TOL_DEG,
-    _read_structured_grid,
-)
+from uxarray.io._structured import _read_structured_grid
 from uxarray.io._topology import _read_topology
 from uxarray.io._ugrid import (
     _encode_ugrid,
@@ -508,7 +505,7 @@ class Grid:
         ds: xr.Dataset = None,
         lon=None,
         lat=None,
-        tol: float | None = _DEFAULT_STRUCTURED_TOL_DEG,
+        tol: float | None = None,
     ):
         """
         Converts a structured ``xarray.Dataset`` or longitude and latitude coordinates into an unstructured ``uxarray.Grid``.
@@ -533,8 +530,8 @@ class Grid:
 
         tol : float, optional
             Tolerance in degrees for considering nodes as identical when constructing the grid from
-            longitude and latitude. Defaults to the angle whose chord length on the unit sphere equals
-            ``uxarray.constants.ERROR_TOLERANCE``.
+            longitude and latitude. Defaults to ``None``, which matches nodes within
+            ``uxarray.constants.ERROR_TOLERANCE`` on the unit sphere.
 
         Returns
         -------

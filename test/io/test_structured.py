@@ -1,3 +1,4 @@
+import numpy as np
 import uxarray as ux
 import xarray as xr
 import pytest
@@ -79,8 +80,6 @@ def test_from_xarray_with_grid_from_latlon(ds_name):
 def test_global_structured_grid_merges_poles_and_seam():
     """Nodes coincident on the sphere must be merged, even though their
     (lon, lat) pairs differ. Regression test for issue #1689."""
-    import numpy as np
-
     n_lon, n_lat = 36, 18
     d_lat = 180.0 / n_lat
     lon = np.linspace(-180, 180, n_lon, endpoint=False)
@@ -113,8 +112,6 @@ def test_global_structured_grid_merges_poles_and_seam():
 def test_regional_structured_grid_is_unchanged():
     """A grid that touches neither pole nor the antimeridian must keep every
     node and stay entirely quadrilateral."""
-    import numpy as np
-
     lon = np.linspace(-50, -10, 20)
     lat = np.linspace(10, 40, 15)
 
