@@ -6,7 +6,6 @@ from html import escape
 from typing import IO, Any, Hashable, Mapping
 from warnings import warn
 
-import numpy as np
 import xarray as xr
 from xarray.core import dtypes
 from xarray.core.options import OPTIONS
@@ -19,6 +18,7 @@ from uxarray.errors import DimensionError, GridInvalidError
 from uxarray.formatting_html import dataset_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
+from uxarray.grid.neighbors import DatasetNeighborhood
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDatasetPlotAccessor
@@ -678,6 +678,48 @@ class UxDataset(xr.Dataset):
         return UxDataArray(xarr, uxgrid=self._uxgrid)
         # _uxgrid not uxgrid; converting to UxDataArray is not a grid-aware method.
 
+    def neighborhood(self, r: float = 1.0) -> DatasetNeighborhood:
+        """Groups every grid-mapped data variable by the elements within ``r``
+        degrees of each grid element, to be reduced over by a method of the
+        returned :class:`DatasetNeighborhood`.
+
+        Parameters
+        ----------
+        r : float, default=1.
+            Radius of the neighborhood, in degrees.
+
+        Returns
+        -------
+        DatasetNeighborhood
+            Carrying the same reductions as :meth:`UxDataArray.neighborhood`,
+            applied to every data variable at once. Each returns a
+            ``UxDataset``.
+
+        Notes
+        -----
+        Variables without a grid dimension are passed through unchanged.
+
+        Variables mapped to the same grid location share one neighbor query, so
+        reducing a dataset costs one query per location present rather than one
+        per variable.
+
+        Examples
+        --------
+        Apply a mean filter to all grid-mapped variables in a dataset:
+
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
+        >>> uxds_smooth = uxds.neighborhood(r=5.0).mean()
+
+        See Also
+        --------
+        UxDataArray.neighborhood : Reduce a single data variable.
+        Grid.neighborhood : Neighborhood for one grid location, without data.
+        UxDataArray.zonal_mean : Average over latitude bands.
+        UxDataArray.azimuthal_mean : Average over rings of constant great-circle distance.
+        """
+        return DatasetNeighborhood(self, r=r)
+
     def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
         """
         Converts a ``ux.UXDataset`` to a ``xr.Dataset``.
@@ -740,11 +782,10 @@ class UxDataset(xr.Dataset):
             # Get correct dimensions for the dual
             dims = [dim_map.get(dim, dim) for dim in self[var].dims]
 
-            # Get the values from the data array
-            data = np.array(self[var].values)
-
             # Construct the new data array
-            uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=var)
+            uxda = uxarray.UxDataArray(
+                uxgrid=dual, data=self[var].data, dims=dims, name=var
+            )
 
             # Add data array to dataset
             dataset[var] = uxda

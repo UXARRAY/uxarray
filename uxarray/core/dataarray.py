@@ -12,6 +12,7 @@ from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
 import uxarray
+from uxarray.constants import GRID_DIMS
 from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.gradient import (
     _calculate_edge_face_difference,
@@ -34,6 +35,7 @@ from uxarray.errors import (
 from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
+from uxarray.grid.neighbors import DataArrayNeighborhood, Neighborhood
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
@@ -268,7 +270,7 @@ class UxDataArray(xr.DataArray):
             same name as the ``UxDataArray`` (or named ``var`` if no name exists)
         """
 
-        if self.values.ndim > 1:
+        if self.ndim > 1:
             # data is multidimensional, must be a 1D slice
             raise DimensionError(
                 f"to_geodataframe() expected 1D data, got {self.ndim}D data with dims={self.dims}."
@@ -350,7 +352,7 @@ class UxDataArray(xr.DataArray):
             Flag to indicate whether to override a cached PolyCollection, if it exists
         """
         # data is multidimensional, must be a 1D slice
-        if self.values.ndim > 1:
+        if self.ndim > 1:
             raise DimensionError(
                 f"to_polycollection() expected 1D data, got {self.ndim}D data with dims={self.dims}."
             )
@@ -632,10 +634,15 @@ class UxDataArray(xr.DataArray):
         #    and remove the self.dims[-1] == "n_face" check.
         #    (uxarray/xarray features should be agnostic to dimension positions.)
         if self._face_centered() and self.dims[-1] == "n_face":
-            face_areas = self.uxgrid.face_areas.values
-
-            # perform dot product between face areas and last dimension of data
-            integral = np.einsum("i,...i", face_areas, self.values)
+            # dot product between face areas and the face dimension of the data
+            if isinstance(self.data, np.ndarray):
+                # eager data: a direct einsum avoids xr.dot's per-call overhead
+                integral = np.einsum(
+                    "i,...i", self.uxgrid.face_areas.values, self.values
+                )
+            else:
+                # dask-backed data: xr.dot keeps the reduction lazy
+                integral = xr.dot(self, self.uxgrid.face_areas, dim="n_face")
 
         elif not self._face_centered():
             raise DataCenteringError(
@@ -1706,7 +1713,7 @@ class UxDataArray(xr.DataArray):
         )
 
         # Compute curl = ∂v/∂x - ∂u/∂y
-        curl_values = grad_v_zonal.values - grad_u_meridional.values
+        curl_values = grad_v_zonal.data - grad_u_meridional.data
 
         u_units = self.attrs.get("units", "")
         has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
@@ -2279,13 +2286,106 @@ class UxDataArray(xr.DataArray):
         # Get correct dimensions for the dual
         dims = [dim_map.get(dim, dim) for dim in self.dims]
 
-        # Get the values from the data array
-        data = np.array(self.values)
-
         # Construct the new data array
-        uxda = uxarray.UxDataArray(uxgrid=dual, data=data, dims=dims, name=self.name)
+        uxda = uxarray.UxDataArray(
+            uxgrid=dual, data=self.data, dims=dims, name=self.name
+        )
 
         return uxda
+
+    def _neighborhood_location(self, caller: str) -> str:
+        """Grid location this data is mapped to, in ``Neighborhood`` terms."""
+        if self._face_centered():
+            return "face centers"
+        if self._node_centered():
+            return "nodes"
+        if self._edge_centered():
+            return "edge centers"
+        raise DataCenteringError(
+            f"`{caller}()` requires data mapped to nodes, edges, or faces, "
+            f"but the dimensions {self.dims!r} do not match any grid dimension "
+            f"{GRID_DIMS}."
+        )
+
+    def neighborhood(self, r: float = 1.0) -> DataArrayNeighborhood:
+        """Groups this data by the elements within ``r`` degrees of each grid
+        element, to be reduced over by a method of the returned
+        :class:`DataArrayNeighborhood`.
+
+        Each reduction replaces the value at every grid element with a
+        reduction of all elements within a circular neighborhood of radius
+        ``r``, as in a smoothing filter.
+
+        Parameters
+        ----------
+        r : float, default=1.
+            Radius of the neighborhood, in degrees.
+
+        Returns
+        -------
+        DataArrayNeighborhood
+            Bound to this data, so its reduction methods take only the
+            parameters of the reduction: ``mean()``, ``sum()``, ``min()``,
+            ``max()``, ``median()``, ``ptp()``, ``std(ddof)``, ``var(ddof)``,
+            ``quantile(q)``, ``percentile(q)``, or ``reduce(func)`` for
+            anything else. Each returns a ``UxDataArray`` of float64.
+
+        Raises
+        ------
+        DataCenteringError (subclass of ValueError)
+            If the data is not mapped to nodes, edges, or faces.
+
+        Notes
+        -----
+        ``r`` is a great-circle distance in degrees. An element's neighborhood
+        overlaps those of the elements around it, and every element is its own
+        neighbor at distance 0, so ``r = 0`` returns the data unchanged and the
+        result never contains spurious ``NaN``.
+
+        Building this queries the grid for neighbors, which usually costs more
+        than the reduction itself. That query is what the returned object holds
+        on to, so several reductions at one radius should share one call rather
+        than repeat it. To share it across variables too, build the
+        neighborhood from the grid instead, with :meth:`Grid.neighborhood`.
+
+        A neighborhood may span the whole grid, so the grid dimension cannot be
+        chunked; it is collapsed to a single chunk (with a warning) for
+        dask-backed data. The remaining dimensions stay chunked and lazy, so
+        chunk along ``time`` rather than the grid dimension.
+
+        Examples
+        --------
+        Apply a mean filter with a 5-degree radius:
+
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
+        >>> uxda = uxds["psi"]
+        >>> smoothed = uxda.neighborhood(r=5.0).mean()
+
+        Reductions taking a parameter receive it as a keyword argument:
+
+        >>> p90 = uxda.neighborhood(r=5.0).percentile(90)
+        >>> spread = uxda.neighborhood(r=5.0).std(ddof=1)
+
+        Several reductions at one radius share the neighbor query:
+
+        >>> nb = uxda.neighborhood(r=5.0)
+        >>> smoothed, spread = nb.mean(), nb.std()
+
+        See Also
+        --------
+        DataArrayNeighborhood : The reductions available on the returned object.
+        Grid.neighborhood : Neighborhood shared across several variables.
+        UxDataArray.topological_mean : Aggregate values across neighboring grid element types.
+        UxDataArray.zonal_mean : Average over latitude bands.
+        UxDataArray.azimuthal_mean : Average over rings of constant great-circle distance.
+        """
+        neighborhood = Neighborhood(
+            self.uxgrid,
+            r=r,
+            on=self._neighborhood_location("neighborhood"),
+        )
+        return DataArrayNeighborhood(neighborhood, self)
 
     def __getattribute__(self, name):
         """Intercept accessor method calls to return Ux-aware accessors."""

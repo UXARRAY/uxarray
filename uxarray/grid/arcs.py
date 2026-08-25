@@ -62,7 +62,7 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     -----
     - The function ensures that the point lies on the same plane as the GCA before performing interval checks.
     - It assumes the input represents the smaller arc of the Great Circle.
-    - The `_angle_of_2_vectors` and `_xyz_to_lonlat_rad_scalar` functions are used for calculations.
+    - The `_angle_of_2_vectors` function is used for calculations.
     """
     # 1. Check if the input GCA spans exactly 180 degrees
     angle_ab = _angle_of_2_vectors(gca_a_xyz, gca_b_xyz)
