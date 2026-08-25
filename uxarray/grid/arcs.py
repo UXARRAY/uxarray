@@ -226,9 +226,8 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     """
     # Validate extreme_type
     if (extreme_type != "max") and (extreme_type != "min"):
-        raise ValueError(
-            f"Invalid extreme_type. Expected 'max' or 'min', got {extreme_type!r}, during extreme_gca_latitude"
-        )
+        raise ValueError("Invalid extreme_type. Expected 'max' or 'min'.")
+        # (numba complains about f-strings, so don't put `extreme_type` value in message.)
 
     # Extract the two points
     n1 = gca_cart[0]
@@ -309,9 +308,8 @@ def extreme_gca_z(gca_cart, extreme_type):
 
     # Validate extreme_type
     if (extreme_type != "max") and (extreme_type != "min"):
-        raise ValueError(
-            f"Invalid extreme_type. Expected 'max' or 'min', got {extreme_type!r}, during extreme_gca_z"
-        )
+        raise ValueError("Invalid extreme_type. Expected 'max' or 'min'.")
+        # (numba complains about f-strings, so don't put `extreme_type` value in message.)
 
     # Extract the two points
     n1 = gca_cart[0]

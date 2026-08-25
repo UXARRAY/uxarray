@@ -716,7 +716,8 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
     """Determines if a pole point is inside a polygon."""
 
     if pole != 1 and pole != -1:
-        raise ValueError(f"Pole must be 1 (North) or -1 (South); got pole={pole!r}")
+        raise ValueError("Pole must be 1 (North) or -1 (South)")
+        # (numba complains about f-strings, so don't put `pole` value in message.)
 
     # Define constants within the function
     pole_point_xyz = np.empty(3, dtype=np.float64)
