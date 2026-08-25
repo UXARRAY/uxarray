@@ -1,3 +1,4 @@
+import threading
 import warnings
 from typing import Callable
 
@@ -1246,6 +1247,43 @@ def _make_kernel(reduce_fn):
     return kernel
 
 
+class _LazyKernel:
+    """A kernel that builds itself the first time it is called.
+
+    ``guvectorize`` compiles at decoration time when it is given explicit
+    signatures, so calling :func:`_make_kernel` at module scope would compile
+    every reduction during ``import uxarray``
+    """
+
+    __slots__ = ("_reduce_fn", "_kernel", "_lock")
+
+    def __init__(self, reduce_fn):
+        self._reduce_fn = reduce_fn
+        self._kernel = None
+        self._lock = threading.Lock()
+
+    def __call__(self, *args):
+        kernel = self._kernel
+        if kernel is None:
+            # Checked again under the lock: dask's threaded scheduler can call
+            # one reduction from several workers at once
+            with self._lock:
+                kernel = self._kernel
+                if kernel is None:
+                    kernel = self._kernel = _make_kernel(self._reduce_fn)
+        return kernel(*args)
+
+    def __getstate__(self):
+        # Only the reducer travels. A compiled gufunc is a ``numpy.ufunc``,
+        # which pickle cannot address by name and so refuses outright.
+        return self._reduce_fn
+
+    def __setstate__(self, reduce_fn):
+        self._reduce_fn = reduce_fn
+        self._kernel = None
+        self._lock = threading.Lock()
+
+
 # Reducers take ``(window, param)``; those without a parameter ignore the
 # second argument. Numba keys its cache by code object rather than qualified
 # name, so the identically-named lambdas below do not collide.
@@ -1284,17 +1322,23 @@ def _median(window, _):
 # names them -- the data-bound classes reach a kernel by naming the
 # ``Neighborhood`` method for it, so there is one place per reduction where its
 # kernel and parameter are chosen.
-_MEAN_KERNEL = _make_kernel(lambda window, _: np.mean(window))
-_SUM_KERNEL = _make_kernel(lambda window, _: np.sum(window))
-_MIN_KERNEL = _make_kernel(lambda window, _: np.min(window))
-_MAX_KERNEL = _make_kernel(lambda window, _: np.max(window))
-_PTP_KERNEL = _make_kernel(lambda window, _: np.max(window) - np.min(window))
-_MEDIAN_KERNEL = _make_kernel(_median)
-_VAR_KERNEL = _make_kernel(_variance)
-_STD_KERNEL = _make_kernel(lambda window, ddof: np.sqrt(_variance(window, ddof)))
+#
+# Naming a kernel is what binds a reduction to it; building it is deferred to
+# the first call, for the reasons in :class:`_LazyKernel`. The two are
+# separate on purpose -- each name below still resolves to its own object when
+# this module is read, so a reduction that names no kernel is a ``NameError``
+# here rather than a lookup that fails once someone runs it.
+_MEAN_KERNEL = _LazyKernel(lambda window, _: np.mean(window))
+_SUM_KERNEL = _LazyKernel(lambda window, _: np.sum(window))
+_MIN_KERNEL = _LazyKernel(lambda window, _: np.min(window))
+_MAX_KERNEL = _LazyKernel(lambda window, _: np.max(window))
+_PTP_KERNEL = _LazyKernel(lambda window, _: np.max(window) - np.min(window))
+_MEDIAN_KERNEL = _LazyKernel(_median)
+_VAR_KERNEL = _LazyKernel(_variance)
+_STD_KERNEL = _LazyKernel(lambda window, ddof: np.sqrt(_variance(window, ddof)))
 # ``percentile`` is ``quantile`` on a 0-100 scale, so both methods rescale onto
 # this one kernel rather than compiling a near-duplicate.
-_QUANTILE_KERNEL = _make_kernel(lambda window, q: np.quantile(window, q))
+_QUANTILE_KERNEL = _LazyKernel(lambda window, q: np.quantile(window, q))
 
 
 def _as_quantile(q, scale: float):
