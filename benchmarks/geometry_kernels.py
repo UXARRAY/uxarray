@@ -147,8 +147,8 @@ class GCAGCAIntersection:
 
     def setup(self):
         from uxarray.grid.intersections import (
-            _accux_gca_scalar,
-            _try_gca_gca_intersection_scalar,
+            _accux_gca,
+            _try_gca_gca_intersection,
             gca_gca_intersection
         )
 
@@ -157,18 +157,18 @@ class GCAGCAIntersection:
         self.gca_b = np.stack([_V0, _V1])
         gca_gca_intersection(self.gca_a, self.gca_b)
 
-        self._accux_gca_scalar = _accux_gca_scalar
-        self._try_gca_gca_intersection_scalar = _try_gca_gca_intersection_scalar
-        _accux_gca_scalar(*_W0, *_W1, *_V0, *_V1)
-        _try_gca_gca_intersection_scalar(*_W0, *_W1, *_V0, *_V1)
+        self._accux_gca = _accux_gca
+        self._try_gca_gca_intersection = _try_gca_gca_intersection
+        _accux_gca(*_W0, *_W1, *_V0, *_V1)
+        _try_gca_gca_intersection(*_W0, *_W1, *_V0, *_V1)
 
     def time_accux_gca_kernel(self):
         """Layer 1: pure numerical kernel."""
-        self._accux_gca_scalar(*_W0, *_W1, *_V0, *_V1)
+        self._accux_gca(*_W0, *_W1, *_V0, *_V1)
 
     def time_try_gca_gca_intersection(self):
         """Layer 2: batch/status layer."""
-        self._try_gca_gca_intersection_scalar(*_W0, *_W1, *_V0, *_V1)
+        self._try_gca_gca_intersection(*_W0, *_W1, *_V0, *_V1)
 
     def time_gca_gca_intersection(self):
         """Layer 3: dispatcher (full public API)."""

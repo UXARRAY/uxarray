@@ -252,10 +252,8 @@ def faces_within_lat_bounds(lats, face_bounds_lat):
 
 
 @njit(cache=True, inline="always", error_model="numpy")
-def _accux_gca_scalar(w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12):
-    """Scalar-argument form of :func:`_accux_gca`: returns the six components.
-
-    Compute the candidate intersection points of two great-circle arcs.
+def _accux_gca(w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12):
+    """Compute the candidate intersection points of two great-circle arcs.
 
     Pure numerical kernel (mirrors AccuSphGeom ``accux_gca``).
 
@@ -311,58 +309,10 @@ def _accux_gca_scalar(w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
 
 
 @njit(cache=True, inline="always", error_model="numpy")
-def _accux_gca(w0, w1, v0, v1):
-    """Compute the candidate intersection points of two great-circle arcs.
-
-    Pure numerical kernel (mirrors AccuSphGeom ``accux_gca``).
-
-    Computes the two antipodal candidate intersection points of the great-circle
-    arcs w0-w1 and v0-v1.  No branching, no validity filtering.
-
-    Parameters
-    ----------
-    w0, w1 : np.ndarray, shape (3,)
-        Cartesian endpoints of the first arc.
-    v0, v1 : np.ndarray, shape (3,)
-        Cartesian endpoints of the second arc.
-
-    Returns
-    -------
-    pos, neg : np.ndarray, shape (3,)
-        Two antipodal candidate unit vectors.
-    """
-    pos_x, pos_y, pos_z, neg_x, neg_y, neg_z = _accux_gca_scalar(
-        w0[0],
-        w0[1],
-        w0[2],
-        w1[0],
-        w1[1],
-        w1[2],
-        v0[0],
-        v0[1],
-        v0[2],
-        v1[0],
-        v1[1],
-        v1[2],
-    )
-    pos = np.empty(3)
-    pos[0] = pos_x
-    pos[1] = pos_y
-    pos[2] = pos_z
-    neg = np.empty(3)
-    neg[0] = neg_x
-    neg[1] = neg_y
-    neg[2] = neg_z
-    return pos, neg
-
-
-@njit(cache=True, inline="always", error_model="numpy")
-def _try_gca_gca_intersection_scalar(
+def _try_gca_gca_intersection(
     w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
 ):
-    """Scalar-argument form of :func:`_try_gca_gca_intersection`.
-
-    Select the valid great-circle intersection and report a status code.
+    """Select the valid great-circle intersection and report a status code.
 
     Batch/status layer (mirrors AccuSphGeom ``try_gca_gca_intersection``).
 
@@ -374,7 +324,7 @@ def _try_gca_gca_intersection_scalar(
         1  both candidates are valid
         2  neither candidate is valid  (includes coplanar/parallel case)
     """
-    px, py, pz, ngx, ngy, ngz = _accux_gca_scalar(
+    px, py, pz, ngx, ngy, ngz = _accux_gca(
         w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
     )
 
@@ -401,61 +351,6 @@ def _try_gca_gca_intersection_scalar(
     none = (1 - pos_valid) * (1 - neg_valid)
     status = both + none * 2
     return point_x, point_y, point_z, status, px, py, pz, ngx, ngy, ngz
-
-
-@njit(cache=True, error_model="numpy")
-def _try_gca_gca_intersection(w0, w1, v0, v1):
-    """Select the valid great-circle intersection and report a status code.
-
-    Batch/status layer (mirrors AccuSphGeom ``try_gca_gca_intersection``).
-
-    Calls the pure numerical kernel, applies integer mask arithmetic to determine
-    validity, selects the output point without if/else branching in the hot path.
-
-    Status codes mirror AccuSphGeom:
-        0  exactly one candidate is valid
-        1  both candidates are valid
-        2  neither candidate is valid  (includes coplanar/parallel case)
-    """
-    (
-        point_x,
-        point_y,
-        point_z,
-        status,
-        pos_x,
-        pos_y,
-        pos_z,
-        neg_x,
-        neg_y,
-        neg_z,
-    ) = _try_gca_gca_intersection_scalar(
-        w0[0],
-        w0[1],
-        w0[2],
-        w1[0],
-        w1[1],
-        w1[2],
-        v0[0],
-        v0[1],
-        v0[2],
-        v1[0],
-        v1[1],
-        v1[2],
-    )
-
-    point = np.empty(3)
-    point[0] = point_x
-    point[1] = point_y
-    point[2] = point_z
-    pos = np.empty(3)
-    pos[0] = pos_x
-    pos[1] = pos_y
-    pos[2] = pos_z
-    neg = np.empty(3)
-    neg[0] = neg_x
-    neg[1] = neg_y
-    neg[2] = neg_z
-    return point, status, pos, neg
 
 
 @njit(cache=True, error_model="numpy")
@@ -518,7 +413,7 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
         neg_x,
         neg_y,
         neg_z,
-    ) = _try_gca_gca_intersection_scalar(
+    ) = _try_gca_gca_intersection(
         w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
     )
 
