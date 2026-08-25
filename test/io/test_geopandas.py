@@ -4,6 +4,7 @@ import pytest
 from shapely.geometry import Point, Polygon
 
 import uxarray as ux
+from uxarray.io._geopandas import _extract_geometry_info, _gpd_read, _set_crs
 
 def test_read_shpfile(test_data_dir):
     """Read a shapefile."""
@@ -52,8 +53,6 @@ def test_read_failure_raises(tmp_path):
 
     Regression test for issue #1693.
     """
-    from uxarray.io._geopandas import _gpd_read
-
     not_geospatial = tmp_path / "not_geospatial.shp"
     not_geospatial.write_text("this is not a shapefile")
 
@@ -65,8 +64,6 @@ def test_read_failure_raises(tmp_path):
 
 def test_set_crs_warns_when_crs_is_missing():
     """Assuming WGS84 for CRS-less data is a guess and must be announced."""
-    from uxarray.io._geopandas import _set_crs
-
     gdf = gpd.GeoDataFrame(
         geometry=[Polygon([(0, 0), (1, 0), (1, 1)])], crs=None
     )
@@ -80,8 +77,6 @@ def test_set_crs_warns_when_crs_is_missing():
 def test_unsupported_geometry_is_reported():
     """Dropping a geometry silently would yield a grid missing a face with no
     indication that anything was skipped."""
-    from uxarray.io._geopandas import _extract_geometry_info
-
     gdf = gpd.GeoDataFrame(
         geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 0)]), Point(5, 5)],
         crs="EPSG:4326",
