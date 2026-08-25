@@ -1,4 +1,4 @@
-import threading
+import functools
 import warnings
 from typing import Callable
 
@@ -1247,43 +1247,6 @@ def _make_kernel(reduce_fn):
     return kernel
 
 
-class _LazyKernel:
-    """A kernel that builds itself the first time it is called.
-
-    ``guvectorize`` compiles at decoration time when it is given explicit
-    signatures, so calling :func:`_make_kernel` at module scope would compile
-    every reduction during ``import uxarray``
-    """
-
-    __slots__ = ("_reduce_fn", "_kernel", "_lock")
-
-    def __init__(self, reduce_fn):
-        self._reduce_fn = reduce_fn
-        self._kernel = None
-        self._lock = threading.Lock()
-
-    def __call__(self, *args):
-        kernel = self._kernel
-        if kernel is None:
-            # Checked again under the lock: dask's threaded scheduler can call
-            # one reduction from several workers at once
-            with self._lock:
-                kernel = self._kernel
-                if kernel is None:
-                    kernel = self._kernel = _make_kernel(self._reduce_fn)
-        return kernel(*args)
-
-    def __getstate__(self):
-        # Only the reducer travels. A compiled gufunc is a ``numpy.ufunc``,
-        # which pickle cannot address by name and so refuses outright.
-        return self._reduce_fn
-
-    def __setstate__(self, reduce_fn):
-        self._reduce_fn = reduce_fn
-        self._kernel = None
-        self._lock = threading.Lock()
-
-
 # Reducers take ``(window, param)``; those without a parameter ignore the
 # second argument. Numba keys its cache by code object rather than qualified
 # name, so the identically-named lambdas below do not collide.
@@ -1315,30 +1278,62 @@ def _median(window, _):
     return np.median(window)
 
 
-# One compiled kernel per reduction. The methods on ``Neighborhood`` below name
-# these directly, so there is no dispatch table between the public API and the
-# gufuncs: a reduction is reachable only if a method exists for it, and a method
-# can only reach the kernel it names. ``Neighborhood`` is the only class that
-# names them -- the data-bound classes reach a kernel by naming the
-# ``Neighborhood`` method for it, so there is one place per reduction where its
-# kernel and parameter are chosen.
+# One compiled kernel per reduction. The methods on ``Neighborhood`` below call
+# into these directly. Non-compiled functions are only provided hooks through
+# ``Neighborhood.reduce``. If new compiled reductions are desired, they should
+# follow this pattern.
 #
-# Naming a kernel is what binds a reduction to it; building it is deferred to
-# the first call, for the reasons in :class:`_LazyKernel`. The two are
-# separate on purpose -- each name below still resolves to its own object when
-# this module is read, so a reduction that names no kernel is a ``NameError``
-# here rather than a lookup that fails once someone runs it.
-_MEAN_KERNEL = _LazyKernel(lambda window, _: np.mean(window))
-_SUM_KERNEL = _LazyKernel(lambda window, _: np.sum(window))
-_MIN_KERNEL = _LazyKernel(lambda window, _: np.min(window))
-_MAX_KERNEL = _LazyKernel(lambda window, _: np.max(window))
-_PTP_KERNEL = _LazyKernel(lambda window, _: np.max(window) - np.min(window))
-_MEDIAN_KERNEL = _LazyKernel(_median)
-_VAR_KERNEL = _LazyKernel(_variance)
-_STD_KERNEL = _LazyKernel(lambda window, ddof: np.sqrt(_variance(window, ddof)))
+# ``functools.cache`` defers each build to the first call. The deferred compilation
+# ensures that these kernels will only be compiled individually and lazily. Further,
+# the lazy compilation prevents gufuncs from spawning threadpools eagerly and
+# disrupting threading and forking in other contexts.
+
+
+@functools.cache
+def _mean_kernel():
+    return _make_kernel(lambda window, _: np.mean(window))
+
+
+@functools.cache
+def _sum_kernel():
+    return _make_kernel(lambda window, _: np.sum(window))
+
+
+@functools.cache
+def _min_kernel():
+    return _make_kernel(lambda window, _: np.min(window))
+
+
+@functools.cache
+def _max_kernel():
+    return _make_kernel(lambda window, _: np.max(window))
+
+
+@functools.cache
+def _ptp_kernel():
+    return _make_kernel(lambda window, _: np.max(window) - np.min(window))
+
+
+@functools.cache
+def _median_kernel():
+    return _make_kernel(_median)
+
+
+@functools.cache
+def _var_kernel():
+    return _make_kernel(_variance)
+
+
+@functools.cache
+def _std_kernel():
+    return _make_kernel(lambda window, ddof: np.sqrt(_variance(window, ddof)))
+
+
 # ``percentile`` is ``quantile`` on a 0-100 scale, so both methods rescale onto
 # this one kernel rather than compiling a near-duplicate.
-_QUANTILE_KERNEL = _LazyKernel(lambda window, q: np.quantile(window, q))
+@functools.cache
+def _quantile_kernel():
+    return _make_kernel(lambda window, q: np.quantile(window, q))
 
 
 def _as_quantile(q, scale: float):
@@ -1553,45 +1548,45 @@ class Neighborhood:
 
     def mean(self, uxda):
         """Mean of each neighborhood."""
-        return self._apply_kernel(uxda, _MEAN_KERNEL, 0.0)
+        return self._apply_kernel(uxda, _mean_kernel, 0.0)
 
     def sum(self, uxda):
         """Sum of each neighborhood."""
-        return self._apply_kernel(uxda, _SUM_KERNEL, 0.0)
+        return self._apply_kernel(uxda, _sum_kernel, 0.0)
 
     def min(self, uxda):
         """Smallest value in each neighborhood."""
-        return self._apply_kernel(uxda, _MIN_KERNEL, 0.0)
+        return self._apply_kernel(uxda, _min_kernel, 0.0)
 
     def max(self, uxda):
         """Largest value in each neighborhood."""
-        return self._apply_kernel(uxda, _MAX_KERNEL, 0.0)
+        return self._apply_kernel(uxda, _max_kernel, 0.0)
 
     def ptp(self, uxda):
         """Peak-to-peak spread (``max - min``) of each neighborhood."""
-        return self._apply_kernel(uxda, _PTP_KERNEL, 0.0)
+        return self._apply_kernel(uxda, _ptp_kernel, 0.0)
 
     def median(self, uxda):
         """Median of each neighborhood."""
-        return self._apply_kernel(uxda, _MEDIAN_KERNEL, 0.0)
+        return self._apply_kernel(uxda, _median_kernel, 0.0)
 
     def var(self, uxda, ddof: int = 0):
         """Variance of each neighborhood, with ``ddof`` delta degrees of
         freedom."""
-        return self._apply_kernel(uxda, _VAR_KERNEL, float(ddof))
+        return self._apply_kernel(uxda, _var_kernel, float(ddof))
 
     def std(self, uxda, ddof: int = 0):
         """Standard deviation of each neighborhood, with ``ddof`` delta degrees
         of freedom."""
-        return self._apply_kernel(uxda, _STD_KERNEL, float(ddof))
+        return self._apply_kernel(uxda, _std_kernel, float(ddof))
 
     def quantile(self, uxda, q: float):
         """Quantile ``q`` (between 0 and 1) of each neighborhood."""
-        return self._apply_kernel(uxda, _QUANTILE_KERNEL, _as_quantile(q, 1.0))
+        return self._apply_kernel(uxda, _quantile_kernel, _as_quantile(q, 1.0))
 
     def percentile(self, uxda, q: float):
         """Percentile ``q`` (between 0 and 100) of each neighborhood."""
-        return self._apply_kernel(uxda, _QUANTILE_KERNEL, _as_quantile(q, 100.0))
+        return self._apply_kernel(uxda, _quantile_kernel, _as_quantile(q, 100.0))
 
     def reduce(self, uxda, func: Callable):
         """Reduces each neighborhood with an arbitrary callable.
@@ -1636,7 +1631,7 @@ class Neighborhood:
             # path does too by writing into a float64 output.
             if block.dtype not in (np.float64, np.float32):
                 block = block.astype(np.float64)
-            return kernel(block, *arrays, param)
+            return kernel()(block, *arrays, param)
 
         return self._apply(uxda, run)
 
