@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from html import escape
-from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Callable, Hashable, Literal, Mapping, Optional
 from warnings import warn
 
 import numpy as np
@@ -12,6 +12,7 @@ from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
 import uxarray
+from uxarray.constants import GRID_DIMS
 from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.gradient import (
     _calculate_edge_face_difference,
@@ -34,6 +35,7 @@ from uxarray.errors import (
 from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
+from uxarray.grid.neighbors import _neighborhood_filter
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
@@ -2208,6 +2210,108 @@ class UxDataArray(xr.DataArray):
         )
 
         return uxda
+
+    def neighborhood_filter(
+        self,
+        func: Callable = np.mean,
+        r: float = 1.0,
+    ) -> UxDataArray:
+        """Apply a neighborhood filter, replacing the value at each grid
+        element with ``func`` applied to all elements within a circular
+        neighborhood of radius ``r``.
+
+        Parameters
+        ----------
+        func: Callable, default=np.mean
+            Apply this function to neighborhood. Must accept an ``axis`` keyword
+            argument (as ``np.mean``, ``np.median``, and similar NumPy reductions
+            do). Use ``functools.partial`` to supply additional arguments, e.g.
+            ``functools.partial(np.percentile, q=90)``.
+        r : float, default=1.
+            Radius of the neighborhood, in degrees.
+
+        Returns
+        -------
+        uxda_filter : UxDataArray
+            Filtered data.
+
+        Raises
+        ------
+        DataCenteringError (subclass of ValueError)
+            If the data is not mapped to nodes, edges, or faces.
+        TypeError
+            If ``func`` does not accept an ``axis`` keyword argument.
+
+        Notes
+        -----
+        ``r`` is a great-circle distance in degrees. Neighborhoods overlap, and
+        every element is its own neighbor at distance 0, so ``r = 0`` returns
+        the data unchanged and the result never contains spurious ``NaN``.
+
+        The query requires random access across the whole grid dimension, so
+        lazy (dask-backed) data is computed eagerly and the result is always
+        NumPy-backed.
+
+        Examples
+        --------
+        Apply a mean filter with a 5-degree radius:
+
+        >>> import numpy as np
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
+        >>> uxda = uxds["psi"]
+        >>> smoothed = uxda.neighborhood_filter(func=np.mean, r=5.0)
+
+        Use ``functools.partial`` for functions requiring extra arguments:
+
+        >>> from functools import partial
+        >>> p90 = uxda.neighborhood_filter(func=partial(np.percentile, q=90), r=5.0)
+
+        See Also
+        --------
+        UxDataArray.topological_mean : Aggregate values across neighboring grid element types.
+        UxDataArray.zonal_mean : Average over latitude bands.
+        UxDataArray.azimuthal_mean : Average over rings of constant great-circle distance.
+        """
+
+        if self._face_centered():
+            data_mapping = "face centers"
+            grid_dim = "n_face"
+        elif self._node_centered():
+            data_mapping = "nodes"
+            grid_dim = "n_node"
+        elif self._edge_centered():
+            data_mapping = "edge centers"
+            grid_dim = "n_edge"
+        else:
+            raise DataCenteringError(
+                f"neighborhood_filter requires data mapped to nodes, edges, or faces, "
+                f"but the dimensions {self.dims!r} do not match any grid dimension "
+                f"{GRID_DIMS}."
+            )
+
+        # Ensure the grid dimension is the last axis, transposing if necessary.
+        # This mirrors the behaviour of UxDataset.neighborhood_filter so that
+        # calling the method directly on a (time, n_face) UxDataArray works.
+        needs_transpose = self.dims[-1] != grid_dim
+        uxda_work = self.transpose(..., grid_dim) if needs_transpose else self
+
+        destination_data = _neighborhood_filter(
+            self.uxgrid, uxda_work.data, data_mapping, func=func, r=r
+        )
+
+        # Construct UxDataArray for filtered variable, reusing metadata
+        # (name, coords, attrs, uxgrid) from the working copy.
+        # deep=False keeps a reference to the same uxgrid (the filtered data
+        # lives on the identical grid topology) and avoids a redundant deep
+        # copy of the now-discarded original data array.
+        uxda_filter = uxda_work._copy(data=destination_data, deep=False)
+
+        # Restore original dimension order if we transposed.
+        if needs_transpose:
+            uxda_filter = uxda_filter.transpose(*self.dims)
+
+        return uxda_filter
 
     def __getattribute__(self, name):
         """Intercept accessor method calls to return Ux-aware accessors."""

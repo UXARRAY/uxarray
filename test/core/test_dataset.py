@@ -190,3 +190,39 @@ def test_uxgrid_None_is_invalid_in_uxdataset():
     # it also applies (for non-None non-Grid objects) during __init__:
     with pytest.raises(TypeError):
         ux.UxDataset({'arr1': xr.DataArray([4,5], dims=['n_face'])}, uxgrid=[1,2])
+
+        
+class TestNeighborhoodFilter:
+    """Tests for ``UxDataset.neighborhood_filter``."""
+
+    def test_face_centered(self, gridpath, datasetpath):
+        """Ensures the dataset-level filter matches the per-variable
+        ``UxDataArray.neighborhood_filter`` results."""
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+        )
+
+        filtered_ds = uxds.neighborhood_filter(func=np.mean, r=5.0)
+        filtered_da = uxds["psi"].neighborhood_filter(func=np.mean, r=5.0)
+
+        assert isinstance(filtered_ds, UxDataset)
+        nt.assert_allclose(filtered_ds["psi"].values, filtered_da.values)
+
+    def test_non_grid_variable_skipped(self):
+        """Data variables without a grid dimension should be left
+        untouched."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+
+        uxds = UxDataset(
+            data_vars={
+                "face_var": ("n_face", np.arange(uxgrid.n_face, dtype=float)),
+                "scalar_var": ("other_dim", np.array([1.0, 2.0, 3.0])),
+            },
+            uxgrid=uxgrid,
+        )
+
+        filtered = uxds.neighborhood_filter(func=np.mean, r=0.0)
+
+        nt.assert_allclose(filtered["face_var"].values, uxds["face_var"].values)
+        nt.assert_allclose(filtered["scalar_var"].values, uxds["scalar_var"].values)

@@ -1790,7 +1790,7 @@ class Grid:
         coordinates : str, default="face centers"
             Selects which tree to query, with "nodes" selecting the Corner Nodes, "edge centers" selecting the Edge
             Centers of each edge, and "face centers" selecting the Face Centers of each face
-        coordinate_system : str, default="cartesian"
+        coordinate_system : str, default="spherical"
             Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
             "spherical" selecting spherical coordinates.
         distance_metric : str, default="haversine"
@@ -1807,7 +1807,17 @@ class Grid:
             BallTree instance
         """
 
-        if self._ball_tree is None or reconstruct:
+        # Rebuild whenever any tree-defining parameter differs from the cached
+        # instance. Previously only ``coordinates`` was compared, so switching
+        # ``coordinate_system`` or ``distance_metric`` silently returned a stale
+        # tree built with the original settings.
+        if (
+            self._ball_tree is None
+            or coordinates != self._ball_tree._coordinates
+            or coordinate_system != self._ball_tree.coordinate_system
+            or distance_metric != self._ball_tree.distance_metric
+            or reconstruct
+        ):
             self._ball_tree = BallTree(
                 self,
                 coordinates=coordinates,
@@ -1815,9 +1825,6 @@ class Grid:
                 coordinate_system=coordinate_system,
                 reconstruct=reconstruct,
             )
-        else:
-            if coordinates != self._ball_tree._coordinates:
-                self._ball_tree.coordinates = coordinates
 
         return self._ball_tree
 
@@ -1907,7 +1914,15 @@ class Grid:
             KDTree instance
         """
 
-        if self._kd_tree is None or reconstruct:
+        # Rebuild whenever any tree-defining parameter differs from the cached
+        # instance (see ``get_ball_tree`` for details).
+        if (
+            self._kd_tree is None
+            or coordinates != self._kd_tree._coordinates
+            or coordinate_system != self._kd_tree.coordinate_system
+            or distance_metric != self._kd_tree.distance_metric
+            or reconstruct
+        ):
             self._kd_tree = KDTree(
                 self,
                 coordinates=coordinates,
@@ -1915,10 +1930,6 @@ class Grid:
                 coordinate_system=coordinate_system,
                 reconstruct=reconstruct,
             )
-
-        else:
-            if coordinates != self._kd_tree._coordinates:
-                self._kd_tree.coordinates = coordinates
 
         return self._kd_tree
 

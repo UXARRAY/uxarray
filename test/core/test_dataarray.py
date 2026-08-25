@@ -1,6 +1,6 @@
 import numpy as np
 import uxarray as ux
-from uxarray.errors import DimensionError, GridInvalidError
+from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
 from uxarray.core.dataset import UxDataset, UxDataArray
 import pytest
@@ -188,3 +188,189 @@ def test_uxgrid_None_is_invalid_in_uxdataarray():
     # it also applies (for non-None non-Grid objects) during __init__:
     with pytest.raises(TypeError):
         ux.UxDataArray([4,5], dims=['n_face'], uxgrid="not a grid")
+
+
+class TestNeighborhoodFilter:
+    """Tests for ``UxDataArray.neighborhood_filter``."""
+
+    def test_face_centered(self, gridpath, datasetpath):
+        """A large enough radius should average every face together."""
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+        )
+        uxda = uxds["psi"]
+
+        # radius of 0 should select each face's own coordinate, leaving the
+        # data unchanged
+        filtered = uxda.neighborhood_filter(func=np.mean, r=0.0)
+        np.testing.assert_allclose(filtered.values, uxda.values)
+
+        # a large enough radius should include the entire grid in the
+        # neighborhood of every face, so every filtered value should match
+        # the global mean of the field
+        filtered_all = uxda.neighborhood_filter(func=np.mean, r=360.0)
+        np.testing.assert_allclose(filtered_all.values, uxda.values.mean())
+
+        assert isinstance(filtered, UxDataArray)
+        assert filtered.uxgrid == uxda.uxgrid
+        assert filtered.dims == uxda.dims
+        assert filtered.shape == uxda.shape
+
+    def test_node_centered(self):
+        """Neighborhood filter should work for node-centered data."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        data = np.arange(uxgrid.n_node, dtype=float)
+        uxda = UxDataArray(data, dims=["n_node"], uxgrid=uxgrid, name="node_var")
+
+        filtered = uxda.neighborhood_filter(func=np.mean, r=0.0)
+        np.testing.assert_allclose(filtered.values, data)
+
+        filtered_all = uxda.neighborhood_filter(func=np.mean, r=360.0)
+        np.testing.assert_allclose(filtered_all.values, data.mean())
+
+    def test_edge_centered(self):
+        """Neighborhood filter should work for edge-centered data."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        data = np.arange(uxgrid.n_edge, dtype=float)
+        uxda = UxDataArray(data, dims=["n_edge"], uxgrid=uxgrid, name="edge_var")
+
+        filtered = uxda.neighborhood_filter(func=np.mean, r=0.0)
+        np.testing.assert_allclose(filtered.values, data)
+
+    def test_custom_func_with_partial(self, gridpath, datasetpath):
+        """A user-defined function (i.e. ``functools.partial``) should work."""
+        from functools import partial
+
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+        )
+        uxda = uxds["psi"]
+
+        filtered_max = uxda.neighborhood_filter(func=np.max, r=5.0)
+        filtered_percentile = uxda.neighborhood_filter(
+            func=partial(np.percentile, q=100), r=5.0
+        )
+
+        np.testing.assert_allclose(filtered_max.values, filtered_percentile.values)
+
+    def test_extra_dimension_preserved(self, gridpath, datasetpath):
+        """An extra leading (i.e. time) dimension should be preserved."""
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+        )
+        uxda = uxds["psi"]
+
+        data = np.stack([uxda.values, uxda.values * 2.0])
+        uxda_time = UxDataArray(
+            data, dims=["time", "n_face"], uxgrid=uxda.uxgrid, name="psi_time"
+        )
+
+        filtered = uxda_time.neighborhood_filter(func=np.mean, r=0.0)
+
+        assert filtered.dims == uxda_time.dims
+        assert filtered.shape == uxda_time.shape
+        np.testing.assert_allclose(filtered.values, data)
+
+    def test_invalid_data_location(self):
+        """Data that is not mapped to a grid element should raise an error."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        uxda = UxDataArray(np.ones(5), dims=["other_dim"], uxgrid=uxgrid)
+
+        with pytest.raises(DataCenteringError):
+            uxda.neighborhood_filter(func=np.mean, r=1.0)
+
+    def test_radius_edge_cases_never_produce_nan(self):
+        """Every element is its own neighbor at distance 0, so no neighborhood
+        is ever empty and the output never contains NaN."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        data = np.arange(uxgrid.n_face, dtype=float)
+        uxda = UxDataArray(data, dims=["n_face"], uxgrid=uxgrid, name="face_var")
+
+        # r=0 catches only the element itself, so the data is returned unchanged
+        filtered_zero = uxda.neighborhood_filter(func=np.mean, r=0.0)
+        assert not np.any(np.isnan(filtered_zero.values))
+        np.testing.assert_allclose(filtered_zero.values, data)
+
+        # a radius spanning the sphere catches every element
+        filtered_all = uxda.neighborhood_filter(func=np.mean, r=360.0)
+        assert not np.any(np.isnan(filtered_all.values))
+        np.testing.assert_allclose(filtered_all.values, data.mean())
+
+        # a negative radius is rejected by BallTree.query_radius
+        with pytest.raises(AssertionError):
+            uxda.neighborhood_filter(func=np.mean, r=-1.0)
+
+    def test_func_without_axis_raises_helpful_error(self):
+        """A ``func`` that does not accept ``axis`` should raise a TypeError
+        that explains the requirement rather than a raw NumPy message."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        uxda = UxDataArray(
+            np.arange(uxgrid.n_face, dtype=float), dims=["n_face"], uxgrid=uxgrid
+        )
+
+        with pytest.raises(TypeError, match="must accept an `axis` keyword"):
+            uxda.neighborhood_filter(func=sum, r=5.0)
+
+    def test_uses_spherical_tree_regardless_of_cached_tree(self):
+        """``r`` is documented in great-circle degrees, so the filter must build
+        a spherical/haversine tree even if a cartesian one was cached first."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        data = np.arange(uxgrid.n_face, dtype=float)
+        uxda = UxDataArray(data, dims=["n_face"], uxgrid=uxgrid, name="face_var")
+
+        expected = uxda.neighborhood_filter(func=np.mean, r=20.0).values
+
+        # Prime the cache with a cartesian tree, then filter again
+        uxgrid.get_ball_tree(
+            coordinates="face centers",
+            coordinate_system="cartesian",
+            distance_metric="euclidean",
+        )
+        np.testing.assert_allclose(
+            uxda.neighborhood_filter(func=np.mean, r=20.0).values, expected
+        )
+
+    def test_dask_input_returns_numpy(self, gridpath, datasetpath):
+        """Lazy input is computed eagerly; the result is NumPy-backed."""
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+            chunks={"n_face": 1000},
+        )
+        uxda = uxds["psi"]
+        assert uxda.chunks is not None
+
+        filtered = uxda.neighborhood_filter(func=np.mean, r=2.0)
+        assert filtered.chunks is None
+        assert isinstance(filtered.data, np.ndarray)
+
+    def test_auto_transpose_direct_on_uxdataarray(self, gridpath, datasetpath):
+        """Calling neighborhood_filter directly on a (time, n_face) UxDataArray
+        (without going through UxDataset) should preserve the original dim order."""
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+        )
+        uxda = uxds["psi"]
+
+        # Build a multi-dim UxDataArray with time as the FIRST (non-grid) dim
+        data = np.stack([uxda.values, uxda.values * 2.0])  # shape (2, n_face)
+        uxda_time = UxDataArray(
+            data, dims=["time", "n_face"], uxgrid=uxda.uxgrid, name="psi_time"
+        )
+
+        # n_face is already last: no transpose needed internally
+        filtered = uxda_time.neighborhood_filter(func=np.mean, r=0.0)
+        assert filtered.dims == ("time", "n_face")
+        assert filtered.shape == (2, uxda.shape[0])
+        np.testing.assert_allclose(filtered.values, data)
+
+        # Also test with a UxDataArray that has grid dim NOT last (n_face, time)
+        uxda_face_first = uxda_time.transpose("n_face", "time")
+        filtered2 = uxda_face_first.neighborhood_filter(func=np.mean, r=0.0)
+        # Dim order must be restored to (n_face, time)
+        assert filtered2.dims == ("n_face", "time")
+        assert filtered2.shape == (uxda.shape[0], 2)

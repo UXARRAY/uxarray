@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from html import escape
-from typing import IO, Any, Hashable, Mapping
+from typing import IO, Any, Callable, Hashable, Mapping
 from warnings import warn
 
 import xarray as xr
@@ -12,6 +12,7 @@ from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
 import uxarray
+from uxarray.constants import GRID_DIMS
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.utils import _map_dims_to_ugrid, _open_dataset_with_fallback
 from uxarray.errors import DimensionError, GridInvalidError
@@ -675,6 +676,70 @@ class UxDataset(xr.Dataset):
         xarr = super().to_array(dim=dim, name=name)
         return UxDataArray(xarr, uxgrid=self._uxgrid)
         # _uxgrid not uxgrid; converting to UxDataArray is not a grid-aware method.
+
+    def neighborhood_filter(
+        self,
+        func: Callable = np.mean,
+        r: float = 1.0,
+    ) -> UxDataset:
+        """Apply a neighborhood filter, replacing the value at each grid
+        element of every data variable with ``func`` applied to all elements
+        within a circular neighborhood of radius ``r``.
+
+        Parameters
+        ----------
+        func: Callable, default=np.mean
+            Apply this function to neighborhood. Must accept an ``axis`` keyword
+            argument (as ``np.mean``, ``np.median``, and similar NumPy reductions
+            do). Use ``functools.partial`` to supply additional arguments, e.g.
+            ``functools.partial(np.percentile, q=90)``.
+        r : float, default=1.
+            Radius of the neighborhood, in degrees.
+
+        Returns
+        -------
+        destination_uxds : UxDataset
+            Filtered dataset.
+
+        Notes
+        -----
+        Variables without a grid dimension are passed through unchanged.
+        ``r`` is a great-circle distance in degrees, and lazy (dask-backed)
+        variables are computed eagerly. See
+        :meth:`UxDataArray.neighborhood_filter` for details.
+
+        Examples
+        --------
+        Apply a mean filter to all grid-mapped variables in a dataset:
+
+        >>> import numpy as np
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
+        >>> uxds_smooth = uxds.neighborhood_filter(func=np.mean, r=5.0)
+
+        See Also
+        --------
+        UxDataArray.neighborhood_filter : Filter a single data variable.
+        UxDataArray.zonal_mean : Average over latitude bands.
+        UxDataArray.azimuthal_mean : Average over rings of constant great-circle distance.
+        """
+
+        destination_uxds = self._copy()
+        # Loop through UxDataArrays in UxDataset and apply the filter to every
+        # variable that is mapped to a grid element (node, edge, or face).
+        # Variables without a grid dimension are left unchanged.
+        for var_name in self.data_vars:
+            uxda = self[var_name]
+
+            # Skip if UxDataArray has no GRID dimension.
+            if not any(dim in GRID_DIMS for dim in uxda.dims):
+                continue
+
+            # UxDataArray.neighborhood_filter handles the transpose internally,
+            # so dimension order is always preserved.
+            destination_uxds[var_name] = uxda.neighborhood_filter(func, r)
+
+        return destination_uxds
 
     def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
         """

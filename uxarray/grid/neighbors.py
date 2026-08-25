@@ -1,3 +1,5 @@
+from typing import Callable
+
 import numpy as np
 import xarray as xr
 from numba import njit
@@ -1130,3 +1132,142 @@ def _construct_edge_face_distances(face_lon, face_lat, edge_faces):
     )
 
     return edge_face_distances
+
+
+def _get_element_coords(grid, data_mapping: str, coordinate_system: str):
+    """Gathers the coordinate array used to query a ``BallTree`` for a given
+    grid element location and coordinate system.
+
+    Parameters
+    ----------
+    grid : Grid
+        Source grid containing the coordinate arrays.
+    data_mapping : str
+        One of "nodes", "edge centers", or "face centers".
+    coordinate_system : str
+        Either "spherical" or "cartesian".
+
+    Returns
+    -------
+    coords : np.ndarray
+        Array of shape (n_elements, 2) for "spherical" (lon, lat) or
+        (n_elements, 3) for "cartesian" (x, y, z).
+    """
+    prefix_map = {
+        "nodes": "node",
+        "edge centers": "edge",
+        "face centers": "face",
+    }
+
+    if data_mapping not in prefix_map:
+        raise ValueError(
+            f"Invalid data_mapping. Expected 'nodes', 'edge centers', or 'face centers', "
+            f"but received: {data_mapping}"
+        )
+
+    prefix = prefix_map[data_mapping]
+
+    if coordinate_system == "spherical":
+        lon = getattr(grid, f"{prefix}_lon").values
+        lat = getattr(grid, f"{prefix}_lat").values
+        return np.vstack((lon, lat)).T
+
+    elif coordinate_system == "cartesian":
+        x = getattr(grid, f"{prefix}_x").values
+        y = getattr(grid, f"{prefix}_y").values
+        z = getattr(grid, f"{prefix}_z").values
+        return np.vstack((x, y, z)).T
+
+    else:
+        raise ValueError(
+            f"Invalid coordinate_system. Expected either 'spherical' or 'cartesian', "
+            f"but received {coordinate_system}"
+        )
+
+
+def _neighborhood_filter(
+    grid,
+    data: np.ndarray,
+    data_mapping: str,
+    func: Callable = np.mean,
+    r: float = 1.0,
+):
+    """Applies ``func`` to the set of grid elements within a circular
+    neighborhood of radius ``r`` around each element of ``data_mapping``.
+
+    Parameters
+    ----------
+    grid : Grid
+        Source grid used to construct the ``BallTree`` used for the
+        neighborhood queries.
+    data : np.ndarray
+        Data to filter. The grid dimension (``n_node``, ``n_edge``, or
+        ``n_face``) is expected to be the last axis.
+    data_mapping : str
+        One of "nodes", "edge centers", or "face centers", identifying which
+        grid element ``data`` is mapped to.
+    func : Callable, default=np.mean
+        Function applied to the values found in each neighborhood. Must
+        accept an ``axis`` keyword argument (as ``np.mean``, ``np.median``,
+        and similar NumPy reductions do) so that any extra, non-grid
+        dimensions (e.g. ``time``) are preserved rather than being collapsed.
+    r : float, default=1.
+        Radius of the neighborhood, in degrees.
+
+    Returns
+    -------
+    destination_data : np.ndarray
+        Filtered data, matching the shape of ``data``.
+
+    Raises
+    ------
+    TypeError
+        If ``func`` does not accept an ``axis`` keyword argument.
+
+    Notes
+    -----
+    The neighborhood query requires random access across the whole grid
+    dimension, so lazy (dask-backed) input is computed eagerly and the result
+    is always a NumPy array.
+    """
+
+    # Request a spherical/haversine tree explicitly rather than relying on the
+    # defaults. Without this, a cartesian tree cached by an earlier call would
+    # be reused and ``r`` would be silently interpreted as a chord length
+    # instead of the great-circle degrees documented above.
+    coordinate_system = "spherical"
+    tree = grid.get_ball_tree(
+        coordinates=data_mapping,
+        coordinate_system=coordinate_system,
+        distance_metric="haversine",
+    )
+
+    dest_coords = _get_element_coords(grid, data_mapping, coordinate_system)
+
+    neighbor_indices = tree.query_radius(dest_coords, r=r)
+
+    # Allocate with NaN rather than ``np.empty`` purely as a defensive measure:
+    # if a neighborhood were ever empty, the result would be an obvious NaN
+    # instead of uninitialized garbage memory. In practice this cannot happen,
+    # since ``query_radius`` rejects negative ``r`` and every element is its own
+    # neighbor at distance 0, so even ``r = 0`` returns the original values.
+    destination_data = np.full(data.shape, np.nan)
+
+    # Apply func along the last (grid) axis only, so any extra leading
+    # dimensions (e.g. time) are preserved rather than being collapsed.
+    for i, idx in enumerate(neighbor_indices):
+        if len(idx):
+            try:
+                destination_data[..., i] = func(data[..., idx], axis=-1)
+            except TypeError as exc:
+                if "axis" not in str(exc):
+                    raise
+                raise TypeError(
+                    f"`func` must accept an `axis` keyword argument so that the "
+                    f"reduction is applied over the neighborhood only, but "
+                    f"{getattr(func, '__name__', func)!r} does not. Use a NumPy "
+                    f"reduction such as `np.mean` or `np.median`, or wrap your "
+                    f"function with `functools.partial` to supply `axis`."
+                ) from exc
+
+    return destination_data
