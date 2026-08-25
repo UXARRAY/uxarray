@@ -5,13 +5,8 @@ from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
-# ``ERROR_TOLERANCE`` is defined as a Cartesian distance on the unit sphere; convert
-# it to the angular tolerance `tol` is documented in so the default tracks the same
-# precision assumption used everywhere else in the codebase.
-_DEFAULT_STRUCTURED_TOL_DEG = np.rad2deg(2.0 * np.arcsin(ERROR_TOLERANCE / 2.0))
 
-
-def _read_structured_grid(lon, lat, tol=_DEFAULT_STRUCTURED_TOL_DEG):
+def _read_structured_grid(lon, lat, tol=None):
     """
     Constructs an unstructured grid dataset from structured longitude and latitude coordinates.
 
@@ -27,9 +22,9 @@ def _read_structured_grid(lon, lat, tol=_DEFAULT_STRUCTURED_TOL_DEG):
     lat : array_like
         1D array of latitude coordinates in degrees.
     tol : float, optional
-        Tolerance in degrees for considering nodes as identical. Defaults to the angle
-        whose chord length on the unit sphere equals ``uxarray.constants.ERROR_TOLERANCE``,
-        matching the precision assumption used elsewhere in the codebase.
+        Tolerance in degrees for considering nodes as identical. Defaults to ``None``,
+        which matches nodes within ``uxarray.constants.ERROR_TOLERANCE`` on the unit
+        sphere, the precision assumption used elsewhere in the codebase.
 
     Returns
     -------
@@ -104,9 +99,10 @@ def _read_structured_grid(lon, lat, tol=_DEFAULT_STRUCTURED_TOL_DEG):
     # Build KDTree
     tree = KDTree(node_xyz)
 
-    # ``tol`` is an angle in degrees; on the unit sphere the matching radius is the
-    # chord subtended by that angle, so the threshold keeps its documented meaning.
-    chord_tol = 2.0 * np.sin(np.deg2rad(tol) / 2.0)
+    # ``ERROR_TOLERANCE`` is already a Cartesian distance on the unit sphere, so the
+    # default needs no conversion. An explicit ``tol`` is an angle in degrees, whose
+    # matching radius is the chord it subtends.
+    chord_tol = ERROR_TOLERANCE if tol is None else 2.0 * np.sin(np.deg2rad(tol) / 2.0)
 
     # Find all pairs of nodes within the tolerance
     pairs = tree.query_pairs(r=chord_tol)
