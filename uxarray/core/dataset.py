@@ -18,6 +18,7 @@ from uxarray.errors import DimensionError, GridInvalidError
 from uxarray.formatting_html import dataset_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
+from uxarray.grid.neighbors import DatasetNeighborhood
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDatasetPlotAccessor
@@ -418,13 +419,16 @@ class UxDataset(xr.Dataset):
         inverse_indices: bool = False,
         **indexers_kwargs,
     ):
-        """Returns a new dataset with each array indexed along the specified
-        dimension(s).
+        """Return a new UxDataset with indexed along the specified dimension(s).
+        Each data array is indexed appropriately,
+        along with the underlying grid when applicable.
 
-        Performs xarray-style integer-location indexing along specified dimensions.
-        If a single grid dimension ('n_node', 'n_edge', or 'n_face') is provided
-        and `ignore_grid=False`, the underlying grid is sliced accordingly,
-        and remaining indexers are applied to the resulting Dataset.
+        Grid dimensions ('n_node', 'n_edge', 'n_face') are treated specially
+        when `ignore_grid=False`. Providing one of them will slice to the specified
+        nodes, edges, or faces, regardless of data location. If the data does not
+        contain the specified dimension, the result will have the minimal grid
+        region containing everything specified. For example, using n_edge=7 for data
+        on 'n_face' makes a result with 'n_face' with just the two faces on edge 7.
 
         Parameters
         ----------
@@ -440,26 +444,34 @@ class UxDataset(xr.Dataset):
             instead of making them scalar.
         missing_dims : {"raise", "warn", "ignore"}, default: "raise"
             What to do if dimensions that should be selected from are not present in the
-            Dataset:
+            UxDataset:
             - "raise": raise an exception
             - "warn": raise a warning, and ignore the missing dimensions
             - "ignore": ignore the missing dimensions
         ignore_grid : bool, default=False
-            If False (default), allow slicing on one grid dimension to automatically
-            update the associated UXarray grid. If True, fall back to pure xarray behavior.
+            If False (default), slice the underlying UXarray grid appropriately too,
+            ensuring the resulting data actually lies on the result's underlying grid.
+            If True, slice the data only; attach self.uxgrid to the result, unchanged.
+            CAUTION: using ignore_grid=True will cause the result's data to be
+            inconsistent with its underlying grid, if any grid dimensions were sliced.
         inverse_indices : bool, default=False
             For grid-based slicing, pass this flag to `Grid.isel` to invert indices
             when selecting (useful for staggering or reversing order).
         **indexers_kwargs : dimension=indexer pairs, optional
+            The keyword arguments form of `indexers`.
 
-        **indexers_kwargs : {dim: indexer, ...}, optional
-            The keyword arguments form of ``indexers``.
-            One of indexers or indexers_kwargs must be provided.
-
-                Returns
+        Returns
         -------
         UxDataset
             A new UxDataset indexed according to `indexers` and updated grid if applicable.
+
+        Raises
+        ------
+        DimensionError (subclass of ValueError)
+            If more than one grid dimension is selected and `ignore_grid=False`.
+        ValueError
+            If parameters are invalid for xarray's .isel(), such as if
+            slicing by a nonexistent dimension, or using invalid indexers.
         """
         from uxarray.core.utils import _validate_indexers
 
@@ -467,43 +479,40 @@ class UxDataset(xr.Dataset):
             indexers, indexers_kwargs, "isel", ignore_grid
         )
 
-        if not ignore_grid:
-            if len(grid_dims) == 1:
-                grid_dim = grid_dims.pop()
-                grid_indexer = indexers.pop(grid_dim)
+        if ignore_grid or len(grid_dims) == 0:
+            # no grid dims, or ignore_grid=True --> just call xarray's isel
+            return type(self)(
+                super().isel(
+                    indexers=indexers or None,
+                    drop=drop,
+                    missing_dims=missing_dims,
+                ),
+                uxgrid=self.uxgrid,
+            )
+        elif len(grid_dims) == 1:
+            # pop off the one grid‐dim indexer
+            grid_dim = grid_dims.pop()
+            grid_indexer = indexers.pop(grid_dim)
 
-                # slice the grid
-                sliced_grid = self.uxgrid.isel(
-                    **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
+            # slice the grid
+            sliced_grid = self.uxgrid.isel(
+                **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
+            )
+
+            ds = self._slice_dataset_from_grid(
+                sliced_grid=sliced_grid,
+                grid_dim=grid_dim,
+                grid_indexer=grid_indexer,
+            )
+
+            if indexers:
+                ds = xr.Dataset.isel(
+                    ds, indexers=indexers, drop=drop, missing_dims=missing_dims
                 )
 
-                ds = self._slice_dataset_from_grid(
-                    sliced_grid=sliced_grid,
-                    grid_dim=grid_dim,
-                    grid_indexer=grid_indexer,
-                )
-
-                if indexers:
-                    ds = xr.Dataset.isel(
-                        ds, indexers=indexers, drop=drop, missing_dims=missing_dims
-                    )
-
-                return type(self)(ds, uxgrid=sliced_grid)
-            else:
-                return type(self)(
-                    super().isel(
-                        indexers=indexers or None,
-                        drop=drop,
-                        missing_dims=missing_dims,
-                    ),
-                    uxgrid=self.uxgrid,
-                )
-
-        return super().isel(
-            indexers=indexers or None,
-            drop=drop,
-            missing_dims=missing_dims,
-        )
+            return type(self)(ds, uxgrid=sliced_grid)
+        else:  # len(grid_dims)>1; _validate_indexers should have crashed.
+            raise AssertionError("internal implementation error if reached this line")
 
     def __getattribute__(self, name):
         """Intercept accessor method calls to return Ux-aware accessors."""
@@ -675,6 +684,48 @@ class UxDataset(xr.Dataset):
         xarr = super().to_array(dim=dim, name=name)
         return UxDataArray(xarr, uxgrid=self._uxgrid)
         # _uxgrid not uxgrid; converting to UxDataArray is not a grid-aware method.
+
+    def neighborhood(self, r: float = 1.0) -> DatasetNeighborhood:
+        """Groups every grid-mapped data variable by the elements within ``r``
+        degrees of each grid element, to be reduced over by a method of the
+        returned :class:`DatasetNeighborhood`.
+
+        Parameters
+        ----------
+        r : float, default=1.
+            Radius of the neighborhood, in degrees.
+
+        Returns
+        -------
+        DatasetNeighborhood
+            Carrying the same reductions as :meth:`UxDataArray.neighborhood`,
+            applied to every data variable at once. Each returns a
+            ``UxDataset``.
+
+        Notes
+        -----
+        Variables without a grid dimension are passed through unchanged.
+
+        Variables mapped to the same grid location share one neighbor query, so
+        reducing a dataset costs one query per location present rather than one
+        per variable.
+
+        Examples
+        --------
+        Apply a mean filter to all grid-mapped variables in a dataset:
+
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
+        >>> uxds_smooth = uxds.neighborhood(r=5.0).mean()
+
+        See Also
+        --------
+        UxDataArray.neighborhood : Reduce a single data variable.
+        Grid.neighborhood : Neighborhood for one grid location, without data.
+        UxDataArray.zonal_mean : Average over latitude bands.
+        UxDataArray.azimuthal_mean : Average over rings of constant great-circle distance.
+        """
+        return DatasetNeighborhood(self, r=r)
 
     def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
         """

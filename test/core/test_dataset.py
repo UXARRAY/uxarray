@@ -129,6 +129,20 @@ def test_sel_method_forwarded(gridpath, datasetpath):
         np.array(uxds["time"].values[2], dtype="datetime64[ns]"),
     )
 
+def test_isel_ignore_grid():
+    """ensure UxDataset.isel(..., ignore_grid=True) still attaches result.uxgrid.
+    Regression test for issue #1683.
+    """
+    uxds = ux.tutorial.open_dataset("outCSne30-timeseries")
+    result = uxds.isel(time=0, ignore_grid=True)
+    result.uxgrid  # (will cause crash if uxgrid not properly attached to result)
+    assert result.uxgrid == uxds.uxgrid
+
+    result = uxds.isel(n_face=0, ignore_grid=True)
+    result.uxgrid  # (will cause crash if uxgrid not properly attached to result)
+    assert result.uxgrid == uxds.uxgrid   # ignore_grid means grid never gets sliced here
+
+
 def test_uxdataset_init_from_xarray_dataset():
     ds = xr.Dataset(
         data_vars={"a": ("x", [1, 2])},
@@ -166,6 +180,123 @@ def test_uxdataset_to_array():
     assert arr1.name is None
     arr2 = uxds.to_array(dim='custom_dim', name='custom_name')
     assert arr2.name == 'custom_name'
+
+
+class TestNeighborhood:
+    """Tests for ``UxDataset.neighborhood`` and the reductions on it."""
+
+    def test_face_centered(self, gridpath, datasetpath):
+        """Ensures the dataset-level reduction matches the per-variable
+        ``UxDataArray.neighborhood`` results."""
+        uxds = ux.open_dataset(
+            gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+            datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"),
+        )
+
+        filtered_ds = uxds.neighborhood(r=5.0).mean()
+        filtered_da = uxds["psi"].neighborhood(r=5.0).mean()
+
+        assert isinstance(filtered_ds, UxDataset)
+        nt.assert_allclose(filtered_ds["psi"].values, filtered_da.values)
+
+    def test_non_grid_variable_skipped(self):
+        """Data variables without a grid dimension should be left
+        untouched."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+
+        uxds = UxDataset(
+            data_vars={
+                "face_var": ("n_face", np.arange(uxgrid.n_face, dtype=float)),
+                "scalar_var": ("other_dim", np.array([1.0, 2.0, 3.0])),
+            },
+            uxgrid=uxgrid,
+        )
+
+        filtered = uxds.neighborhood(r=0.0).mean()
+
+        nt.assert_allclose(filtered["face_var"].values, uxds["face_var"].values)
+        nt.assert_allclose(filtered["scalar_var"].values, uxds["scalar_var"].values)
+
+    def test_one_query_per_grid_location(self):
+        """Variables sharing a grid location must share one neighbor query.
+
+        The query dominates the cost of a reduction, so rebuilding it per
+        variable would make a dataset reduction scale with the number of
+        variables. Counting calls is the only way to see that from outside.
+        """
+        from unittest.mock import patch
+
+        import uxarray.grid.neighbors as neighbors
+
+        uxgrid = ux.Grid.from_healpix(zoom=2)
+        # touch both locations first: a HEALPix grid cannot populate node
+        # coordinates lazily from inside the tree build
+        n_node, n_face = uxgrid.n_node, uxgrid.n_face
+        rng = np.random.default_rng(0)
+        uxds = UxDataset(
+            data_vars={
+                "face_a": ("n_face", rng.random(n_face)),
+                "face_b": ("n_face", rng.random(n_face)),
+                "face_c": ("n_face", rng.random(n_face)),
+                "node_a": ("n_node", rng.random(n_node)),
+            },
+            uxgrid=uxgrid,
+        )
+
+        real = neighbors._csr_neighbors
+        with patch.object(neighbors, "_csr_neighbors", side_effect=real) as spy:
+            filtered = uxds.neighborhood(r=20.0).percentile(90)
+
+        assert spy.call_count == 2, (
+            f"expected one query per grid location (faces, nodes), got "
+            f"{spy.call_count}"
+        )
+        # and the reduction, with its parameter, reached every variable
+        for name in ("face_a", "node_a"):
+            nt.assert_allclose(
+                filtered[name].values,
+                uxds[name].neighborhood(r=20.0).percentile(90).values,
+            )
+
+    def test_one_query_reused_across_reductions(self):
+        """A DatasetNeighborhood holds its queries, so a second reduction on
+        the same object must not rebuild them."""
+        from unittest.mock import patch
+
+        import uxarray.grid.neighbors as neighbors
+
+        uxgrid = ux.Grid.from_healpix(zoom=2)
+        rng = np.random.default_rng(0)
+        uxds = UxDataset(
+            data_vars={"face_a": ("n_face", rng.random(uxgrid.n_face))},
+            uxgrid=uxgrid,
+        )
+
+        nb = uxds.neighborhood(r=20.0)
+        real = neighbors._csr_neighbors
+        with patch.object(neighbors, "_csr_neighbors", side_effect=real) as spy:
+            smooth, spread = nb.mean(), nb.std(ddof=1)
+
+        assert spy.call_count == 1, (
+            f"expected the query to be built once and reused, got {spy.call_count}"
+        )
+        assert smooth["face_a"].shape == spread["face_a"].shape
+
+    def test_callable_escape_hatch(self):
+        """``reduce`` applies a user's own function to every grid-mapped
+        variable."""
+        uxgrid = ux.Grid.from_healpix(zoom=1)
+        rng = np.random.default_rng(0)
+        uxds = UxDataset(
+            data_vars={"face_a": ("n_face", rng.random(uxgrid.n_face))},
+            uxgrid=uxgrid,
+        )
+
+        def rms(values, axis):
+            return np.sqrt(np.mean(values**2, axis=axis))
+
+        filtered = uxds.neighborhood(r=20.0).reduce(rms)
+        assert np.all(filtered["face_a"].values >= 0)
 
 
 def test_uxgrid_None_is_invalid_in_uxdataset():
