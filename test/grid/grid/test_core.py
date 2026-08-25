@@ -5,6 +5,10 @@ import xarray as xr
 
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.grid.validation import (
+    _check_duplicate_nodes_indices,
+    _find_duplicate_nodes,
+)
 
 
 def test_grid_with_holes(gridpath):
@@ -131,14 +135,17 @@ def test_dual_mesh_mpas(gridpath):
 def test_dual_duplicate(gridpath):
     """Test dual mesh creation on a grid whose source file has duplicate
     (coincident) node indices, merged at construction time."""
-    from uxarray.grid.validation import _check_duplicate_nodes_indices, _find_duplicate_nodes
-
     grid_path = gridpath("ugrid", "geoflow-small", "grid.nc")
     grid = ux.open_grid(grid_path)
 
-    # source file has duplicate node coordinates; connectivity should already
-    # be canonicalized to a single index per coincident group
-    assert len(_find_duplicate_nodes(grid)) > 0
+    # The source file really does contain duplicates: 6000 node coordinates for
+    # 3850 distinct locations, so 2150 indices are coincident with an earlier one.
+    duplicates = _find_duplicate_nodes(grid)
+    assert grid.n_node == 6000
+    assert len(duplicates) == 2150
+
+    # Connectivity is canonicalized to a single index per coincident group, so no
+    # face references any of those 2150 duplicate indices.
     assert not _check_duplicate_nodes_indices(grid)
     # duplicate coordinates are left in place by design, but connectivity is
     # fully canonicalized, so validation passes
@@ -147,6 +154,16 @@ def test_dual_duplicate(gridpath):
     dual = grid.get_dual()
 
     assert dual.n_node == grid.n_face
+
+    # One dual face per node that is a corner of at least three faces. After the
+    # merge, 3850 distinct nodes remain, ten of which are touched by a single face
+    # only and so produce no dual cell, leaving 3840.
+    face_nodes = grid.face_node_connectivity.values
+    faces_per_node = np.bincount(
+        face_nodes[face_nodes != INT_FILL_VALUE], minlength=grid.n_node
+    )
+    assert grid.n_node - len(duplicates) == 3850
+    assert (faces_per_node >= 3).sum() == 3840
     assert dual.n_face == 3840
 
     dataset = ux.open_dataset(grid_path, grid_path)
@@ -157,8 +174,6 @@ def test_dual_duplicate(gridpath):
 def test_dual_duplicate_geos_cs(gridpath):
     """Test dual mesh creation on a cube-sphere grid with duplicate node
     indices (issue #865)."""
-    from uxarray.grid.validation import _check_duplicate_nodes_indices, _find_duplicate_nodes
-
     grid_path = gridpath("geos-cs", "c12", "test-c12.native.nc4")
     grid = ux.open_grid(grid_path)
 
@@ -170,11 +185,37 @@ def test_dual_duplicate_geos_cs(gridpath):
     assert dual.n_face > 0
 
 
+def test_duplicate_nodes_minimal_example():
+    """Two quads that share an edge, but whose shared corners are stored twice.
+
+    Nodes 2 and 3 are repeated as nodes 6 and 7, so the file describes 8 nodes at
+    6 distinct locations. Node 6 must canonicalize to node 2 and node 7 to node 3,
+    leaving the second face pointing at the first face's corners.
+
+        3---2---7      lat 1   nodes 2,3 are the shared edge
+        |   |   |              nodes 7,6 are their duplicates
+        0---1---6      lat 0
+    """
+    node_lon = np.array([0.0, 1.0, 1.0, 0.0, 2.0, 2.0, 1.0, 1.0])
+    node_lat = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0])
+    #                    left quad        right quad, via the duplicates
+    face_node_connectivity = np.array([[0, 1, 2, 3], [6, 4, 5, 7]])
+
+    grid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
+
+    duplicates = _find_duplicate_nodes(grid)
+    assert duplicates == {6: 1, 7: 2}
+
+    # No face may still reference a duplicate index.
+    assert not _check_duplicate_nodes_indices(grid)
+    nt.assert_equal(
+        grid.face_node_connectivity.values, np.array([[0, 1, 2, 3], [1, 4, 5, 2]])
+    )
+
+
 def test_no_duplicate_nodes_ne30pg3(gridpath):
     """``esmf/ne30/ne30pg3.grid.nc`` no longer reproduces issue #865's
     duplicate-node bug; this only checks the general fix is a safe no-op."""
-    from uxarray.grid.validation import _find_duplicate_nodes
-
     grid_path = gridpath("esmf", "ne30", "ne30pg3.grid.nc")
     grid = ux.open_grid(grid_path)
 

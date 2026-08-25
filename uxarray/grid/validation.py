@@ -60,17 +60,17 @@ def _check_duplicate_nodes(grid):
 
 
 def _check_duplicate_nodes_indices(grid):
-    """Check if there are duplicate node indices, returns True if there are."""
+    """Check if any face still references a duplicate node index, returns True if
+    it does."""
 
-    # Create a duplication dictionary
-    duplicate_node_dict = _find_duplicate_nodes(grid)
+    duplicate_node_map = _find_duplicate_nodes(grid)
+    if not duplicate_node_map:
+        return False
 
-    for face_nodes in grid.face_node_connectivity.values:
-        for node in face_nodes:
-            if node in duplicate_node_dict.keys():
-                return True
-
-    return False
+    duplicate_indices = np.fromiter(
+        duplicate_node_map.keys(), dtype=INT_DTYPE, count=len(duplicate_node_map)
+    )
+    return bool(np.isin(grid.face_node_connectivity.values, duplicate_indices).any())
 
 
 def _check_area(grid):
