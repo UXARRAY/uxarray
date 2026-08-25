@@ -126,14 +126,14 @@ def test_isel_invalid_dim(gridpath, datasetpath):
     uxda = UxDataArray(data, dims=["time", "n_face"], uxgrid=uxds.uxgrid)
 
     with pytest.raises(
-        DimensionError,
-        match=r"Dimensions \{'invalid_dim'\} do not exist\..*Available dimensions: \('time', 'n_face'\)",
+        ValueError,
+        match=r"Dimensions \{'invalid_dim'\} do not exist\. Expected one or more of \('time', 'n_face'\)",
     ):
         uxda.isel(invalid_dim=0)
 
     with pytest.raises(
         ValueError,
-        match=r"Dimensions \{'level'\} do not exist\..*Available dimensions: \('time', 'n_face'\)",
+        match=r"Dimensions \{'level'\} do not exist\. Expected one or more of \('time', 'n_face'\)",
     ):
         uxda.isel(level=0)
 
