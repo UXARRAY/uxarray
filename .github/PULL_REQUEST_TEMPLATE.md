@@ -50,17 +50,13 @@ other_output = uxds.some_function(some_param = True)
 <!-- Adding the run-benchmark label (if your uxarray repo permissions allow it) will run ASV benchmarks.
     If you need benchmarks to be run but don't have permissions, leave this item unchecked for now. -->
 
-**Documentation**
+**Documentation and Examples**
 - [ ] Docstrings updated with any function changes, and included in all new functions
 - [ ] User (public) functions added to `docs/api.rst`; internal (private) function names start with an underscore (`_`)
-
-**Examples**
-- [ ] If touched any notebook examples, cleared the output of all cells before committing
-- [ ] If added new notebook examples, put in appropriate folder(s) and referenced in appropriate docs files
-<!-- Appropriate folders for reference: (gallery: `docs/examples/`; guide: `docs/user-guide/`; quickstart: `docs/getting-started/`)
-    Appropriate .rst files for reference: (gallery: `docs/gallery.rst`; guide: `docs/userguide.rst`; quickstart: `docs/quickstart.rst`)
-    For gallery examples also add reference in `docs/gallery.yml` and thumbnail photo in `docs/_static/thumbnails/`-->
-
+- [ ] If touched any notebook files, cleared the output of all cells before committing
+- [ ] If added new notebook files, put into appropriate directories and referenced in appropriate files
+<!-- For appropriate directories/files for notebooks, see
+    https://uxarray.readthedocs.io/en/latest/contributing.html#usage-examples -->
 
 ## AI Disclosure
 <!-- Please specify all AI tools used. Optionally, include model and/or briefly describe usage. Examples:
