@@ -53,6 +53,8 @@ __all__ = [
     "prime",
 ]
 
+from ._warmup import warm_in_parent
+
 BENCHMARK_DIR = Path(__file__).resolve().parents[1]
 REPO_DIR = BENCHMARK_DIR.parent
 
@@ -221,8 +223,18 @@ def _cached_grid_ds(grid_path):
 
 
 def cached_grid(grid_path):
-    """A fresh ``Grid`` carrying everything the reader found in ``grid_path`` via shallow copy."""
-    return ux.Grid(_cached_grid_ds(grid_path).copy())
+    """A fresh ``Grid`` carrying everything the reader found in ``grid_path`` via shallow copy.
+
+    The spec is handed back rather than left to default. ``Grid.__init__`` records
+    it in ``_ds.attrs``, and the artifact is that ``_ds``, so the original label
+    survives the round trip -- an MPAS grid stays MPAS. Omitting it warns on every
+    construction ("Attempting to construct a Grid without passing in
+    source_grid_spec"), once per benchmark process, which buried the actual
+    benchmark output.
+    """
+    grid_ds = _cached_grid_ds(grid_path).copy()
+    spec = grid_ds.attrs.get("source_grid_spec", "UGRID")  # uxarray's documented default
+    return ux.Grid(grid_ds, source_grid_spec=spec)
 
 
 def cached_dataset(grid_path, data_path):
@@ -338,3 +350,25 @@ if __name__ == "__main__":
     # an interpreter costs more than reading a small local file.
     for source in prime(workers=4 if DYAMOND_AVAILABLE else 1) or [None]:
         print(f"  read {' + '.join(Path(p).name for p in source)}" if source else "  nothing to do", flush=True)
+
+
+def warm_netcdf():
+    """Brings the netCDF/HDF5 stack up here, so the forks inherit it loaded.
+
+    The first ``open_dataset`` in a process spends ~65ms initializing the
+    library before it reads a byte, and nothing else in the parent pays that:
+    the topology fixtures go through numpy. So today every forked child that
+    touches a cached ``.nc`` artifact pays it again, one at a time.
+
+    The file is closed again. What the children want is the loaded library, not
+    a handle -- an inherited HDF5 handle is shared rather than copied, and
+    parent and child would then read through one file offset.
+    """
+    artifacts = sorted(cache_dir().glob("*.nc"), key=lambda path: path.stat().st_size)
+    if not artifacts:
+        return  # cache not primed yet, so the first child pays it as before
+    with xr.open_dataset(artifacts[0], mask_and_scale=False):
+        pass
+
+
+warm_in_parent(warm_netcdf, "the netCDF backend")

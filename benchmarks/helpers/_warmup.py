@@ -24,11 +24,18 @@ benchmarks are slower than they could be" into "this commit produced no
 results" -- and the pool exists either way, and asv forks either way.
 """
 
+import os
 import sys
 
 import numba
 
-__all__ = ["warm_in_parent"]
+__all__ = ["warm_in_parent", "will_run_benchmarks"]
+
+# ``benchmark.py <mode>``: asv runs discovery, setup_cache and check as their own
+# processes, and none of them goes on to run a benchmark, so warming in them is
+# time bought for nobody. ``run_server`` -- the forkserver parent, the one whose
+# state every benchmark inherits -- is deliberately absent.
+_NON_RUNNING_MODES = frozenset({"discover", "setup_cache", "check"})
 
 # Numba installs fork handlers for these two; ``omp`` is on its own.
 _FORK_SAFE = frozenset({"tbb", "workqueue"})
@@ -36,11 +43,29 @@ _FORK_SAFE = frozenset({"tbb", "workqueue"})
 _reported = False
 
 
+def will_run_benchmarks():
+    """Whether this interpreter is going to run a benchmark.
+
+    Conservative by construction: an argv this does not recognize is assumed to
+    be a benchmark run, so a change in how asv invokes itself costs the warm
+    twice over rather than losing it where it counts.
+    """
+    return not (
+        os.path.basename(sys.argv[0]) == "benchmark.py"
+        and len(sys.argv) > 1
+        and sys.argv[1] in _NON_RUNNING_MODES
+    )
+
+
 def warm_in_parent(warm, what):
     """Runs ``warm``, then checks any pool it leaves behind survives a fork.
 
-    ``what`` names the thing being warmed, for the report.
+    ``what`` names the thing being warmed, for the report. A no-op in an
+    interpreter that will not run a benchmark, per :func:`will_run_benchmarks`.
     """
+    if not will_run_benchmarks():
+        return
+
     warm()
 
     try:
