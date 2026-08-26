@@ -424,7 +424,7 @@ class UxDataset(xr.Dataset):
         inverse_indices: bool = False,
         **indexers_kwargs,
     ):
-        """Return a new UxDataset with indexed along the specified dimension(s).
+        """Return a new UxDataset with arrays indexed along the specified dimension(s).
         Each data array is indexed appropriately,
         along with the underlying grid when applicable.
 
