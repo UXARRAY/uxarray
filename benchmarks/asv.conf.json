@@ -193,7 +193,12 @@
     // `asv` will cache results of the recent builds in each
     // environment, making them faster to install next time.  This is
     // the number of builds to keep, per environment.
-    // "build_cache_size": 2,
+    //
+    // Raised from the default of 2, which is exactly the number of commits
+    // ``asv continuous`` builds and so leaves no headroom: with rounds
+    // interleaved it revisits each commit, and a wheel that has been evicted
+    // in between is built again from scratch.
+    "build_cache_size": 4,
 
     // The commits after which the regression search in `asv publish`
     // should start looking for regressions. Dictionary whose keys are

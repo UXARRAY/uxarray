@@ -43,6 +43,15 @@ jobs:
             python-build
             mamba
 
+      # asv builds its own conda environment under ``benchmarks/env``, separate
+      # from the one above, and without this it solves and installs that from
+      # scratch on every run before a single benchmark starts.
+      - name: Cache asv's benchmark environment
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.ASV_DIR }}/env
+          key: asv-env-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('benchmarks/asv.conf.json', 'ci/environment.yml') }}
+
       - name: Run Benchmarks
         shell: bash -l {0}
         id: benchmark
