@@ -102,10 +102,27 @@
     // will not be set for the current combination.
     //
      "matrix": {
-        "setuptools_scm": [""],
-        "xarray": [""],
-        "netcdf4": [""],
-        "pip+pyfma": [""]
+        "req": {
+            "setuptools_scm": [""],
+            "xarray": [""],
+            "netcdf4": [""],
+            "pip+pyfma": [""],
+
+            // numba picks its threading layer by availability, and only ``tbb``
+            // and ``workqueue`` install fork handlers. Left to itself on a runner
+            // without TBB it picks ``omp``, which on Linux is libgomp: a benchmark
+            // forked from a parent that holds a pool then dies with "Terminating:
+            // fork() called from a process already using GNU OpenMP". numba
+            // *prefers* TBB, so a developer machine that has it cannot reproduce
+            // that -- hence pinning it here rather than inheriting whatever the
+            // environment happens to offer.
+            "tbb": [""]
+        },
+
+        // Belt to that brace: if TBB is ever unavailable, pick the other
+        // fork-safe layer rather than quietly falling back to the one that
+        // breaks. ``forksafe`` raises if no fork-safe layer exists at all.
+        "env_nobuild": {"NUMBA_THREADING_LAYER": ["forksafe"]}
     },
 
 
