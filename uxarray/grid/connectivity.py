@@ -379,13 +379,16 @@ _DERIVED_CONNECTIVITY_TO_INVALIDATE = (
 )
 
 
-def _dedupe_grid_ds_nodes(grid_ds, tolerance=ERROR_TOLERANCE):
-    """Canonicalize duplicate (coincident, within ``tolerance``) node indices in a
-    raw grid dataset's connectivity, before it is wrapped in a ``Grid``.
+def _merge_coincident_grid_ds_nodes(grid_ds, tolerance=ERROR_TOLERANCE):
+    """Canonicalize coincident (within ``tolerance``) node indices in a raw grid
+    dataset's connectivity, before it is wrapped in a ``Grid``.
 
     Per issue #865, node coordinate/data arrays are left untouched -- only
-    connectivity references to duplicate nodes are remapped to a single canonical
-    (lowest-indexed) node.
+    connectivity references to coincident nodes are remapped to a single canonical
+    (lowest-indexed) node. Note this differs from TempestRemap and MOAB, which
+    delete the redundant nodes and renumber; keeping them preserves round-trip
+    fidelity and leaves node-centered data index-aligned, at the cost of leaving
+    unreferenced coordinates behind (see ``_live_node_indices``).
     """
     from uxarray.grid.coordinates import _lonlat_rad_to_xyz
     from uxarray.grid.validation import _coincident_node_canonical_indices
