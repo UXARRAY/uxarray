@@ -104,7 +104,12 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
     n_points = len(points_xyz)
     canonical = np.arange(n_points, dtype=INT_DTYPE)
 
-    pole_mask = np.isclose(np.abs(points_xyz[:, 2]), 1.0, atol=tolerance)
+    # ``tolerance`` is a chord radius (see the ``query_pairs`` call below), so it
+    # cannot be used directly as a deviation of |z| from 1. For a point at
+    # colatitude t from the pole, 1 - |z| = 1 - cos(t) = 2*sin(t/2)**2 = chord**2/2.
+    pole_mask = np.isclose(
+        np.abs(points_xyz[:, 2]), 1.0, rtol=0.0, atol=tolerance**2 / 2
+    )
     mergeable_indices = np.flatnonzero(~pole_mask)
 
     if len(mergeable_indices) < 2:

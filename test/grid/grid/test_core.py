@@ -213,6 +213,38 @@ def test_duplicate_nodes_minimal_example():
     )
 
 
+def test_pole_exception_uses_a_chord_tolerance():
+    """The pole carve-out must be a chord radius, not a raw ``|z|`` deviation.
+
+    ``np.isclose(|z|, 1.0, atol=tolerance)`` also carries numpy's default
+    ``rtol=1e-5``, so the carve-out spanned ``1 - |z| <= 1.001e-5`` -- a chord of
+    4.5e-3, or ~28 km on Earth. Every node within that cap was exempted from
+    merging. Only nodes at the pole itself may be exempt.
+    """
+    from uxarray.grid.validation import _coincident_node_canonical_indices
+
+    # Colatitude chosen so 1 - z = 1e-6: well inside the old carve-out, and far
+    # outside a chord of ERROR_TOLERANCE (whose cap is 1 - z <= 5e-17).
+    z = 1.0 - 1e-6
+    x = np.sqrt(1.0 - z * z)
+
+    points_xyz = np.array(
+        [
+            [0.0, 0.0, 1.0],  # north pole, kept distinct from the next node
+            [0.0, 0.0, 1.0],  # same location, its own face-specific longitude
+            [x, 0.0, z],  # near the pole, genuinely coincident with the next
+            [x, 0.0, z],
+        ]
+    )
+
+    canonical = _coincident_node_canonical_indices(points_xyz)
+
+    # Nodes at a pole are still never merged with one another.
+    nt.assert_equal(canonical[:2], np.array([0, 1]))
+    # Near-pole coincident nodes now merge; before the fix they were exempt.
+    nt.assert_equal(canonical[2:], np.array([2, 2]))
+
+
 def test_no_duplicate_nodes_ne30pg3(gridpath):
     """``esmf/ne30/ne30pg3.grid.nc`` no longer reproduces issue #865's
     duplicate-node bug; this only checks the general fix is a safe no-op."""
