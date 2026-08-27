@@ -126,8 +126,10 @@
     },
 
 
+    // Just the one command: ``python -m build`` put an sdist and a wheel in
+    // {build_dir}/dist, which asv never reads, and then this rebuilt the wheel
+    // into the directory asv actually installs from.
     "build_command": [
-        "python -m build",
         "python -mpip wheel --no-deps --no-build-isolation --no-index -w {build_cache_dir} {build_dir}"
     ],
 

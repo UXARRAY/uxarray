@@ -42,11 +42,30 @@ jobs:
           environment-file: ${{env.CONDA_ENV_FILE}}
           cache-environment: true
           environment-name: uxarray_build
-          cache-environment-key: "${{runner.os}}-${{runner.arch}}-py${{env.PYTHON_VERSION}}-${{env.TODAY}}-${{hashFiles(env.CONDA_ENV_FILE)}}-benchmark"
+          cache-environment-key: "${{runner.os}}-${{runner.arch}}-${{hashFiles(env.CONDA_ENV_FILE)}}-benchmark"
           create-args: >-
             asv
             python-build
             mamba
+
+      # asv builds its own conda environment under ``benchmarks/env`
+      - name: Cache asv's benchmark environment
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.ASV_DIR }}/env
+          key: asv-env-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('benchmarks/asv.conf.json', 'ci/environment.yml') }}
+          restore-keys: |
+            asv-env-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Cache the benchmark fixtures
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.ASV_DIR }}/oQU*.nc
+            ${{ env.ASV_DIR }}/_io_cache
+          key: asv-fixtures-${{ runner.os }}-${{ hashFiles('benchmarks/helpers/_fixtures.py') }}
+          restore-keys: |
+            asv-fixtures-${{ runner.os }}-
 
       - name: Run Benchmarks
         shell: bash -l {0}
@@ -65,6 +84,40 @@ jobs:
           # Save compare results
           asv compare --split ${{ github.event.pull_request.base.sha }} ${GITHUB_SHA} > asv_compare_results.txt
         working-directory: ${{ env.ASV_DIR }}
+
+      # asv records a duration per benchmark, plus ``<build>`` and
+      # ``<setup_cache ...>`` entries, in the results file it writes. Printing
+      # them is what tells us where a run's wall clock actually went.
+      - name: Report where the time went
+        if: always()
+        shell: bash -l {0}
+        run: |
+          python - <<'PY' || true
+          import glob, json, os
+
+          for path in sorted(glob.glob("benchmarks/results/*/*.json")):
+              if os.path.basename(path) in ("machine.json", "benchmarks.json"):
+                  continue
+              data = json.load(open(path))
+              columns = data.get("result_columns") or []
+              if "duration" not in columns:
+                  continue
+              index = columns.index("duration")
+              rows = sorted(
+                  (float(row[index]), name)
+                  for name, row in data["results"].items()
+                  if len(row) > index and row[index] is not None
+              )
+              total = sum(duration for duration, _ in rows) or 1.0
+              params = data.get("params", {})
+              print(f"\n=== {data['commit_hash'][:8]} on {params.get('cpu', '?')} "
+                    f"({params.get('num_cpu', '?')} cpu) ===")
+              for key, value in sorted(data.get("durations", {}).items()):
+                  print(f"  {value:8.1f}s  {key}")
+              print(f"  {total:8.1f}s  all {len(rows)} benchmarks ({total / 60:.1f} min)")
+              for duration, name in reversed(rows[-15:]):
+                  print(f"  {duration:8.1f}s  {100 * duration / total:5.1f}%  {name}")
+          PY
 
       - name: Save PR number
         if: always()
