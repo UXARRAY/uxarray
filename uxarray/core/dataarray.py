@@ -36,6 +36,7 @@ from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
 from uxarray.grid.neighbors import DataArrayNeighborhood, Neighborhood
+from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
@@ -2171,7 +2172,14 @@ class UxDataArray(xr.DataArray):
         --------
         dual : uxda
             Dual Mesh `uxda` constructed
+
+        Raises
+        ------
+        GridInvalidError
+            If any face still references a coincident duplicate node.
         """
+        if _check_duplicate_nodes_indices(self.uxgrid):
+            raise GridInvalidError("Duplicate nodes found, cannot construct dual")
 
         if self.uxgrid.partial_sphere_coverage:
             warn(

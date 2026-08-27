@@ -73,6 +73,7 @@ from uxarray.grid.validation import (
     _check_area,
     _check_connectivity,
     _check_duplicate_nodes,
+    _check_duplicate_nodes_indices,
     _check_normalization,
 )
 from uxarray.io._delaunay import (
@@ -2678,21 +2679,31 @@ class Grid:
         Parameters
         ----------
         check_duplicate_nodes : bool, optional
-            Deprecated and ignored. Duplicate nodes are now merged while
-            constructing the dual, so they no longer prevent it.
+            Deprecated and ignored. Coincident nodes are merged at grid
+            construction, so the check below always runs and always passes.
 
         Returns
         --------
         dual : Grid
             Dual Mesh Grid constructed
+
+        Raises
+        ------
+        GridInvalidError
+            If any face still references a coincident duplicate node. The dual
+            reads ``node_face_connectivity`` directly, so a dead duplicate index
+            yields a degenerate dual face rather than an error.
         """
         if check_duplicate_nodes is not None:
             warnings.warn(
-                "`check_duplicate_nodes` is deprecated and ignored; duplicate nodes "
-                "are now merged when constructing the dual.",
+                "`check_duplicate_nodes` is deprecated and ignored; coincident "
+                "nodes are merged at grid construction and always checked here.",
                 DeprecationWarning,
                 stacklevel=2,
             )
+
+        if _check_duplicate_nodes_indices(self):
+            raise GridInvalidError("Duplicate nodes found, cannot construct dual")
 
         # Get dual mesh node face connectivity
         dual_node_face_conn = construct_dual(grid=self)

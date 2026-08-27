@@ -19,6 +19,7 @@ from uxarray.formatting_html import dataset_repr
 from uxarray.grid import Grid
 from uxarray.grid.dual import construct_dual
 from uxarray.grid.neighbors import DatasetNeighborhood
+from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDatasetPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
@@ -754,7 +755,14 @@ class UxDataset(xr.Dataset):
         --------
         dual : uxds
             Dual Mesh `uxds` constructed
+
+        Raises
+        ------
+        GridInvalidError
+            If any face still references a coincident duplicate node.
         """
+        if _check_duplicate_nodes_indices(self.uxgrid):
+            raise GridInvalidError("Duplicate nodes found, cannot construct dual")
 
         if self.uxgrid.partial_sphere_coverage:
             warn(

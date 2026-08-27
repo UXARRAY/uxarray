@@ -9,6 +9,7 @@ from uxarray.grid.validation import (
     _check_duplicate_nodes_indices,
     _find_duplicate_nodes,
 )
+from uxarray.errors import GridInvalidError
 
 
 def test_grid_with_holes(gridpath):
@@ -211,6 +212,26 @@ def test_duplicate_nodes_minimal_example():
     nt.assert_equal(
         grid.face_node_connectivity.values, np.array([[0, 1, 2, 3], [1, 4, 5, 2]])
     )
+
+
+def test_get_dual_rejects_faces_referencing_duplicate_nodes():
+    """``construct_dual`` reads ``node_face_connectivity`` with no duplicate
+    handling, so a face still pointing at a dead duplicate index would yield a
+    degenerate dual face instead of an error. Merging at construction makes this
+    unreachable today; the guard keeps it that way."""
+    node_lon = np.array([0.0, 1.0, 1.0, 0.0, 2.0, 2.0, 1.0, 1.0])
+    node_lat = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0])
+    unmerged = np.array([[0, 1, 2, 3], [6, 4, 5, 7]])
+
+    grid = ux.Grid.from_topology(node_lon, node_lat, unmerged)
+    # Construction canonicalized the connectivity; put the duplicates back.
+    grid.face_node_connectivity = xr.DataArray(
+        unmerged, dims=grid.face_node_connectivity.dims
+    )
+
+    assert _check_duplicate_nodes_indices(grid)
+    with pytest.raises(GridInvalidError):
+        grid.get_dual()
 
 
 def test_pole_exception_uses_a_chord_tolerance():
