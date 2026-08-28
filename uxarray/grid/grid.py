@@ -505,7 +505,11 @@ class Grid:
 
     @classmethod
     def from_structured(
-        cls, ds: xr.Dataset = None, lon=None, lat=None, tol: float | None = 1e-10
+        cls,
+        ds: xr.Dataset = None,
+        lon=None,
+        lat=None,
+        tol: float | None = None,
     ):
         """
         Converts a structured ``xarray.Dataset`` or longitude and latitude coordinates into an unstructured ``uxarray.Grid``.
@@ -529,8 +533,9 @@ class Grid:
             Should be a one-dimensional or two-dimensional array following CF conventions.
 
         tol : float, optional
-            Tolerance for considering nodes as identical when constructing the grid from longitude and latitude.
-            Default is `1e-10`.
+            Tolerance in degrees for considering nodes as identical when constructing the grid from
+            longitude and latitude. Defaults to ``None``, which matches nodes within
+            ``uxarray.constants.ERROR_TOLERANCE`` on the unit sphere.
 
         Returns
         -------
