@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Iterable, Hashable, Mapping, Sequence, TypeAlias
+from typing import Any, Hashable, Iterable, Mapping, Sequence, TypeAlias
 from warnings import warn
 
 import numpy as np
