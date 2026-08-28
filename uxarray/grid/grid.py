@@ -2582,7 +2582,7 @@ class Grid:
 
         if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
-                "Invalid periodic_elements. Expected one of ['include', 'exclude', 'split'], "
+                "Invalid periodic_elements. Expected one of ['ignore', 'exclude', 'split'], "
                 f"but got {periodic_elements!r}, in {type(self).__name__}.to_polycollection()"
             )
 
@@ -2663,7 +2663,7 @@ class Grid:
         """
         if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
-                "Invalid periodic_elements. Expected one of ['include', 'exclude', 'split'], "
+                "Invalid periodic_elements. Expected one of ['ignore', 'exclude', 'split'], "
                 f"but got {periodic_elements!r}, in {type(self).__name__}.to_linecollection()"
             )
 

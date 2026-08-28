@@ -70,9 +70,7 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
         raise ValueError(
             "The input Great Circle Arc spans exactly 180 degrees, which can correspond to multiple planes. "
             "Consider breaking the Great Circle Arc into two smaller arcs."
-            f"\npoint_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz) got gca_a_xyz={gca_a_xyz}, gca_b_xyz={gca_b_xyz}, "
-            f"which are 180 degrees apart. (Was checking pt_xyz={pt_xyz}.)"
-        )
+        )  # (numba complains about f-strings, so don't put actual values in message.)
 
     # 2. Verify if the point lies on the plane of the GCA
     cross_product = np.cross(gca_a_xyz, gca_b_xyz)

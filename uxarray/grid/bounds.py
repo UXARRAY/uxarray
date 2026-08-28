@@ -416,7 +416,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     else:
         # Validate longitude point
         if not np.isnan(lon_pt) and (lon_pt < 0.0 or lon_pt > 2.0 * np.pi):
-            raise ValueError(f"Longitude point out of range (<0 or >2*pi): {lon_pt}")
+            raise ValueError("Longitude point out of range (<0 or >2*pi)")
+            # (numba complains about f-strings, so don't put `lon_pt` value in message.)
 
         # Check for pole points
         is_pole_point = False
