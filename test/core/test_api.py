@@ -284,3 +284,67 @@ def test_open_multigrid_missing_grid_error(gridpath):
 
     with pytest.raises(ValueError, match="Grid 'land' not found"):
         ux.open_multigrid(grid_file, gridnames=["land"])
+
+
+def test_concat_various_inputs():
+    """Ensure concat() requires uxarray objs and raises clear TypeError otherwise,
+    and that concat() works in basic cases (exactly two UxDataArrays or two UxDatasets)
+    Includes regression test for first and third bugs mentioned in #1642.
+    """
+    # ensure reasonable crash when providing no inputs
+    with pytest.raises(ValueError, match="requires at least one object"):
+        ux.concat((), dim='anything')
+    # ensure crash when providing no uxarray objects
+    with pytest.raises(TypeError, match="expected either all UxDataArray or all UxDataset"):
+        ux.concat((7, "not a uxarray object"), dim='anything')
+    # ensure crash when providing some non-uxarray objects
+    uxds0 = ux.tutorial.open_dataset('quad-hexagon')
+    uxds1 = uxds0 + 10
+    with pytest.raises(TypeError, match="expected either all UxDataArray or all UxDataset"):
+        ux.concat((uxds0, "not a uxarray object", uxds1), dim='new_dim')
+    # ensure crash when providing a mix of UxDataArray and UxDataset objects
+    uxarr0 = uxds0['t2m']
+    with pytest.raises(TypeError, match="expected either all UxDataArray or all UxDataset"):
+        ux.concat((uxds0, uxds1, uxarr0), dim='new_dim')
+    with pytest.raises(TypeError, match="expected either all UxDataArray or all UxDataset"):
+        ux.concat((uxarr0, uxds0), dim='new_dim')
+    # ensure concat works in basic cases: two UxDatasets or two UxDataArrays
+    ux.concat((uxds0, uxds1), 'new_dim')  # also ensures can provide dim as positional arg.
+    uxarr1 = uxds1['t2m']
+    assert uxarr0.uxgrid == uxarr1.uxgrid
+    result = ux.concat((uxarr0, uxarr1), 'new_dim')
+    # ^^ also serves as regression test for third bug in #1642,
+    # i.e.: ensures can actually concat UxDataArray objects.
+    # include a few quick tests that the result looks reasonable:
+    assert isinstance(result, ux.UxDataArray)
+    assert result.uxgrid == uxarr0.uxgrid
+    assert result.sizes == {**uxarr0.sizes, 'new_dim': 2}
+
+    # regression test for first bug in #1642: using non-uxarray objects with equal uxgrid
+    #    should raise error message mentioning uxarray objects, not xarray objects.
+    class Foo():
+        def __init__(self, uxgrid):
+            self.uxgrid = uxgrid
+    foo0 = Foo(7)
+    foo1 = Foo(7)  # also 7 because: want to use the same uxgrid value in both cases.
+    with pytest.raises(TypeError, match="expected either all UxDataArray or all UxDataset"):
+        ux.concat([foo0, foo1], dim='anything')
+
+
+def test_concat_checks_uxgrid():
+    """Ensure concat() requires all objects' uxgrids to be equal,
+    but not necessarily the same exact object.
+    Includes regression test for second bug mentioned in #1642.
+    """
+    arrA = ux.tutorial.open_dataset("outCSne30-vortex")['psi']
+    arrB = arrA.copy()
+    assert arrA.uxgrid == arrB.uxgrid
+    assert arrA.uxgrid is not arrB.uxgrid
+    ux.concat([arrA, arrB], 'new_dim')
+
+    arrC = ux.tutorial.open_dataset("quad-hexagon")['t2m']
+    assert arrA.uxgrid != arrC.uxgrid
+    with pytest.raises(ux.errors.GridsMismatchError, match=r"got objs\[1\]\.uxgrid != objs\[0\]\.uxgrid"):
+        ux.concat([arrA, arrC], dim='new_dim')
+    with pytest.raises(ux.errors.GridsMismatchError, match=r"got objs\[2\]\.uxgrid != objs\[0\]\.uxgrid"):
+        ux.concat([arrA, arrB, arrC], dim='new_dim')

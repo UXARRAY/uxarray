@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Hashable, Mapping, Sequence, TypeAlias
+from typing import Any, Iterable, Hashable, Mapping, Sequence, TypeAlias
 from warnings import warn
 
 import numpy as np
@@ -578,7 +578,7 @@ def _get_grid(
 
 
 def concat(
-    objs: Sequence[UxDataArray | UxDataset],
+    objs: Iterable[UxDataArray | UxDataset],
     dim: Hashable | xr.Variable | xr.DataArray | pd.Index,
     **kwargs: dict[str, Any],
 ):
@@ -586,7 +586,7 @@ def concat(
 
     Parameters
     ----------
-    objs : sequence of UxDataArray or UxDataset
+    objs : iterable of UxDataArray or UxDataset
         uxarray objects to concatenate together. Each object is expected to
         consist of variables and coordinates with matching shapes except for
         along the concatenated dimension, and to have underlying grids which
@@ -606,18 +606,24 @@ def concat(
     concatenated: type of objs
         Concatenated uxarray object with the same type as the input objects.
     """
-    result_type = type(objs[0])
+    objs = tuple(objs)
+    try:
+        ref_obj = objs[0]
+    except IndexError as err:
+        raise ValueError("concat requires at least one object to concatenate.") from err
+
+    result_type = type(ref_obj)
     if not (
         issubclass(result_type, (UxDataArray, UxDataset))
         and all(isinstance(obj, result_type) for obj in objs)
     ):
         _types = {type(obj) for obj in objs}
         raise TypeError(
-            "concat(elements, ...) expected either all UxDataArray elements "
-            f"or all UxDataset elements, but got types: {_types}."
+            "concat(objs, ...) expected either all UxDataArray "
+            f"or all UxDataset objs, but got types: {_types}."
         )
 
-    result_uxgrid = objs[0].uxgrid
+    result_uxgrid = ref_obj.uxgrid
     for i, obj in enumerate(objs[1:], start=1):
         if result_uxgrid != obj.uxgrid:
             raise GridsMismatchError(
