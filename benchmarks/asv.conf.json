@@ -61,7 +61,18 @@
     // defaults to 10 min
     "install_timeout": 600,
 
-    "benchmark_timeout": 360,
+    // Fork each benchmark from one interpreter that has already imported the
+    // suite, instead of starting a fresh one per benchmark. Saves the ~0.9s
+    // uxarray import and the numba kernel load on every one of ~160 benchmark
+    // processes, and lets a fixture loaded at import be inherited rather than
+    // re-read. asv leaves this at "spawn" by default because fork and threads
+    // mix badly; nothing in this suite runs a parallel kernel at import time,
+    // which is what makes it safe here -- keep it that way.
+    "launch_method": "forkserver",
+
+    // ``benchmark_timeout`` is not a key asv reads -- the one that sets the
+    // default is ``default_benchmark_timeout`` (asv/config.py)
+    "default_benchmark_timeout": 360,
 
     // the base URL to show a commit for the project.
     "show_commit_url": "https://github.com/UXARRAY/uxarray/commit/",
@@ -91,10 +102,27 @@
     // will not be set for the current combination.
     //
      "matrix": {
-        "setuptools_scm": [""],
-        "xarray": [""],
-        "netcdf4": [""],
-        "pip+pyfma": [""]
+        "req": {
+            "setuptools_scm": [""],
+            "xarray": [""],
+            "netcdf4": [""],
+            "pip+pyfma": [""],
+
+            // numba picks its threading layer by availability, and only ``tbb``
+            // and ``workqueue`` install fork handlers. Left to itself on a runner
+            // without TBB it picks ``omp``, which on Linux is libgomp: a benchmark
+            // forked from a parent that holds a pool then dies with "Terminating:
+            // fork() called from a process already using GNU OpenMP". numba
+            // *prefers* TBB, so a developer machine that has it cannot reproduce
+            // that -- hence pinning it here rather than inheriting whatever the
+            // environment happens to offer.
+            "tbb": [""]
+        },
+
+        // Belt to that brace: if TBB is ever unavailable, pick the other
+        // fork-safe layer rather than quietly falling back to the one that
+        // breaks. ``forksafe`` raises if no fork-safe layer exists at all.
+        "env_nobuild": {"NUMBA_THREADING_LAYER": ["forksafe"]}
     },
 
 
@@ -165,7 +193,12 @@
     // `asv` will cache results of the recent builds in each
     // environment, making them faster to install next time.  This is
     // the number of builds to keep, per environment.
-    // "build_cache_size": 2,
+    //
+    // Raised from the default of 2, which is exactly the number of commits
+    // ``asv continuous`` builds and so leaves no headroom: with rounds
+    // interleaved it revisits each commit, and a wheel that has been evicted
+    // in between is built again from scratch.
+    "build_cache_size": 4,
 
     // The commits after which the regression search in `asv publish`
     // should start looking for regressions. Dictionary whose keys are
