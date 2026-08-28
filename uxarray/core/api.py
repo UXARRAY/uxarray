@@ -2,19 +2,21 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Mapping, Sequence, TypeAlias
+from typing import Any, Hashable, Mapping, Sequence, TypeAlias
 from warnings import warn
 
 import numpy as np
+import pandas as pd
 import xarray as xr
 
+from uxarray.core.dataarray import UxDataArray
 from uxarray.core.dataset import UxDataset
 from uxarray.core.utils import (
     _map_dims_to_ugrid,
     _open_dataset_with_fallback,
     match_chunks_to_ugrid,
 )
-from uxarray.errors import GridInvalidError
+from uxarray.errors import GridInvalidError, GridsMismatchError
 from uxarray.grid import Grid
 from uxarray.io._scrip import (
     _detect_multigrid,
@@ -575,25 +577,54 @@ def _get_grid(
     return open_grid(grid_filename_or_obj, use_dual=use_dual, **grid_kwargs)
 
 
-def concat(objs, *args, **kwargs):
-    # Ensure there is at least one object to concat.
-    if not objs:
-        raise ValueError("No objects provided for concatenation.")
+def concat(
+    objs: Sequence[UxDataArray | UxDataset],
+    dim: Hashable | xr.Variable | xr.DataArray | pd.Index,
+    **kwargs: dict[str, Any],
+):
+    """concatenate uxarray objects along a new or existing dimension.
 
-    ref_uxgrid = getattr(objs[0], "uxgrid", None)
-    if ref_uxgrid is None:
-        raise AttributeError("The first object does not have a 'uxgrid' attribute.")
+    Parameters
+    ----------
+    objs : sequence of UxDataArray or UxDataset
+        uxarray objects to concatenate together. Each object is expected to
+        consist of variables and coordinates with matching shapes except for
+        along the concatenated dimension, and to have underlying grids which
+        compare as equal. The first object's uxgrid is attached to the result.
+    dim : Hashable or Variable or DataArray or pandas.Index
+        Name of the dimension to concatenate along. This can either be a new
+        dimension name, in which case it is added along axis=0, or an existing
+        dimension name, in which case the location of the dimension is
+        unchanged. If dimension is provided as a Variable, DataArray or Index, its name
+        is used as the dimension to concatenate along and the values are added
+        as a coordinate.
+    **kwargs : dict, optional
+        All additional kwargs forwarded directly to :func:`xarray.concat`.
 
-    ref_id = id(ref_uxgrid)
+    Returns
+    -------
+    concatenated: type of objs
+        Concatenated uxarray object with the same type as the input objects.
+    """
+    result_type = type(objs[0])
+    if not (
+        issubclass(result_type, (UxDataArray, UxDataset))
+        and all(isinstance(obj, result_type) for obj in objs)
+    ):
+        _types = {type(obj) for obj in objs}
+        raise TypeError(
+            "concat(elements, ...) expected either all UxDataArray elements "
+            f"or all UxDataset elements, but got types: {_types}."
+        )
 
-    for i, obj in enumerate(objs):
-        uxgrid = getattr(obj, "uxgrid", None)
-        if uxgrid is None:
-            raise AttributeError(
-                f"Object at index {i} does not have a 'uxgrid' attribute."
+    result_uxgrid = objs[0].uxgrid
+    for i, obj in enumerate(objs[1:], start=1):
+        if result_uxgrid != obj.uxgrid:
+            raise GridsMismatchError(
+                "concat(objs, ...) expects equivalent grids for all objs, "
+                f"but got objs[{i}].uxgrid != objs[0].uxgrid."
             )
-        if id(uxgrid) != ref_id:
-            raise ValueError(f"Object at index {i} has a different 'uxgrid' attribute.")
 
-    res = xr.concat(objs, *args, **kwargs)
-    return UxDataset(res, uxgrid=uxgrid)
+    xarray_objs = [obj.to_xarray() for obj in objs]
+
+    return result_type(xr.concat(xarray_objs, dim=dim, **kwargs), uxgrid=result_uxgrid)

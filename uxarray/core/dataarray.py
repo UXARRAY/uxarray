@@ -597,7 +597,7 @@ class UxDataArray(xr.DataArray):
 
         return uxds
 
-    def to_xarray(self):
+    def to_xarray(self) -> xr.DataArray:
         return xr.DataArray(self)
 
     def integrate(

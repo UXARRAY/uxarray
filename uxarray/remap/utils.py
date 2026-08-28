@@ -1,6 +1,5 @@
 import numpy as np
 
-import uxarray.core.dataset
 from uxarray.errors import DimensionError
 
 # To preserve old names for remapping
@@ -76,7 +75,7 @@ def _construct_remapped_ds(source, remapped_vars, destination_grid, remap_to):
     UxDataset
         A new dataset containing only the remapped variables and retained coordinates.
     """
-
+    from uxarray.core.dataset import UxDataset
     from uxarray.remap.spatial_coords_remap import SpatialCoordsRemapper
 
     # Ensure handling of spatial coordinates between `source` and `destination_grid` for the remapped output
@@ -87,7 +86,7 @@ def _construct_remapped_ds(source, remapped_vars, destination_grid, remap_to):
     )
     output_coords = coords_remapper.construct_output_coords()
 
-    ds_remapped = uxarray.core.dataset.UxDataset(
+    ds_remapped = UxDataset(
         data_vars=remapped_vars,
         uxgrid=destination_grid,
         coords=output_coords,
