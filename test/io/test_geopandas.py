@@ -74,6 +74,34 @@ def test_set_crs_warns_when_crs_is_missing():
     assert out.crs is not None
 
 
+def test_read_warnings_name_the_file_and_blame_the_caller(tmp_path):
+    """A warning about a file has to say which file, and point at the line the
+    user wrote rather than at whichever uxarray helper happens to raise it.
+
+    A hardcoded ``stacklevel`` gets the second half wrong: from ``_set_crs`` it
+    lands on ``_gpd_read``, so the traceback stops inside ``_geopandas.py``.
+    """
+    no_crs = tmp_path / "no_crs.shp"
+    gpd.GeoDataFrame(
+        geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 0)])], crs=None
+    ).to_file(no_crs)
+
+    mixed = tmp_path / "mixed.geojson"
+    gpd.GeoDataFrame(
+        geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 0)]), Point(5, 5)],
+        crs="EPSG:4326",
+    ).to_file(mixed, driver="GeoJSON")
+
+    for path, match in ((no_crs, "no CRS"), (mixed, "unsupported geometry type")):
+        with pytest.warns(UserWarning, match=match) as record:
+            ux.Grid.from_file(str(path), backend="geopandas")
+
+        warning = [w for w in record if match in str(w.message)][0]
+        assert path.name in str(warning.message)
+        # Attributed to this test, not to uxarray/io/_geopandas.py.
+        assert warning.filename == __file__
+
+
 def test_unsupported_geometry_is_reported():
     """Dropping a geometry silently would yield a grid missing a face with no
     indication that anything was skipped."""
