@@ -113,7 +113,9 @@ def _to_dataset(source):
     name : str or None
         The variable name of the original DataArray, or None for datasets.
     """
-    if isinstance(source, uxarray.core.dataarray.UxDataArray):
+    from uxarray.core.dataarray import UxDataArray
+
+    if isinstance(source, UxDataArray):
         is_da = True
         name = source.name if source.name is not None else "nearest_neighbor_remap"
         ds = source.to_dataset(name=name) if is_da else source
