@@ -174,10 +174,9 @@ def _populate_edge_node_connectivity(grid):
         stale = sorted(n for n in grid._ds if ugrid.EDGE_DIM in grid._ds[n].dims)
         raise ValueError(
             f"Constructing 'edge_node_connectivity' on a grid that already has "
-            f"edge-centered variables ({', '.join(stale)}). Constructed edges are "
-            f"numbered in lexicographic node-pair order, which need not match the "
-            f"numbering those variables were stored with; they may no longer refer "
-            f"to the same edges."
+            f"grid variables indexed by the edge dimension ({', '.join(stale)}). "
+            f"Constructed edges are numbered in lexicographic order by node pair, which "
+            f"may not match the original order of the edges those variables were stored with."
         )
 
     # This is in lieu of an xarray equivalent to `da.compute(a, b)`. We traverse the
