@@ -99,3 +99,6 @@ known-first-party = ["uxarray"]
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]  # (intentionally excludes test_optional_deps)
