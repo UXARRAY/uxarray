@@ -1,3 +1,6 @@
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
+
+
 class HoloviewsBackend:
     """Compare and set the HoloViews plotting backend."""
 
@@ -6,6 +9,7 @@ class HoloviewsBackend:
 
     def assign(self, backend: str):
         """Assign a HoloViews backend, one of 'matplotlib', 'bokeh'."""
+        _raise_hint_if_optional_deps_missing("holoviews")
         import holoviews as hv
 
         if backend not in ["bokeh", "matplotlib", None]:
@@ -13,6 +17,7 @@ class HoloviewsBackend:
                 f"Unsupported backend. Expected one of ['bokeh', 'matplotlib'], but received {backend}"
             )
         if backend is not None and backend != hv.Store.current_backend:
+            _raise_hint_if_optional_deps_missing("matplotlib")
             import matplotlib as mpl
 
             # Capture the live backend now (not once at init) so a backend the
@@ -63,6 +68,7 @@ class HoloviewsBackend:
             except Exception:
                 pass
 
+        _raise_hint_if_optional_deps_missing("matplotlib")
         import matplotlib as mpl
 
         mpl.use(self.matplotlib_backend)

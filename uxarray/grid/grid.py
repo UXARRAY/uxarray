@@ -102,6 +102,7 @@ from uxarray.io._voronoi import _spherical_voronoi_from_points
 from uxarray.io.utils import _parse_grid_type
 from uxarray.plot.accessor import GridPlotAccessor
 from uxarray.subset import GridSubsetAccessor
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 if TYPE_CHECKING:
     import cartopy.crs as ccrs
@@ -2441,7 +2442,7 @@ class Grid:
         gdf : spatialpandas.GeoDataFrame or geopandas.GeoDataFrame
             The output ``GeoDataFrame`` with a filled out "geometry" column of polygons.
         """
-
+        _raise_hint_if_optional_deps_missing("spatialpandas")
         from spatialpandas import GeoDataFrame
 
         if engine not in ["spatialpandas", "geopandas"]:
