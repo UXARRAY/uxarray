@@ -1215,8 +1215,8 @@ _GUFUNC_KWARGS = {"nopython": True, "cache": True, "target": "parallel"}
 
 
 def _make_kernel(reduce_fn):
-    """Builds a kernel that gathers each neighborhood, then calls
-    ``reduce_fn(window, param)`` on the 1-D result.
+    """Returns a kernel, compiled on its first call, that gathers each
+    neighborhood, then calls ``reduce_fn(window, param)`` on the 1-D result.
 
     ``reduce_fn`` must be numba-compilable, and must be defined in a real
     source file for ``cache=True`` to find it.
@@ -1226,23 +1226,30 @@ def _make_kernel(reduce_fn):
     if not hasattr(reduce_fn, "py_func"):
         reduce_fn = njit(cache=True)(reduce_fn)
 
-    @guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
-    def kernel(data, flat, starts, counts, param, out):
-        widest = 0
-        for i in range(counts.shape[0]):
-            if counts[i] > widest:
-                widest = counts[i]
-        buffer = np.empty(widest, dtype=np.float64)
+    @functools.cache
+    def build():
+        @guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
+        def kernel(data, flat, starts, counts, param, out):
+            widest = 0
+            for i in range(counts.shape[0]):
+                if counts[i] > widest:
+                    widest = counts[i]
+            buffer = np.empty(widest, dtype=np.float64)
 
-        for i in range(starts.shape[0]):
-            count = counts[i]
-            if count == 0:
-                out[i] = np.nan
-                continue
-            start = starts[i]
-            for j in range(count):
-                buffer[j] = data[flat[start + j]]
-            out[i] = reduce_fn(buffer[:count], param)
+            for i in range(starts.shape[0]):
+                count = counts[i]
+                if count == 0:
+                    out[i] = np.nan
+                    continue
+                start = starts[i]
+                for j in range(count):
+                    buffer[j] = data[flat[start + j]]
+                out[i] = reduce_fn(buffer[:count], param)
+
+        return kernel
+
+    def kernel(*args):
+        return build()(*args)
 
     return kernel
 
@@ -1493,60 +1500,26 @@ class Neighborhood:
     # ``reduce``. If new compiled reductions are desired, they should follow
     # this pattern.
     #
-    # ``functools.cache`` defers each build to the first call. The deferred
-    # compilation ensures that these kernels will only be compiled individually
-    # and lazily. Further, the lazy compilation prevents gufuncs from spawning
-    # threadpools eagerly and disrupting threading and forking in other
-    # contexts. They are ``staticmethod``s rather than attributes for the same
-    # reason: a class body runs at import, so assigning them there would
-    # compile all nine during ``import uxarray``.
+    # ``_make_kernel`` defers each build to the kernel's first call. The
+    # deferred compilation ensures that these kernels will only be compiled
+    # individually and lazily. Further, the lazy compilation prevents gufuncs
+    # from spawning threadpools eagerly and disrupting threading and forking in
+    # other contexts. They are wrapped in ``staticmethod`` because a plain
+    # function in a class body would bind ``self`` as the kernel's first
+    # argument.
 
-    @staticmethod
-    @functools.cache
-    def _mean_kernel():
-        return _make_kernel(lambda window, _: np.mean(window))
-
-    @staticmethod
-    @functools.cache
-    def _sum_kernel():
-        return _make_kernel(lambda window, _: np.sum(window))
-
-    @staticmethod
-    @functools.cache
-    def _min_kernel():
-        return _make_kernel(lambda window, _: np.min(window))
-
-    @staticmethod
-    @functools.cache
-    def _max_kernel():
-        return _make_kernel(lambda window, _: np.max(window))
-
-    @staticmethod
-    @functools.cache
-    def _ptp_kernel():
-        return _make_kernel(lambda window, _: np.max(window) - np.min(window))
-
-    @staticmethod
-    @functools.cache
-    def _median_kernel():
-        return _make_kernel(_median)
-
-    @staticmethod
-    @functools.cache
-    def _var_kernel():
-        return _make_kernel(_variance)
-
-    @staticmethod
-    @functools.cache
-    def _std_kernel():
-        return _make_kernel(lambda window, ddof: np.sqrt(_variance(window, ddof)))
+    _mean_kernel = staticmethod(_make_kernel(lambda window, _: np.mean(window)))
+    _sum_kernel = staticmethod(_make_kernel(lambda window, _: np.sum(window)))
+    _min_kernel = staticmethod(_make_kernel(lambda window, _: np.min(window)))
+    _max_kernel = staticmethod(_make_kernel(lambda window, _: np.max(window)))
+    _ptp_kernel = staticmethod(_make_kernel(lambda window, _: np.max(window) - np.min(window)))
+    _median_kernel = staticmethod(_make_kernel(_median))
+    _var_kernel = staticmethod(_make_kernel(_variance))
+    _std_kernel = staticmethod(_make_kernel(lambda window, ddof: np.sqrt(_variance(window, ddof))))
 
     # ``percentile`` is ``quantile`` on a 0-100 scale, so both methods
     # rescale onto this one kernel rather than compiling a near-duplicate.
-    @staticmethod
-    @functools.cache
-    def _quantile_kernel():
-        return _make_kernel(lambda window, q: np.quantile(window, q))
+    _quantile_kernel = staticmethod(_make_kernel(lambda window, q: np.quantile(window, q)))
 
     def mean(self, uxda):
         """Mean of each neighborhood."""
@@ -1633,7 +1606,7 @@ class Neighborhood:
             # path does too by writing into a float64 output.
             if block.dtype not in (np.float64, np.float32):
                 block = block.astype(np.float64)
-            return kernel()(block, *arrays, param)
+            return kernel(block, *arrays, param)
 
         return self._apply(uxda, run)
 
