@@ -1512,14 +1512,20 @@ class Neighborhood:
     _sum_kernel = staticmethod(_make_kernel(lambda window, _: np.sum(window)))
     _min_kernel = staticmethod(_make_kernel(lambda window, _: np.min(window)))
     _max_kernel = staticmethod(_make_kernel(lambda window, _: np.max(window)))
-    _ptp_kernel = staticmethod(_make_kernel(lambda window, _: np.max(window) - np.min(window)))
+    _ptp_kernel = staticmethod(
+        _make_kernel(lambda window, _: np.max(window) - np.min(window))
+    )
     _median_kernel = staticmethod(_make_kernel(_median))
     _var_kernel = staticmethod(_make_kernel(_variance))
-    _std_kernel = staticmethod(_make_kernel(lambda window, ddof: np.sqrt(_variance(window, ddof))))
+    _std_kernel = staticmethod(
+        _make_kernel(lambda window, ddof: np.sqrt(_variance(window, ddof)))
+    )
 
     # ``percentile`` is ``quantile`` on a 0-100 scale, so both methods
     # rescale onto this one kernel rather than compiling a near-duplicate.
-    _quantile_kernel = staticmethod(_make_kernel(lambda window, q: np.quantile(window, q)))
+    _quantile_kernel = staticmethod(
+        _make_kernel(lambda window, q: np.quantile(window, q))
+    )
 
     def mean(self, uxda):
         """Mean of each neighborhood."""
