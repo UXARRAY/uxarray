@@ -40,7 +40,7 @@ dependencies = [
   "scipy",
   "shapely",
   "spatialpandas",
-  "geopandas",
+  "geopandas>=1.0",  # 1.0 is the first release requiring pyogrio, the file-IO backend read_file needs. See #1693.
   "xarray",
   "hvplot",
   "healpix",
