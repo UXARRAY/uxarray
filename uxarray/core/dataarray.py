@@ -2101,7 +2101,8 @@ class UxDataArray(xr.DataArray):
         indexing. This means you can use string shortcuts for datetime indexes
         (e.g., '2000-01' to select all values in January 2000). It also means
         that slices are treated as inclusive of both the start and stop values,
-        unlike normal Python indexing.
+        unlike normal Python indexing, for any dimensions with coordinate labels.
+        (Dimensions without coordinates treat slices normally.)
 
         Parameters
         ----------
@@ -2120,10 +2121,15 @@ class UxDataArray(xr.DataArray):
             * pad / ffill: propagate last valid index value forward
             * backfill / bfill: propagate next valid index value backward
             * nearest: use nearest valid index value
+
+            Can only provide ``method`` if all indexed dims actually have coords,
+            else raises ValueError (consistent with xarray sel() behavior).
         tolerance : optional
             Maximum distance between original and new labels for inexact
             matches. The values of the index at the matching locations must
             satisfy the equation ``abs(index[indexer] - target) <= tolerance``.
+            Can only provide ``tolerance`` if all indexed dims actually have coords,
+            else raises ValueError (consistent with xarray sel() behavior).
         drop : bool, optional
             If ``drop=True``, drop coordinates variables in `indexers` instead
             of making them scalar.
@@ -2173,7 +2179,17 @@ class UxDataArray(xr.DataArray):
                     tolerance=tolerance,
                 )
             else:  # index-based indexing
+                # crash if provided `method` or `tolerance`, as promised in docstring;
+                if method is not None or tolerance is not None:
+                    raise ValueError(
+                        f"cannot supply selection options {dict(method=method, tolerance=tolerance)} "
+                        f"for dimension {grid_dim!r} that has no associated coordinate or index"
+                    )
                 grid_indices = grid_indexer
+                # temporary workaround for "isel fails with slice";
+                # remove the next two lines once issue #1639 gets fixed.
+                if isinstance(grid_indices, slice):
+                    grid_indices = range(*grid_indices.indices(self.sizes[grid_dim]))
 
             # offload the grid-indexing work to isel():
             result = self.isel({grid_dim: grid_indices}, drop=drop)

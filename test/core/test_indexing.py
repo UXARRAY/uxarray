@@ -7,6 +7,7 @@ but could maybe be moved here? Having test_indexing.py as its own file helps
 to ensure consistency between UxDataArray and UxDataset indexing.)
 """
 import numpy as np
+import pytest
 import uxarray as ux
 
 def test_sel_indexes_grid():
@@ -83,3 +84,172 @@ def test_can_index_grid_dim_not_in_data():
     assert result.sizes["n_face"] == result.uxgrid.n_face == 2
     result = arr.sel(n_edge=7)
     assert result.sizes["n_face"] == result.uxgrid.n_face == 2
+
+def test_sel_can_use_slice():
+    """ensure sel() can use slice() objects as indexers, and provides expected results,
+    with expected sizes, for UxDataArrays and UxDatasets.
+    Regression test inspired by reviewer comment in #1641.
+    TODO: fix #1714 then uncomment the relevant UxDataset tests below
+    """
+    grid = ux.Grid.from_healpix(zoom=0)  # 12 faces
+    arr = ux.UxDataArray(
+        np.arange(grid.n_face, dtype=float), dims="n_face", uxgrid=grid
+    )
+    # check with unlabeled data:
+    result = arr.sel(n_face=slice(0, 2))
+    assert result.n_face.size == result.uxgrid.n_face == 2
+    # check with labeled data (includes both endpoints,
+    #   as per docstring and in agreement with xarray behavior)
+    labeled = arr.assign_coords(n_face=np.arange(grid.n_face))
+    result = labeled.sel(n_face=slice(0, 2))
+    assert result.n_face.size == result.uxgrid.n_face == 3
+
+    # repeat test above but with UxDataset:
+    uxds = ux.UxDataset({'data': arr.to_xarray()}, uxgrid=grid)
+    result = uxds.sel(n_face=slice(0, 2))
+    assert result.n_face.size == result.uxgrid.n_face == 2
+    # (uncomment the next few lines after fixing #1714)
+    # labeled_ds = uxds.assign_coords(n_face=np.arange(grid.n_face))
+    # result = labeled_ds.sel(n_face=slice(0, 2))
+    # assert result.n_face.size == result.uxgrid.n_face == 3
+
+def test_sel_crash_if_provided_selection_options_with_coordless_dims():
+    """ensure sel() crashes if providing `tolerance` and/or `method` options
+    whenever any of the indexed dims have no associated coordinates.
+    (Tests below also demonstrate that this behavior is consistent with xarray.)
+    Regression test inspired by reviewer comment in #1641.
+    TODO: fix #1714 then uncomment the relevant UxDataset tests below
+    """
+    kw_options = ({"method": "nearest"}, {"method": "nearest", "tolerance": 0.1})
+
+    # ---- 1D example ---- #
+    # -- UxDataset tests -- #
+    ds0 = ux.tutorial.open_dataset("quad-hexagon")
+    assert set(ds0.coords) == set()
+    assert set(ds0.dims) == {'n_face'}
+    ds0_labeled = ds0.assign_coords({'n_face': [0,10,20,30]})
+
+    # (uncomment the next few lines after fixing #1714)
+    # ds0.sel(n_face=[0,1])  # (sanity check: no crash when no options provided)
+    # for kw in kw_options:
+    #     with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+    #         ds0.sel(n_face=[0,1], **kw)  # provides method, tolerance, or both.
+    #     # separately: checking to ensure that passing these options is fine in "labeled" case.
+    #     ds0_labeled.sel(n_face=[0,10], **kw)
+
+    # ensure same behavior for xarray objects:
+    ds0.to_xarray().sel(n_face=[0,1])
+    for kw in kw_options:
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+            ds0.to_xarray().sel(n_face=[0,1], **kw)
+        ds0_labeled.to_xarray().sel(n_face=[0,10], **kw)
+
+    # ensure supplying just tolerance raises a different error, if indexing is otherwise valid:
+    # (uncomment the next few lines after fixing #1714)
+    # with pytest.raises(ValueError, match=r"tolerance argument only valid if doing.+"):
+    #     ds0_labeled.sel(n_face=[0,10], tolerance=0.1)
+    with pytest.raises(ValueError, match=r"tolerance argument only valid if doing.+"):
+        ds0_labeled.to_xarray().sel(n_face=[0,10], tolerance=0.1)
+
+    # -- UxDataArray tests -- #
+    # (like above, but for UxDataArray objects. Fewer comments; see comments above.)
+    arr0 = ds0['t2m']
+    arr0_labeled = ds0_labeled['t2m']
+    arr0.sel(n_face=[0,1])
+    for kw in kw_options:
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+            arr0.sel(n_face=[0,1], **kw)
+        arr0_labeled.sel(n_face=[0,10], **kw)
+
+    arr0.to_xarray().sel(n_face=[0,1])
+    for kw in kw_options:
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+            arr0.to_xarray().sel(n_face=[0,1], **kw)
+        arr0_labeled.to_xarray().sel(n_face=[0,10], **kw)
+
+    with pytest.raises(ValueError, match=r"tolerance argument only valid if doing.+"):
+        arr0_labeled.sel(n_face=[0,10], tolerance=0.1)
+    with pytest.raises(ValueError, match=r"tolerance argument only valid if doing.+"):
+        arr0_labeled.to_xarray().sel(n_face=[0,10], tolerance=0.1)
+
+    # ---- 2D example ---- #
+    # -- UxDataset tests -- #
+    ds1_labeled = ux.tutorial.open_dataset("outCSne30-timeseries")
+    assert set(ds1_labeled.coords) == {'time'}
+    assert set(ds1_labeled.dims) == {'time', 'n_face'}
+    ds1 = ds1_labeled.drop_vars('time')
+
+    # (sanity checks: no crash when no options provided)
+    ds1_labeled.sel(time='2018-04-28T02')
+    ds1_labeled.sel(time='2018-04-28T02', n_face=[0,1])
+    ds1_labeled.sel(n_face=2)
+    ds1.sel(time=4)
+    ds1.sel(time=4, n_face=[3])
+    # loop with options
+    for kw in kw_options:
+        # passing options is fine when all indexed dims have coordinates.
+        ds1_labeled.sel(time='2018-04-28T02', **kw)
+        # (otherwise, should crash!)
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+            ds1_labeled.sel(time='2018-04-28T02', n_face=[0,1], **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+            ds1.sel(n_face=2, **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'time'"):
+            ds1.sel(time=4, **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options"):
+            # (message might mention either dimension in this case)
+            ds1.sel(time=4, n_face=[3], **kw)
+
+    # ensure same behavior for xarray objects:
+    ds1_labeled.to_xarray().sel(time='2018-04-28T02')
+    ds1_labeled.to_xarray().sel(time='2018-04-28T02', n_face=[0,1])
+    ds1_labeled.to_xarray().sel(n_face=2)
+    ds1.to_xarray().sel(time=4)
+    ds1.to_xarray().sel(time=4, n_face=[3])
+    for kw in kw_options:
+        ds1_labeled.to_xarray().sel(time='2018-04-28T02', **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+            ds1_labeled.to_xarray().sel(time='2018-04-28T02', n_face=[0,1], **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+            ds1.to_xarray().sel(n_face=2, **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'time'"):
+            ds1.to_xarray().sel(time=4, **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options"):
+            ds1.to_xarray().sel(time=4, n_face=[3], **kw)
+
+    # -- UxDataArray tests -- #
+    # (like above, but for UxDataArray objects. Fewer comments; see comments above.)
+    arr1_labeled = ds1_labeled['psi']
+    arr1 = ds1['psi']
+
+    arr1_labeled.sel(time='2018-04-28T02')
+    arr1_labeled.sel(time='2018-04-28T02', n_face=[0,1])
+    arr1_labeled.sel(n_face=2)
+    arr1.sel(time=4)
+    arr1.sel(time=4, n_face=[3])
+    for kw in kw_options:
+        arr1_labeled.sel(time='2018-04-28T02', **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+            arr1_labeled.sel(time='2018-04-28T02', n_face=[0,1], **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+            arr1.sel(n_face=2, **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'time'"):
+            arr1.sel(time=4, **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options"):
+            arr1.sel(time=4, n_face=[3], **kw)
+
+    arr1_labeled.to_xarray().sel(time='2018-04-28T02')
+    arr1_labeled.to_xarray().sel(time='2018-04-28T02', n_face=[0,1])
+    arr1_labeled.to_xarray().sel(n_face=2)
+    arr1.to_xarray().sel(time=4)
+    arr1.to_xarray().sel(time=4, n_face=[3])
+    for kw in kw_options:
+        arr1_labeled.to_xarray().sel(time='2018-04-28T02', **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+            arr1_labeled.to_xarray().sel(time='2018-04-28T02', n_face=[0,1], **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+            arr1.to_xarray().sel(n_face=2, **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'time'"):
+            arr1.to_xarray().sel(time=4, **kw)
+        with pytest.raises(ValueError, match=r"cannot supply selection options"):
+            arr1.to_xarray().sel(time=4, n_face=[3], **kw)
