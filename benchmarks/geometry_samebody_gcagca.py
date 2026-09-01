@@ -32,7 +32,7 @@ def _fp64_gca(w0, w1, v0, v1):
     replaced by naive FP64 cross products.  Same allocation shape (two np.empty(3))
     so the twin's allocation profile matches the real kernel exactly.
 
-    (Actually longer identical; same operations but here allocates tiny numpy arrays,
+    (Actually no longer identical; same operations but here allocates tiny numpy arrays,
     while intersections.py avoids that for improved efficiency; see issue #1648.)
     """
 
@@ -66,7 +66,7 @@ def _fp64_try_gca_gca_intersection(w0, w1, v0, v1):
     L2 (FP64 body) -- byte-for-byte identical logic to _try_gca_gca_intersection
     (intersections.py), only the L1 call differs.
 
-    (Actually longer identical; same operations but here allocates tiny numpy arrays,
+    (Actually no longer identical; same operations but here allocates tiny numpy arrays,
     while intersections.py avoids that for improved efficiency; see issue #1648.)
     """
     pos, neg = _fp64_gca(w0, w1, v0, v1)
@@ -109,7 +109,7 @@ def _fp64_gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     L3 (FP64 body) -- identical dispatcher to gca_gca_intersection
     (intersections.py), same np.empty((2, 3)) + res[:count] slice profile.
 
-    (Actually longer identical; same operations but here allocates tiny numpy arrays,
+    (Actually no longer identical; same operations but here allocates tiny numpy arrays,
     while intersections.py avoids that for improved efficiency; see issue #1648.)
     """
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:

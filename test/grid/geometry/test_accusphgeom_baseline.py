@@ -129,7 +129,7 @@ def test_gca_constlat_intersection_baseline(gca_constlat_rows, idx):
     case_id, a0, a1, z0, bx, by = gca_constlat_rows[idx]
     result = gca_const_lat_intersection(np.stack([a0, a1]), z0)
     assert not np.all(np.isnan(result[0])), f"case_id={case_id}: no intersection returned"
-    dx = result[0, 0] - bx
-    dy = result[0, 1] - by
+    dx = result[0][0] - bx
+    dy = result[0][1] - by
     err = math.sqrt(dx * dx + dy * dy)
     assert err < 5e-15, f"case_id={case_id}: err_xy={err:.3e} ≥ 5e-15"

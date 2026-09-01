@@ -231,7 +231,7 @@ def test_GCA_constLat_intersections_antimeridian():
     ])
 
     res = gca_const_lat_intersection(GCR1_cart, np.sin(np.deg2rad(60.0)))
-    res_lonlat_rad = _xyz_to_lonlat_rad(*(res[0].tolist()))
+    res_lonlat_rad = _xyz_to_lonlat_rad(*res[0])
     assert np.allclose(res_lonlat_rad, np.array([np.deg2rad(170.0), np.deg2rad(60.0)]))
 
 def test_GCA_constLat_intersections_empty():
@@ -253,7 +253,7 @@ def test_GCA_constLat_intersections_two_pts():
     query_lat = (np.deg2rad(10.0) + max_lat) / 2.0
 
     res = gca_const_lat_intersection(GCR1_cart, np.sin(query_lat))
-    assert res.shape[0] == 2
+    assert np.all(np.isfinite(res))  # 2 intersection points
 
 def test_on_minor_arc_near_antipodal_degeneracy():
     # Endpoints computed via independent (lon, lat) and (lon + pi, -lat) trig

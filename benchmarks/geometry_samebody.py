@@ -53,22 +53,20 @@ import time
 import numpy as np
 from numba import njit
 
-from uxarray.grid.arcs import _on_minor_arc_xyz, on_minor_arc
+from uxarray.constants import ERROR_TOLERANCE
+from uxarray.grid.arcs import on_minor_arc
 from uxarray.grid.intersections import (
-    _accux_constlat_scalar,
-    _snap_const_lat_endpoint_xy,
+    _accux_constlat,
     gca_const_lat_intersection,
 )
-
-# ---------------------------------------------------------------------------
-# L1 (FP64 body) — direct double-precision kernel, verbatim from
-# fp64_GCAconstLat.hh. Scalar in / scalar out so Numba keeps it in registers,
-# mirroring _accux_constlat_scalar.
-# ---------------------------------------------------------------------------
 
 
 @njit(cache=True)
 def _fp64_constlat_scalar(a0, a1, a2, b0, b1, b2, const_z):
+    """
+    L1 (FP64 body) — direct double-precision kernel, verbatim from
+    fp64_GCAconstLat.hh.
+    """
     nx = a1 * b2 - a2 * b1
     ny = a2 * b0 - a0 * b2
     nz = a0 * b1 - a1 * b0
@@ -101,14 +99,15 @@ def _fp64_constlat(x1, x2, const_z):
     return pos, neg
 
 
-# ---------------------------------------------------------------------------
-# L2 (FP64 body) — identical logic to _try_gca_const_lat_intersection, only the
-# L1 call differs. Branchless integer masks; status codes 0/1/2 as in AccuSphGeom.
-# ---------------------------------------------------------------------------
-
-
 @njit(cache=True)
 def _fp64_try_gca_const_lat_intersection(gca_cart, const_z):
+    """
+    L2 (FP64 body) — identical logic to _try_gca_const_lat_intersection, only the
+    L1 call differs. Branchless integer masks; status codes 0/1/2 as in AccuSphGeom.
+
+    (Actually no longer identical; same operations but here allocates tiny numpy arrays,
+    while intersections.py avoids that for improved efficiency; see issue #1648.)
+    """
     x1 = gca_cart[0]
     x2 = gca_cart[1]
     pos, neg = _fp64_constlat(x1, x2, const_z)
@@ -135,14 +134,41 @@ def _fp64_try_gca_const_lat_intersection(gca_cart, const_z):
     return point, status, pos, neg
 
 
-# ---------------------------------------------------------------------------
-# L3 (FP64 body) — identical dispatcher to gca_const_lat_intersection, reusing
-# the production _snap_const_lat_endpoint so only the numerical body differs.
-# ---------------------------------------------------------------------------
+@njit(cache=True, inline="always")
+def _snap_const_lat_endpoint_xy(px, py, a0, a1, a2, b0, b1, b2, const_z):
+    """Scalar-argument form of :func:`_snap_const_lat_endpoint`.
+
+    Returns the (possibly snapped) x, y of the candidate; z is always ``const_z``
+    so it is not returned. (Legacy implementation included here after it was
+    removed while addressing issue #1648, for use in _fp64_gca_const_lat_intersection)
+    """
+    snap_sq = 1e-14
+    ox = px
+    oy = py
+    if abs(a2 - const_z) <= ERROR_TOLERANCE:
+        dx = ox - a0
+        dy = oy - a1
+        if dx * dx + dy * dy < snap_sq:
+            ox = a0
+            oy = a1
+    if abs(b2 - const_z) <= ERROR_TOLERANCE:
+        dx = ox - b0
+        dy = oy - b1
+        if dx * dx + dy * dy < snap_sq:
+            ox = b0
+            oy = b1
+    return ox, oy
 
 
 @njit(cache=True)
 def _fp64_gca_const_lat_intersection(gca_cart, const_z):
+    """
+    L3 (FP64 body) — identical dispatcher to gca_const_lat_intersection, reusing
+    the production _snap_const_lat_endpoint so only the numerical body differs.
+
+    (Actually no longer identical; same operations but here allocates tiny numpy arrays,
+    while intersections.py avoids that for improved efficiency; see issue #1648.)
+    """
     # Mirrors the production scalar dispatcher exactly (same allocation profile:
     # one (2, 3) array), only the L1 body differs. This keeps the same-body
     # comparison honest: any timing gap is the EFT math, not plumbing.
@@ -160,8 +186,8 @@ def _fp64_gca_const_lat_intersection(gca_cart, const_z):
 
     pos_fin = math.isfinite(px) and math.isfinite(py)
     neg_fin = math.isfinite(nx) and math.isfinite(ny)
-    pos_valid = pos_fin and _on_minor_arc_xyz(px, py, const_z, a0, a1, a2, b0, b1, b2)
-    neg_valid = neg_fin and _on_minor_arc_xyz(nx, ny, const_z, a0, a1, a2, b0, b1, b2)
+    pos_valid = pos_fin and on_minor_arc((px, py, const_z), (a0, a1, a2), (b0, b1, b2))
+    neg_valid = neg_fin and on_minor_arc((nx, ny, const_z), (a0, a1, a2), (b0, b1, b2))
 
     if pos_valid and not neg_valid:
         sx, sy = _snap_const_lat_endpoint_xy(px, py, a0, a1, a2, b0, b1, b2, const_z)
@@ -241,9 +267,7 @@ def _batch_accux_kernel(A, B, Z):
     """Real AccuX L1 (EFT) kernel over a batch; accumulate to defeat DCE."""
     acc = 0.0
     for i in range(A.shape[0]):
-        px, py, nxo, nyo = _accux_constlat_scalar(
-            A[i, 0], A[i, 1], A[i, 2], B[i, 0], B[i, 1], B[i, 2], Z[i]
-        )
+        px, py, nxo, nyo = _accux_constlat(A[i], B[i], Z[i])
         acc += px + py + nxo + nyo
     return acc
 
