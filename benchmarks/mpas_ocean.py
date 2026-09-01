@@ -107,7 +107,8 @@ class Gradient(DatasetBenchmark):
 
     def track_peakmem_gradient(self, resolution):
         """Transient high-water allocation of taking a gradient."""
-        return peak_allocated(lambda: self.uxds[data_var].gradient())
+        with numba_threads(1):
+            return peak_allocated(lambda: self.uxds[data_var].gradient())
 
     track_peakmem_gradient.unit = "bytes"
 

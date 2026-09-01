@@ -32,11 +32,18 @@ def _open_dataset_with_fallback(filename_or_obj, chunks=None, **kwargs):
     try:
         # Try opening with xarray's default read engine
         return xr.open_dataset(filename_or_obj, chunks=chunks, **kwargs)
-    except Exception:
+    except Exception as default_engine_error:
         # If it fails, use the "netcdf4" engine as backup
         # Extract engine from kwargs to prevent duplicate parameter error
         engine = kwargs.pop("engine", "netcdf4")
-        return xr.open_dataset(filename_or_obj, engine=engine, chunks=chunks, **kwargs)
+        try:
+            return xr.open_dataset(
+                filename_or_obj, engine=engine, chunks=chunks, **kwargs
+            )
+        except Exception as fallback_error:
+            # Chain the fallback onto the original so both engines' reasons are
+            # visible; otherwise the default engine's error is lost entirely.
+            raise fallback_error from default_engine_error
 
 
 def _map_dims_to_ugrid(
