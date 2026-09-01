@@ -1,5 +1,8 @@
+import numpy as np
 import xarray as xr
+from xarray.core.utils import either_dict_or_kwargs
 
+from uxarray.constants import GRID_DIMS
 from uxarray.errors import DimensionError
 from uxarray.io.utils import _get_source_dims_dict, _parse_grid_type
 
@@ -130,9 +133,31 @@ def match_chunks_to_ugrid(grid_filename_or_obj, chunks):
 
 
 def _validate_indexers(indexers, indexers_kwargs, func_name, ignore_grid):
-    from xarray.core.utils import either_dict_or_kwargs
+    """returns (dict of indexers, set of grid_dim strs).
 
-    from uxarray.constants import GRID_DIMS
+    Parameters
+    ----------
+    indexers: dict
+        indexers originally provided as dict. E.g., uxarr.isel({'n_face': 0}).
+        Provide indexers or indexers_kwargs but not both.
+    indexers_kwargs: dict
+        indexers originally provided as kwargs. E.g. uxarr.isel(n_face=0).
+        Provide indexers or indexers_kwargs but not both.
+    func_name: str
+        name of the function calling _validate_indexers. E.g. "isel".
+        Included in error message if provided both indexers and indexers_kwargs.
+    ignore_grid: bool
+        whether ignore_grid=True flag was set in the indexing operation.
+        If False, ensure len(grid_dims) <= 1 else raise DimensionError.
+
+    Returns
+    -------
+    indexers: dict
+        validated dict of indexers, including grid dims indexers if present.
+    grid_dims: set
+        set of grid dimension names (from ``GRID_DIMS``) present as keys in indexers;
+        values from {"n_face", "n_node", "n_edge"} (at most 1 value if ignore_grid=False).
+    """
 
     # Used to filter out slices containing all Nones (causes subscription errors, i.e., var[0])
     _is_full_none_slice = lambda v: (
@@ -154,3 +179,34 @@ def _validate_indexers(indexers, indexers_kwargs, func_name, ignore_grid):
         )
 
     return indexers, grid_dims
+
+
+def _resolve_coordinate_labels_to_indices(
+    dim, labels_to_sel, coord_array, *, method=None, tolerance=None
+):
+    """returns indices which would be selected by coord_array.sel({dim: labels_to_sel}, ...)
+    coord_array.isel({dim: result}) should be equivalent to coord_array.sel({dim: labels_to_sel}, ...).
+
+    (Implementation here drops extra coordinates from any indexers,
+    but if it is being applied to grid dims for sel() then it will produce behavior
+    which is consistent with isel(), unless issue #1712 gets fixed.)
+
+    dim: str
+        dimension name to select along
+    labels_to_sel: any valid indexer which can be passed to .sel()
+        values to select along dim
+    coord_array: xr.DataArray or UxDataArray
+        coordinate array to select from.
+    method, tolerance: passed directly to .sel().
+    """
+    # just using xarray's .sel() on a simple np.arange(), to ensure exactly consistent behavior with sel().
+    # (Maybe a more efficient implementation exists, but this is simple and gives correct results.)
+    indices = xr.DataArray(np.arange(coord_array.sizes[dim]), dims=dim)
+    _indices_coord_name = f"__{dim}_indices__"  # just needs to be any unused name.
+    if hasattr(coord_array, "to_xarray"):  # convert to xarray to avoid recursive sel()
+        coord_array = coord_array.to_xarray()
+    coord_with_indices = coord_array.assign_coords({_indices_coord_name: indices})
+    selected = coord_with_indices.sel(
+        {dim: labels_to_sel}, method=method, tolerance=tolerance
+    )
+    return selected[_indices_coord_name].values  # (return as np.ndarray, not DataArray)
