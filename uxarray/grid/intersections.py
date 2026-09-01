@@ -16,6 +16,12 @@ from uxarray.utils.computing import (
     two_prod,
     two_sum,
 )
+from uxarray.utils.numba_math import (
+    _numba_add3,
+    _numba_allfinite3,
+    _numba_mul3_scalar,
+    _numba_neg3,
+)
 
 # Edge screeners: fast O(n) passes used by Grid.get_edges_at_constant_* to
 # identify candidate edges before the expensive GCA intersection. "no_extreme"
@@ -252,7 +258,7 @@ def faces_within_lat_bounds(lats, face_bounds_lat):
 
 
 @njit(cache=True, inline="always", error_model="numpy")
-def _accux_gca(w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12):
+def _accux_gca(w0, w1, v0, v1):
     """Compute the candidate intersection points of two great-circle arcs.
 
     Pure numerical kernel (mirrors AccuSphGeom ``accux_gca``).
@@ -262,21 +268,21 @@ def _accux_gca(w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12):
 
     Parameters
     ----------
-    w00, w01, w02, w10, w11, w12 : float
+    w0, w1 : iterables of length 3
         Cartesian endpoints of the first arc.
-    v00, v01, v02, v10, v11, v12 : float
+    v0, v1 : iterables of length 3
         Cartesian endpoints of the second arc.
 
     Returns
     -------
-    pos_x, pos_y, pos_z, neg_x, neg_y, neg_z : float
+    pos, neg : tuples of length 3
         Two antipodal candidate unit vectors.
     """
     n1x_hi, n1y_hi, n1z_hi, n1x_lo, n1y_lo, n1z_lo = accucross(
-        w00, w01, w02, w10, w11, w12
+        w0[0], w0[1], w0[2], w1[0], w1[1], w1[2]
     )
     n2x_hi, n2y_hi, n2z_hi, n2x_lo, n2y_lo, n2z_lo = accucross(
-        v00, v01, v02, v10, v11, v12
+        v0[0], v0[1], v0[2], v1[0], v1[1], v1[2]
     )
     vx_hi, vy_hi, vz_hi, vx_lo, vy_lo, vz_lo = accucross_pair(
         n1x_hi,
@@ -300,42 +306,53 @@ def _accux_gca(w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12):
     sum_hi, sum_lo = _sum_of_squares_c((vx_hi, vy_hi, vz_hi), (vx_lo, vy_lo, vz_lo))
     vn, _ = acc_sqrt_re(sum_hi, sum_lo)
     # vn==0 (coplanar arcs) yields inf via IEEE division under error_model="numpy",
-    # so the candidates become non-finite and the status layer masks them out.
+    # so pos/neg become non-finite and the status layer masks them out.
     inv = 1.0 / vn
-    pos_x = vx * inv
-    pos_y = vy * inv
-    pos_z = vz * inv
-    return pos_x, pos_y, pos_z, -pos_x, -pos_y, -pos_z
+    pos = _numba_mul3_scalar((vx, vy, vz), inv)
+    neg = _numba_neg3(pos)
+    return pos, neg
 
 
 @njit(cache=True, inline="always", error_model="numpy")
-def _try_gca_gca_intersection(
-    w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
-):
+def _try_gca_gca_intersection(w0, w1, v0, v1):
     """Select the valid great-circle intersection and report a status code.
+    Returns point, status, pos, neg.
 
     Batch/status layer (mirrors AccuSphGeom ``try_gca_gca_intersection``).
 
     Calls the pure numerical kernel, applies integer mask arithmetic to determine
     validity, selects the output point without if/else branching in the hot path.
 
-    Status codes mirror AccuSphGeom:
-        0  exactly one candidate is valid
-        1  both candidates are valid
-        2  neither candidate is valid  (includes coplanar/parallel case)
-    """
-    px, py, pz, ngx, ngy, ngz = _accux_gca(
-        w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
-    )
+    Parameters
+    ----------
+    w0, w1 : iterables of length 3
+        Cartesian endpoints of the first arc.
+    v0, v1 : iterables of length 3
+        Cartesian endpoints of the second arc.
 
-    pos_fin = int(math.isfinite(px)) * int(math.isfinite(py)) * int(math.isfinite(pz))
-    neg_fin = (
-        int(math.isfinite(ngx)) * int(math.isfinite(ngy)) * int(math.isfinite(ngz))
-    )
-    pos_on_a = pos_fin * _on_minor_arc_xyz(px, py, pz, w00, w01, w02, w10, w11, w12)
-    pos_on_b = pos_fin * _on_minor_arc_xyz(px, py, pz, v00, v01, v02, v10, v11, v12)
-    neg_on_a = neg_fin * _on_minor_arc_xyz(ngx, ngy, ngz, w00, w01, w02, w10, w11, w12)
-    neg_on_b = neg_fin * _on_minor_arc_xyz(ngx, ngy, ngz, v00, v01, v02, v10, v11, v12)
+    Returns
+    -------
+    point : tuple of length 3
+        The single valid intersection point, if status == 0, else meaningless.
+    status : int
+        Status codes mirror AccuSphGeom:
+        0  exactly one candidate is valid (point)
+        1  both candidates are valid (pos and neg)
+        2  neither candidate is valid  (includes coplanar/parallel case)
+    pos : tuple of length 3
+        The positive candidate intersection point (antipodal to neg).
+    neg : tuple of length 3
+        The negative candidate intersection point (antipodal to pos).
+    """
+    pos, neg = _accux_gca(w0, w1, v0, v1)
+    _numba_allfinite3(pos)
+
+    pos_fin = _numba_allfinite3(pos)
+    neg_fin = _numba_allfinite3(neg)
+    pos_on_a = pos_fin * on_minor_arc(pos, w0, w1)
+    pos_on_b = pos_fin * on_minor_arc(pos, v0, v1)
+    neg_on_a = neg_fin * on_minor_arc(neg, w0, w1)
+    neg_on_b = neg_fin * on_minor_arc(neg, v0, v1)
 
     pos_valid = pos_fin * pos_on_a * pos_on_b
     neg_valid = neg_fin * neg_on_a * neg_on_b
@@ -343,14 +360,14 @@ def _try_gca_gca_intersection(
     pos_mask = pos_valid * (1 - neg_valid)
     neg_mask = neg_valid * (1 - pos_valid)
 
-    point_x = pos_mask * px + neg_mask * ngx
-    point_y = pos_mask * py + neg_mask * ngy
-    point_z = pos_mask * pz + neg_mask * ngz
+    point = _numba_add3(
+        _numba_mul3_scalar(pos, pos_mask), _numba_mul3_scalar(neg, neg_mask)
+    )
 
     both = pos_valid * neg_valid
     none = (1 - pos_valid) * (1 - neg_valid)
     status = both + none * 2
-    return point_x, point_y, point_z, status, px, py, pz, ngx, ngy, ngz
+    return point, status, pos, neg
 
 
 @njit(cache=True, error_model="numpy")
@@ -363,16 +380,18 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
 
     Parameters
     ----------
-    gca_a_xyz : numpy.ndarray
-        First great-circle arc as two Cartesian endpoints, shape ``(2, 3)``.
-    gca_b_xyz : numpy.ndarray
-        Second great-circle arc as two Cartesian endpoints, shape ``(2, 3)``.
+    gca_a_xyz : iterable of 2 length-3 iterables
+        First great-circle arc as two Cartesian endpoints.
+        (If numpy array, has shape (2,3). If tuple, contains two length-3 tuples.)
+    gca_b_xyz : iterable of 2 length-3 iterables
+        Second great-circle arc as two Cartesian endpoints.
+        (If numpy array, has shape (2,3). If tuple, contains two length-3 tuples.)
 
     Returns
     -------
-    numpy.ndarray
-        Intersection points, shape ``(2, 3)``, with unused rows filled with NaN
-        (0, 1, or 2 valid rows).
+    intersections : tuple of 2 length-3 tuples
+        The (x,y,z) coordinates of the intersections, filling with NaNs as needed.
+        E.g. if there is one intersection, returns ((x1,y1,z1) (nan,nan,nan)).
 
     References
     ----------
@@ -385,67 +404,52 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     intersections on a sphere. SIAM Journal on Scientific Computing, 48(2),
     B208-B232. https://doi.org/10.1137/25M1737614
     """
-    if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
-        raise DimensionError("The two GCAs must be in the cartesian [x, y, z] format")
+    if len(gca_a_xyz) != 2 or len(gca_b_xyz) != 2:
+        raise DimensionError("Each input to gca_gca_intersection must have length 2")
+    if len(gca_a_xyz[0]) != 3 or len(gca_a_xyz[1]) != 3:
+        raise DimensionError(
+            "gca_a points must be in cartesian format (x,y,z), but got len(gca_a[0]) != 3"
+            "or len(gca_a[1]) != 3, in gca_gca_intersection(gca_a, gca_b)"
+        )
+    if len(gca_b_xyz[0]) != 3 or len(gca_b_xyz[1]) != 3:
+        raise DimensionError(
+            "gca_b points must be in cartesian format (x,y,z), but got len(gca_b[0]) != 3"
+            "or len(gca_b[1]) != 3, in gca_gca_intersection(gca_a, gca_b)"
+        )
 
-    # Unpack to scalars and run the allocation-free scalar chain.
-    w00 = gca_a_xyz[0, 0]
-    w01 = gca_a_xyz[0, 1]
-    w02 = gca_a_xyz[0, 2]
-    w10 = gca_a_xyz[1, 0]
-    w11 = gca_a_xyz[1, 1]
-    w12 = gca_a_xyz[1, 2]
-    v00 = gca_b_xyz[0, 0]
-    v01 = gca_b_xyz[0, 1]
-    v02 = gca_b_xyz[0, 2]
-    v10 = gca_b_xyz[1, 0]
-    v11 = gca_b_xyz[1, 1]
-    v12 = gca_b_xyz[1, 2]
+    w0 = gca_a_xyz[0]
+    w1 = gca_a_xyz[1]
+    v0 = gca_b_xyz[0]
+    v1 = gca_b_xyz[1]
 
-    (
-        point_x,
-        point_y,
-        point_z,
-        status,
-        pos_x,
-        pos_y,
-        pos_z,
-        neg_x,
-        neg_y,
-        neg_z,
-    ) = _try_gca_gca_intersection(
-        w00, w01, w02, w10, w11, w12, v00, v01, v02, v10, v11, v12
-    )
+    point, status, pos, neg = _try_gca_gca_intersection(w0, w1, v0, v1)
 
-    res = np.empty((2, 3))
-    count = 0
-    if status == 0:
-        res[0, 0] = point_x
-        res[0, 1] = point_y
-        res[0, 2] = point_z
-        count = 1
+    # Always return two points; branching logic changing output shape while
+    # using tuple outputs causes numba crash like "Can't unify return type".
+    # (And, swapping to tiny numpy array outputs causes significant slowdown.)
+    if status == 0:  # one intersection point
+        result = (point, (np.nan, np.nan, np.nan))
     elif status == 1:
-        res[0, 0] = pos_x
-        res[0, 1] = pos_y
-        res[0, 2] = pos_z
-        res[1, 0] = neg_x
-        res[1, 1] = neg_y
-        res[1, 2] = neg_z
-        count = 2
+        result = (pos, neg)
     else:
         # status == 2: no candidate on both arcs.
         # Check for coplanar overlap (shared endpoints) outside the kernel.
-        if _on_minor_arc_xyz(v00, v01, v02, w00, w01, w02, w10, w11, w12):
-            res[count, 0] = v00
-            res[count, 1] = v01
-            res[count, 2] = v02
-            count += 1
-        if _on_minor_arc_xyz(v10, v11, v12, w00, w01, w02, w10, w11, w12):
-            res[count, 0] = v10
-            res[count, 1] = v11
-            res[count, 2] = v12
-            count += 1
-    return res[:count]
+        v0_on_w_arc = on_minor_arc(v0, w0, w1)
+        v1_on_w_arc = on_minor_arc(v1, w0, w1)
+        if v0_on_w_arc or v1_on_w_arc:
+            # Ensure result will be (tuple,tuple), to avoid "Can't unify return type",
+            # which occurs if there is any chance of (array,tuple) or (array,array).
+            v0 = (v0[0], v0[1], v0[2])
+            v1 = (v1[0], v1[1], v1[2])
+            if v0_on_w_arc and v1_on_w_arc:
+                result = (v0, v1)
+            elif v0_on_w_arc:
+                result = (v0, (np.nan, np.nan, np.nan))
+            elif v1_on_w_arc:
+                result = (v1, (np.nan, np.nan, np.nan))
+        else:
+            result = ((np.nan, np.nan, np.nan), (np.nan, np.nan, np.nan))
+    return result
 
 
 @njit(cache=True, inline="always", error_model="numpy")

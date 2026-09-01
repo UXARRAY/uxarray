@@ -18,7 +18,7 @@ def test_get_GCA_GCA_intersections_antimeridian():
     ])
     res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
 
-    assert len(res_cart) == 0
+    assert np.all(~np.isfinite(res_cart))
 
     GCR1_cart = np.array([
         _lonlat_rad_to_xyz(np.deg2rad(170.0), np.deg2rad(89.0)),
@@ -67,8 +67,8 @@ def test_get_GCA_GCA_intersections_perpendicular():
     ])
     res_cart = gca_gca_intersection(GCR1_cart, GCR2_cart)
 
-    # rest_cart should be empty since these two GCAs are not intersecting
-    assert(len(res_cart) == 0)
+    # rest_cart should be all NaNs because these two GCAs are not intersecting
+    assert np.all(~np.isfinite(res_cart))
 
     # def test_GCA_GCA_single_edge_to_pole(self):
     #     # GCA_a - Face Center connected to South Pole
@@ -115,7 +115,7 @@ def test_GCA_GCA_south_pole():
     gca_b_xyz = np.array([edge_a_xyz, edge_b_xyz])
 
     # The edge should intersect
-    assert(len(gca_gca_intersection(gca_a_xyz, gca_b_xyz)))
+    assert np.all(np.isfinite(gca_gca_intersection(gca_a_xyz, gca_b_xyz)[0]))
 
 def test_GCA_GCA_north_pole():
     # GCA_a - Face Center connected to South Pole
@@ -134,7 +134,7 @@ def test_GCA_GCA_north_pole():
     gca_b_xyz = np.array([edge_a_xyz, edge_b_xyz])
 
     # The edge should intersect
-    assert(len(gca_gca_intersection(gca_a_xyz, gca_b_xyz)))
+    assert np.all(np.isfinite(gca_gca_intersection(gca_a_xyz, gca_b_xyz)[0]))
 
 def test_GCA_GCA_north_pole_angled():
     # GCA_a
@@ -154,7 +154,7 @@ def test_GCA_GCA_north_pole_angled():
     gca_b_xyz = np.array([edge_a_xyz, edge_b_xyz])
 
     # The edge should intersect
-    assert(len(gca_gca_intersection(gca_a_xyz, gca_b_xyz)))
+    assert np.all(np.isfinite(gca_gca_intersection(gca_a_xyz, gca_b_xyz)[0]))
 
 def test_GCA_edge_intersection_count():
 
@@ -187,9 +187,9 @@ def test_GCA_edge_intersection_count():
         res1 = gca_gca_intersection(edge, gca_face_center_north_pole)
         res2 = gca_gca_intersection(edge, gca_face_center_south_pole)
 
-        if len(res1):
+        if np.isfinite(res1[0][0]):
             intersect_north_pole_count += 1
-        if len(res2):
+        if np.isfinite(res2[0][0]):
             intersect_south_pole_count += 1
 
     print(intersect_north_pole_count, intersect_south_pole_count)
@@ -221,8 +221,8 @@ def test_GCA_GCA_single_edge_to_pole():
     gca_b_xyz = np.array([edge_a_xyz, edge_b_xyz])
 
     # The edge should intersect
-    assert(len(gca_gca_intersection(gca_a_xyz_close, gca_b_xyz)))
-    assert(len(gca_gca_intersection(gca_a_xyz_exact, gca_b_xyz)))
+    assert np.all(np.isfinite(gca_gca_intersection(gca_a_xyz_close, gca_b_xyz)[0]))
+    assert np.all(np.isfinite(gca_gca_intersection(gca_a_xyz_exact, gca_b_xyz)[0]))
 
 def test_GCA_constLat_intersections_antimeridian():
     GCR1_cart = np.array([
@@ -313,4 +313,4 @@ def test_GCA_GCA_intersection_near_antipodal_arc_no_false_positive():
     gca_unrelated = np.array([c0, c1])
 
     res = gca_gca_intersection(gca_near_antipodal, gca_unrelated)
-    assert len(res) == 0
+    assert np.all(~np.isfinite(res))

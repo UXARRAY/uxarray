@@ -31,6 +31,9 @@ def _fp64_gca(w0, w1, v0, v1):
     analogue of _accux_gca (intersections.py) with accucross/accucross_pair
     replaced by naive FP64 cross products.  Same allocation shape (two np.empty(3))
     so the twin's allocation profile matches the real kernel exactly.
+
+    (Actually longer identical; same operations but here allocates tiny numpy arrays,
+    while intersections.py avoids that for improved efficiency; see issue #1648.)
     """
 
     n1x = w0[1] * w1[2] - w0[2] * w1[1]
@@ -62,6 +65,9 @@ def _fp64_try_gca_gca_intersection(w0, w1, v0, v1):
     """
     L2 (FP64 body) -- byte-for-byte identical logic to _try_gca_gca_intersection
     (intersections.py), only the L1 call differs.
+
+    (Actually longer identical; same operations but here allocates tiny numpy arrays,
+    while intersections.py avoids that for improved efficiency; see issue #1648.)
     """
     pos, neg = _fp64_gca(w0, w1, v0, v1)
 
@@ -102,6 +108,9 @@ def _fp64_gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     """
     L3 (FP64 body) -- identical dispatcher to gca_gca_intersection
     (intersections.py), same np.empty((2, 3)) + res[:count] slice profile.
+
+    (Actually longer identical; same operations but here allocates tiny numpy arrays,
+    while intersections.py avoids that for improved efficiency; see issue #1648.)
     """
     if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
         raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
@@ -224,8 +233,8 @@ def _batch_accux_gca_dispatch(ga, gb):
     acc = 0.0
     for i in range(ga.shape[0]):
         res = gca_gca_intersection(ga[i], gb[i])
-        if res.shape[0] > 0:
-            acc += res[0, 0]
+        if math.isfinite(res[0][0]):
+            acc += res[0][0]
     return acc
 
 
@@ -265,7 +274,11 @@ def main(n_cases=100_000, seed=20251104):
     for i in range(n_check):
         r_fp = _fp64_gca_gca_intersection(ga[i], gb[i])
         r_ax = gca_gca_intersection(ga[i], gb[i])
-        if r_fp.shape[0] != r_ax.shape[0]:
+        # r_fp gives tiny numpy array result, with len(r_fp) == number of intersections,
+        # while r_ax always gives ((x1,y1,z1), (x2,y2,z2)) tuple result,
+        #   filling with nans if less than 2 intersections.
+        n_intersections = math.isfinite(r_ax[0][0]) + math.isfinite(r_ax[1][0])
+        if len(r_fp) != n_intersections:
             row_mismatch += 1
         elif r_fp.shape[0] > 0:
             max_out_diff = max(max_out_diff, float(np.max(np.abs(r_fp - r_ax))))
