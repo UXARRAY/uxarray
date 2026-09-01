@@ -61,6 +61,7 @@ from uxarray.grid.intersections import (
 from uxarray.grid.neighbors import (
     BallTree,
     KDTree,
+    Neighborhood,
     SpatialHash,
     _populate_edge_face_distances,
     _populate_edge_node_distances,
@@ -501,7 +502,11 @@ class Grid:
 
     @classmethod
     def from_structured(
-        cls, ds: xr.Dataset = None, lon=None, lat=None, tol: float | None = 1e-10
+        cls,
+        ds: xr.Dataset = None,
+        lon=None,
+        lat=None,
+        tol: float | None = None,
     ):
         """
         Converts a structured ``xarray.Dataset`` or longitude and latitude coordinates into an unstructured ``uxarray.Grid``.
@@ -525,8 +530,9 @@ class Grid:
             Should be a one-dimensional or two-dimensional array following CF conventions.
 
         tol : float, optional
-            Tolerance for considering nodes as identical when constructing the grid from longitude and latitude.
-            Default is `1e-10`.
+            Tolerance in degrees for considering nodes as identical when constructing the grid from
+            longitude and latitude. Defaults to ``None``, which matches nodes within
+            ``uxarray.constants.ERROR_TOLERANCE`` on the unit sphere.
 
         Returns
         -------
@@ -1790,7 +1796,7 @@ class Grid:
         coordinates : str, default="face centers"
             Selects which tree to query, with "nodes" selecting the Corner Nodes, "edge centers" selecting the Edge
             Centers of each edge, and "face centers" selecting the Face Centers of each face
-        coordinate_system : str, default="cartesian"
+        coordinate_system : str, default="spherical"
             Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
             "spherical" selecting spherical coordinates.
         distance_metric : str, default="haversine"
@@ -1807,7 +1813,17 @@ class Grid:
             BallTree instance
         """
 
-        if self._ball_tree is None or reconstruct:
+        # Rebuild whenever any tree-defining parameter differs from the cached
+        # instance. Previously only ``coordinates`` was compared, so switching
+        # ``coordinate_system`` or ``distance_metric`` silently returned a stale
+        # tree built with the original settings.
+        if (
+            self._ball_tree is None
+            or coordinates != self._ball_tree._coordinates
+            or coordinate_system != self._ball_tree.coordinate_system
+            or distance_metric != self._ball_tree.distance_metric
+            or reconstruct
+        ):
             self._ball_tree = BallTree(
                 self,
                 coordinates=coordinates,
@@ -1815,11 +1831,49 @@ class Grid:
                 coordinate_system=coordinate_system,
                 reconstruct=reconstruct,
             )
-        else:
-            if coordinates != self._ball_tree._coordinates:
-                self._ball_tree.coordinates = coordinates
 
         return self._ball_tree
+
+    def neighborhood(self, r: float = 1.0, on: str = "face centers") -> Neighborhood:
+        """Finds the grid elements within ``r`` degrees of every element of
+        ``on``, returning a reusable :class:`Neighborhood`.
+
+        The radius query behind this dominates the cost of a neighborhood
+        reduction, so building this once and reducing several times over it is
+        substantially cheaper than calling :meth:`UxDataArray.neighborhood`
+        repeatedly, which rebuilds it on every call.
+
+        Unlike :meth:`UxDataArray.neighborhood`, the result is not bound to
+        any data, so its reduction methods take the data to reduce as an
+        argument. That is what lets several variables share one query.
+
+        Parameters
+        ----------
+        r : float, default=1.
+            Radius of the neighborhood, in degrees of great-circle distance.
+        on : str, default="face centers"
+            Grid location to center the neighborhood on: "nodes",
+            "edge centers", or "face centers".
+
+        Returns
+        -------
+        Neighborhood
+
+        Examples
+        --------
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")  # doctest: +SKIP
+        >>> nb = uxds.uxgrid.neighborhood(r=5.0)  # doctest: +SKIP
+        >>> smooth = nb.mean(uxds["psi"])  # doctest: +SKIP
+        >>> p90 = nb.percentile(uxds["psi"], q=90)  # doctest: +SKIP
+
+        See Also
+        --------
+        Neighborhood : The reductions available on the returned object.
+        UxDataArray.neighborhood : Neighborhood bound to a single variable.
+        UxDataset.neighborhood : Neighborhood across every variable in a dataset.
+        """
+        return Neighborhood(self, r=r, on=on)
 
     def _get_scipy_kd_tree(
         self, coordinates: str | None = "face", reconstruct: bool = False
@@ -1907,7 +1961,15 @@ class Grid:
             KDTree instance
         """
 
-        if self._kd_tree is None or reconstruct:
+        # Rebuild whenever any tree-defining parameter differs from the cached
+        # instance (see ``get_ball_tree`` for details).
+        if (
+            self._kd_tree is None
+            or coordinates != self._kd_tree._coordinates
+            or coordinate_system != self._kd_tree.coordinate_system
+            or distance_metric != self._kd_tree.distance_metric
+            or reconstruct
+        ):
             self._kd_tree = KDTree(
                 self,
                 coordinates=coordinates,
@@ -1915,10 +1977,6 @@ class Grid:
                 coordinate_system=coordinate_system,
                 reconstruct=reconstruct,
             )
-
-        else:
-            if coordinates != self._kd_tree._coordinates:
-                self._kd_tree.coordinates = coordinates
 
         return self._kd_tree
 

@@ -623,10 +623,23 @@ file so that its documentation page is automatically generated.
     needed. However, it would be a great practice to provide usage examples in the
     same PR, especially for demonstrating the use of complex UXarray functions.
 
-The UXarray documentation houses ``docs/examples/<example-name>.ipynb`` files (paths
-relative from the root directory) to provide `Usage Examples <gallery.rst>`_ to be
-automatically generated. If you prefer to provide usage examples for the work you
-have put together, please be sure to put your notebook(s) under this same directory.
+The UXarray documentation pages are built from a combination of ``.rst`` and ``.ipynb`` files.
+Jupyter notebook files should be cleared of all outputs before committing, and will be run and
+linked in the docs automatically when when the docs pages are built, as long as there is
+at least one reference to them in the appropriate ``.rst`` file(s).
+
+To add a usage example to the `Gallery <gallery.rst>`_, be sure to
+put the notebook file into the ``docs/examples/`` directory,
+add a reference to it in both the ``docs/gallery.rst`` and ``docs/gallery.yml`` files,
+and add a thumbnail photo into ``docs/_static/thumbnails/``.
+
+To add a page to the `User Guide <userguide.rst>`_, be sure to
+put the notebook file into the ``docs/user-guide/`` directory,
+and add a reference to it in the ``docs/userguide.rst`` file.
+
+To add a page to the `Getting Started / Quick Start Guide <quickstart.rst>`_, be sure to
+put the notebook file into the ``docs/getting-started/`` directory,
+and add a reference to it in the ``docs/quickstart.rst`` file.
 
 3.7.4. After You Open The Pull Request
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
