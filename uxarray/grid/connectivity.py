@@ -170,7 +170,7 @@ def _populate_edge_node_connectivity(grid):
 
     # Check edge coordinates already exist, if they do this might cause issues
 
-    if "n_edge" in grid.dims:
+    if "edge_node_connectivity" in grid._ds:
         stale = sorted(n for n in grid._ds if ugrid.EDGE_DIM in grid._ds[n].dims)
         raise ValueError(
             f"Constructing 'edge_node_connectivity' on a grid that already has "
