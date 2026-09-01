@@ -168,7 +168,7 @@ def _populate_edge_node_connectivity(grid):
     and stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.edge_node_connectivity``)."""
 
-    # Check edge coordinates already exist, if they do this might cause issues
+    # Check if edge_node_connectivity already exist, if they do this might cause issues
 
     if "edge_node_connectivity" in grid._ds:
         stale = sorted(n for n in grid._ds if ugrid.EDGE_DIM in grid._ds[n].dims)
