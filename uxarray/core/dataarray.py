@@ -2049,6 +2049,7 @@ class UxDataArray(xr.DataArray):
         elif len(grid_dims) == 1:
             # pop off the one grid‐dim indexer
             grid_dim = grid_dims.pop()
+            indexers = indexers.copy()  # don't modify the original dict
             grid_indexer = indexers.pop(grid_dim)
 
             sliced_grid = self.uxgrid.isel(

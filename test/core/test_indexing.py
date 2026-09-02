@@ -151,6 +151,36 @@ def test_isel_can_use_bool():
     result = arr.isel(n_face=[False, False, False, False])
     assert result.sizes['n_face'] == result.uxgrid.n_face == 0
 
+def test_indexing_does_not_edit_indexers_dict():
+    """ensure isel() and sel() do not edit the provided indexers dict.
+    Regression test for #1711.
+    """
+    ds = ux.tutorial.open_dataset('quad-hexagon')
+    choices = {'n_face': 0}
+    resultA = ds.isel(choices)
+    assert choices == {'n_face': 0}   # calling isel() should not modify the inputs!
+    resultB = ds.isel(choices)
+    assert resultA.equals(resultB)
+    resultA_sel = ds.sel(choices)
+    assert choices == {'n_face': 0}   # calling sel() should not modify the inputs!
+    resultB_sel = ds.sel(choices)
+    assert resultA_sel.equals(resultB_sel)
+
+    # repeat tests but with UxDataArray:
+    arr = ds['t2m']
+    choices = {'n_face': 0}
+    resultA = arr.isel(choices)
+    assert choices == {'n_face': 0}
+    resultB = arr.isel(choices)
+    assert resultA.equals(resultB)
+    resultA_sel = arr.sel(choices)
+    assert choices == {'n_face': 0}
+    resultB_sel = arr.sel(choices)
+    assert resultA_sel.equals(resultB_sel)
+
+
+# ------- tests related to error handling ------- #
+
 def test_isel_crash_if_2d_indexer():
     """ensure isel() crashes if an indexer along a grid dimension is 2D (or more)."""
     ds = ux.tutorial.open_dataset("quad-hexagon")
