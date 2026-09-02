@@ -172,10 +172,10 @@ def _populate_edge_node_connectivity(grid):
 
     if "edge_node_connectivity" in grid._ds:
         raise ValueError(
-            f"Constructing ``edge_node_connectivity`` on a grid that already has "
-            f"an ``edge_node_connectivity``, possibly from the original file. "
-            f"Constructed edges are numbered in lexicographic order by node pair, which "
-            f"may not match the original order of the edges those variables were stored with."
+            "Constructing ``edge_node_connectivity`` on a grid that already has "
+            "an ``edge_node_connectivity``, possibly from the original file. "
+            "Constructed edges are numbered in lexicographic order by node pair, which "
+            "may not match the original order of the edges those variables were stored with."
         )
 
     # This is in lieu of an xarray equivalent to `da.compute(a, b)`. We traverse the
