@@ -85,10 +85,30 @@ def test_can_index_grid_dim_not_in_data():
     result = arr.sel(n_edge=7)
     assert result.sizes["n_face"] == result.uxgrid.n_face == 2
 
+def test_isel_can_use_slice():
+    """ensure isel() can use slice() objects as indexers, and provides expected results,
+    with expected sizes, for UxDataArrays and UxDatasets.
+    Regression test for #1639.
+    """
+    ds = ux.tutorial.open_dataset("outCSne30-vortex")
+    result = ds.isel(n_face=slice(None, None, 10))  # should get every 10th face.
+    assert result.sizes['n_face'] == result.uxgrid.n_face == ds.sizes['n_face'] // 10
+    result = ds.isel(n_face=slice(2, 15, 3))  # should get faces 2, 5, 8, 11, 14
+    assert result.sizes['n_face'] == result.uxgrid.n_face == 5
+    assert result.equals(ds.isel(n_face=[2,5,8,11,14]))
+
+    # repeat tests but with UxDataArray:
+    arr = ds['psi']
+    result = arr.isel(n_face=slice(None, None, 10))  # should get every 10th face.
+    assert result.sizes['n_face'] == result.uxgrid.n_face == arr.sizes['n_face'] // 10
+    result = arr.isel(n_face=slice(2, 15, 3))
+    assert result.sizes['n_face'] == result.uxgrid.n_face == 5
+    assert result.equals(arr.isel(n_face=[2,5,8,11,14]))
+
 def test_sel_can_use_slice():
     """ensure sel() can use slice() objects as indexers, and provides expected results,
     with expected sizes, for UxDataArrays and UxDatasets.
-    Regression test inspired by reviewer comment in #1641.
+    Regression test inspired by reviewer comment in #1641, also related to #1639.
     TODO: fix #1714 then uncomment the relevant UxDataset tests below
     """
     grid = ux.Grid.from_healpix(zoom=0)  # 12 faces

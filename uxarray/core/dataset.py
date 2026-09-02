@@ -641,10 +641,6 @@ class UxDataset(xr.Dataset):
                         f"for dimension {grid_dim!r} that has no associated coordinate or index"
                     )
                 grid_indices = grid_indexer
-                # temporary workaround for "isel fails with slice";
-                # remove the next two lines once issue #1639 gets fixed.
-                if isinstance(grid_indices, slice):
-                    grid_indices = range(*grid_indices.indices(self.sizes[grid_dim]))
 
             # offload the grid-indexing work to isel():
             result = self.isel({grid_dim: grid_indices}, drop=drop)
