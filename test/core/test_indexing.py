@@ -133,6 +133,23 @@ def test_sel_can_use_slice():
     # result = labeled_ds.sel(n_face=slice(0, 2))
     # assert result.n_face.size == result.uxgrid.n_face == 3
 
+def test_isel_can_use_bool():
+    """ensure isel() supports indexing by a boolean indexer array.
+    Regression test for #1728.
+    """
+    ds = ux.tutorial.open_dataset("quad-hexagon")
+    assert ds.isel(n_face=[True, False, False, False]).equals(ds.isel(n_face=0))
+    assert ds.isel(n_face=[False, True, False, True]).equals(ds.isel(n_face=[1,3]))
+    result = ds.isel(n_face=[False, False, False, False])
+    assert result.sizes['n_face'] == result.uxgrid.n_face == 0
+
+    # repeat tests but with UxDataArray:
+    arr = ds['t2m']
+    assert arr.isel(n_face=[True, False, False, False]).equals(arr.isel(n_face=0))
+    assert arr.isel(n_face=[False, True, False, True]).equals(arr.isel(n_face=[1,3]))
+    result = arr.isel(n_face=[False, False, False, False])
+    assert result.sizes['n_face'] == result.uxgrid.n_face == 0
+
 def test_sel_crash_if_provided_selection_options_with_coordless_dims():
     """ensure sel() crashes if providing `tolerance` and/or `method` options
     whenever any of the indexed dims have no associated coordinates.
