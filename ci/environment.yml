@@ -32,6 +32,6 @@ dependencies:
   - shapely
   - spatialpandas
   - pooch
-  - geopandas
+  - geopandas>=1.0
   - xarray
   - asv

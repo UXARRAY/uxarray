@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from html import escape
-from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Hashable, Iterable, Literal, Mapping, Optional
 from warnings import warn
 
 import numpy as np
@@ -19,7 +19,11 @@ from uxarray.core.gradient import (
     _calculate_edge_node_difference,
     _compute_gradient,
 )
-from uxarray.core.utils import _map_dims_to_ugrid
+from uxarray.core.utils import (
+    _map_dims_to_ugrid,
+    _resolve_coordinate_labels_to_indices,
+    _validate_indexers,
+)
 from uxarray.core.zonal import (
     _compute_conservative_zonal_mean_bands,
     _compute_non_conservative_zonal_mean,
@@ -1992,30 +1996,40 @@ class UxDataArray(xr.DataArray):
         inverse_indices: bool = False,
         **indexers_kwargs,
     ):
-        """
-        Return a new DataArray whose data is given by selecting indexes along the specified dimension(s).
+        """Return a new UxDataArray indexed along the specified dimension(s).
+        The data is indexed, as well as the underlying grid when applicable.
 
-        Performs xarray-style integer-location indexing along specified dimensions.
-        If a single grid dimension ('n_node', 'n_edge', or 'n_face') is provided
-        and `ignore_grid=False`, the underlying grid is sliced accordingly,
-        and remaining indexers are applied to the resulting DataArray.
+        Grid dimensions ('n_node', 'n_edge', 'n_face') are treated specially
+        when `ignore_grid=False`. Providing one of them will slice to the specified
+        nodes, edges, or faces, regardless of data location. If the data does not
+        contain the specified dimension, the result will have the minimal grid
+        region containing everything specified. For example, using n_edge=7 for data
+        on 'n_face' makes a result with 'n_face' with just the two faces on edge 7.
 
         Parameters
         ----------
         indexers : Mapping[Any, Any], optional
-            A mapping of dimension names to indexers. Each indexer may be an integer,
-            slice, array-like, or DataArray. Mutually exclusive with indexing via kwargs.
+            A dict with keys matching dimensions and values given
+            by integers, slice objects or arrays.
+            indexer can be a integer, slice, array-like or DataArray.
+            If DataArrays are passed as indexers, xarray-style indexing will be
+            carried out. See :ref:`indexing` for the details.
+            One of indexers or indexers_kwargs must be provided.
         drop : bool, default=False
-            If True, drop any coordinate variables indexed by integers instead of
-            retaining them as length-1 dimensions.
+            If ``drop=True``, drop coordinates variables indexed by integers
+            instead of making them scalar.
         missing_dims : {'raise', 'warn', 'ignore'}, default='raise'
-            Behavior when indexers reference dimensions not present in the array.
-            - 'raise': raise an error
-            - 'warn': emit a warning and ignore missing dimensions
-            - 'ignore': ignore missing dimensions silently
+            What to do if dimensions that should be selected from are not present in the
+            UxDataArray:
+            - "raise": raise an exception
+            - "warn": raise a warning, and ignore the missing dimensions
+            - "ignore": ignore the missing dimensions
         ignore_grid : bool, default=False
-            If False (default), allow slicing on one grid dimension to automatically
-            update the associated UXarray grid. If True, fall back to pure xarray behavior.
+            If False (default), slice the underlying UXarray grid appropriately too,
+            ensuring the resulting data actually lies on the result's underlying grid.
+            If True, slice the data only; attach self.uxgrid to the result, unchanged.
+            CAUTION: using ignore_grid=True will cause the result's data to be
+            inconsistent with its underlying grid, if any grid dimensions were sliced.
         inverse_indices : bool, default=False
             For grid-based slicing, pass this flag to `Grid.isel` to invert indices
             when selecting (useful for staggering or reversing order).
@@ -2031,64 +2045,185 @@ class UxDataArray(xr.DataArray):
         ------
         DimensionError (subclass of ValueError)
             If more than one grid dimension is selected and `ignore_grid=False`.
+        ValueError
+            If parameters are invalid for xarray's .isel(), such as if
+            slicing by a nonexistent dimension, or using invalid indexers.
         """
-        from uxarray.core.utils import _validate_indexers
-
         indexers, grid_dims = _validate_indexers(
             indexers, indexers_kwargs, "isel", ignore_grid
         )
 
-        try:
-            # Grid Branch
-            if not ignore_grid:
-                if len(grid_dims) == 1:
-                    # pop off the one grid‐dim indexer
-                    grid_dim = grid_dims.pop()
-                    grid_indexer = indexers.pop(grid_dim)
-
-                    sliced_grid = self.uxgrid.isel(
-                        **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
-                    )
-
-                    da = self._slice_from_grid(sliced_grid)
-
-                    # if there are any remaining indexers, apply them
-                    if indexers:
-                        xarr = super(UxDataArray, da).isel(
-                            indexers=indexers, drop=drop, missing_dims=missing_dims
-                        )
-                        # re‐wrap so the grid sticks around
-                        return type(self)(xarr, uxgrid=sliced_grid)
-
-                    # no other dims, return the grid‐sliced da
-                    return da
-                else:
-                    return type(self)(
-                        super().isel(
-                            indexers=indexers or None,
-                            drop=drop,
-                            missing_dims=missing_dims,
-                        ),
-                        uxgrid=self.uxgrid,
-                    )
-
-            return super().isel(
-                indexers=indexers or None,
-                drop=drop,
-                missing_dims=missing_dims,
+        if ignore_grid or len(grid_dims) == 0:
+            # no grid dims, or ignore_grid=True --> just call xarray's isel
+            return type(self)(
+                super().isel(
+                    indexers=indexers or None,
+                    drop=drop,
+                    missing_dims=missing_dims,
+                ),
+                uxgrid=self.uxgrid,
             )
-        except ValueError as e:
-            if "Dimensions" in str(e) and "do not exist" in str(e):
-                # The error message from xarray is quite good, but we can add to it.
-                # e.g. "Dimensions {'level'} do not exist. Expected one of ('n_face', 'time', 'lev')"
-                # Let's just append the available dimensions.
-                original_error_msg = str(e)
-                raise DimensionError(
-                    f"{original_error_msg}. Available dimensions: {self.dims}"
-                ) from e
-            else:
-                # re-raise other ValueErrors
-                raise e
+        elif len(grid_dims) == 1:
+            # pop off the one grid‐dim indexer
+            grid_dim = grid_dims.pop()
+            grid_indexer = indexers.pop(grid_dim)
+
+            sliced_grid = self.uxgrid.isel(
+                **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
+            )
+
+            da = self._slice_from_grid(sliced_grid)
+
+            # if there are any remaining indexers, apply them
+            if indexers:
+                xarr = super(UxDataArray, da).isel(
+                    indexers=indexers, drop=drop, missing_dims=missing_dims
+                )
+                # re‐wrap so the grid sticks around
+                return type(self)(xarr, uxgrid=sliced_grid)
+
+            # no other dims, return the grid‐sliced da
+            return da
+        else:  # len(grid_dims)>1; _validate_indexers should have crashed.
+            raise AssertionError("internal implementation error if reached this line")
+
+    def sel(
+        self,
+        indexers: Mapping[Any, Any] | None = None,
+        method: str | None = None,
+        tolerance: int | float | Iterable[int | float] | None = None,
+        drop: bool = False,
+        **indexers_kwargs: Any,
+    ):
+        """Returns a new array indexed by labels, instead of indices, along the specified dimension(s).
+
+        Grid dimensions ('n_node', 'n_edge', 'n_face') are treated specially.
+        Providing one of them will slice to the specified nodes, edges, or faces,
+        regardless of data location. If the data does not contain the specified dimension,
+        the result will have the minimal grid region containing everything specified.
+        For example, using n_edge=7 for data on 'n_face' makes a result with 'n_face'
+        with just the two faces on edge 7.
+
+        By default, grid dims do not have coordinates assigned. But, if they have
+        been assigned, `.sel()` respects them in the intuitive way. For example,
+        using `.sel(n_face=30)` for data with `n_face` coordinates [0,10,20,30,40]
+        would be equivalent to using `.isel(n_face=3)`. Meanwhile, if the data
+        does not contain the specified grid dim (as in the n_edge=7 example above),
+        it also cannot contain coordinates along that grid dim,
+        so in that case `.sel()` performs index-based selection just like `.isel()`.
+
+        Under the hood, this method is powered by using pandas's powerful Index
+        objects. This makes label based indexing essentially just as fast as
+        using integer indexing.
+
+        It also means this method uses pandas's (well documented) logic for
+        indexing. This means you can use string shortcuts for datetime indexes
+        (e.g., '2000-01' to select all values in January 2000). It also means
+        that slices are treated as inclusive of both the start and stop values,
+        unlike normal Python indexing, for any dimensions with coordinate labels.
+        (Dimensions without coordinates treat slices normally.)
+
+        Parameters
+        ----------
+        indexers : dict, optional
+            A dict with keys matching dimensions and values given
+            by scalars, slices or arrays of tick labels. For dimensions with
+            multi-index, the indexer may also be a dict-like object with keys
+            matching index level names.
+            If DataArrays are passed as indexers, xarray-style indexing will be
+            carried out. See :ref:`indexing` for the details.
+            One of indexers or indexers_kwargs must be provided.
+        method : {None, "nearest", "pad", "ffill", "backfill", "bfill"}, optional
+            Method to use for inexact matches:
+
+            * None (default): only exact matches
+            * pad / ffill: propagate last valid index value forward
+            * backfill / bfill: propagate next valid index value backward
+            * nearest: use nearest valid index value
+
+            Can only provide ``method`` if all indexed dims actually have coords,
+            else raises ValueError (consistent with xarray sel() behavior).
+        tolerance : optional
+            Maximum distance between original and new labels for inexact
+            matches. The values of the index at the matching locations must
+            satisfy the equation ``abs(index[indexer] - target) <= tolerance``.
+            Can only provide ``tolerance`` if all indexed dims actually have coords,
+            else raises ValueError (consistent with xarray sel() behavior).
+        drop : bool, optional
+            If ``drop=True``, drop coordinates variables in `indexers` instead
+            of making them scalar.
+        **indexers_kwargs : {dim: indexer, ...}, optional
+            The keyword arguments form of ``indexers``.
+            One of indexers or indexers_kwargs must be provided.
+
+        Returns
+        -------
+        obj : UxDataArray
+            A new UxDataArray with each dimension is indexed appropriately,
+            and the uxgrid indexed appropriately as well, if indexing any grid dim.
+            If indexer DataArrays have coordinates that do not conflict with
+            this object, then these coordinates will be attached,
+            except for indexers along a grid dimension (see issue #1712).
+            In general, the result's data will be a view of the data in this array,
+            unless indexing along a grid dimension or otherwise
+            triggering vectorized indexing by using an array indexer,
+            in which case the data will be a copy.
+        """
+        indexers, grid_dims = _validate_indexers(
+            indexers, indexers_kwargs, "sel", ignore_grid=False
+        )  # (sel doesn't support ignore_grid=True option)
+
+        if len(grid_dims) == 0:
+            # no grid dims --> just call xarray's sel
+            return type(self)(
+                self.to_xarray().sel(
+                    indexers=indexers,
+                    method=method,
+                    tolerance=tolerance,
+                    drop=drop,
+                ),
+                uxgrid=self.uxgrid,
+            )
+        elif len(grid_dims) == 1:
+            # pop off the one grid‐dim indexer
+            grid_dim = list(grid_dims)[0]
+            indexers = indexers.copy()  # don't modify the original dict
+            grid_indexer = indexers.pop(grid_dim)
+            if grid_dim in self.coords:  # label-based indexing
+                grid_indices = _resolve_coordinate_labels_to_indices(
+                    grid_dim,
+                    grid_indexer,
+                    self.coords[grid_dim],
+                    method=method,
+                    tolerance=tolerance,
+                )
+            else:  # index-based indexing
+                # crash if provided `method` or `tolerance`, as promised in docstring;
+                if method is not None or tolerance is not None:
+                    raise ValueError(
+                        f"cannot supply selection options {dict(method=method, tolerance=tolerance)} "
+                        f"for dimension {grid_dim!r} that has no associated coordinate or index"
+                    )
+                grid_indices = grid_indexer
+                # temporary workaround for "isel fails with slice";
+                # remove the next two lines once issue #1639 gets fixed.
+                if isinstance(grid_indices, slice):
+                    grid_indices = range(*grid_indices.indices(self.sizes[grid_dim]))
+
+            # offload the grid-indexing work to isel():
+            result = self.isel({grid_dim: grid_indices}, drop=drop)
+
+            # index by other dims if any remain:
+            ds = result.to_xarray().sel(
+                indexers=indexers,  # (grid_dim indexer was popped)
+                method=method,
+                tolerance=tolerance,
+                drop=drop,
+            )
+
+            return type(self)(ds, uxgrid=result.uxgrid)
+        else:  # len(grid_dims)>1; _validate_indexers should have crashed.
+            raise AssertionError("internal implementation error if reached this line")
 
     @classmethod
     def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):

@@ -502,7 +502,11 @@ class Grid:
 
     @classmethod
     def from_structured(
-        cls, ds: xr.Dataset = None, lon=None, lat=None, tol: float | None = 1e-10
+        cls,
+        ds: xr.Dataset = None,
+        lon=None,
+        lat=None,
+        tol: float | None = None,
     ):
         """
         Converts a structured ``xarray.Dataset`` or longitude and latitude coordinates into an unstructured ``uxarray.Grid``.
@@ -526,8 +530,9 @@ class Grid:
             Should be a one-dimensional or two-dimensional array following CF conventions.
 
         tol : float, optional
-            Tolerance for considering nodes as identical when constructing the grid from longitude and latitude.
-            Default is `1e-10`.
+            Tolerance in degrees for considering nodes as identical when constructing the grid from
+            longitude and latitude. Defaults to ``None``, which matches nodes within
+            ``uxarray.constants.ERROR_TOLERANCE`` on the unit sphere.
 
         Returns
         -------
@@ -2231,9 +2236,9 @@ class Grid:
         Parameters
         ----------
         quadrature_rule : str, optional
-            Quadrature rule to use. Defaults to "triangular".
+            Quadrature rule used to integrate each face, either ``"triangular"`` or ``"gaussian"``.
         order : int, optional
-            Order of quadrature rule. Defaults to 4.
+            Order of quadrature rule; 1, 4, 8, 10, or 12 for ``"triangular"``; 1 to 10 for ``"gaussian"``.
         latitude_adjusted_area : bool, optional
             If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
 
@@ -2242,8 +2247,16 @@ class Grid:
         1. Area of all the faces in the mesh : np.ndarray
         2. Jacobian of all the faces in the mesh : np.ndarray
         """
-        # if self._face_areas is None: # this allows for using the cached result,
-        # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
+        if quadrature_rule == "triangular" and order not in (1, 4, 8, 10, 12):
+            raise ValueError(
+                "Invalid order when computing face areas with quadrature_rule=='triangular'; "
+                f"Expected one of (1, 4, 8, 10, 12), got order={order!r}"
+            )
+        if quadrature_rule == "gaussian" and order not in range(1, 11):
+            raise ValueError(
+                "Invalid order when computing face areas with quadrature_rule=='gaussian'; "
+                f"Expected an integer between 1 and 10, got order={order!r}"
+            )
 
         self.normalize_cartesian_coordinates()
         x = self.node_x.values

@@ -129,6 +129,20 @@ def test_sel_method_forwarded(gridpath, datasetpath):
         np.array(uxds["time"].values[2], dtype="datetime64[ns]"),
     )
 
+def test_isel_ignore_grid():
+    """ensure UxDataset.isel(..., ignore_grid=True) still attaches result.uxgrid.
+    Regression test for issue #1683.
+    """
+    uxds = ux.tutorial.open_dataset("outCSne30-timeseries")
+    result = uxds.isel(time=0, ignore_grid=True)
+    result.uxgrid  # (will cause crash if uxgrid not properly attached to result)
+    assert result.uxgrid == uxds.uxgrid
+
+    result = uxds.isel(n_face=0, ignore_grid=True)
+    result.uxgrid  # (will cause crash if uxgrid not properly attached to result)
+    assert result.uxgrid == uxds.uxgrid   # ignore_grid means grid never gets sliced here
+
+
 def test_uxdataset_init_from_xarray_dataset():
     ds = xr.Dataset(
         data_vars={"a": ("x", [1, 2])},

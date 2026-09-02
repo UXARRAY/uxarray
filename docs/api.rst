@@ -244,6 +244,7 @@ Selection & Indexing
    :toctree: generated/
 
    UxDataArray.isel
+   UxDataArray.sel
    UxDataArray.where
 
 
