@@ -9,6 +9,7 @@ to ensure consistency between UxDataArray and UxDataset indexing.)
 import numpy as np
 import pytest
 import uxarray as ux
+import xarray as xr
 
 def test_sel_indexes_grid():
     """ensure obj.sel({grid_dim: ...}) actually indexes the result.uxgrid, too,
@@ -149,6 +150,24 @@ def test_isel_can_use_bool():
     assert arr.isel(n_face=[False, True, False, True]).equals(arr.isel(n_face=[1,3]))
     result = arr.isel(n_face=[False, False, False, False])
     assert result.sizes['n_face'] == result.uxgrid.n_face == 0
+
+def test_isel_crash_if_2d_indexer():
+    """ensure isel() crashes if an indexer along a grid dimension is 2D (or more)."""
+    ds = ux.tutorial.open_dataset("quad-hexagon")
+    clever_indexer = xr.DataArray([[0,1,1],[2,3,3]], dims=["newdimA","newdimB"])
+    # (ensure clever_indexer is actually valid for xarray indexing purposes,
+    # otherwise the uxarray test would not be particularly meaningful.)
+    _tmp = ds.to_xarray().isel(n_face=clever_indexer)
+    assert _tmp.sizes == {'newdimA': 2, 'newdimB': 3}
+    assert _tmp.isel(newdimA=1, newdimB=0).equals(ds.to_xarray().isel(n_face=2))
+    # (now actually make sure that uxarray crashes with the same indexer)
+    with pytest.raises(ux.errors.DimensionError):
+        ds.isel(n_face=clever_indexer)
+
+    # repeat tests but with UxDataArray (no need to repeat the indexer check though)
+    arr = ds['t2m']
+    with pytest.raises(ux.errors.DimensionError):
+        arr.isel(n_face=clever_indexer)
 
 def test_sel_crash_if_provided_selection_options_with_coordless_dims():
     """ensure sel() crashes if providing `tolerance` and/or `method` options
