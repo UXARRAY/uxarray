@@ -171,10 +171,9 @@ def _populate_edge_node_connectivity(grid):
     # Check if edge_node_connectivity already exist, if they do this might cause issues
 
     if "edge_node_connectivity" in grid._ds:
-        stale = sorted(n for n in grid._ds if ugrid.EDGE_DIM in grid._ds[n].dims)
         raise ValueError(
-            f"Constructing 'edge_node_connectivity' on a grid that already has "
-            f"grid variables indexed by the edge dimension ({', '.join(stale)}). "
+            f"Constructing ``edge_node_connectivity`` on a grid that already has "
+            f"an ``edge_node_connectivity``, possibly from the original file. "
             f"Constructed edges are numbered in lexicographic order by node pair, which "
             f"may not match the original order of the edges those variables were stored with."
         )
