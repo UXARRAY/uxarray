@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import numpy as np
 import xarray as xr
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-
-if TYPE_CHECKING:
-    pass
+from uxarray.errors import DimensionError
+from uxarray.utils.coords import _indices1d_from_indexing, _is_scalar_indexer
 
 # A dense lookup table remaps in O(1) per element, but costs O(n_node) / O(n_edge)
 # memory that is also captured by the Dask graph. It is only built when it stays
@@ -72,11 +69,7 @@ def _remap_kernel(orig_indices, size):
     return _remap_searchsorted, {"orig_indices": orig_indices}
 
 
-def _slice_node_indices(
-    grid,
-    indices,
-    inclusive=True,
-):
+def _slice_node_indices(grid, indices):
     """Slices (indexes) an unstructured grid given a list/array of node
     indices, returning a new Grid composed of elements that contain the nodes
     specified in the indices.
@@ -85,16 +78,9 @@ def _slice_node_indices(
     ----------
     grid : ux.Grid
         Source unstructured grid
-    indices: array-like
-        A list or 1-D array of node indices
-    inclusive: bool
-        Whether to perform inclusive (i.e. elements must contain at least one desired feature from a slice) as opposed
-        to exclusive (i.e elements be made up all desired features from a slice)
+    indices: integer, slice, array-like or DataArray
+        Indicates which node(s) to select. 2D+ indexers are not supported.
     """
-
-    if inclusive is False:
-        raise NotImplementedError("Exclusive slicing is not yet supported.")
-
     # faces that saddle nodes given in 'indices'
     face_indices = np.unique(
         grid.node_face_connectivity.isel(n_node=indices).values.ravel()
@@ -104,11 +90,7 @@ def _slice_node_indices(
     return _slice_face_indices(grid, face_indices)
 
 
-def _slice_edge_indices(
-    grid,
-    indices,
-    inclusive=True,
-):
+def _slice_edge_indices(grid, indices):
     """Slices (indexes) an unstructured grid given a list/array of edge
     indices, returning a new Grid composed of elements that contain the edges
     specified in the indices.
@@ -117,16 +99,9 @@ def _slice_edge_indices(
     ----------
     grid : ux.Grid
         Source unstructured grid
-    indices: array-like
-        A list or 1-D array of edge indices
-    inclusive: bool
-        Whether to perform inclusive (i.e. elements must contain at least one desired feature from a slice) as opposed
-        to exclusive (i.e elements be made up all desired features from a slice)
+    indices: integer, slice, array-like or DataArray
+        Indicates which edge(s) to select. 2D+ indexers are not supported.
     """
-
-    if inclusive is False:
-        raise NotImplementedError("Exclusive slicing is not yet supported.")
-
     # faces that saddle nodes given in 'indices'
     face_indices = np.unique(
         grid.edge_face_connectivity.isel(n_edge=indices).values.ravel()
@@ -139,7 +114,7 @@ def _slice_edge_indices(
 def _slice_face_indices(
     grid,
     indices,
-    inclusive=True,
+    *,
     inverse_indices: list[str] | set[str] | bool = False,
 ):
     """Slices (indexes) an unstructured grid given a list/array of face
@@ -150,49 +125,60 @@ def _slice_face_indices(
     ----------
     grid : ux.Grid
         Source unstructured grid
-    indices: array-like
-        A list or 1-D array of face indices
-    inclusive: bool
-        Whether to perform inclusive (i.e. elements must contain at least one desired feature from a slice) as opposed
-        to exclusive (i.e elements be made up all desired features from a slice)
+    indices: integer, slice, array-like or DataArray
+        Indicates which face(s) to select. 2D+ indexers are not supported.
     inverse_indices : list[str] | set[str] | bool, optional
         Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
         other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
     """
     from uxarray.grid import Grid
 
-    if inclusive is False:
-        raise ValueError("Exclusive slicing is not yet supported.")
-
     ds = grid._ds
-    face_indices = np.atleast_1d(np.asarray(indices, dtype=INT_DTYPE))
+    if _is_scalar_indexer(indices):
+        face_indexer = np.array([indices])
+    else:
+        face_indexer = indices
+
+    if getattr(face_indexer, "ndim", 0) > 1:
+        raise DimensionError(
+            "Only 1D indexers are supported when slicing a grid. "
+            f"Got indexer.ndim={face_indexer.ndim} for indexer of type {type(face_indexer)}."
+        )
+
+    # face_indices from the original ds
+    # (but still use face_indexer inside isel() below, for efficiency)
+    face_indices = _indices1d_from_indexing(ds, "n_face", face_indexer)
 
     # nodes of each face (inclusive)
     node_indices = np.unique(
-        grid.face_node_connectivity.isel(n_face=face_indices).values.ravel()
+        grid.face_node_connectivity.isel(n_face=face_indexer).values.ravel()
     )
     node_indices = node_indices[node_indices != INT_FILL_VALUE]
 
     # Index Node and Face variables
     ds = ds.isel(n_node=node_indices)
-    ds = ds.isel(n_face=face_indices)
+    ds = ds.isel(n_face=face_indexer)
 
     # Only slice edge dimension if we have the face edge connectivity
     if "face_edge_connectivity" in ds:
         edge_indices = np.unique(
-            grid.face_edge_connectivity.isel(n_face=face_indices).values.ravel()
+            grid.face_edge_connectivity.isel(n_face=face_indexer).values.ravel()
         )
         edge_indices = edge_indices[edge_indices != INT_FILL_VALUE]
         ds = ds.isel(n_edge=edge_indices)
-        ds["subgrid_edge_indices"] = xr.DataArray(edge_indices, dims=["n_edge"])
+        ds["_subgrid_edge_indices"] = xr.DataArray(edge_indices, dims=["n_edge"])
     # Otherwise, drop any edge variables
     else:
         if "n_edge" in ds.dims:
             ds = ds.drop_dims(["n_edge"])
         edge_indices = None
 
-    ds["subgrid_node_indices"] = xr.DataArray(node_indices, dims=["n_node"])
-    ds["subgrid_face_indices"] = xr.DataArray(face_indices, dims=["n_face"])
+    ds["_subgrid_node_indices"] = xr.DataArray(node_indices, dims=["n_node"])
+    ds["_subgrid_face_indices"] = xr.DataArray(face_indices, dims=["n_face"])
+    # _subgrid_..._indices are used internaly in _slice_from_grid.
+    # Caution: if performing multiple isel() operations, these indices map from the
+    # latest operation only, not all the way back to the original grid.
+    # E.g. grid.isel(n_face=[7,8,9]).isel(n_face=[0]) --> _subgrid_face_indices=[0], not [7].
 
     # `node_indices` and `edge_indices` come out of `np.unique`, so both kernels
     # can rely on them being sorted and free of duplicates
