@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 from numba import njit, prange
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import EDGE_NODE_SORT_THRESHOLD, INT_DTYPE, INT_FILL_VALUE
 from uxarray.utils.numba_math import (
     _numba_add3,
     _numba_mul3_scalar,
@@ -525,21 +525,11 @@ def make_setter(key: str):
 # cache against the defining file alone, so editing them does not invalidate a caller's cached
 # object. Clear ``uxarray/grid/__pycache__/*.nbi *.nbc`` after changing anything here.
 
-# Smallest bucket worth watching for pathological input. A bucket of ``size`` holds at most
-# ``size * (size - 1) / 2`` inversions, so at or below this size it cannot exceed the shift
-# budget below and the bookkeeping would never pay for itself
-MIN_ADAPTIVE_SORT_SIZE = 16
-
-# Shifts per edge an insertion sort may spend on a bucket before it is abandoned for a heap
-# sort. Insertion sort costs ``O(size + shifts)``, so a constant budget per edge keeps the
-# adaptive path linear while leaving ample room for the near-sorted input it is chosen for
-MAX_SHIFTS_PER_EDGE = 8
-
 
 @njit(cache=True)
 def _sort_bucket(end_node, payload, bucket_start, size):
     """Orders one bucket by ``end_node``, picking the sort that suits its size."""
-    if size > MIN_ADAPTIVE_SORT_SIZE:
+    if size > 2 * EDGE_NODE_SORT_THRESHOLD:
         # Large enough that a bad ordering would be worth catching, which only a
         # collapsed pole or a similarly degenerate node reaches
         _adaptive_sort_bucket(end_node, payload, bucket_start, size)
@@ -620,7 +610,7 @@ def _adaptive_sort_bucket(end_node, payload, bucket_start, size):
     end-to-end, because typical buckets hold a handful of edges and the per-element bookkeeping
     is a real fraction of that work. Keep the two in sync rather than merging them.
     """
-    budget = MAX_SHIFTS_PER_EDGE * size
+    budget = EDGE_NODE_SORT_THRESHOLD * size
     shifts = 0
 
     for i in range(bucket_start + 1, bucket_start + size):

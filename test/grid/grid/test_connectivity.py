@@ -3,12 +3,12 @@ import numpy.testing as nt
 import pytest
 
 import uxarray as ux
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE
+from uxarray.constants import (INT_DTYPE, INT_FILL_VALUE, ERROR_TOLERANCE,
+                               EDGE_NODE_SORT_THRESHOLD)
 from uxarray.grid.connectivity import (_populate_face_edge_connectivity, _build_edge_face_connectivity,
                                       _build_edge_node_connectivity, _build_face_face_connectivity,
                                       _populate_face_face_connectivity)
-from uxarray.grid.utils import (_adaptive_sort_bucket, _insertion_sort_bucket,
-                                MIN_ADAPTIVE_SORT_SIZE)
+from uxarray.grid.utils import _adaptive_sort_bucket, _insertion_sort_bucket
 
 
 def test_connectivity_build_n_nodes_per_face(gridpath):
@@ -119,14 +119,15 @@ def test_connectivity_edge_node_canonical_order(gridpath, grid_parts):
 def test_connectivity_bucket_sort(sort):
     """Test that each bucket sort orders its own slice and nothing else.
 
-    The bucket sizes straddle ``MIN_ADAPTIVE_SORT_SIZE``: the small ones cannot accumulate
+    The bucket sizes straddle ``2 * EDGE_NODE_SORT_THRESHOLD``: the small ones cannot accumulate
     enough shifts to exhaust the budget, so the metered sort stays on its insertion path,
     while the 500 element bucket is shuffled far past the budget and falls back to the heap
     sort. Keys repeat, since an interior edge reaches its bucket once per adjacent face.
     """
     rng = np.random.default_rng(0)
 
-    sizes = [5, MIN_ADAPTIVE_SORT_SIZE, MIN_ADAPTIVE_SORT_SIZE + 1, 500]
+    max_insertion_size = 2 * EDGE_NODE_SORT_THRESHOLD
+    sizes = [5, max_insertion_size, max_insertion_size + 1, 500]
     bounds = np.cumsum([0] + sizes)
     n_half_edge = int(bounds[-1])
     buckets = list(zip(bounds[:-1], bounds[1:]))
