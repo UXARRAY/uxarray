@@ -1281,8 +1281,9 @@ class Grid:
         read from a file keep the order and orientation they were stored in.
 
         The result is cached after the first access; subsequent calls return the stored value without recomputing it.
-        Computing edge_node_connectivity always derives face_edge_connectivity as part of the same pass and
-        overwrites any existing face_edge_connectivity value, regardless of whether one was already present.
+        Computing edge_node_connectivity always derives face_edge_connectivity as part of the same pass, both
+        numbered in the constructed edge order. A grid that already carries a face_edge_connectivity but no
+        edge_node_connectivity therefore raises instead of renumbering the edges the stored variable refers to.
 
         Returns
         -------

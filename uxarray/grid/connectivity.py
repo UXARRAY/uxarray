@@ -168,14 +168,19 @@ def _populate_edge_node_connectivity(grid):
     and stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.edge_node_connectivity``)."""
 
-    # Check if edge_node_connectivity already exist, if they do this might cause issues
+    # Both variables written by this pass are numbered in the constructed edge order, so
+    # check for either one already existing, if they do this might cause issues
 
-    if "edge_node_connectivity" in grid._ds:
+    if "edge_node_connectivity" in grid._ds or "face_edge_connectivity" in grid._ds:
         raise ValueError(
             "Constructing ``edge_node_connectivity`` on a grid that already has "
-            "an ``edge_node_connectivity``, possibly from the original file. "
-            "Constructed edges are numbered in lexicographic order by node pair, which "
-            "may not match the original order of the edges those variables were stored with."
+            "an ``edge_node_connectivity`` or a ``face_edge_connectivity``, possibly "
+            "from the original file. Constructed edges are numbered in lexicographic "
+            "order by node pair, which may not match the original order of the edges "
+            "those variables were stored with. Constructing both here when only one "
+            "of them was read from the file would leave the pair desynchronized, with "
+            "the stored variable's edge indices referring to a different numbering "
+            "than the constructed one."
         )
 
     # This is in lieu of an xarray equivalent to `da.compute(a, b)`. We traverse the
