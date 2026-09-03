@@ -151,6 +151,53 @@ def test_isel_can_use_bool():
     result = arr.isel(n_face=[False, False, False, False])
     assert result.sizes['n_face'] == result.uxgrid.n_face == 0
 
+def test_indexing_by_dataarray():
+    """ensure isel() and sel() with indexer=xr.DataArray(...) both work as expected.
+    The dims/coords of the Grid object should never incorporate indexer's dims/coords.
+    The dims/coords of the data object (UxDataArray or UxDataset)
+    should not incorporate the indexer's dims (this is already true),
+    but should probably incorporate its coords (this isn't true yet; see issue #1712).
+    """
+    # ensure grid's dims/coords do not incorporate indexer's dims/coords:
+    indexer0 = xr.DataArray(0, coords={"newcoord": 7})
+    indexer1 = xr.DataArray([1,2], dims="newdim", coords={"newdim": [7,8]})
+    ds = ux.tutorial.open_dataset("quad-hexagon")
+    result0_isel = ds.isel(n_face=indexer0)
+    assert "newcoord" not in result0_isel.uxgrid._ds.coords
+    # assert "newcoord" in result0_isel.coords   # uncomment after fixing #1712
+    result0_sel = ds.sel(n_face=indexer0)
+    assert "newcoord" not in result0_sel.uxgrid._ds.coords
+    # assert "newcoord" in result0_sel.coords   # uncomment after fixing #1712
+    result1_isel = ds.isel(n_face=indexer1)
+    assert "newdim" not in result1_isel.uxgrid._ds.dims
+    assert "newdim" not in result1_isel.uxgrid._ds.coords
+    assert "newdim" not in result1_isel.dims and "n_face" in result1_isel.dims  # didn't rename 'n_face'.
+    # assert "newdim" in result1_isel.coords   # uncomment after fixing #1712
+    result1_sel = ds.sel(n_face=indexer1)
+    assert "newdim" not in result1_sel.uxgrid._ds.dims
+    assert "newdim" not in result1_sel.uxgrid._ds.coords
+    assert "newdim" not in result1_sel.dims and "n_face" in result1_sel.dims
+    # assert "newdim" in result1_sel.coords   # uncomment after fixing #1712
+
+    # repeat tests but with UxDataArray:
+    arr = ds['t2m']
+    result0_isel = arr.isel(n_face=indexer0)
+    assert "newcoord" not in result0_isel.uxgrid._ds.coords
+    # assert "newcoord" in result0_isel.coords
+    result0_sel = arr.sel(n_face=indexer0)
+    assert "newcoord" not in result0_sel.uxgrid._ds.coords
+    # assert "newcoord" in result0_sel.coords
+    result1_isel = arr.isel(n_face=indexer1)
+    assert "newdim" not in result1_isel.uxgrid._ds.dims
+    assert "newdim" not in result1_isel.uxgrid._ds.coords
+    assert "newdim" not in result1_isel.dims and "n_face" in result1_isel.dims
+    # assert "newdim" in result1_isel.coords
+    result1_sel = arr.sel(n_face=indexer1)
+    assert "newdim" not in result1_sel.uxgrid._ds.dims
+    assert "newdim" not in result1_sel.uxgrid._ds.coords
+    assert "newdim" not in result1_sel.dims and "n_face" in result1_sel.dims
+    # assert "newdim" in result1_sel.coords
+
 def test_indexing_does_not_edit_indexers_dict():
     """ensure isel() and sel() do not edit the provided indexers dict.
     Regression test for #1711.

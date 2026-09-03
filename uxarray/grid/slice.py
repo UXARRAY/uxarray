@@ -134,16 +134,21 @@ def _slice_face_indices(
     from uxarray.grid import Grid
 
     ds = grid._ds
+    # bookkeeping: convert scalar indexers to 1D arrays
     if _is_scalar_indexer(indices):
         face_indexer = np.array([indices])
     else:
         face_indexer = indices
-
+    # bookeeping: if 2D+, raise an error (the rest of this function assumes 1D)
     if getattr(face_indexer, "ndim", 0) > 1:
         raise DimensionError(
             "Only 1D indexers are supported when slicing a grid. "
             f"Got indexer.ndim={face_indexer.ndim} for indexer of type {type(face_indexer)}."
         )
+    # bookkeeping: convert DataArray indexers to their underlying data,
+    # to avoid altering dims/coords of grid._ds due to fancy xarray isel() behavior.
+    if isinstance(face_indexer, xr.DataArray):
+        face_indexer = face_indexer.data
 
     # face_indices from the original ds
     # (but still use face_indexer inside isel() below, for efficiency)
