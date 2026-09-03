@@ -154,9 +154,11 @@ def test_isel_can_use_bool():
 def test_indexing_by_dataarray():
     """ensure isel() and sel() with indexer=xr.DataArray(...) both work as expected.
     The dims/coords of the Grid object should never incorporate indexer's dims/coords.
-    The dims/coords of the data object (UxDataArray or UxDataset)
-    should not incorporate the indexer's dims (this is already true),
+    The dims/coords of the data object (UxDataArray or UxDataset) should not incorporate
+    the indexer's dims when indexing along a grid dim (e.g. 'n_face') (this is already true),
     but should probably incorporate its coords (this isn't true yet; see issue #1712).
+
+    Regression test for bug in branch (fixed before merging to main) for PR 1729.
     """
     # ensure grid's dims/coords do not incorporate indexer's dims/coords:
     indexer0 = xr.DataArray(0, coords={"newcoord": 7})
