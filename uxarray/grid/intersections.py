@@ -345,7 +345,6 @@ def _try_gca_gca_intersection(w0, w1, v0, v1):
         The negative candidate intersection point (antipodal to pos).
     """
     pos, neg = _accux_gca(w0, w1, v0, v1)
-    _numba_allfinite3(pos)
 
     pos_fin = _numba_allfinite3(pos)
     neg_fin = _numba_allfinite3(neg)
