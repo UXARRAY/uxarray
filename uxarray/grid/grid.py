@@ -758,6 +758,8 @@ class Grid:
         -------
         If two grids are equal : bool
         """
+        if self is other:
+            return True
 
         if not isinstance(other, Grid):
             return False
