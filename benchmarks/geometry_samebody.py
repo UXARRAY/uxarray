@@ -57,16 +57,25 @@ from uxarray.constants import ERROR_TOLERANCE
 from uxarray.grid.arcs import on_minor_arc
 from uxarray.grid.intersections import (
     _accux_constlat,
+    _snap_const_lat_endpoint,
     gca_const_lat_intersection,
+)
+from uxarray.utils.numba_math import (
+    _numba_add3,
+    _numba_allfinite3,
+    _numba_mul3_scalar,
 )
 
 
 @njit(cache=True)
-def _fp64_constlat_scalar(a0, a1, a2, b0, b1, b2, const_z):
+def _fp64_constlat(a, b, const_z):
     """
-    L1 (FP64 body) — direct double-precision kernel, verbatim from
+    L1 (FP64 body) — direct double-precision kernel, compare to
     fp64_GCAconstLat.hh.
+    Analogous to _accux_constlat, but uses FP64 math instead of AccuX.
     """
+    a0, a1, a2 = a
+    b0, b1, b2 = b
     nx = a1 * b2 - a2 * b1
     ny = a2 * b0 - a0 * b2
     nz = a0 * b1 - a1 * b0
@@ -80,23 +89,7 @@ def _fp64_constlat_scalar(a0, a1, a2, b0, b1, b2, const_z):
     py = -(const_z * ny * nz + s * nx) * inv_denom
     nxo = -(const_z * nx * nz + s * ny) * inv_denom
     nyo = -(const_z * ny * nz - s * nx) * inv_denom
-    return px, py, nxo, nyo
-
-
-@njit(cache=True, inline="always")
-def _fp64_constlat(x1, x2, const_z):
-    px, py, nxo, nyo = _fp64_constlat_scalar(
-        x1[0], x1[1], x1[2], x2[0], x2[1], x2[2], const_z
-    )
-    pos = np.empty(3)
-    pos[0] = px
-    pos[1] = py
-    pos[2] = const_z
-    neg = np.empty(3)
-    neg[0] = nxo
-    neg[1] = nyo
-    neg[2] = const_z
-    return pos, neg
+    return (px, py, const_z), (nxo, nyo, const_z)
 
 
 @njit(cache=True)
@@ -104,18 +97,15 @@ def _fp64_try_gca_const_lat_intersection(gca_cart, const_z):
     """
     L2 (FP64 body) — identical logic to _try_gca_const_lat_intersection, only the
     L1 call differs. Branchless integer masks; status codes 0/1/2 as in AccuSphGeom.
-
-    (Actually no longer identical; same operations but here allocates tiny numpy arrays,
-    while intersections.py avoids that for improved efficiency; see issue #1648.)
     """
     x1 = gca_cart[0]
     x2 = gca_cart[1]
     pos, neg = _fp64_constlat(x1, x2, const_z)
 
-    pos_fin = int(math.isfinite(pos[0]) and math.isfinite(pos[1]))
-    neg_fin = int(math.isfinite(neg[0]) and math.isfinite(neg[1]))
-    pos_on = pos_fin * int(on_minor_arc(pos, x1, x2)) if pos_fin else 0
-    neg_on = neg_fin * int(on_minor_arc(neg, x1, x2)) if neg_fin else 0
+    pos_fin = int(math.isfinite(pos[0])) * int(math.isfinite(pos[1]))
+    neg_fin = int(math.isfinite(neg[0])) * int(math.isfinite(neg[1]))
+    pos_on = pos_fin * on_minor_arc(pos, x1, x2)
+    neg_on = neg_fin * on_minor_arc(neg, x1, x2)
 
     pos_valid = pos_fin * pos_on
     neg_valid = neg_fin * neg_on
@@ -123,10 +113,9 @@ def _fp64_try_gca_const_lat_intersection(gca_cart, const_z):
     pos_mask = pos_valid * (1 - neg_valid)
     neg_mask = neg_valid * (1 - pos_valid)
 
-    point = np.empty(3)
-    point[0] = pos_mask * pos[0] + neg_mask * neg[0]
-    point[1] = pos_mask * pos[1] + neg_mask * neg[1]
-    point[2] = pos_mask * pos[2] + neg_mask * neg[2]
+    point = _numba_add3(
+        _numba_mul3_scalar(pos, pos_mask), _numba_mul3_scalar(neg, neg_mask)
+    )
 
     both = pos_valid * neg_valid
     none = (1 - pos_valid) * (1 - neg_valid)
@@ -134,88 +123,45 @@ def _fp64_try_gca_const_lat_intersection(gca_cart, const_z):
     return point, status, pos, neg
 
 
-@njit(cache=True, inline="always")
-def _snap_const_lat_endpoint_xy(px, py, a0, a1, a2, b0, b1, b2, const_z):
-    """Scalar-argument form of :func:`_snap_const_lat_endpoint`.
-
-    Returns the (possibly snapped) x, y of the candidate; z is always ``const_z``
-    so it is not returned. (Legacy implementation included here after it was
-    removed while addressing issue #1648, for use in _fp64_gca_const_lat_intersection)
-    """
-    snap_sq = 1e-14
-    ox = px
-    oy = py
-    if abs(a2 - const_z) <= ERROR_TOLERANCE:
-        dx = ox - a0
-        dy = oy - a1
-        if dx * dx + dy * dy < snap_sq:
-            ox = a0
-            oy = a1
-    if abs(b2 - const_z) <= ERROR_TOLERANCE:
-        dx = ox - b0
-        dy = oy - b1
-        if dx * dx + dy * dy < snap_sq:
-            ox = b0
-            oy = b1
-    return ox, oy
-
-
 @njit(cache=True)
 def _fp64_gca_const_lat_intersection(gca_cart, const_z):
     """
     L3 (FP64 body) — identical dispatcher to gca_const_lat_intersection, reusing
-    the production _snap_const_lat_endpoint so only the numerical body differs.
-
-    (Actually no longer identical; same operations but here allocates tiny numpy arrays,
-    while intersections.py avoids that for improved efficiency; see issue #1648.)
+    the production _snap_const_lat_endpoint so only the numerical body differs;
+    the only difference is using _fp64_constlat instead of _accux_constlat.
     """
-    # Mirrors the production scalar dispatcher exactly (same allocation profile:
-    # one (2, 3) array), only the L1 body differs. This keeps the same-body
-    # comparison honest: any timing gap is the EFT math, not plumbing.
-    res = np.empty((2, 3))
-    res.fill(np.nan)
+    a = gca_cart[0]
+    b = gca_cart[1]
 
-    a0 = gca_cart[0, 0]
-    a1 = gca_cart[0, 1]
-    a2 = gca_cart[0, 2]
-    b0 = gca_cart[1, 0]
-    b1 = gca_cart[1, 1]
-    b2 = gca_cart[1, 2]
+    pos, neg = _fp64_constlat(a, b, const_z)
 
-    px, py, nx, ny = _fp64_constlat_scalar(a0, a1, a2, b0, b1, b2, const_z)
+    pos_fin = int(math.isfinite(pos[0])) * int(math.isfinite(pos[1]))
+    neg_fin = int(math.isfinite(neg[0])) * int(math.isfinite(neg[1]))
+    pos_valid = pos_fin * on_minor_arc(pos, a, b)
+    neg_valid = neg_fin * on_minor_arc(neg, a, b)
 
-    pos_fin = math.isfinite(px) and math.isfinite(py)
-    neg_fin = math.isfinite(nx) and math.isfinite(ny)
-    pos_valid = pos_fin and on_minor_arc((px, py, const_z), (a0, a1, a2), (b0, b1, b2))
-    neg_valid = neg_fin and on_minor_arc((nx, ny, const_z), (a0, a1, a2), (b0, b1, b2))
-
-    if pos_valid and not neg_valid:
-        sx, sy = _snap_const_lat_endpoint_xy(px, py, a0, a1, a2, b0, b1, b2, const_z)
-        res[0, 0] = sx
-        res[0, 1] = sy
-        res[0, 2] = const_z
-    elif neg_valid and not pos_valid:
-        sx, sy = _snap_const_lat_endpoint_xy(nx, ny, a0, a1, a2, b0, b1, b2, const_z)
-        res[0, 0] = sx
-        res[0, 1] = sy
-        res[0, 2] = const_z
-    elif pos_valid and neg_valid:
-        psx, psy = _snap_const_lat_endpoint_xy(px, py, a0, a1, a2, b0, b1, b2, const_z)
-        nsx, nsy = _snap_const_lat_endpoint_xy(nx, ny, a0, a1, a2, b0, b1, b2, const_z)
-        dx = psx - nsx
-        dy = psy - nsy
-        if dx * dx + dy * dy < 1e-14:
-            res[0, 0] = psx
-            res[0, 1] = psy
-            res[0, 2] = const_z
+    if pos_valid ^ neg_valid:
+        # exactly 1 valid intersection point
+        if pos_valid:
+            point_snapped = _snap_const_lat_endpoint(pos, a, b, const_z)
         else:
-            res[0, 0] = psx
-            res[0, 1] = psy
-            res[0, 2] = const_z
-            res[1, 0] = nsx
-            res[1, 1] = nsy
-            res[1, 2] = const_z
-    return res
+            point_snapped = _snap_const_lat_endpoint(neg, a, b, const_z)
+        result = (point_snapped, (np.nan, np.nan, np.nan))
+    elif pos_valid and neg_valid:
+        # probably 2 valid intersection points
+        pos_snapped = _snap_const_lat_endpoint(pos, a, b, const_z)
+        neg_snapped = _snap_const_lat_endpoint(neg, a, b, const_z)
+        dx = pos_snapped[0] - neg_snapped[0]
+        dy = pos_snapped[1] - neg_snapped[1]
+        if dx * dx + dy * dy < 1e-14:
+            # (actually, they are the same point! --> Only 1 valid point.)
+            result = (pos_snapped, (np.nan, np.nan, np.nan))
+        else:
+            result = (pos_snapped, neg_snapped)
+    else:
+        # 0 valid intersection points
+        result = ((np.nan, np.nan, np.nan), (np.nan, np.nan, np.nan))
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -277,10 +223,8 @@ def _batch_fp64_kernel(A, B, Z):
     """Same-body FP64 L1 kernel over a batch; accumulate to defeat DCE."""
     acc = 0.0
     for i in range(A.shape[0]):
-        px, py, nxo, nyo = _fp64_constlat_scalar(
-            A[i, 0], A[i, 1], A[i, 2], B[i, 0], B[i, 1], B[i, 2], Z[i]
-        )
-        acc += px + py + nxo + nyo
+        pos, neg = _fp64_constlat(A[i], B[i], Z[i])
+        acc += pos[0] + pos[1] + neg[0] + neg[1]
     return acc
 
 
@@ -302,7 +246,7 @@ def _batch_fp64_dispatch(gcas, Z):
     acc = 0.0
     for i in range(gcas.shape[0]):
         res = _fp64_gca_const_lat_intersection(gcas[i], Z[i])
-        v = res[0, 0]
+        v = res[0][0]
         if v == v:  # not NaN
             acc += v
     return acc
@@ -343,15 +287,13 @@ def main():
     for gca, z in base_cases:
         fp64_res = _fp64_gca_const_lat_intersection(gca, z)
         accux_res = gca_const_lat_intersection(gca, z)
-        fp64_rows = int(np.isfinite(fp64_res[0, 0])) + int(np.isfinite(fp64_res[1, 0]))
-        accux_rows = int(np.isfinite(accux_res[0][0])) + int(
-            np.isfinite(accux_res[1][0])
-        )
+        fp64_rows = int(np.isfinite(fp64_res[0][0])) + int(np.isfinite(fp64_res[1][0]))
+        accux_rows = int(np.isfinite(accux_res[0][0])) + int(np.isfinite(accux_res[1][0]))
         if fp64_rows != accux_rows:
             status_mismatch += 1
         if fp64_rows > 0 and accux_rows > 0:
             n_with_result += 1
-            d = np.nanmax(np.abs(fp64_res - accux_res))
+            d = np.nanmax(np.abs(np.asarray(fp64_res) - np.asarray(accux_res)))
             if np.isfinite(d):
                 max_out_diff = max(max_out_diff, d)
 
