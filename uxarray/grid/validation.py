@@ -4,10 +4,18 @@ import numpy as np
 import polars as pl
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
 
 def _check_connectivity(grid):
-    """Check if all nodes are referenced by at least one element."""
+    """Check if all nodes are referenced by at least one element.
+
+    Node indices that are coincident duplicates of a node that *is*
+    referenced are expected to be unreferenced -- connectivity is
+    canonicalized to point at a single index per coincident group, while
+    the duplicate coordinates themselves are left in place (see
+    ``_find_duplicate_nodes``).
+    """
 
     # Convert face_node_connectivity to a Polars Series and get unique values
     nodes_in_conn = pl.Series(grid.face_node_connectivity.values.flatten()).unique()
@@ -15,12 +23,15 @@ def _check_connectivity(grid):
     # Filter out negative values
     nodes_in_conn = nodes_in_conn.filter(nodes_in_conn >= 0)
 
-    # Check if the size of unique nodes in connectivity is equal to the number of nodes
-    if len(nodes_in_conn) == grid.n_node:
+    n_duplicate_nodes = len(_find_duplicate_nodes(grid))
+
+    # Check if the size of unique nodes in connectivity is equal to the number of
+    # non-duplicate nodes
+    if len(nodes_in_conn) == grid.n_node - n_duplicate_nodes:
         return True
     else:
         warn(
-            f"Some nodes may not be referenced by any element. {len(nodes_in_conn)} and {grid.n_node}",
+            f"Some nodes may not be referenced by any element. {len(nodes_in_conn)} and {grid.n_node - n_duplicate_nodes}",
             RuntimeWarning,
         )
         return False
@@ -49,17 +60,17 @@ def _check_duplicate_nodes(grid):
 
 
 def _check_duplicate_nodes_indices(grid):
-    """Check if there are duplicate node indices, returns True if there are."""
+    """Check if any face still references a duplicate node index, returns True if
+    it does."""
 
-    # Create a duplication dictionary
-    duplicate_node_dict = _find_duplicate_nodes(grid)
+    duplicate_node_map = _find_duplicate_nodes(grid)
+    if not duplicate_node_map:
+        return False
 
-    for face_nodes in grid.face_node_connectivity.values:
-        for node in face_nodes:
-            if node in duplicate_node_dict.keys():
-                return True
-
-    return False
+    duplicate_indices = np.fromiter(
+        duplicate_node_map.keys(), dtype=INT_DTYPE, count=len(duplicate_node_map)
+    )
+    return bool(np.isin(grid.face_node_connectivity.values, duplicate_indices).any())
 
 
 def _check_area(grid):
@@ -76,31 +87,90 @@ def _check_area(grid):
         return True
 
 
+def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
+    """For each point, find the lowest-indexed point within ``tolerance`` chordal
+    distance on the unit sphere (a point with no coincident neighbor maps to itself).
+
+    Points at the geographic poles are never merged with one another: longitude is
+    singular there, and grid files (e.g. SCRIP cube-sphere) commonly give each face
+    touching a pole its own arbitrary-but-meaningful longitude for that corner, which
+    downstream lat/lon bounds and zonal-weight code relies on staying distinct per
+    face even though the xyz location is identical.
+    """
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    from scipy.spatial import KDTree
+
+    n_points = len(points_xyz)
+    canonical = np.arange(n_points, dtype=INT_DTYPE)
+
+    # ``tolerance`` is a chord radius (see the ``query_pairs`` call below), so it
+    # cannot be used directly as a deviation of |z| from 1. For a point at
+    # colatitude t from the pole, 1 - |z| = 1 - cos(t) = 2*sin(t/2)**2 = chord**2/2.
+    pole_mask = np.isclose(
+        np.abs(points_xyz[:, 2]), 1.0, rtol=0.0, atol=tolerance**2 / 2
+    )
+    mergeable_indices = np.flatnonzero(~pole_mask)
+
+    if len(mergeable_indices) < 2:
+        return canonical
+
+    tree = KDTree(points_xyz[mergeable_indices])
+    pairs = tree.query_pairs(r=tolerance, output_type="ndarray")
+
+    if len(pairs) == 0:
+        return canonical
+
+    rows = np.concatenate([pairs[:, 0], pairs[:, 1]])
+    cols = np.concatenate([pairs[:, 1], pairs[:, 0]])
+    n_mergeable = len(mergeable_indices)
+    adj_matrix = coo_matrix(
+        (np.ones(len(rows)), (rows, cols)), shape=(n_mergeable, n_mergeable)
+    )
+    _, labels = connected_components(csgraph=adj_matrix, directed=False)
+
+    unique_labels, first_indices = np.unique(labels, return_index=True)
+    sub_canonical = first_indices[np.searchsorted(unique_labels, labels)]
+    canonical[mergeable_indices] = mergeable_indices[sub_canonical]
+    return canonical
+
+
+def _find_duplicate_node_map(node_lon, node_lat, tolerance=ERROR_TOLERANCE):
+    """Map duplicate (within ``tolerance`` on the unit sphere) node indices to the
+    lowest-indexed node sharing their location."""
+    points_xyz = np.column_stack(
+        _lonlat_rad_to_xyz(np.deg2rad(node_lon), np.deg2rad(node_lat))
+    )
+    canonical = _coincident_node_canonical_indices(points_xyz, tolerance)
+
+    n_node = len(node_lon)
+    duplicate_indices = np.flatnonzero(canonical != np.arange(n_node, dtype=INT_DTYPE))
+    return {
+        INT_DTYPE(index): INT_DTYPE(canonical[index]) for index in duplicate_indices
+    }
+
+
 def _find_duplicate_nodes(grid):
-    # list of tuple indices
-    lonlat_t = [
-        (lon, lat) for lon, lat in zip(grid.node_lon.values, grid.node_lat.values)
-    ]
+    """Map duplicate node indices to the canonical (lowest-indexed) node sharing
+    their coordinates."""
+    return _find_duplicate_node_map(grid.node_lon.values, grid.node_lat.values)
 
-    # # Dictionary to track first occurrence and subsequent indices
-    occurrences = {}
 
-    # Iterate through the list and track occurrences
-    for index, tpl in enumerate(lonlat_t):
-        if tpl in occurrences:
-            occurrences[tpl].append((INT_DTYPE(index)))
-        else:
-            occurrences[tpl] = [INT_DTYPE(index)]
+def _live_node_indices(grid):
+    """Node indices still referenced after connectivity is canonicalized.
 
-    duplicate_dict = {}
-
-    for tpl, indices in occurrences.items():
-        if len(indices) > 1:
-            source_idx = indices[0]
-            for duplicate_idx in indices[1:]:
-                duplicate_dict[duplicate_idx] = source_idx
-
-    return duplicate_dict
+    Duplicate node coordinates are left in the node arrays by design (see
+    ``_find_duplicate_nodes``), but a raw coordinate-space search (e.g. a
+    node KDTree/BallTree) can otherwise select a dead duplicate index that no
+    face references. Callers building such trees should restrict to this set.
+    """
+    duplicate_map = _find_duplicate_nodes(grid)
+    if not duplicate_map:
+        return np.arange(grid.n_node, dtype=INT_DTYPE)
+    dead = np.fromiter(duplicate_map.keys(), dtype=INT_DTYPE, count=len(duplicate_map))
+    return np.setdiff1d(
+        np.arange(grid.n_node, dtype=INT_DTYPE), dead, assume_unique=True
+    )
 
 
 def _check_normalization(grid):

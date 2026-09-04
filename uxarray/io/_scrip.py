@@ -60,8 +60,11 @@ def _to_ugrid(in_ds, out_ds):
             "original_index"
         )
 
-        # Get unique rows (first occurrence). This preserves the order in which they appear.
-        unique_df = df.unique(subset=["lon", "lat"], keep="first")
+        # Get unique rows (first occurrence). maintain_order is required for this to be
+        # deterministic across runs -- polars' default unique() may otherwise reorder rows,
+        # which would make the resulting node index assignment (and downstream duplicate-node
+        # canonicalization) non-reproducible.
+        unique_df = df.unique(subset=["lon", "lat"], keep="first", maintain_order=True)
 
         # unq_ind: The indices of the unique rows in the original array
         unq_ind = unique_df["original_index"].to_numpy().astype(INT_DTYPE)

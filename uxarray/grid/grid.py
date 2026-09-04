@@ -23,6 +23,7 @@ from uxarray.grid.angles import _compute_face_node_angles_convex
 from uxarray.grid.area import _get_all_face_area_from_coords
 from uxarray.grid.bounds import _populate_face_bounds
 from uxarray.grid.connectivity import (
+    _merge_coincident_grid_ds_nodes,
     _populate_edge_face_connectivity,
     _populate_edge_node_connectivity,
     _populate_face_edge_connectivity,
@@ -185,6 +186,11 @@ class Grid:
                 Warning,
             )
             # TODO: more checks for validate grid (lat/lon coords, etc)
+
+        # canonicalize coincident node indices in connectivity before this dataset
+        # is wrapped in a Grid, so every construction path benefits and no
+        # lazily-computed connectivity is ever built from stale indices.
+        grid_ds = _merge_coincident_grid_ds_nodes(grid_ds)
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict or {}
@@ -2672,22 +2678,40 @@ class Grid:
 
         return copy.deepcopy(line_collection)
 
-    def get_dual(self, check_duplicate_nodes: bool = False):
+    def get_dual(self, check_duplicate_nodes: bool | None = None):
         """Compute the dual for a grid, which constructs a new grid centered
         around the nodes, where the nodes of the primal become the face centers
         of the dual, and the face centers of the primal become the nodes of the
         dual. Returns a new `Grid` object.
 
+        Parameters
+        ----------
+        check_duplicate_nodes : bool, optional
+            Deprecated and ignored. Coincident nodes are merged at grid
+            construction, so the check below always runs and always passes.
+
         Returns
         --------
         dual : Grid
             Dual Mesh Grid constructed
-        """
 
-        if check_duplicate_nodes:
-            if _check_duplicate_nodes_indices(self):
-                # TODO: This is very slow
-                raise GridInvalidError("Duplicate nodes found, cannot construct dual")
+        Raises
+        ------
+        GridInvalidError
+            If any face still references a coincident duplicate node. The dual
+            reads ``node_face_connectivity`` directly, so a dead duplicate index
+            yields a degenerate dual face rather than an error.
+        """
+        if check_duplicate_nodes is not None:
+            warnings.warn(
+                "`check_duplicate_nodes` is deprecated and ignored; coincident "
+                "nodes are merged at grid construction and always checked here.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        if _check_duplicate_nodes_indices(self):
+            raise GridInvalidError("Duplicate nodes found, cannot construct dual")
 
         # Get dual mesh node face connectivity
         dual_node_face_conn = construct_dual(grid=self)

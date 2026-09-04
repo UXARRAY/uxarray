@@ -78,8 +78,12 @@ def test_grid_nn_subset(gridpath):
     for grid_path in GRID_PATHS:
         grid = ux.open_grid(grid_path)
 
-        # corner-nodes
-        ks = [1, 2, grid.n_node - 1]
+        # corner-nodes -- k is bounded by the number of *live* (non-duplicate)
+        # nodes, since the node search tree excludes dead coincident indices
+        from uxarray.grid.validation import _live_node_indices
+
+        n_live_nodes = len(_live_node_indices(grid))
+        ks = [1, 2, n_live_nodes - 1]
         for coord in coord_locs:
             for k in ks:
                 grid_subset = grid.subset.nearest_neighbor(coord,
