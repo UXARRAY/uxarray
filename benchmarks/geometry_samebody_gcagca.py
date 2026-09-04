@@ -1,7 +1,7 @@
 """Same-body FP64-vs-AccuX diagnostic for the GCA x GCA path.
 
 Companion to ``geometry_samebody.py``, which only covers the GCA/constant-latitude
-stack.  T
+stack. For more details, see description at top of that file.
 
 gca_gca is the kernel invoked per edge from the njit point-in-polygon crossing
 loop (``uxarray/grid/geometry.py`` ``_check_intersection``), so its allocation
@@ -20,8 +20,15 @@ import time
 import numpy as np
 from numba import njit
 
+from uxarray.errors import DimensionError
 from uxarray.grid.arcs import on_minor_arc
 from uxarray.grid.intersections import _accux_gca, gca_gca_intersection
+from uxarray.utils.numba_math import (
+    _numba_add3,
+    _numba_allfinite3,
+    _numba_mul3_scalar,
+    _numba_neg3,
+)
 
 
 @njit(cache=True, inline="always")
@@ -29,8 +36,7 @@ def _fp64_gca(w0, w1, v0, v1):
     """
     L1 (FP64 body) -- plain double-precision cross-product triple, the direct
     analogue of _accux_gca (intersections.py) with accucross/accucross_pair
-    replaced by naive FP64 cross products.  Same allocation shape (two np.empty(3))
-    so the twin's allocation profile matches the real kernel exactly.
+    replaced by naive FP64 cross products.
     """
 
     n1x = w0[1] * w1[2] - w0[2] * w1[1]
@@ -46,14 +52,8 @@ def _fp64_gca(w0, w1, v0, v1):
 
     vn = math.sqrt(vx * vx + vy * vy + vz * vz)
     inv = 1.0 / vn if vn != 0.0 else np.inf
-    pos = np.empty(3)
-    pos[0] = vx * inv
-    pos[1] = vy * inv
-    pos[2] = vz * inv
-    neg = np.empty(3)
-    neg[0] = -pos[0]
-    neg[1] = -pos[1]
-    neg[2] = -pos[2]
+    pos = _numba_mul3_scalar((vx, vy, vz), inv)
+    neg = _numba_neg3(pos)
     return pos, neg
 
 
@@ -61,24 +61,16 @@ def _fp64_gca(w0, w1, v0, v1):
 def _fp64_try_gca_gca_intersection(w0, w1, v0, v1):
     """
     L2 (FP64 body) -- byte-for-byte identical logic to _try_gca_gca_intersection
-    (intersections.py), only the L1 call differs.
+    (intersections.py), only the L1 call differs (_fp64_gca vs _accux_gca).
     """
     pos, neg = _fp64_gca(w0, w1, v0, v1)
 
-    pos_fin = (
-        1
-        if math.isfinite(pos[0]) and math.isfinite(pos[1]) and math.isfinite(pos[2])
-        else 0
-    )
-    neg_fin = (
-        1
-        if math.isfinite(neg[0]) and math.isfinite(neg[1]) and math.isfinite(neg[2])
-        else 0
-    )
-    pos_on_a = 1 if (pos_fin and on_minor_arc(pos, w0, w1)) else 0
-    pos_on_b = 1 if (pos_fin and on_minor_arc(pos, v0, v1)) else 0
-    neg_on_a = 1 if (neg_fin and on_minor_arc(neg, w0, w1)) else 0
-    neg_on_b = 1 if (neg_fin and on_minor_arc(neg, v0, v1)) else 0
+    pos_fin = _numba_allfinite3(pos)
+    neg_fin = _numba_allfinite3(neg)
+    pos_on_a = pos_fin * on_minor_arc(pos, w0, w1)
+    pos_on_b = pos_fin * on_minor_arc(pos, v0, v1)
+    neg_on_a = neg_fin * on_minor_arc(neg, w0, w1)
+    neg_on_b = neg_fin * on_minor_arc(neg, v0, v1)
 
     pos_valid = pos_fin * pos_on_a * pos_on_b
     neg_valid = neg_fin * neg_on_a * neg_on_b
@@ -86,10 +78,9 @@ def _fp64_try_gca_gca_intersection(w0, w1, v0, v1):
     pos_mask = pos_valid * (1 - neg_valid)
     neg_mask = neg_valid * (1 - pos_valid)
 
-    point = np.empty(3)
-    point[0] = pos_mask * pos[0] + neg_mask * neg[0]
-    point[1] = pos_mask * pos[1] + neg_mask * neg[1]
-    point[2] = pos_mask * pos[2] + neg_mask * neg[2]
+    point = _numba_add3(
+        _numba_mul3_scalar(pos, pos_mask), _numba_mul3_scalar(neg, neg_mask)
+    )
 
     both = pos_valid * neg_valid
     none = (1 - pos_valid) * (1 - neg_valid)
@@ -101,10 +92,21 @@ def _fp64_try_gca_gca_intersection(w0, w1, v0, v1):
 def _fp64_gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     """
     L3 (FP64 body) -- identical dispatcher to gca_gca_intersection
-    (intersections.py), same np.empty((2, 3)) + res[:count] slice profile.
+    (intersections.py), except for using _fp64_try_gca_gca_intersection
+    instead of _try_gca_gca_intersection.
     """
-    if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
-        raise ValueError("The two GCAs must be in the cartesian [x, y, z] format")
+    if len(gca_a_xyz) != 2 or len(gca_b_xyz) != 2:
+        raise DimensionError("Each input to gca_gca_intersection must have length 2")
+    if len(gca_a_xyz[0]) != 3 or len(gca_a_xyz[1]) != 3:
+        raise DimensionError(
+            "gca_a points must be in cartesian format (x,y,z), but got len(gca_a[0]) != 3"
+            "or len(gca_a[1]) != 3, in gca_gca_intersection(gca_a, gca_b)"
+        )
+    if len(gca_b_xyz[0]) != 3 or len(gca_b_xyz[1]) != 3:
+        raise DimensionError(
+            "gca_b points must be in cartesian format (x,y,z), but got len(gca_b[0]) != 3"
+            "or len(gca_b[1]) != 3, in gca_gca_intersection(gca_a, gca_b)"
+        )
 
     w0 = gca_a_xyz[0]
     w1 = gca_a_xyz[1]
@@ -113,33 +115,32 @@ def _fp64_gca_gca_intersection(gca_a_xyz, gca_b_xyz):
 
     point, status, pos, neg = _fp64_try_gca_gca_intersection(w0, w1, v0, v1)
 
-    res = np.empty((2, 3))
-    count = 0
-    if status == 0:
-        res[0, 0] = point[0]
-        res[0, 1] = point[1]
-        res[0, 2] = point[2]
-        count = 1
+    # Always return two points; branching logic changing output shape while
+    # using tuple outputs causes numba crash like "Can't unify return type".
+    # (And, swapping to tiny numpy array outputs causes significant slowdown.)
+    if status == 0:  # one intersection point
+        result = (point, (np.nan, np.nan, np.nan))
     elif status == 1:
-        res[0, 0] = pos[0]
-        res[0, 1] = pos[1]
-        res[0, 2] = pos[2]
-        res[1, 0] = neg[0]
-        res[1, 1] = neg[1]
-        res[1, 2] = neg[2]
-        count = 2
+        result = (pos, neg)
     else:
-        if on_minor_arc(v0, w0, w1):
-            res[count, 0] = v0[0]
-            res[count, 1] = v0[1]
-            res[count, 2] = v0[2]
-            count += 1
-        if on_minor_arc(v1, w0, w1):
-            res[count, 0] = v1[0]
-            res[count, 1] = v1[1]
-            res[count, 2] = v1[2]
-            count += 1
-    return res[:count]
+        # status == 2: no candidate on both arcs.
+        # Check for coplanar overlap (shared endpoints) outside the kernel.
+        v0_on_w_arc = on_minor_arc(v0, w0, w1)
+        v1_on_w_arc = on_minor_arc(v1, w0, w1)
+        if v0_on_w_arc or v1_on_w_arc:
+            # Ensure result will be (tuple,tuple), to avoid "Can't unify return type",
+            # which occurs if there is any chance of (array,tuple) or (array,array).
+            v0 = (v0[0], v0[1], v0[2])
+            v1 = (v1[0], v1[1], v1[2])
+            if v0_on_w_arc and v1_on_w_arc:
+                result = (v0, v1)
+            elif v0_on_w_arc:
+                result = (v0, (np.nan, np.nan, np.nan))
+            elif v1_on_w_arc:
+                result = (v1, (np.nan, np.nan, np.nan))
+        else:
+            result = ((np.nan, np.nan, np.nan), (np.nan, np.nan, np.nan))
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -224,8 +225,8 @@ def _batch_accux_gca_dispatch(ga, gb):
     acc = 0.0
     for i in range(ga.shape[0]):
         res = gca_gca_intersection(ga[i], gb[i])
-        if res.shape[0] > 0:
-            acc += res[0, 0]
+        if math.isfinite(res[0][0]):
+            acc += res[0][0]
     return acc
 
 
@@ -234,8 +235,8 @@ def _batch_fp64_gca_dispatch(ga, gb):
     acc = 0.0
     for i in range(ga.shape[0]):
         res = _fp64_gca_gca_intersection(ga[i], gb[i])
-        if res.shape[0] > 0:
-            acc += res[0, 0]
+        if math.isfinite(res[0][0]):
+            acc += res[0][0]
     return acc
 
 
@@ -265,10 +266,12 @@ def main(n_cases=100_000, seed=20251104):
     for i in range(n_check):
         r_fp = _fp64_gca_gca_intersection(ga[i], gb[i])
         r_ax = gca_gca_intersection(ga[i], gb[i])
-        if r_fp.shape[0] != r_ax.shape[0]:
+        fp_intersections = math.isfinite(r_fp[0][0]) + math.isfinite(r_fp[1][0])
+        ax_intersections = math.isfinite(r_ax[0][0]) + math.isfinite(r_ax[1][0])
+        if fp_intersections != ax_intersections:
             row_mismatch += 1
-        elif r_fp.shape[0] > 0:
-            max_out_diff = max(max_out_diff, float(np.max(np.abs(r_fp - r_ax))))
+        elif fp_intersections > 0:
+            max_out_diff = max(max_out_diff, float(np.max(np.abs(np.array(r_fp) - np.array(r_ax)))))
 
     t_fp64_k = _time_batch(_batch_fp64_gca_kernel, (wa, wb, va, vb))
     t_accux_k = _time_batch(_batch_accux_gca_kernel, (wa, wb, va, vb))
