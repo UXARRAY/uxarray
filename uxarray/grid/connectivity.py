@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import xarray as xr
 from numba import njit, prange
@@ -169,18 +171,15 @@ def _populate_edge_node_connectivity(grid):
     (``Grid.edge_node_connectivity``)."""
 
     # Both variables written by this pass are numbered in the constructed edge order, so
-    # check for either one already existing, if they do this might cause issues
+    # check if face_edge_connectivity is already defined (probably a rare situation)
 
-    if "edge_node_connectivity" in grid._ds or "face_edge_connectivity" in grid._ds:
-        raise ValueError(
+    if "face_edge_connectivity" in grid._ds:
+        warnings.warn(
             "Constructing ``edge_node_connectivity`` on a grid that already has "
-            "an ``edge_node_connectivity`` or a ``face_edge_connectivity``, possibly "
-            "from the original file. Constructed edges are numbered in lexicographic "
-            "order by node pair, which may not match the original order of the edges "
-            "those variables were stored with. Constructing both here when only one "
-            "of them was read from the file would leave the pair desynchronized, with "
-            "the stored variable's edge indices referring to a different numbering "
-            "than the constructed one."
+            "a ``face_edge_connectivity``, possibly from the original file. "
+            "Constructed edges are numbered in lexicographic order by node pair, "
+            "which may not match the original order of the edges that ``face_edge_connectivity`` "
+            "was indexed by."
         )
 
     # This is in lieu of an xarray equivalent to `da.compute(a, b)`. We traverse the
