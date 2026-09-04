@@ -758,6 +758,8 @@ class Grid:
         -------
         If two grids are equal : bool
         """
+        if self is other:
+            return True
 
         if not isinstance(other, Grid):
             return False
@@ -2714,10 +2716,10 @@ class Grid:
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
 
-        Currently only supports inclusive selection, meaning that for cases where node or edge indices are provided,
-        any face that contains that element is included in the resulting subset. This means that additional elements
-        beyond those that were initially provided in the indices will be included. Support for more methods, such as
-        exclusive and clipped indexing is in the works.
+        The indexing method is inclusive: for cases where node or edge indices are provided,
+        the result is formed by the subset of all faces which contain any of the indicated nodes or edges
+        (together with all nodes and edges which are present on any of those faces), which means
+        that the result may include additional elements beyond those explicitly requested.
 
         Parameters
         ----------
