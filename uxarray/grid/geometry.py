@@ -447,8 +447,8 @@ def _grid_to_matplotlib_polycollection(
     # Handle unsupported configuration: splitting periodic elements with projection
     if periodic_elements == "split" and projection is not None:
         raise ValueError(
-            "Explicitly projecting lines is not supported. Please pass in your projection "
-            "using the 'transform' parameter"
+            'Must provide `projection` when periodic_elements=="split" '
+            "while attempting to create polycollection, but got projection=None."
         )
 
     # Correct the central longitude and build polygon shells
@@ -717,6 +717,7 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
 
     if pole != 1 and pole != -1:
         raise ValueError("Pole must be 1 (North) or -1 (South)")
+        # (numba complains about f-strings, so don't put `pole` value in message.)
 
     # Define constants within the function
     pole_point_xyz = np.empty(3, dtype=np.float64)
@@ -838,7 +839,11 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
         return ((north_intersections + south_intersections) % 2) != 0
 
     else:
-        raise ValueError("Invalid pole point query.")
+        # (location will always be 1, -1, or 0 from _classify_polygon_location,
+        #  so it should always be handled by cases above.)
+        raise AssertionError(
+            "Internal coding/implementation error: invalid `location`."
+        )
 
 
 @njit(cache=True)
@@ -1272,8 +1277,10 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
 
                 return weights, nodes
 
-        # If the point doesn't reside in the polygon, raise an error
-        raise ValueError("Point does not reside in polygon")
+        raise ValueError(
+            "Point does not reside in polygon, during "
+            "barycentric_coordinates_cartesian(polygon_xyz, point_xyz)"
+        )  # (can't do str(float) in numba --> can't include numbers here.)
 
 
 @njit(cache=True)

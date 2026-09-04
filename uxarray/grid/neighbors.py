@@ -76,8 +76,8 @@ class KDTree:
             self._n_elements = self._source_grid.n_edge
         else:
             raise ValueError(
-                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
-                f"or 'edge centers'"
+                "Invalid `coordinates`. Expected one of ['nodes', 'face centers', 'edge centers'], "
+                f"but got {coordinates!r}, in uxarray.KDTree()."
             )
 
     def _build_from_nodes(self):
@@ -107,8 +107,7 @@ class KDTree:
 
             else:
                 raise ValueError(
-                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                    f"'spherical'"
+                    f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
                 )
 
             self._tree_from_nodes = SKKDTree(coords, metric=self.distance_metric)
@@ -142,8 +141,7 @@ class KDTree:
 
             else:
                 raise ValueError(
-                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                    f"'spherical'"
+                    f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
                 )
 
             self._tree_from_face_centers = SKKDTree(coords, metric=self.distance_metric)
@@ -159,7 +157,10 @@ class KDTree:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "cartesian":
                 if self._source_grid.edge_x is None:
-                    raise ValueError("edge_x isn't populated")
+                    raise ValueError(
+                        f"{type(self).__name__}._build_from_edge_centers() when coordinate_system='cartesian' "
+                        "requires edge_x/y/z, but _source_grid.edge_x isn't populated."
+                    )
 
                 coords = np.stack(
                     (
@@ -172,7 +173,10 @@ class KDTree:
 
             elif self.coordinate_system == "spherical":
                 if self._source_grid.edge_lat is None:
-                    raise ValueError("edge_lat isn't populated")
+                    raise ValueError(
+                        f"{type(self).__name__}._build_from_edge_centers() when coordinate_system='spherical' "
+                        "requires edge_lat/lon, but _source_grid.edge_lat isn't populated."
+                    )
 
                 coords = np.vstack(
                     (
@@ -183,8 +187,7 @@ class KDTree:
 
             else:
                 raise ValueError(
-                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                    f"'spherical'"
+                    f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
                 )
 
             self._tree_from_edge_centers = SKKDTree(coords, metric=self.distance_metric)
@@ -203,8 +206,8 @@ class KDTree:
             _tree = self._tree_from_edge_centers
         else:
             raise ValueError(
-                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
-                f"or 'edge centers'"
+                "Invalid `coordinates`. Expected one of ['nodes', 'face centers', 'edge centers']; "
+                f"got {self._coordinates!r}."
             )
 
         return _tree
@@ -248,8 +251,7 @@ class KDTree:
 
         if k < 1 or k > self._n_elements:
             raise AssertionError(
-                f"The value of k must be greater than 1 and less than the number of elements used to construct "
-                f"the tree ({self._n_elements})."
+                f"Expected 1 <= k <= {self._n_elements} (number of elements used to construct tree); got k={k}"
             )
         if self.coordinate_system == "cartesian":
             coords = _prepare_xyz_for_query(coords)
@@ -259,8 +261,7 @@ class KDTree:
             )
         else:
             raise ValueError(
-                f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                f"'spherical'"
+                f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
             )
 
         # perform query with distance
@@ -330,9 +331,7 @@ class KDTree:
         """
 
         if r < 0.0:
-            raise AssertionError(
-                "The value of r must be greater than or equal to zero."
-            )
+            raise AssertionError(f"Expected radius r>=0; got r={r}")
 
         # Use the correct function to prepare for query based on coordinate type
         if self.coordinate_system == "cartesian":
@@ -343,8 +342,7 @@ class KDTree:
             )
         else:
             raise ValueError(
-                f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                f"'spherical'"
+                f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
             )
 
         if count_only:
@@ -405,8 +403,8 @@ class KDTree:
             self._n_elements = self._source_grid.n_edge
         else:
             raise ValueError(
-                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
-                f"or 'edge centers'"
+                "Invalid `coordinates`. Expected one of ['nodes', 'face centers', 'edge centers']; "
+                f"got {self._coordinates!r}."
             )
 
 
@@ -468,8 +466,8 @@ class BallTree:
             self._n_elements = self._source_grid.n_edge
         else:
             raise ValueError(
-                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
-                f"or 'edge centers'"
+                "Invalid `coordinates`. Expected one of ['nodes', 'face centers', 'edge centers']; "
+                f"got {self._coordinates!r}."
             )
 
     def _build_from_face_centers(self):
@@ -498,8 +496,7 @@ class BallTree:
                 )
             else:
                 raise ValueError(
-                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                    f"'spherical'"
+                    f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
                 )
 
             self._tree_from_face_centers = SKBallTree(
@@ -545,7 +542,10 @@ class BallTree:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "spherical":
                 if self._source_grid.edge_lat is None:
-                    raise ValueError("edge_lat isn't populated")
+                    raise ValueError(
+                        f"{type(self).__name__}._build_from_edge_centers() when coordinate_system='spherical' "
+                        "requires edge_lat/lon, but _source_grid.edge_lat isn't populated."
+                    )
 
                 coords = np.vstack(
                     (
@@ -556,7 +556,10 @@ class BallTree:
 
             elif self.coordinate_system == "cartesian":
                 if self._source_grid.edge_x is None:
-                    raise ValueError("edge_x isn't populated")
+                    raise ValueError(
+                        f"{type(self).__name__}._build_from_edge_centers() when coordinate_system='cartesian' "
+                        "requires edge_x/y/z, but _source_grid.edge_x isn't populated."
+                    )
 
                 coords = np.stack(
                     (
@@ -568,8 +571,7 @@ class BallTree:
                 )
             else:
                 raise ValueError(
-                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                    f"'spherical'"
+                    f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
                 )
 
             self._tree_from_edge_centers = SKBallTree(
@@ -589,8 +591,8 @@ class BallTree:
             _tree = self._tree_from_edge_centers
         else:
             raise TypeError(
-                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
-                f"or 'edge centers'"
+                "Invalid `coordinates`. Expected one of ['nodes', 'face centers', 'edge centers']; "
+                f"got {self._coordinates!r}."
             )
 
         return _tree
@@ -634,8 +636,7 @@ class BallTree:
 
         if k < 1 or k > self._n_elements:
             raise AssertionError(
-                f"The value of k must be greater than 1 and less than the number of elements used to construct "
-                f"the tree ({self._n_elements})."
+                f"Expected 1 <= k <= {self._n_elements} (number of elements used to construct tree); got k={k}"
             )
 
         # Use the correct function to prepare for query based on coordinate type
@@ -715,9 +716,7 @@ class BallTree:
         """
 
         if r < 0.0:
-            raise AssertionError(
-                "The value of r must be greater than or equal to zero."
-            )
+            raise AssertionError(f"Expected radius r>=0; got r={r}")
 
         # Use the correct function to prepare for query based on coordinate type
         if self.coordinate_system == "spherical":
@@ -787,8 +786,8 @@ class BallTree:
             self._n_elements = self._source_grid.n_edge
         else:
             raise ValueError(
-                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
-                f"or 'edge centers'"
+                "Invalid `coordinates`. Expected one of ['nodes', 'face centers', 'edge centers']; "
+                f"got {self._coordinates!r}."
             )
 
 
@@ -893,10 +892,11 @@ class SpatialHash:
                     for j in range(j1[eid], j2[eid] + 1):
                         for i in range(i1[eid], i2[eid] + 1):
                             index_to_face[i + self._nx * j].append(eid)
-            except IndexError:
+            except IndexError as err:
                 raise IndexError(
-                    "list index out of range. This may indicate incorrect `edge_node_distances` values."
-                )
+                    f"list index out of range during {type(self).__name__}._initialize_face_hash_table(). "
+                    "This may indicate incorrect `edge_node_distances` values."
+                ) from err
 
             return index_to_face
 
@@ -1010,7 +1010,10 @@ def _barycentric_coordinates(nodes, point):
 
 def _prepare_xy_for_query(xy, use_radians, distance_metric):
     """Prepares xy coordinates for query with the sklearn BallTree or
-    KDTree."""
+    KDTree. xy actually represents lat/lon, not cartesian x,y, so the
+    name might be a bit misleading. xy shape should be (n_pairs, 2),
+    with second dimension corresponding to (lon, lat).
+    """
 
     xy = np.asarray(xy)
 
@@ -1019,15 +1022,10 @@ def _prepare_xy_for_query(xy, use_radians, distance_metric):
         xy = np.expand_dims(xy, axis=0)
 
     # expected shape is [n_pairs, 2]
-    if xy.shape[1] == 3:
-        raise DimensionError(
-            "The dimension of each coordinate pair must be two (lon, lat). Did you attempt to query using Cartesian "
-            "(x, y, z) coordinates?"
-        )
-
     if xy.shape[1] != 2:
         raise DimensionError(
-            "The dimension of each coordinate pair must be two (lon, lat).)"
+            f"Expected shape (n_pairs, 2) but got shape {xy.shape}, in _prepare_xy_for_query(). "
+            "(The 2 corresponds to (lon, lat) coordinates.)"
         )
 
     # swap x and y if the distance metric used is haversine
@@ -1044,7 +1042,9 @@ def _prepare_xy_for_query(xy, use_radians, distance_metric):
 
 def _prepare_xyz_for_query(xyz):
     """Prepares xyz coordinates for query with the sklearn BallTree and
-    KDTree."""
+    KDTree. xyz represents cartesian x,y,z coordinates, and should have
+    shape (n_pairs, 3), with second dimension corresponding to (x, y, z).
+    """
 
     xyz = np.asarray(xyz)
 
@@ -1053,15 +1053,10 @@ def _prepare_xyz_for_query(xyz):
         xyz = np.expand_dims(xyz, axis=0)
 
     # expected shape is [n_pairs, 3]
-    if xyz.shape[1] == 2:
-        raise DimensionError(
-            "The dimension of each coordinate pair must be three (x, y, z). Did you attempt to query using latlon "
-            "(lat, lon) coordinates?"
-        )
-
     if xyz.shape[1] != 3:
         raise DimensionError(
-            "The dimension of each coordinate pair must be three (x, y, z).)"
+            f"Expected shape (n_pairs, 3) but got shape {xyz.shape}, in _prepare_xyz_for_query(). "
+            "(The 3 corresponds to (x, y, z) coordinates.)"
         )
 
     return xyz
@@ -1168,9 +1163,9 @@ def _get_element_coords(grid, data_mapping: str, coordinate_system: str):
 
     if data_mapping not in prefix_map:
         raise ValueError(
-            f"Invalid data_mapping. Expected 'nodes', 'edge centers', or 'face centers', "
-            f"but received: {data_mapping}"
-        )
+            "Invalid `data_mapping`. Expected one of ['nodes', 'edge centers', 'face centers']; "
+            f"got {data_mapping!r}, in _get_element_coords(grid, data_mapping=...)."
+        )  # (kwarg hint data_mapping=... helps distinguish from UxDataArray.data_mapping property.)
 
     prefix = prefix_map[data_mapping]
 
@@ -1187,8 +1182,7 @@ def _get_element_coords(grid, data_mapping: str, coordinate_system: str):
 
     else:
         raise ValueError(
-            f"Invalid coordinate_system. Expected either 'spherical' or 'cartesian', "
-            f"but received {coordinate_system}"
+            f"Invalid coordinate_system. Expected 'spherical' or 'cartesian'; got {coordinate_system!r}"
         )
 
 
@@ -1695,7 +1689,7 @@ class _BoundNeighborhoodReductions:
 
         Subclasses must implement this; it is the only thing they need to.
         """
-        raise NotImplementedError
+        raise NotImplementedError(f"{type(self).__name__}._map()")
 
     def mean(self):
         """Mean of each neighborhood."""
