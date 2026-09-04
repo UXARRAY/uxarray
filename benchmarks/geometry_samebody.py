@@ -267,8 +267,8 @@ def _batch_accux_kernel(A, B, Z):
     """Real AccuX L1 (EFT) kernel over a batch; accumulate to defeat DCE."""
     acc = 0.0
     for i in range(A.shape[0]):
-        px, py, nxo, nyo = _accux_constlat(A[i], B[i], Z[i])
-        acc += px + py + nxo + nyo
+        pos, neg = _accux_constlat(A[i], B[i], Z[i])
+        acc += pos[0] + pos[1] + neg[0] + neg[1]
     return acc
 
 
@@ -290,7 +290,7 @@ def _batch_accux_dispatch(gcas, Z):
     acc = 0.0
     for i in range(gcas.shape[0]):
         res = gca_const_lat_intersection(gcas[i], Z[i])
-        v = res[0, 0]
+        v = res[0][0]
         if v == v:  # not NaN
             acc += v
     return acc
@@ -344,8 +344,8 @@ def main():
         fp64_res = _fp64_gca_const_lat_intersection(gca, z)
         accux_res = gca_const_lat_intersection(gca, z)
         fp64_rows = int(np.isfinite(fp64_res[0, 0])) + int(np.isfinite(fp64_res[1, 0]))
-        accux_rows = int(np.isfinite(accux_res[0, 0])) + int(
-            np.isfinite(accux_res[1, 0])
+        accux_rows = int(np.isfinite(accux_res[0][0])) + int(
+            np.isfinite(accux_res[1][0])
         )
         if fp64_rows != accux_rows:
             status_mismatch += 1
