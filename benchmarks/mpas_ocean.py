@@ -160,6 +160,9 @@ class GeoDataFrame(DatasetBenchmark):
 
 
 class ConnectivityConstruction(DatasetBenchmark):
+    # ASV: only run this benchmark once, since the results will be cached
+    number = 1
+
     def time_n_nodes_per_face(self, resolution):
         _ = self.uxds.uxgrid.n_nodes_per_face
 
