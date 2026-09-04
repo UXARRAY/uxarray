@@ -139,7 +139,7 @@ def _slice_face_indices(
         face_indexer = np.array([indices])
     else:
         face_indexer = indices
-    # bookeeping: if 2D+, raise an error (the rest of this function assumes 1D)
+    # bookkeeping: if 2D+, raise an error (the rest of this function assumes 1D)
     if getattr(face_indexer, "ndim", 0) > 1:
         raise DimensionError(
             "Only 1D indexers are supported when slicing a grid. "
@@ -180,7 +180,7 @@ def _slice_face_indices(
 
     ds["_subgrid_node_indices"] = xr.DataArray(node_indices, dims=["n_node"])
     ds["_subgrid_face_indices"] = xr.DataArray(face_indices, dims=["n_face"])
-    # _subgrid_..._indices are used internaly in _slice_from_grid.
+    # _subgrid_..._indices are used internally in _slice_from_grid.
     # Caution: if performing multiple isel() operations, these indices map from the
     # latest operation only, not all the way back to the original grid.
     # E.g. grid.isel(n_face=[7,8,9]).isel(n_face=[0]) --> _subgrid_face_indices=[0], not [7].
