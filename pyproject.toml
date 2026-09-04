@@ -5,7 +5,6 @@ classifiers=[
   "Topic :: Scientific/Engineering",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -18,7 +17,7 @@ description = "Xarray extension for unstructured climate and global weather data
 license = {file = "LICENSE"}
 name = "uxarray"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 
 # minimal dependencies start
 dependencies = [
