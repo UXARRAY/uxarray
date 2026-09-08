@@ -16,8 +16,7 @@ def _compute_face_node_angles_convex(
     face_node_connectivity,
     n_nodes_per_face,
 ):
-    """
-    Calculate the angles at each node for each face, assuming convex faces
+    """Returns angles [in radians] at each node for each face, assuming convex faces
     and a spherical geometry (these assumptions occur throughout uxarray).
 
     Parameters
@@ -75,3 +74,42 @@ def _compute_face_node_angles_convex(
             )
             result[i, j] = _small_angle_of_2_vectors(v1, v2)
     return result
+
+
+def _compute_equiangle_skewness(face_node_angles, n_nodes_per_face):
+    """Returns the equiangle skewness at each face:
+        max((Amax - Areg) / (pi - Areg), (Areg - Amin) / Areg)
+    where
+        Amin, Amax = min, max of the angles at the nodes of the face
+        Areg = internal angle at all nodes for a regular polygon with
+            the same number of sides and covering the same area as this face.
+
+    In a flat geometry, the sum of angles in a polygon with n sides is (n-2)*pi.
+    Splitting the angles equally to form a regular polygon yields Areg_flat = (n-2)*pi/n.
+    However, for a spherical geometry, the sum of angles depends on face area:
+        sum(angles) = (n-2)*pi + face_area / sphere_radius^2
+    Areg should be based on a regular polygon with same area as the corresponding face,
+    so, splitting the angles equally to form a regular polygon yields simply:
+        Areg = sum(angles)/n.
+
+    Parameters
+    ----------
+    face_node_angles : xr.DataArray or UxDataArray with dims 'n_face', 'n_max_face_nodes'
+        Angles [in radians] at each node of each face.
+    n_nodes_per_face : xr.DataArray or UxDataArray with dims 'n_face'
+        Number of nodes for each face.
+
+    Returns
+    -------
+    xr.DataArray or UxDataArray with dims 'n_face'
+        Equiangle skewness for each face.
+        Type matches the input type (xr.DataArray or UxDataArray).
+    """
+    Amin = face_node_angles.min("n_max_face_nodes", skipna=True)
+    Amax = face_node_angles.max("n_max_face_nodes", skipna=True)
+    Areg = face_node_angles.sum("n_max_face_nodes", skipna=True) / n_nodes_per_face
+    term0 = (Amax - Areg) / (np.pi - Areg)
+    term1 = (Areg - Amin) / Areg
+    # Should just use np.maximum(term0, term1), but that drops UxDataArray type currently,
+    # so use where as a workaround for now. TODO: swap to np.maximum after fixing issue #1685.
+    return term0.where(term0 > term1, term1)
