@@ -1279,7 +1279,13 @@ class Grid:
         Connectivity variable representing the indices of nodes (mesh vertices) that define each edge.
 
         Each row (i.e., each edge) contains exactly two node indices that define the start and end points of the edge.
-        The nodes are stored in an arbitrary order.
+        Constructed edges are stored as ascending node pairs and numbered in lexicographic order of that pair; edges
+        read from a file keep the order and orientation they were stored in.
+
+        The result is cached after the first access; subsequent calls return the stored value without recomputing it.
+        Computing edge_node_connectivity always derives face_edge_connectivity as part of the same pass, both
+        numbered in the constructed edge order. A grid that already carries a face_edge_connectivity but no
+        edge_node_connectivity therefore raises instead of renumbering the edges the stored variable refers to.
 
         Returns
         -------
@@ -1325,6 +1331,11 @@ class Grid:
         :py:attr:`~uxarray.Grid.n_max_face_edges`. In grids with a mix of geometries (e.g., triangles and hexagons),
         rows containing fewer than :py:attr:`~uxarray.Grid.n_max_face_edges` indices are padded with the fill value defined in
         :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        The result is cached after the first access; subsequent calls return the stored value without recomputing it.
+        If edge_node_connectivity has not yet been computed, it is derived together with face_edge_connectivity in
+        the same pass. If edge_node_connectivity is already present, face_edge_connectivity is instead derived
+        independently from the existing connectivity data.
 
         Returns
         -------
