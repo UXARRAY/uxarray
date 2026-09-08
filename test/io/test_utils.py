@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 
 from uxarray.errors import GridInvalidError
-from uxarray.io.utils import _parse_grid_type
+from uxarray.io.utils import _is_structured, _parse_grid_type
 
 
 @pytest.mark.parametrize(
@@ -64,3 +64,42 @@ def test_parse_grid_type_detects_structured_grid():
 def test_parse_grid_type_rejects_incomplete_format_signals(dataset):
     with pytest.raises(GridInvalidError, match="Failed to parse uxgrid information from xarray.Dataset."):
         _parse_grid_type(dataset)
+
+
+def test_parse_grid_type_is_quiet_for_non_structured_grids(capsys):
+    """`_is_structured` runs before every other format check, so an unstructured
+    grid carrying lat/lon coordinates must not produce spurious output."""
+    lat = xr.DataArray(
+        np.array([[0.0, 1.0], [2.0, 3.0]]),
+        dims=["y", "x"],
+        attrs={"standard_name": "latitude"},
+    )
+    lon = xr.DataArray(
+        np.array([[0.0, 1.0], [2.0, 3.0]]),
+        dims=["y", "x"],
+        attrs={"standard_name": "longitude"},
+    )
+    ds = xr.Dataset(coords={"lat": lat, "lon": lon})
+
+    with pytest.raises(GridInvalidError):
+        _parse_grid_type(ds)
+
+    assert capsys.readouterr().out == ""
+
+
+def test_parse_grid_type_is_quiet_for_irregular_spacing():
+    """Irregularly spaced coordinates are simply 'not structured', not an event
+    worth reporting to stdout."""
+    lon = xr.DataArray(
+        np.array([0.0, 1.0, 4.0]),
+        dims=["lon"],
+        attrs={"standard_name": "longitude"},
+    )
+    lat = xr.DataArray(
+        np.array([-1.0, 0.0, 1.0]),
+        dims=["lat"],
+        attrs={"standard_name": "latitude"},
+    )
+    structured, _, _ = _is_structured(xr.Dataset(coords={"lon": lon, "lat": lat}))
+
+    assert not structured
