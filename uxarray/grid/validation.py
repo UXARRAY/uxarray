@@ -115,7 +115,28 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
     if len(mergeable_indices) < 2:
         return canonical
 
-    tree = KDTree(points_xyz[mergeable_indices])
+    mergeable_xyz = points_xyz[mergeable_indices]
+
+    # Prescreen on x before paying for a KDTree. Two points within a chord of
+    # ``tolerance`` differ by at most ``tolerance`` in x, so in x-sorted order every
+    # consecutive gap between them is also at most ``tolerance``. A point whose
+    # sorted neighbours are both further than that in x therefore cannot be
+    # coincident with anything and is dropped. This is exact -- no candidate pair is
+    # lost -- and on the common case of a grid with no coincident nodes it replaces
+    # the tree build entirely with one sort.
+    order = np.argsort(mergeable_xyz[:, 0], kind="stable")
+    gap_is_small = np.diff(mergeable_xyz[order, 0]) <= tolerance
+    is_candidate = np.zeros(len(order), dtype=bool)
+    is_candidate[:-1] |= gap_is_small
+    is_candidate[1:] |= gap_is_small
+    # kept ascending so that the first member of a connected component below is
+    # still the lowest-numbered node in it
+    candidates = np.sort(order[is_candidate])
+
+    if len(candidates) < 2:
+        return canonical
+
+    tree = KDTree(mergeable_xyz[candidates])
     pairs = tree.query_pairs(r=tolerance, output_type="ndarray")
 
     if len(pairs) == 0:
@@ -123,15 +144,17 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
 
     rows = np.concatenate([pairs[:, 0], pairs[:, 1]])
     cols = np.concatenate([pairs[:, 1], pairs[:, 0]])
-    n_mergeable = len(mergeable_indices)
+    n_candidates = len(candidates)
     adj_matrix = coo_matrix(
-        (np.ones(len(rows)), (rows, cols)), shape=(n_mergeable, n_mergeable)
+        (np.ones(len(rows)), (rows, cols)), shape=(n_candidates, n_candidates)
     )
     _, labels = connected_components(csgraph=adj_matrix, directed=False)
 
     unique_labels, first_indices = np.unique(labels, return_index=True)
     sub_canonical = first_indices[np.searchsorted(unique_labels, labels)]
-    canonical[mergeable_indices] = mergeable_indices[sub_canonical]
+    canonical[mergeable_indices[candidates]] = mergeable_indices[
+        candidates[sub_canonical]
+    ]
     return canonical
 
 

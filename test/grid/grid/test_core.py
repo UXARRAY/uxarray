@@ -266,6 +266,34 @@ def test_pole_exception_uses_a_chord_tolerance():
     nt.assert_equal(canonical[2:], np.array([2, 2]))
 
 
+def test_coincident_prescreen_keeps_both_ends_of_a_run():
+    """The x-sorted prescreen must mark both members of a close pair.
+
+    It flags a point when the gap to its predecessor *or* its successor is within
+    tolerance. Dropping either half of that OR silently loses one node of every
+    coincident pair, so this places coincident pairs at both ends of the sorted
+    order, where only one of the two neighbour tests fires.
+    """
+    from uxarray.grid.validation import _coincident_node_canonical_indices
+
+    # x strictly increasing and far apart, except for the duplicated first and
+    # last points, which have no predecessor / no successor respectively.
+    points_xyz = np.array(
+        [
+            [0.0, 0.0, 0.0],  # 0
+            [0.0, 0.0, 0.0],  # 1, coincident with 0 -> first in sorted x
+            [0.25, 0.5, 0.0],  # 2
+            [0.5, 0.5, 0.0],  # 3
+            [1.0, 0.0, 0.0],  # 4
+            [1.0, 0.0, 0.0],  # 5, coincident with 4 -> last in sorted x
+        ]
+    )
+
+    canonical = _coincident_node_canonical_indices(points_xyz)
+
+    nt.assert_equal(canonical, np.array([0, 0, 2, 3, 4, 4]))
+
+
 def test_no_duplicate_nodes_ne30pg3(gridpath):
     """``esmf/ne30/ne30pg3.grid.nc`` no longer reproduces issue #865's
     duplicate-node bug; this only checks the general fix is a safe no-op."""
