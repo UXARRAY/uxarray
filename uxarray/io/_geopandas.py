@@ -1,8 +1,11 @@
+import warnings
+
 import numpy as np
 import xarray as xr
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, WGS84_CRS
 from uxarray.conventions import ugrid
+from uxarray.utils.warnings import find_stack_level
 
 
 def _read_geodataframe(filepath, driver=None, **kwargs):
@@ -27,7 +30,9 @@ def _read_geodataframe(filepath, driver=None, **kwargs):
 
     gdf, max_coord_size = _gpd_read(filepath, driver=driver, **kwargs)
 
-    node_lon, node_lat, connectivity = _extract_geometry_info(gdf, max_coord_size)
+    node_lon, node_lat, connectivity = _extract_geometry_info(
+        gdf, max_coord_size, filepath=filepath
+    )
 
     grid_ds["node_lon"] = xr.DataArray(
         data=node_lon, dims=ugrid.NODE_DIM, attrs=ugrid.NODE_LON_ATTRS
@@ -66,24 +71,24 @@ def _gpd_read(filepath, driver=None, **kwargs):
 
     import geopandas as gpd
 
-    try:
-        gdf = gpd.read_file(filepath, driver=driver, **kwargs)
-        gdf = _set_crs(gdf)
-    except Exception as e:
-        print(f"An error occurred while reading the geospatial data: {e}")
+    gdf = gpd.read_file(filepath, driver=driver, **kwargs)
+    gdf = _set_crs(gdf, filepath=filepath)
 
     max_polygon_nodes = gdf["geometry"].apply(_get_num_nodes).max()
 
     return gdf, max_polygon_nodes
 
 
-def _set_crs(gdf):
+def _set_crs(gdf, filepath=None):
     """Set CRS for GeoDataFrame if not already set.
 
     Parameters
     ----------
     gdf : gpd.GeoDataFrame
         GeoDataFrame to set CRS for.
+    filepath : str, optional
+        Path the GeoDataFrame was read from, named in the warning below so the
+        message identifies which file is missing a CRS.
 
     Returns
     -------
@@ -92,16 +97,20 @@ def _set_crs(gdf):
     """
     if gdf.crs is None:
         gdf = gdf.set_crs(WGS84_CRS)
-        print("Original CRS: None\nAssigned CRS:", gdf.crs)
+        source = "" if filepath is None else f" in {filepath}"
+        warnings.warn(
+            f"The geospatial data{source} declares no CRS; assuming {WGS84_CRS}. "
+            f"Coordinates will be wrong if the source uses a different CRS.",
+            stacklevel=find_stack_level(),
+        )
 
     if gdf.crs != WGS84_CRS:
         gdf = gdf.to_crs(WGS84_CRS)
-        print("Transformed CRS:", gdf.crs)
 
     return gdf
 
 
-def _extract_geometry_info(gdf, max_coord_size):
+def _extract_geometry_info(gdf, max_coord_size, filepath=None):
     """Extract node and connectivity information from GeoDataFrame.
 
     Parameters
@@ -110,6 +119,9 @@ def _extract_geometry_info(gdf, max_coord_size):
         GeoDataFrame with geometries.
     max_coord_size : int
         Maximum number of nodes in a polygon/multipolygon.
+    filepath : str, optional
+        Path the GeoDataFrame was read from, named in the skipped-geometry
+        warning below so the message identifies which file dropped a face.
 
     Returns
     -------
@@ -137,7 +149,15 @@ def _extract_geometry_info(gdf, max_coord_size):
                 geometry, node_lat_list, node_lon_list, connectivity, node_index
             )
         else:
-            print(f"Unsupported geometry type: {geometry.geom_type}")
+            # Skipping a geometry silently would yield a grid that is missing
+            # faces without any indication that data was dropped.
+            source = "" if filepath is None else f" in {filepath}"
+            warnings.warn(
+                f"Skipping unsupported geometry type {geometry.geom_type!r}"
+                f"{source}; only Polygon and MultiPolygon are read. The "
+                f"resulting grid will not contain a face for this geometry.",
+                stacklevel=find_stack_level(),
+            )
 
     # Convert lists to numpy arrays at the end
     node_lon = np.array(node_lon_list)
