@@ -19,7 +19,10 @@ from uxarray.core.utils import _open_dataset_with_fallback
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
 from uxarray.formatting_html import grid_repr
-from uxarray.grid.angles import _compute_face_node_angles_convex
+from uxarray.grid.angles import (
+    _compute_equiangle_skewness,
+    _compute_face_node_angles_convex,
+)
 from uxarray.grid.area import _get_all_face_area_from_coords
 from uxarray.grid.bounds import _populate_face_bounds
 from uxarray.grid.connectivity import (
@@ -1279,7 +1282,13 @@ class Grid:
         Connectivity variable representing the indices of nodes (mesh vertices) that define each edge.
 
         Each row (i.e., each edge) contains exactly two node indices that define the start and end points of the edge.
-        The nodes are stored in an arbitrary order.
+        Constructed edges are stored as ascending node pairs and numbered in lexicographic order of that pair; edges
+        read from a file keep the order and orientation they were stored in.
+
+        The result is cached after the first access; subsequent calls return the stored value without recomputing it.
+        Computing edge_node_connectivity always derives face_edge_connectivity as part of the same pass, both
+        numbered in the constructed edge order. A grid that already carries a face_edge_connectivity but no
+        edge_node_connectivity therefore raises instead of renumbering the edges the stored variable refers to.
 
         Returns
         -------
@@ -1325,6 +1334,11 @@ class Grid:
         :py:attr:`~uxarray.Grid.n_max_face_edges`. In grids with a mix of geometries (e.g., triangles and hexagons),
         rows containing fewer than :py:attr:`~uxarray.Grid.n_max_face_edges` indices are padded with the fill value defined in
         :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        The result is cached after the first access; subsequent calls return the stored value without recomputing it.
+        If edge_node_connectivity has not yet been computed, it is derived together with face_edge_connectivity in
+        the same pass. If edge_node_connectivity is already present, face_edge_connectivity is instead derived
+        independently from the existing connectivity data.
 
         Returns
         -------
@@ -2032,6 +2046,40 @@ class Grid:
             source_grid_spec=self.source_grid_spec,
             source_dims_dict=self._source_dims_dict,
         )
+
+    def compute_skewness(self, method: str = "equiangle", *, as_uxarray: bool = False):
+        """Returns the skewness of each face in the grid, computed using the specified method.
+        Skewness is a measure of how much a face deviates from being regular,
+        e.g. having equal angles at all nodes. Values close to 0 indicate a regular face,
+        while values close to 1 indicate a highly skewed / nearly degenerate face.
+
+        Parameters
+        ----------
+        method: str, defaults to "equiangle"
+            The method to use for computing skewness. Options are:
+            - "equiangle": computes the equiangular skewness of each face:
+                equiangle_skewness = max((Amax - Areg) / (pi - Areg), (Areg - Amin) / Areg)
+                where Amin, Amax = min, max of the angles at the nodes of the face,
+                and Areg = internal angle at all nodes for a regular polygon with
+                the same number of sides and covering the same area as this face.
+            - (other options not yet implemented)
+        as_uxarray: bool, defaults to False
+            Whether to return a uxarray.DataArray (if True) or an xarray.DataArray (if False).
+            If True, equivalent to uxarray.DataArray(self.compute_skewness(..., as_uxarray=False), uxgrid=self).
+
+        Returns
+        -------
+        skewness : xr.DataArray or uxarray.UxDataArray (if as_uxarray=True)
+            The skewness of each face in the grid.
+            Has 'n_face' dimension, with same size as in self.
+        """
+        if method == "equiangle":
+            face_node_angles = self.compute_face_node_angles(as_uxarray=as_uxarray)
+            return _compute_equiangle_skewness(face_node_angles, self.n_nodes_per_face)
+        else:
+            raise NotImplementedError(
+                f"Skewness computation method '{method}' is not implemented."
+            )
 
     def compute_face_node_angles(
         self,
