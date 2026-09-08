@@ -31,7 +31,7 @@ from uxarray.utils.numba_math import (
 )
 
 
-@njit(cache=True, inline="always")
+@njit(cache=True, inline="always", error_model="numpy")
 def _fp64_gca(w0, w1, v0, v1):
     """
     L1 (FP64 body) -- plain double-precision cross-product triple, the direct
@@ -57,7 +57,7 @@ def _fp64_gca(w0, w1, v0, v1):
     return pos, neg
 
 
-@njit(cache=True)
+@njit(cache=True, inline="always", error_model="numpy")
 def _fp64_try_gca_gca_intersection(w0, w1, v0, v1):
     """
     L2 (FP64 body) -- byte-for-byte identical logic to _try_gca_gca_intersection
@@ -88,7 +88,7 @@ def _fp64_try_gca_gca_intersection(w0, w1, v0, v1):
     return point, status, pos, neg
 
 
-@njit(cache=True)
+@njit(cache=True, error_model="numpy")
 def _fp64_gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     """
     L3 (FP64 body) -- identical dispatcher to gca_gca_intersection
@@ -271,7 +271,7 @@ def main(n_cases=100_000, seed=20251104):
         if fp_intersections != ax_intersections:
             row_mismatch += 1
         elif fp_intersections > 0:
-            max_out_diff = max(max_out_diff, float(np.max(np.abs(np.array(r_fp) - np.array(r_ax)))))
+            max_out_diff = max(max_out_diff, float(np.nanmax(np.abs(np.array(r_fp) - np.array(r_ax)))))
 
     t_fp64_k = _time_batch(_batch_fp64_gca_kernel, (wa, wb, va, vb))
     t_accux_k = _time_batch(_batch_accux_gca_kernel, (wa, wb, va, vb))

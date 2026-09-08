@@ -67,7 +67,7 @@ from uxarray.utils.numba_math import (
 )
 
 
-@njit(cache=True)
+@njit(cache=True, inline="always", error_model="numpy")
 def _fp64_constlat(a, b, const_z):
     """
     L1 (FP64 body) — direct double-precision kernel, compare to
@@ -92,7 +92,7 @@ def _fp64_constlat(a, b, const_z):
     return (px, py, const_z), (nxo, nyo, const_z)
 
 
-@njit(cache=True)
+@njit(cache=True, error_model="numpy")
 def _fp64_try_gca_const_lat_intersection(gca_cart, const_z):
     """
     L2 (FP64 body) — identical logic to _try_gca_const_lat_intersection, only the
@@ -123,7 +123,7 @@ def _fp64_try_gca_const_lat_intersection(gca_cart, const_z):
     return point, status, pos, neg
 
 
-@njit(cache=True)
+@njit(cache=True, error_model="numpy")
 def _fp64_gca_const_lat_intersection(gca_cart, const_z):
     """
     L3 (FP64 body) — identical dispatcher to gca_const_lat_intersection, reusing
