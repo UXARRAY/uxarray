@@ -196,3 +196,17 @@ def test_total_face_area_honors_quadrature_kwargs():
         np.sum(uxgrid.compute_face_areas(quadrature_rule="gaussian", order=2)),
         rtol=0,
     )
+
+def test_face_area_invalid_order_crashes():
+    """spot check: using invalid values for order needs to raise ValueError"""
+    uxgrid = ux.Grid.from_healpix(zoom=2)
+    with pytest.raises(ValueError):
+        uxgrid.compute_face_areas(quadrature_rule="gaussian", order=0)
+    with pytest.raises(ValueError):
+        uxgrid.calculate_total_face_area(quadrature_rule="triangular", order=3)
+    with pytest.raises(ValueError):
+        uxgrid.compute_face_areas(quadrature_rule="triangular", order=7)
+    with pytest.raises(ValueError):
+        uxgrid.calculate_total_face_area(quadrature_rule="gaussian", order=12)
+    # 12 is valid for triangular but not for gaussian. Just ensuring this doesn't crash:
+    uxgrid.compute_face_areas(quadrature_rule="triangular", order=12)

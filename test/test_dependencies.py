@@ -38,4 +38,34 @@ def test_hvplot_optional():
     _assert_not_imported_after_import_uxarray("hvplot")
 
 
+def test_no_numba_kernels_built_on_import():
+    """Test that `import uxarray` does not build any numba kernel.
+
+    ``guvectorize`` compiles at decoration time when it is given explicit
+    signatures, so a kernel assigned at module scope is built during the
+    import. This compilation can dominate the uxarray import, and building a
+    ``target="parallel"`` kernel starts numba's threading layer, which
+    leaves a thread pool running, making forks unsafe.
+    """
+    code = (
+        "import numba, uxarray\n"
+        "try:\n"
+        "    layer = numba.threading_layer()\n"
+        "except ValueError:\n"
+        "    pass\n"
+        "else:\n"
+        "    raise AssertionError(\n"
+        "        f'`import uxarray` started numba threading layer {layer!r}. '\n"
+        "        'Something it imports builds a parallel kernel at module '\n"
+        "        'scope; build it on first use instead.'\n"
+        "    )\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 # TODO: similar tests for cartopy, holoviews, and other optional deps.
