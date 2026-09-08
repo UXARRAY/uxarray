@@ -429,11 +429,13 @@ class UxDataset(xr.Dataset):
         along with the underlying grid when applicable.
 
         Grid dimensions ('n_node', 'n_edge', 'n_face') are treated specially
-        when `ignore_grid=False`. Providing one of them will slice to the specified
-        nodes, edges, or faces, regardless of data location. If the data does not
-        contain the specified dimension, the result will have the minimal grid
-        region containing everything specified. For example, using n_edge=7 for data
-        on 'n_face' makes a result with 'n_face' with just the two faces on edge 7.
+        when `ignore_grid=False` (this is the default). Any one of them can be indexed,
+        regardless of data location, and the result will be sliced to form the minimal grid
+        of faces containing all the nodes, edges, or faces specified. For example,
+        using n_edge=7 selects just the two faces touching edge 7. For data on 'n_face',
+        the result would have 'n_face' with just those two faces. For data on 'n_edge',
+        the result would have 'n_edge' with all edges located on either of those two faces.
+        Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
 
         Parameters
         ----------
@@ -495,6 +497,7 @@ class UxDataset(xr.Dataset):
         elif len(grid_dims) == 1:
             # pop off the one grid‐dim indexer
             grid_dim = grid_dims.pop()
+            indexers = indexers.copy()  # don't modify the original dict
             grid_indexer = indexers.pop(grid_dim)
 
             # slice the grid
@@ -528,12 +531,13 @@ class UxDataset(xr.Dataset):
         """Returns a new dataset with each array indexed by labels, instead of indices,
         along the specified dimension(s).
 
-        Grid dimensions ('n_node', 'n_edge', 'n_face') are treated specially.
-        Providing one of them will slice to the specified nodes, edges, or faces,
-        regardless of data location. If the data does not contain the specified dimension,
-        the result will have the minimal grid region containing everything specified.
-        For example, using n_edge=7 for data on 'n_face' makes a result with 'n_face'
-        with just the two faces on edge 7.
+        Grid dimensions ('n_node', 'n_edge', 'n_face') are treated specially. Any one of them
+        can be indexed, regardless of data location, and the result will be sliced to form the
+        minimal grid of faces containing all the nodes, edges, or faces specified. For example,
+        using n_edge=7 selects just the two faces touching edge 7. For data on 'n_face',
+        the result would have 'n_face' with just those two faces. For data on 'n_edge',
+        the result would have 'n_edge' with all edges located on either of those two faces.
+        Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
 
         By default, grid dims do not have coordinates assigned. But, if they have
         been assigned, `.sel()` respects them in the intuitive way. For example,
@@ -638,10 +642,6 @@ class UxDataset(xr.Dataset):
                         f"for dimension {grid_dim!r} that has no associated coordinate or index"
                     )
                 grid_indices = grid_indexer
-                # temporary workaround for "isel fails with slice";
-                # remove the next two lines once issue #1639 gets fixed.
-                if isinstance(grid_indices, slice):
-                    grid_indices = range(*grid_indices.indices(self.sizes[grid_dim]))
 
             # offload the grid-indexing work to isel():
             result = self.isel({grid_dim: grid_indices}, drop=drop)

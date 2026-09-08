@@ -21,3 +21,13 @@ ENABLE_FMA = False
 GRID_DIMS = ["n_node", "n_edge", "n_face"]
 
 WGS84_CRS = "EPSG:4326"
+
+
+# Threshold the adaptive ``edge_node`` sort in ``uxarray.grid.utils`` is built around, in two
+# related roles. Above a bucket of ``2 * EDGE_NODE_SORT_THRESHOLD``, an insertion sort is abandoned
+# for a heap sort once it has done ``EDGE_NODE_SORT_THRESHOLD`` shifts per edge, keeping
+# that path linear while leaving ample room for the near-sorted input it is chosen for. At or below
+# that size, the bookkeeping would never pay for itself: a bucket of ``size`` holds at most
+# ``size * (size - 1) / 2`` inversions, too few to exhaust the budget, so the plain insertion
+# sort is used instead.
+EDGE_NODE_SORT_THRESHOLD = 8

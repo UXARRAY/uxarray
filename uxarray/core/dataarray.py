@@ -601,7 +601,7 @@ class UxDataArray(xr.DataArray):
 
         return uxds
 
-    def to_xarray(self):
+    def to_xarray(self) -> xr.DataArray:
         return xr.DataArray(self)
 
     def integrate(
@@ -1680,8 +1680,17 @@ class UxDataArray(xr.DataArray):
             other, scale_by_radius=scale_by_radius
         )
 
-        # Compute curl = ∂v/∂x - ∂u/∂y
-        curl_values = grad_v_zonal.data - grad_u_meridional.data
+        # Compute curl = ∂v/∂x - ∂u/∂y + u·tan(φ)/a
+        #
+        # The trailing term is the spherical metric term. Dropping it is only
+        # valid on a plane; on the sphere it costs a factor of two on
+        # solid-body rotation. When the derivatives have been divided by the
+        # radius the term carries the same 1/a factor.
+        tan_lat = np.tan(np.deg2rad(self.uxgrid.face_lat.values))
+        metric = self.data * tan_lat
+        if scale_by_radius and "sphere_radius" in self.uxgrid._ds.attrs:
+            metric = metric / self.uxgrid._ds.attrs["sphere_radius"]
+        curl_values = grad_v_zonal.data - grad_u_meridional.data + metric
 
         u_units = self.attrs.get("units", "")
         has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
@@ -1697,7 +1706,9 @@ class UxDataArray(xr.DataArray):
             attrs={
                 "long_name": f"Curl of ({self.name}, {other.name})",
                 "units": curl_units,
-                "description": "Curl of vector field computed as ∂v/∂x - ∂u/∂y",
+                "description": (
+                    "Curl of vector field computed as ∂v/∂x - ∂u/∂y + u·tan(φ)/a"
+                ),
             },
             uxgrid=self.uxgrid,
             name=f"curl_{self.name}_{other.name}",
@@ -1773,7 +1784,7 @@ class UxDataArray(xr.DataArray):
         u_gradient = self.gradient(scale_by_radius=scale_by_radius)
         v_gradient = other.gradient(scale_by_radius=scale_by_radius)
 
-        # For divergence: div(V) = ∂u/∂x + ∂v/∂y
+        # For divergence: div(V) = ∂u/∂x + ∂v/∂y - v·tan(φ)/a
         # We use the zonal gradient (∂/∂lon) of u and meridional gradient (∂/∂lat) of v
         u = u_gradient["zonal_gradient"]
         v = v_gradient["meridional_gradient"]
@@ -1781,6 +1792,14 @@ class UxDataArray(xr.DataArray):
         # Align DataArrays to ensure coords/dims match, then perform xarray-aware addition
         u, v = xr.align(u, v)
         divergence = u + v
+
+        # Spherical metric term, the companion of the one in curl(). Omitting
+        # it is only valid on a plane.
+        tan_lat = np.tan(np.deg2rad(self.uxgrid.face_lat.values))
+        metric = other.values * tan_lat
+        if scale_by_radius and "sphere_radius" in self.uxgrid._ds.attrs:
+            metric = metric / self.uxgrid._ds.attrs["sphere_radius"]
+        divergence = divergence - metric
         divergence.name = "divergence"
 
         # Infer units consistently with gradient()/curl(): a divergence is a
@@ -1981,11 +2000,13 @@ class UxDataArray(xr.DataArray):
         The data is indexed, as well as the underlying grid when applicable.
 
         Grid dimensions ('n_node', 'n_edge', 'n_face') are treated specially
-        when `ignore_grid=False`. Providing one of them will slice to the specified
-        nodes, edges, or faces, regardless of data location. If the data does not
-        contain the specified dimension, the result will have the minimal grid
-        region containing everything specified. For example, using n_edge=7 for data
-        on 'n_face' makes a result with 'n_face' with just the two faces on edge 7.
+        when `ignore_grid=False` (this is the default). Any one of them can be indexed,
+        regardless of data location, and the result will be sliced to form the minimal grid
+        of faces containing all the nodes, edges, or faces specified. For example,
+        using n_edge=7 selects just the two faces touching edge 7. For data on 'n_face',
+        the result would have 'n_face' with just those two faces. For data on 'n_edge',
+        the result would have 'n_edge' with all edges located on either of those two faces.
+        Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
 
         Parameters
         ----------
@@ -2047,6 +2068,7 @@ class UxDataArray(xr.DataArray):
         elif len(grid_dims) == 1:
             # pop off the one grid‐dim indexer
             grid_dim = grid_dims.pop()
+            indexers = indexers.copy()  # don't modify the original dict
             grid_indexer = indexers.pop(grid_dim)
 
             sliced_grid = self.uxgrid.isel(
@@ -2078,12 +2100,13 @@ class UxDataArray(xr.DataArray):
     ):
         """Returns a new array indexed by labels, instead of indices, along the specified dimension(s).
 
-        Grid dimensions ('n_node', 'n_edge', 'n_face') are treated specially.
-        Providing one of them will slice to the specified nodes, edges, or faces,
-        regardless of data location. If the data does not contain the specified dimension,
-        the result will have the minimal grid region containing everything specified.
-        For example, using n_edge=7 for data on 'n_face' makes a result with 'n_face'
-        with just the two faces on edge 7.
+        Grid dimensions ('n_node', 'n_edge', 'n_face') are treated specially. Any one of them
+        can be indexed, regardless of data location, and the result will be sliced to form the
+        minimal grid of faces containing all the nodes, edges, or faces specified. For example,
+        using n_edge=7 selects just the two faces touching edge 7. For data on 'n_face',
+        the result would have 'n_face' with just those two faces. For data on 'n_edge',
+        the result would have 'n_edge' with all edges located on either of those two faces.
+        Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
 
         By default, grid dims do not have coordinates assigned. But, if they have
         been assigned, `.sel()` respects them in the intuitive way. For example,
@@ -2186,10 +2209,6 @@ class UxDataArray(xr.DataArray):
                         f"for dimension {grid_dim!r} that has no associated coordinate or index"
                     )
                 grid_indices = grid_indexer
-                # temporary workaround for "isel fails with slice";
-                # remove the next two lines once issue #1639 gets fixed.
-                if isinstance(grid_indices, slice):
-                    grid_indices = range(*grid_indices.indices(self.sizes[grid_dim]))
 
             # offload the grid-indexing work to isel():
             result = self.isel({grid_dim: grid_indices}, drop=drop)
@@ -2284,17 +2303,17 @@ class UxDataArray(xr.DataArray):
 
         if self._face_centered():
             da_sliced = self.isel(
-                n_face=sliced_grid._ds["subgrid_face_indices"], ignore_grid=True
+                n_face=sliced_grid._ds["_subgrid_face_indices"], ignore_grid=True
             )
 
         elif self._edge_centered():
             da_sliced = self.isel(
-                n_edge=sliced_grid._ds["subgrid_edge_indices"], ignore_grid=True
+                n_edge=sliced_grid._ds["_subgrid_edge_indices"], ignore_grid=True
             )
 
         elif self._node_centered():
             da_sliced = self.isel(
-                n_node=sliced_grid._ds["subgrid_node_indices"], ignore_grid=True
+                n_node=sliced_grid._ds["_subgrid_node_indices"], ignore_grid=True
             )
 
         else:
