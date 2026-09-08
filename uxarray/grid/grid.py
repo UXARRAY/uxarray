@@ -758,6 +758,8 @@ class Grid:
         -------
         If two grids are equal : bool
         """
+        if self is other:
+            return True
 
         if not isinstance(other, Grid):
             return False
@@ -1277,7 +1279,13 @@ class Grid:
         Connectivity variable representing the indices of nodes (mesh vertices) that define each edge.
 
         Each row (i.e., each edge) contains exactly two node indices that define the start and end points of the edge.
-        The nodes are stored in an arbitrary order.
+        Constructed edges are stored as ascending node pairs and numbered in lexicographic order of that pair; edges
+        read from a file keep the order and orientation they were stored in.
+
+        The result is cached after the first access; subsequent calls return the stored value without recomputing it.
+        Computing edge_node_connectivity always derives face_edge_connectivity as part of the same pass, both
+        numbered in the constructed edge order. A grid that already carries a face_edge_connectivity but no
+        edge_node_connectivity therefore raises instead of renumbering the edges the stored variable refers to.
 
         Returns
         -------
@@ -1323,6 +1331,11 @@ class Grid:
         :py:attr:`~uxarray.Grid.n_max_face_edges`. In grids with a mix of geometries (e.g., triangles and hexagons),
         rows containing fewer than :py:attr:`~uxarray.Grid.n_max_face_edges` indices are padded with the fill value defined in
         :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        The result is cached after the first access; subsequent calls return the stored value without recomputing it.
+        If edge_node_connectivity has not yet been computed, it is derived together with face_edge_connectivity in
+        the same pass. If edge_node_connectivity is already present, face_edge_connectivity is instead derived
+        independently from the existing connectivity data.
 
         Returns
         -------
@@ -2236,9 +2249,9 @@ class Grid:
         Parameters
         ----------
         quadrature_rule : str, optional
-            Quadrature rule to use. Defaults to "triangular".
+            Quadrature rule used to integrate each face, either ``"triangular"`` or ``"gaussian"``.
         order : int, optional
-            Order of quadrature rule. Defaults to 4.
+            Order of quadrature rule; 1, 4, 8, 10, or 12 for ``"triangular"``; 1 to 10 for ``"gaussian"``.
         latitude_adjusted_area : bool, optional
             If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
 
@@ -2247,8 +2260,16 @@ class Grid:
         1. Area of all the faces in the mesh : np.ndarray
         2. Jacobian of all the faces in the mesh : np.ndarray
         """
-        # if self._face_areas is None: # this allows for using the cached result,
-        # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
+        if quadrature_rule == "triangular" and order not in (1, 4, 8, 10, 12):
+            raise ValueError(
+                "Invalid order when computing face areas with quadrature_rule=='triangular'; "
+                f"Expected one of (1, 4, 8, 10, 12), got order={order!r}"
+            )
+        if quadrature_rule == "gaussian" and order not in range(1, 11):
+            raise ValueError(
+                "Invalid order when computing face areas with quadrature_rule=='gaussian'; "
+                f"Expected an integer between 1 and 10, got order={order!r}"
+            )
 
         self.normalize_cartesian_coordinates()
         x = self.node_x.values
@@ -2695,10 +2716,10 @@ class Grid:
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
 
-        Currently only supports inclusive selection, meaning that for cases where node or edge indices are provided,
-        any face that contains that element is included in the resulting subset. This means that additional elements
-        beyond those that were initially provided in the indices will be included. Support for more methods, such as
-        exclusive and clipped indexing is in the works.
+        The indexing method is inclusive: for cases where node or edge indices are provided,
+        the result is formed by the subset of all faces which contain any of the indicated nodes or edges
+        (together with all nodes and edges which are present on any of those faces), which means
+        that the result may include additional elements beyond those explicitly requested.
 
         Parameters
         ----------
