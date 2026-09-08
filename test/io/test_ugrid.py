@@ -1,11 +1,85 @@
 import os
 import warnings
+import numpy as np
 import numpy.testing as nt
 import pytest
 import xarray as xr
 
 import uxarray as ux
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.conventions import ugrid
+
+
+def test_edge_connectivity_dims_renamed_to_ugrid(gridpath):
+    """The trailing dimension of the edge connectivities is renamed to 'two'.
+
+    FESOM2 mesh diagnostics are the UGRID file in the test suite that ships edge
+    connectivity, and it stores that dimension as 'n2'.
+    """
+    uxgrid = ux.open_grid(gridpath("ugrid", "fesom", "fesom.mesh.diag.nc"))
+
+    for conn_name in ("edge_node_connectivity", "edge_face_connectivity"):
+        assert conn_name in uxgrid._ds
+        assert list(uxgrid._ds[conn_name].dims) == ugrid.CONNECTIVITY[conn_name]["dims"]
+
+    assert "n2" not in uxgrid._ds.dims
+    assert uxgrid._source_dims_dict["n2"] == "two"
+
+    # Out of scope on purpose: the face connectivities keep sharing the source
+    # file's single size-3 dimension, which is named after face_node_connectivity.
+    assert uxgrid._ds["face_edge_connectivity"].dims == ("n_face", "n_max_face_nodes")
+
+
+def test_edge_connectivity_dims_renamed_for_any_source_name(tmp_path):
+    """The rename keys off the connectivity, not off a known set of dimension names.
+
+    UGRID does not prescribe dimension names, and the spec's own examples call
+    this axis 'Two'. Built here rather than added as a fixture so the test cannot
+    be mistaken for something FESOM-specific.
+    """
+    edge_nodes = np.array([[0, 1], [1, 2], [2, 0], [2, 3], [3, 0]], dtype=INT_DTYPE)
+    ds = xr.Dataset(
+        {
+            "Mesh2": xr.DataArray(
+                np.int32(-1),
+                attrs={
+                    "cf_role": "mesh_topology",
+                    "topology_dimension": np.int32(2),
+                    "node_coordinates": "Mesh2_node_x Mesh2_node_y",
+                    "face_node_connectivity": "Mesh2_face_nodes",
+                    "edge_node_connectivity": "Mesh2_edge_nodes",
+                    "face_dimension": "nMesh2_face",
+                    "edge_dimension": "nMesh2_edge",
+                },
+            ),
+            "Mesh2_node_x": xr.DataArray(
+                np.array([0.0, 1.0, 1.0, 0.0]), dims="nMesh2_node"
+            ),
+            "Mesh2_node_y": xr.DataArray(
+                np.array([0.0, 0.0, 1.0, 1.0]), dims="nMesh2_node"
+            ),
+            "Mesh2_face_nodes": xr.DataArray(
+                np.array([[0, 1, 2], [0, 2, 3]], dtype=INT_DTYPE),
+                dims=("nMesh2_face", "nMaxMesh2_face_nodes"),
+                attrs={"cf_role": "face_node_connectivity", "start_index": 0},
+            ),
+            "Mesh2_edge_nodes": xr.DataArray(
+                edge_nodes,
+                dims=("nMesh2_edge", "Two"),
+                attrs={"cf_role": "edge_node_connectivity", "start_index": 0},
+            ),
+        },
+        attrs={"Conventions": "UGRID-1.0"},
+    )
+
+    path = tmp_path / "spec_ugrid_mesh.nc"
+    ds.to_netcdf(path)
+
+    uxgrid = ux.open_grid(path)
+
+    assert uxgrid._ds["edge_node_connectivity"].dims == ("n_edge", "two")
+    assert "Two" not in uxgrid._ds.dims
+    nt.assert_array_equal(uxgrid._ds["edge_node_connectivity"].values, edge_nodes)
 
 
 def test_read_ugrid(gridpath, mesh_constants):

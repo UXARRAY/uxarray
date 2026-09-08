@@ -80,6 +80,18 @@ def _read_ugrid(ds):
 
     dim_dict[ds["face_node_connectivity"].dims[1]] = ugrid.N_MAX_FACE_NODES_DIM
 
+    # The core dims above do not cover the trailing dimension of the edge
+    # connectivities, so a source file keeps whatever it called that axis unless
+    # it is mapped here. edge_node_connectivity and edge_face_connectivity both
+    # assign that dimension the name "two".
+    for conn_name in ("edge_node_connectivity", "edge_face_connectivity"):
+        if conn_name in conn_dict.values():
+            # map this file's name for the axis onto "two", unless already mapped
+            dim_dict.setdefault(
+                ds[conn_name].dims[1], ugrid.CONNECTIVITY[conn_name]["dims"][1]
+            )
+
+    # rename every source dimension collected above to its UGRID name in one pass
     ds = ds.swap_dims(dim_dict)
 
     return ds, dim_dict
