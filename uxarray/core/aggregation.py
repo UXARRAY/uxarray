@@ -25,8 +25,8 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
     UxDataArray."""
     if destination is None:
         raise ValueError(
-            "Attempting to perform a topological aggregation, but no destination was provided."
-        )
+            f"Missing destination (got destination=None) in topological_{aggregation})."
+        )  # e.g. aggregation will be something like "mean", "min", "any", ...
 
     if uxda._node_centered():
         # aggregation of a node-centered data variable
@@ -36,8 +36,8 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
             return _node_to_edge_aggregation(uxda, aggregation, kwargs)
         else:
             raise DataCenteringError(
-                f"Invalid destination for a node-centered data variable. Expected"
-                f"one of ['face', 'edge' but received {destination}"
+                f"Node-centered data requires destination='face' or 'edge'; "
+                f"got destination={destination!r}, during topological_{aggregation}."
             )
 
     elif uxda._edge_centered():
@@ -45,29 +45,17 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
         raise NotImplementedError(
             "Aggregation of edge-centered data variables is not yet supported."
         )
-        # if destination == "node":
-        #     pass
-        # elif destination == "face":
-        #     pass
-        # else:
-        #     raise ValueError("TODO: )
 
     elif uxda._face_centered():
         # aggregation of a face-centered data variable
         raise NotImplementedError(
             "Aggregation of face-centered data variables is not yet supported."
         )
-        # if destination == "node":
-        #     pass
-        # elif destination == "edge":
-        #     pass
-        # else:
-        #     raise ValueError("TODO: ")
 
     else:
         raise DataCenteringError(
-            "Invalid data mapping. Data variable is expected to be mapped to either the "
-            "nodes, faces, or edges of the source grid."
+            f"topological_{aggregation} expected node_centered, edge_centered, or face_centered data; "
+            f"got data with uxda.data_location={uxda.data_location!r} with dimensions {uxda.dims!r}."
         )
 
 
@@ -77,8 +65,8 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
 
     if not uxda._node_centered():
         raise DataCenteringError(
-            f"Data Variable must be mapped to the corner nodes of each face, with dimension "
-            f"{uxda.uxgrid.n_face}."
+            f"Expected node_centered data; got data with uxda.data_location={uxda.data_location!r} "
+            f"with dimensions {uxda.dims!r}, during _node_to_face_aggregation."
         )
 
     if isinstance(uxda.data, np.ndarray):
@@ -92,7 +80,9 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
             uxda, NUMPY_AGGREGATIONS[aggregation], aggregation_func_kwargs
         )
     else:
-        raise TypeError
+        raise TypeError(
+            f"Expected numpy or dask array; got type(uxda.data)={type(uxda.data)}."
+        )
 
 
 def _node_to_face_kernel(
@@ -206,8 +196,8 @@ def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
 
     if not uxda._node_centered():
         raise DataCenteringError(
-            f"Data Variable must be mapped to the corner nodes of each face, with dimension "
-            f"{uxda.uxgrid.n_face}."
+            f"Expected node_centered data; got data with uxda.data_location={uxda.data_location!r} "
+            f"with dimensions {uxda.dims!r}, during _node_to_edge_aggregation."
         )
 
     aggregation_func = NUMPY_AGGREGATIONS[aggregation]
@@ -223,7 +213,9 @@ def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
             uxda, aggregation_func, aggregation_func_kwargs
         )
     else:
-        raise TypeError
+        raise TypeError(
+            f"Expected numpy or dask array; got type(uxda.data)={type(uxda.data)}."
+        )
 
 
 def _node_to_edge_kernel(

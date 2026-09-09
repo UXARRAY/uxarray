@@ -201,11 +201,11 @@ class TestConservativeZonalMean:
         uxds = ux.open_dataset(grid_path, data_path)
 
         # Test negative step size
-        with pytest.raises(ValueError, match="Step size must be positive"):
+        with pytest.raises(ValueError, match="Expected step>0"):
             uxds["psi"].zonal_mean(lat=(-90, 90, -10), conservative=True)
 
         # Test zero step size
-        with pytest.raises(ValueError, match="Step size must be positive"):
+        with pytest.raises(ValueError, match="Expected step>0"):
             uxds["psi"].zonal_mean(lat=(-90, 90, 0), conservative=True)
 
     def test_conservative_full_sphere_conservation(self, gridpath, datasetpath):
@@ -381,7 +381,7 @@ class TestZonalAnomaly:
         uxda = ux.UxDataArray(
             np.zeros(uxgrid.n_node), dims=["n_node"], uxgrid=uxgrid
         )
-        with pytest.raises(DataCenteringError, match="face-centered"):
+        with pytest.raises(DataCenteringError, match="non-face_centered data is not currently supported"):
             uxda.zonal_anomaly()
 
     def test_invalid_lat_input_raises(self):
@@ -390,9 +390,9 @@ class TestZonalAnomaly:
         uxda = ux.UxDataArray(
             np.zeros(uxgrid.n_face), dims=["n_face"], uxgrid=uxgrid
         )
-        with pytest.raises(ValueError, match="Step size"):
+        with pytest.raises(ValueError, match="Expected step>0"):
             uxda.zonal_anomaly(lat=(-90, 90, 0))
-        with pytest.raises(ValueError, match="Step size"):
+        with pytest.raises(ValueError, match="Expected step>0"):
             uxda.zonal_anomaly(lat=(-90, 90, -1))
         with pytest.raises(ValueError):
             uxda.zonal_anomaly(lat=[42.0])  # too few edges
