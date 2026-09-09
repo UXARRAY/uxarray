@@ -10,6 +10,8 @@ Creating lots of tiny numpy arrays (or lists) costs a lot in numba;
     See issue #1648 for more details.
 """
 
+import math
+
 import numpy as np
 from numba import njit
 
@@ -35,6 +37,12 @@ def _numba_sub3(u, v):
 
 
 # _numba_sub3_scalar not provided; just use _numba_add3_scalar with negative scalar
+
+
+@njit(cache=True)
+def _numba_neg3(u):
+    """component-wise negation of 3-vector; returns (-u[0], -u[1], -u[2])"""
+    return -u[0], -u[1], -u[2]
 
 
 @njit(cache=True)
@@ -104,3 +112,15 @@ def _numba_cross3(u, v):
     cy = u[2] * v[0] - u[0] * v[2]
     cz = u[0] * v[1] - u[1] * v[0]
     return (cx, cy, cz)
+
+
+# ------- convenience functions / helpers ------- #
+
+
+@njit(cache=True)
+def _numba_allfinite3(u):
+    """Return (as 1 or 0) whether all components of a 3-vector are finite (not NaN or Inf)."""
+    return (
+        int(math.isfinite(u[0])) * int(math.isfinite(u[1])) * int(math.isfinite(u[2]))
+    )
+    # (use `*` instead of `and` to avoid branching logic)
