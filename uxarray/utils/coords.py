@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Hashable, Iterable, Mapping
 
+import numpy as np
 import xarray as xr
+import xarray.core.utils as xr_core_utils
 
 
 def _preserve_valid_coords(
@@ -52,3 +54,33 @@ def _preserve_valid_coords(
         and (dropped_dim is None or dropped_dim not in coord.dims)
         and (output_dims is None or set(coord.dims).issubset(output_dims))
     }
+
+
+def _is_scalar_indexer(ii):
+    """returns whether ii is a scalar indexer, e.g. a single integer.
+    (Usefulness, e.g.: help to ensure result of isel() will not drop any dims,
+    by using something like isel(dim=[ii] if _is_scalar_indexer(ii) else ii).
+    """
+    if isinstance(ii, slice):
+        return False
+    else:
+        return xr_core_utils.is_scalar(ii)
+
+
+def _indices1d_from_indexing(xarray_obj, dim, indexer):
+    """returns 1D numpy array of indices from applying `indexer` along `dim` of `xarray_obj`
+    (which can be a DataArray or Dataset).
+
+    Equivalent: np.arange(xarray_obj.sizes[dim])[indexer].
+    But, more efficient, especially for large dim sizes and small indexers.
+    (E.g. with size 1e7, indexer=[0,1,2,3], this method is ~20x faster than
+    the naive implementation using np.arange (~0.7ms versus ~15ms).)
+
+    `indexer` can be an integer, slice, array-like or DataArray.
+    (If scalar, it will be converted to 1D array.)
+    """
+    if _is_scalar_indexer(indexer):
+        indexer = np.array([indexer])
+    if dim in xarray_obj.coords:
+        xarray_obj = xarray_obj.drop_vars(dim)
+    return xarray_obj[dim].isel({dim: indexer}).values
