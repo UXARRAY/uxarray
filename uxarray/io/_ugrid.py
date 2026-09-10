@@ -78,21 +78,53 @@ def _read_ugrid(ds):
             if dims[1] == grid_dim:
                 ds[conn_name] = da.T
 
-    dim_dict[ds["face_node_connectivity"].dims[1]] = ugrid.N_MAX_FACE_NODES_DIM
+    # The core dims cover only each connectivity's grid element axis; the trailing
+    # axis still carries whatever the file called it. One source dimension can
+    # serve several connectivities that want different names (FESOM shares one
+    # size-3 dim across all three face connectivities), and dim_dict holds only
+    # one name per dimension, so the first claim renames it dataset-wide and the
+    # rest are renamed per variable below. face_node_connectivity claims first so
+    # that variables which are not connectivity keep n_max_face_nodes.
+    core_dims = set(dim_dict)  # snapshot before the loop starts adding to it
 
-    # The core dims above do not cover the trailing dimension of the edge
-    # connectivities, so a source file keeps whatever it called that axis unless
-    # it is mapped here. edge_node_connectivity and edge_face_connectivity both
-    # assign that dimension the name "two".
-    for conn_name in ("edge_node_connectivity", "edge_face_connectivity"):
-        if conn_name in conn_dict.values():
-            # map this file's name for the axis onto "two", unless already mapped
-            dim_dict.setdefault(
-                ds[conn_name].dims[1], ugrid.CONNECTIVITY[conn_name]["dims"][1]
-            )
+    # every connectivity, face_node first
+    claim_order = ["face_node_connectivity"] + [
+        name for name in ugrid.CONNECTIVITY_NAMES if name != "face_node_connectivity"
+    ]
 
-    # rename every source dimension collected above to its UGRID name in one pass
+    # the connectivities this file actually has
+    present_conn_names = set(conn_dict.values())
+
+    # conn name -> {current dim name: wanted dim name}, applied after swap_dims
+    per_var_dim_dict = {}
+    for conn_name in claim_order:
+        if conn_name not in present_conn_names:
+            continue
+
+        # the file's name for this connectivity's trailing axis, e.g. 'n2'
+        source_dim = ds[conn_name].dims[1]
+        if source_dim in core_dims:
+            continue  # malformed file: a core dim in the trailing slot
+
+        # the name the conventions give that axis, e.g. 'two'
+        ugrid_dim = ugrid.CONNECTIVITY[conn_name]["dims"][1]
+
+        if source_dim not in dim_dict:
+            dim_dict[source_dim] = ugrid_dim  # unclaimed, so rename dataset-wide
+        elif dim_dict[source_dim] != ugrid_dim:
+            # claimed by an earlier connectivity under a different name, so this
+            # one is renamed on its own. swap_dims runs first, hence the key is
+            # the name that claim already gave the dimension.
+            per_var_dim_dict[conn_name] = {dim_dict[source_dim]: ugrid_dim}
+
     ds = ds.swap_dims(dim_dict)
+
+    # the claims dim_dict had no room for: same dimension, a different name.
+    # swap_dims just renamed FESOM's n3 to n_max_face_nodes everywhere; this then
+    # gives face_edge_connectivity its own n_max_face_edges, and likewise
+    # face_face_connectivity its own n_max_face_faces.
+    for conn_name, rename_dict in per_var_dim_dict.items():
+        ds[conn_name] = ds[conn_name].rename(rename_dict)
 
     return ds, dim_dict
 
