@@ -138,8 +138,8 @@ def test_isel_invalid_dim(gridpath, datasetpath):
         uxda.isel(level=0)
 
 
-def test_data_location():
-    """Tests data_location for face/node/edge centered data and non-grid data."""
+def test_data_mapping():
+    """Tests data_mapping for face/node/edge mapped data and non-grid data."""
     uxgrid = ux.Grid.from_healpix(zoom=1)
 
     face_da = UxDataArray(
@@ -155,16 +155,19 @@ def test_data_location():
         np.ones(5), dims=["other_dim"], uxgrid=uxgrid
     )
 
-    assert face_da.data_location == "face_centered"
-    assert node_da.data_location == "node_centered"
-    assert edge_da.data_location == "edge_centered"
-    assert other_da.data_location is None
+    assert face_da.data_mapping == "faces"
+    assert node_da.data_mapping == "nodes"
+    assert edge_da.data_mapping == "edges"
+    assert other_da.data_mapping is None
 
     # Works when an extra (non-grid) dimension is present
     face_time = UxDataArray(
         np.ones((3, uxgrid.n_face)), dims=["time", "n_face"], uxgrid=uxgrid
     )
-    assert face_time.data_location == "face_centered"
+    assert face_time.data_mapping == "faces"
+
+    # data_location was folded into data_mapping
+    assert not hasattr(face_da, "data_location")
 
 
 class TestNeighborhood:
@@ -243,7 +246,7 @@ class TestNeighborhood:
         assert filtered.shape == uxda_time.shape
         np.testing.assert_allclose(filtered.values, data)
 
-    def test_invalid_data_location(self):
+    def test_invalid_data_mapping(self):
         """Data that is not mapped to a grid element should raise an error."""
         uxgrid = ux.Grid.from_healpix(zoom=1)
         uxda = UxDataArray(np.ones(5), dims=["other_dim"], uxgrid=uxgrid)

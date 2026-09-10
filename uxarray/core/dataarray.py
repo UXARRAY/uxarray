@@ -183,26 +183,14 @@ class UxDataArray(xr.DataArray):
 
     @property
     def data_mapping(self):
-        """Returns which unstructured grid a data variable is mapped to."""
-        if self._face_centered():
-            return "faces"
-        elif self._edge_centered():
-            return "edges"
-        elif self._node_centered():
-            return "nodes"
-        else:
-            return None
+        """Returns which grid element a data variable is mapped to.
 
-    @property
-    def data_location(self):
-        """Returns where on the grid the data variable is stored.
+        The mapping is inferred from the grid dimension present in the data
+        variable:
 
-        The location is inferred from the grid dimension present in the data
-        variable, using UGRID-style names:
-
-        - ``"face_centered"`` if the data contains the ``n_face`` dimension
-        - ``"node_centered"`` if the data contains the ``n_node`` dimension
-        - ``"edge_centered"`` if the data contains the ``n_edge`` dimension
+        - ``"faces"`` if the data contains the ``n_face`` dimension
+        - ``"edges"`` if the data contains the ``n_edge`` dimension
+        - ``"nodes"`` if the data contains the ``n_node`` dimension
         - ``None`` if the data is not mapped to the grid
 
         Notes
@@ -215,15 +203,14 @@ class UxDataArray(xr.DataArray):
         Returns
         -------
         str or None
-            One of ``"face_centered"``, ``"node_centered"``,
-            ``"edge_centered"``, or ``None``.
+            One of ``"faces"``, ``"edges"``, ``"nodes"``, or ``None``.
         """
         if self._face_centered():
-            return "face_centered"
-        elif self._node_centered():
-            return "node_centered"
+            return "faces"
         elif self._edge_centered():
-            return "edge_centered"
+            return "edges"
+        elif self._node_centered():
+            return "nodes"
         else:
             return None
 
@@ -320,7 +307,7 @@ class UxDataArray(xr.DataArray):
 
         else:
             raise DataCenteringError(
-                f"to_geodataframe() expects face_centered data; got {self.data_location} data "
+                f"to_geodataframe() expects data mapped to faces; got data_mapping={self.data_mapping!r} "
                 f"(with sizes={dict(**self.sizes)}). Consider running "
                 "``UxDataArray.topological_mean(destination='face')`` to aggregate the data onto faces."
             )
@@ -645,8 +632,8 @@ class UxDataArray(xr.DataArray):
 
         elif not self._face_centered():
             raise DataCenteringError(
-                "Integration of non-face_centered data is not yet supported. "
-                f"(Got {self.data_location} data with sizes={dict(**self.sizes)})"
+                "Integration of data not mapped to faces is not yet supported. "
+                f"(Got data_mapping={self.data_mapping!r} with sizes={dict(**self.sizes)})"
             )
 
         else:
