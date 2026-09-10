@@ -657,6 +657,12 @@ def _merge_coincident_grid_ds_nodes(grid_ds, tolerance=ERROR_TOLERANCE):
             )
 
     if "face_node_connectivity" in grid_ds:
+        # Only face rings can gain a cyclic repeat from the remap (two
+        # distinct corners collapsing to one canonical node, e.g. a merged
+        # pole quad becoming a triangle). node_node_connectivity, the only
+        # other remapped var, is a per-node neighbor list rather than a closed
+        # ring, and derived edge/face tables are dropped above and rebuilt
+        # lazily, so neither needs collapsing here.
         canonical_values = np.unique(
             np.fromiter(
                 duplicate_node_map.values(),
