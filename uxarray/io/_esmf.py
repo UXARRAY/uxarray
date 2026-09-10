@@ -144,8 +144,17 @@ def _encode_esmf(ds: xr.Dataset) -> xr.Dataset:
     # Face Node Connectivity (elementConn)
     if "face_node_connectivity" in ds:
         # ESMF elementConn is 1-based, with -1 for unused; UGRID is 0-based
+        face_node_conn = ds["face_node_connectivity"]
+
+        # Only offset the valid indices. Applying the offset to INT_FILL_VALUE and
+        # letting it fall through to the int32 encoding below truncates it into a
+        # small, valid node index, silently turning padding into real vertices.
+        element_conn = xr.where(
+            face_node_conn == INT_FILL_VALUE, -1, face_node_conn + 1
+        )
+
         out_ds["elementConn"] = xr.DataArray(
-            ds["face_node_connectivity"] + 1,
+            element_conn,
             dims=("elementCount", "maxNodePElement"),
             attrs={
                 "long_name": "Node Indices that define the element connectivity",
