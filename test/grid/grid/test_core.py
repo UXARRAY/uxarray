@@ -141,6 +141,10 @@ def test_dual_duplicate(gridpath):
 
     # The source file really does contain duplicates: 6000 node coordinates for
     # 3850 distinct locations, so 2150 indices are coincident with an earlier one.
+    # The 2150 count is hard-coded here only to guard against unexpected
+    # regressions in which duplicates are identified; it is not independently
+    # derived from the source file. For a correctness check of the duplicate
+    # identification itself, see test_duplicate_nodes_minimal_example.
     duplicates = _find_duplicate_nodes(grid)
     assert grid.n_node == 6000
     assert len(duplicates) == 2150
@@ -189,13 +193,17 @@ def test_dual_duplicate_geos_cs(gridpath):
 def test_duplicate_nodes_minimal_example():
     """Two quads that share an edge, but whose shared corners are stored twice.
 
-    Nodes 2 and 3 are repeated as nodes 6 and 7, so the file describes 8 nodes at
-    6 distinct locations. Node 6 must canonicalize to node 2 and node 7 to node 3,
-    leaving the second face pointing at the first face's corners.
+    Nodes 1 and 2 are repeated as nodes 6 and 7, so the file describes 8 nodes
+    at 6 distinct locations. Node 6 must canonicalize to node 1 and node 7 to
+    node 2, leaving the second face pointing at the first face's corners.
 
-        3---2---7      lat 1   nodes 2,3 are the shared edge
-        |   |   |              nodes 7,6 are their duplicates
-        0---1---6      lat 0
+        3-----2/7-----5    lat 1
+        |      |      |
+        0-----1/6-----4    lat 0
+       lon 0  lon 1  lon 2
+
+    1/6 and 2/7 mark coincident pairs: 6 duplicates 1 at (lon 1, lat 0) and 7
+    duplicates 2 at (lon 1, lat 1). 4 is (lon 2, lat 0) and 5 is (lon 2, lat 1).
     """
     node_lon = np.array([0.0, 1.0, 1.0, 0.0, 2.0, 2.0, 1.0, 1.0])
     node_lat = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0])
