@@ -623,6 +623,18 @@ def _merge_coincident_grid_ds_nodes(grid_ds, tolerance=ERROR_TOLERANCE):
             )
         )
     else:
+        # Defensive: Grid construction validates minimum UGRID (node_lon,
+        # node_lat, face_node_connectivity) before reaching here, so this is
+        # unreachable on that path. Return unchanged rather than raising, so
+        # foreign datasets without coordinates round-trip untouched, but warn
+        # so a caller never mistakes "not merged" for "no duplicates".
+        warnings.warn(
+            "Coincident nodes were not merged: the dataset has neither "
+            "node_x/node_y/node_z nor node_lon/node_lat, so node locations are "
+            "unknown. Connectivity is returned unchanged and may still "
+            "reference coincident nodes.",
+            RuntimeWarning,
+        )
         return grid_ds
 
     n_node = points_xyz.shape[0]
