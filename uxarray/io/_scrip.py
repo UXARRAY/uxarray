@@ -329,6 +329,97 @@ def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
     return unq_lon, unq_lat, unq_inv
 
 
+@njit(cache=True, nogil=True)
+def _collapse_repeated_corners_inplace(face_nodes):
+    """Numba kernel for :func:`_collapse_repeated_corners`; edits ``face_nodes``.
+
+    Each row is compacted over its own prefix: an output slot is only written
+    after the input slot at that position has been read, so no scratch copy of
+    the row is needed.
+    """
+    n_face, n_corners = face_nodes.shape
+    for i in range(n_face):
+        # First pass: count distinct valid corners, leaving degenerate rows and
+        # rows with nothing to collapse untouched.
+        n_distinct = 0
+        for c in range(n_corners):
+            node = face_nodes[i, c]
+            if node == INT_FILL_VALUE:
+                continue
+            repeat = False
+            for e in range(c):
+                if face_nodes[i, e] == node:
+                    repeat = True
+                    break
+            if not repeat:
+                n_distinct += 1
+        if n_distinct < 3 or n_distinct == n_corners:
+            continue
+
+        # Second pass: pack the first occurrence of each corner to the left.
+        count = 0
+        for c in range(n_corners):
+            node = face_nodes[i, c]
+            if node == INT_FILL_VALUE:
+                continue
+            repeat = False
+            for e in range(count):
+                if face_nodes[i, e] == node:
+                    repeat = True
+                    break
+            if not repeat:
+                face_nodes[i, count] = node
+                count += 1
+        for c in range(count, n_corners):
+            face_nodes[i, c] = INT_FILL_VALUE
+
+
+def _collapse_repeated_corners(face_nodes, copy=True):
+    """Turn SCRIP's repeated corners back into fill values.
+
+    SCRIP has no fill value for corners, so a face with fewer than
+    ``grid_corners`` vertices repeats one of them. Left in place each repeat reads
+    as a real vertex, keeping the face full width and adding a zero-length edge.
+
+    Duplicates are dropped keeping the first occurrence, so winding order survives
+    and a closed ring (last corner repeating the first) collapses too. Slots that
+    are already ``INT_FILL_VALUE`` (corners missing from the file) are padding,
+    not vertices. A cell left with fewer than three distinct vertices is
+    degenerate in the source file and is returned unchanged rather than packed
+    into a one- or two-node face no polygon routine can use.
+
+    Parameters
+    ----------
+    face_nodes : numpy.ndarray or dask.array.Array
+        ``(n_face, n_max_face_nodes)`` node indices, with repeated corners. A
+        dask array stays lazy; the collapse runs block by block.
+    copy : bool, default=True
+        For a NumPy ``INT_DTYPE`` input, ``False`` collapses it in place, saving
+        a connectivity-sized copy when the caller owns the array. Dask blocks are
+        always copied.
+
+    Returns
+    -------
+    numpy.ndarray or dask.array.Array
+        Connectivity with repeats replaced by ``INT_FILL_VALUE``, packed left.
+    """
+    import dask.array as dask_array
+
+    def _collapse_block(block, copy=True):
+        # The kernel works in place, and a dask block may be a view of its input.
+        if copy:
+            block = np.array(block, dtype=INT_DTYPE, order="C")
+        else:
+            block = np.ascontiguousarray(block, dtype=INT_DTYPE)
+        _collapse_repeated_corners_inplace(block)
+        return block
+
+    if isinstance(face_nodes, dask_array.Array):
+        # Rows are independent, but each must sit whole inside one block.
+        return face_nodes.rechunk({1: -1}).map_blocks(_collapse_block, dtype=INT_DTYPE)
+    return _collapse_block(face_nodes, copy=copy)
+
+
 def _to_ugrid(in_ds, out_ds):
     """If input dataset (``in_ds``) file is an unstructured SCRIP file,
     function will reassign SCRIP variables to UGRID conventions in output file
@@ -377,9 +468,15 @@ def _to_ugrid(in_ds, out_ds):
 
         # Decoded missing corners are padding, not nodes of the face ring.
         valid_corners = np.isfinite(corner_lon_raw) & np.isfinite(corner_lat_raw)
-        unq_inv = np.where(valid_corners, unq_inv, -1)
+        # Mark them with INT_FILL_VALUE directly: the collapse below skips fill
+        # slots, and a -1 would survive it as a valid (wrapping) node index.
+        unq_inv = np.where(valid_corners, unq_inv, INT_FILL_VALUE)
         # Reshape face nodes array into original shape for use in 'face_node_connectivity'
         unq_inv = np.reshape(unq_inv, (len(in_ds.grid_size), len(in_ds.grid_corners)))
+
+        # Recover the real face sizes from the corners SCRIP repeats as padding
+        # (np.where above allocated it, so the eager path can collapse in place).
+        unq_inv = _collapse_repeated_corners(unq_inv, copy=False)
 
         # Create node_lon & node_lat
         out_ds[ugrid.NODE_COORDINATES[0]] = xr.DataArray(
@@ -404,10 +501,12 @@ def _to_ugrid(in_ds, out_ds):
             attrs=ugrid.FACE_LAT_ATTRS,
         )
 
-        # standardize fill values and data type face nodes
+        # standardize fill values and data type face nodes. The padding here comes
+        # from the NaN mask and the collapse above; SCRIP has no fill value of its
+        # own.
         face_nodes = _replace_fill_values(
             xr.DataArray(data=unq_inv),
-            original_fill=-1,
+            original_fill=INT_FILL_VALUE,
             new_fill=INT_FILL_VALUE,
             new_dtype=INT_DTYPE,
         )
@@ -502,30 +601,21 @@ def _encode_scrip(face_node_connectivity, node_lon, node_lat, face_areas):
     n_face = face_node_connectivity.shape[0]
     n_max_nodes = face_node_connectivity.shape[1]
 
-    # --- Core logic enhanced with Implementation 2's robust method ---
-    # Flatten the connectivity array to easily work with all node indices
-    f_nodes_flat = face_node_connectivity.values.astype(int).ravel()
+    conn = face_node_connectivity.values.astype(INT_DTYPE)
+    valid_nodes_mask = conn != INT_FILL_VALUE
 
-    # Create a mask to identify valid nodes vs. fill values
-    valid_nodes_mask = f_nodes_flat != INT_FILL_VALUE
+    # SCRIP has no fill value for corners. A face with fewer than grid_corners
+    # vertices is written as a degenerate polygon that repeats its last valid
+    # corner. Writing NaN into the padded slots instead makes the reader dedupe
+    # them into a phantom NaN node, which both inflates n_node and poisons the
+    # node coordinates for every downstream geometry calculation.
+    last_valid = np.maximum.accumulate(
+        np.where(valid_nodes_mask, np.arange(n_max_nodes), 0), axis=1
+    )
+    padded_conn = np.take_along_axis(conn, last_valid, axis=1)
 
-    # Create arrays to hold final lat/lon data, filled with NaN
-    lat_nodes_flat = np.full(f_nodes_flat.shape, np.nan, dtype=np.float64)
-    lon_nodes_flat = np.full(f_nodes_flat.shape, np.nan, dtype=np.float64)
-
-    # Get the flattened indices of the valid nodes (where the mask is True)
-    valid_indices = np.where(valid_nodes_mask)[0]
-    # Get the actual node indices from the connectivity array for those valid positions
-    valid_node_ids = f_nodes_flat[valid_indices]
-
-    # Use the valid indices to populate the coordinate arrays correctly
-    lon_nodes_flat[valid_indices] = node_lon.values[valid_node_ids]
-    lat_nodes_flat[valid_indices] = node_lat.values[valid_node_ids]
-
-    # Reshape the 1D arrays back to 2D
-    reshp_lat = lat_nodes_flat.reshape((n_face, n_max_nodes))
-    reshp_lon = lon_nodes_flat.reshape((n_face, n_max_nodes))
-    # --- End of enhanced logic ---
+    reshp_lon = node_lon.values[padded_conn]
+    reshp_lat = node_lat.values[padded_conn]
 
     # Add data to new scrip output file
     ds["grid_corner_lat"] = xr.DataArray(
