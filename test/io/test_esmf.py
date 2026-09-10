@@ -3,7 +3,7 @@ import os
 import pytest
 import xarray as xr
 import numpy as np
-from uxarray.constants import ERROR_TOLERANCE
+from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 
 
 def test_read_esmf(gridpath):
@@ -103,3 +103,48 @@ def test_esmf_round_trip_consistency(gridpath):
         # Clean up temporary test file
         if os.path.exists(esmf_filepath):
             os.remove(esmf_filepath)
+
+
+def test_encode_esmf_ragged_indices_are_usable(tmp_path):
+    """Every index written to elementConn names a real node or is the fill value.
+
+    `elementConn` is encoded as int32. Offsetting INT_FILL_VALUE along with the
+    valid indices leaves `-2**63 + 1` in the padded slots, which the narrowing
+    truncates to `1` -- node 0, indistinguishable from a real vertex to any
+    reader. Nothing raises, so check the encoded output rather than a round trip.
+    """
+    uxgrid = ux.Grid.from_topology(
+        node_lon=np.array([0.0, 10.0, 10.0, 0.0, 20.0]),
+        node_lat=np.array([0.0, 0.0, 10.0, 10.0, 0.0]),
+        face_node_connectivity=np.array([
+            [0, 1, 2, 3],
+            [1, 4, 2, INT_FILL_VALUE],
+            [0, 3, 4, INT_FILL_VALUE],
+        ]),
+        fill_value=INT_FILL_VALUE,
+    )
+
+    # The padded slots are exactly the ones numElementConn reports as unused
+    is_padding = np.array([
+        [False, False, False, False],
+        [False, False, False, True],
+        [False, False, False, True],
+    ])
+
+    encoded = uxgrid.to_xarray("ESMF")
+    assert encoded["elementConn"].attrs["_FillValue"] == -1
+    np.testing.assert_array_equal(encoded["elementConn"].values == -1, is_padding)
+    np.testing.assert_array_equal(encoded["numElementConn"].values, [4, 3, 3])
+
+    # Check what actually lands on disk: the fill value has to survive int32
+    path = tmp_path / "esmf_ragged.nc"
+    encoded.to_netcdf(path)
+    with xr.open_dataset(path, mask_and_scale=False) as ds:
+        on_disk = ds["elementConn"].values
+
+    assert on_disk.dtype == np.int32
+    np.testing.assert_array_equal(on_disk == -1, is_padding)
+
+    valid = on_disk[~is_padding]
+    assert valid.min() >= 1, "elementConn holds an index below 1"
+    assert valid.max() <= uxgrid.n_node, "elementConn indexes a node that does not exist"
