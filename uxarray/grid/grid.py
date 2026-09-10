@@ -256,6 +256,10 @@ class Grid:
         # flag to track if coordinates are normalized
         self._normalized = None
 
+        # cached map of coincident node indices to their canonical node, keyed
+        # off the node coordinates, which do not change after construction
+        self._duplicate_node_map = None
+
         # flag to ensure projected-grid warning fires only once per instance
         self._projected_warning_issued = False
 

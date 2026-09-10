@@ -180,8 +180,18 @@ def _find_duplicate_node_map(node_lon, node_lat, tolerance=ERROR_TOLERANCE):
 
 def _find_duplicate_nodes(grid):
     """Map duplicate node indices to the canonical (lowest-indexed) node sharing
-    their coordinates."""
-    return _find_duplicate_node_map(grid.node_lon.values, grid.node_lat.values)
+    their coordinates.
+
+    Cached on the grid: the search is a KDTree query over every node, while the
+    node coordinates it reads are fixed once the grid is constructed. Callers
+    such as ``Grid.get_dual`` run this on every invocation, so recomputing it
+    would make an O(n_node) search part of the cost of each dual construction.
+    """
+    if grid._duplicate_node_map is None:
+        grid._duplicate_node_map = _find_duplicate_node_map(
+            grid.node_lon.values, grid.node_lat.values
+        )
+    return grid._duplicate_node_map
 
 
 def _live_node_indices(grid):
