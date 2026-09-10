@@ -885,21 +885,21 @@ def _check_intersection(ref_edge_xyz, edges_xyz):
         edge_xyz = edges_xyz[i]
 
         # compute intersection
-        intersection_point = gca_gca_intersection(ref_edge_xyz, edge_xyz)
+        intersections_i = gca_gca_intersection(ref_edge_xyz, edge_xyz)
 
-        if intersection_point.size != 0:
-            if intersection_point.ndim == 1:
+        if math.isfinite(intersections_i[0][0]):  # at least 1 intersection point
+            if not math.isfinite(intersections_i[1][0]):  # only 1 intersection point
                 # Only one point
-                point = intersection_point
+                point = intersections_i[0]
                 if np.allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
                     return True
                 intersection_points[intersection_count] = point
                 intersection_count += 1
             else:
-                # Multiple points
-                num_points = intersection_point.shape[0]
+                # Exactly 2 points (gca_gca_intersection always gives 0, 1, or 2 intersections)
+                num_points = 2
                 for j in range(num_points):
-                    point = intersection_point[j]
+                    point = intersections_i[j]
                     if np.allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
                         return True
                     intersection_points[intersection_count] = point
