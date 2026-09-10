@@ -90,3 +90,34 @@ def test_encode_ugrid_copies_and_converts_bool_attr():
     assert encoded.attrs["test_str"] == "abc"
     # Check that the original dataset is not modified
     assert isinstance(ds.attrs["test_bool"], bool)
+
+
+def test_encode_ugrid_does_not_mutate_base_topology_attrs():
+    """Encoding a grid with optional variables must not leak their
+    grid_topology attributes into ugrid.BASE_GRID_TOPOLOGY_ATTRS, which would
+    then be wrongly advertised by every later grid encoded in the process."""
+    import numpy as np
+    from uxarray.conventions import ugrid
+
+    base = dict(ugrid.BASE_GRID_TOPOLOGY_ATTRS)
+
+    # healpix grid: has edges, face/edge coordinates and extra connectivity
+    hpgrid = ux.Grid.from_healpix(zoom=1)
+    hpgrid.edge_lon
+    hpgrid.face_edge_connectivity
+    hpgrid.to_xarray("UGRID")
+
+    assert ugrid.BASE_GRID_TOPOLOGY_ATTRS == base
+
+    # minimal grid: only node coordinates and face_node_connectivity
+    minimal = ux.Grid.from_topology(
+        node_lon=np.array([0.0, 1.0, 1.0, 0.0]),
+        node_lat=np.array([0.0, 0.0, 1.0, 1.0]),
+        face_node_connectivity=np.array([[0, 1, 2, 3]]),
+    )
+    attrs = minimal.to_xarray("UGRID").grid_topology.attrs
+
+    assert set(attrs) == set(base)
+    for leaked in ("edge_dimension", "face_coordinates", "edge_coordinates",
+                   "face_edge_connectivity", "edge_node_connectivity"):
+        assert leaked not in attrs
