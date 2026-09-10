@@ -222,6 +222,24 @@ def test_duplicate_nodes_minimal_example():
     )
 
 
+def test_duplicate_nodes_tolerance():
+    """Near-coincident (within ERROR_TOLERANCE) nodes still merge.
+
+    Same topology as test_duplicate_nodes_minimal_example, but duplicate node
+    6 is offset by 1e-9 degrees in lon, well within the 1e-8 chord tolerance,
+    so it must still canonicalize to node 1.
+    """
+    node_lon = np.array([0.0, 1.0, 1.0, 0.0, 2.0, 2.0, 1.0 + 1e-9, 1.0])
+    node_lat = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0])
+    face_node_connectivity = np.array([[0, 1, 2, 3], [6, 4, 5, 7]])
+
+    grid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
+
+    duplicates = _find_duplicate_nodes(grid)
+    assert duplicates == {6: 1, 7: 2}
+    assert not _check_duplicate_nodes_indices(grid)
+
+
 def test_get_dual_rejects_faces_referencing_duplicate_nodes():
     """``construct_dual`` reads ``node_face_connectivity`` with no duplicate
     handling, so a face still pointing at a dead duplicate index would yield a
