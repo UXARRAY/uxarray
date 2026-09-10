@@ -91,6 +91,11 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
     """For each point, find the lowest-indexed point within ``tolerance`` chordal
     distance on the unit sphere (a point with no coincident neighbor maps to itself).
 
+    ``tolerance`` is a chord length on the unit sphere, not an angle in degrees.
+    This differs from ``_read_structured_grid``, whose user-facing ``tol`` is in
+    degrees and is converted to a chord via ``2*sin(tol/2)`` before the KDTree
+    query; here the default ``ERROR_TOLERANCE`` is already that chord radius.
+
     Points at the geographic poles are never merged with one another: longitude is
     singular there, and grid files (e.g. SCRIP cube-sphere) commonly give each face
     touching a pole its own arbitrary-but-meaningful longitude for that corner, which
