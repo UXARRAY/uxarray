@@ -1796,7 +1796,7 @@ class UxDataArray(xr.DataArray):
         # Spherical metric term, the companion of the one in curl(). Omitting
         # it is only valid on a plane.
         tan_lat = np.tan(np.deg2rad(self.uxgrid.face_lat.values))
-        metric = other.values * tan_lat
+        metric = other.data * tan_lat
         if scale_by_radius and "sphere_radius" in self.uxgrid._ds.attrs:
             metric = metric / self.uxgrid._ds.attrs["sphere_radius"]
         divergence = divergence - metric
