@@ -134,7 +134,7 @@ def _populate_face_bounds(
         grid._ds["bounds"] = bounds_da
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _construct_face_bounds_array(
     face_node_connectivity,
     n_nodes_per_face,

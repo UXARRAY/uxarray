@@ -8,7 +8,7 @@ from numba import njit, prange
 from uxarray.grid.utils import _numba_norm3, _small_angle_of_2_vectors
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _compute_face_node_angles_convex(
     node_x,
     node_y,

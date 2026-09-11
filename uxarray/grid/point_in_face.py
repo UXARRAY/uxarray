@@ -120,7 +120,7 @@ def _get_faces_containing_point(
     return hit_buf[:count]
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _batch_point_in_face(
     points: np.ndarray,
     flat_candidate_indices: np.ndarray,
