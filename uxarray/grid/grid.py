@@ -170,6 +170,7 @@ class Grid:
         source_dims_dict: dict | None = None,
         is_subset: bool = False,
         inverse_indices: xr.Dataset | None = None,
+        merge_coincident_nodes: bool = True,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if source_grid_spec != "HEALPix":
@@ -193,7 +194,11 @@ class Grid:
         # canonicalize coincident node indices in connectivity before this dataset
         # is wrapped in a Grid, so every construction path benefits and no
         # lazily-computed connectivity is ever built from stale indices.
-        grid_ds = _merge_coincident_grid_ds_nodes(grid_ds)
+        # ``merge_coincident_nodes`` is internal: it is set to False only where
+        # uxarray builds a grid out of another grid's already-canonical data, so
+        # the search is not paid again on nodes that cannot need it.
+        if merge_coincident_nodes:
+            grid_ds = _merge_coincident_grid_ds_nodes(grid_ds)
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict or {}
@@ -2770,9 +2775,15 @@ class Grid:
         # Get dual mesh node face connectivity
         dual_node_face_conn = construct_dual(grid=self)
 
-        # Construct dual mesh
-        dual = self.from_topology(
-            self.face_lon.data, self.face_lat.data, dual_node_face_conn
+        # Construct dual mesh. The dual's nodes are this grid's face centers and
+        # its connectivity comes from ``node_face_connectivity``, which the check
+        # above proves is already free of coincident node indices, so the merge
+        # is skipped rather than re-run over every face center.
+        dual_ds = _read_topology(
+            self.face_lon.data, self.face_lat.data, dual_node_face_conn, None, 0
+        )
+        dual = type(self)(
+            dual_ds, "User Defined Topology", merge_coincident_nodes=False
         )
 
         return dual
