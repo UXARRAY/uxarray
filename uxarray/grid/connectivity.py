@@ -657,12 +657,25 @@ def _merge_coincident_grid_ds_nodes(grid_ds, tolerance=ERROR_TOLERANCE):
             )
 
     if "face_node_connectivity" in grid_ds:
-        # Only face rings can gain a cyclic repeat from the remap (two
-        # distinct corners collapsing to one canonical node, e.g. a merged
-        # pole quad becoming a triangle). node_node_connectivity, the only
-        # other remapped var, is a per-node neighbor list rather than a closed
-        # ring, and derived edge/face tables are dropped above and rebuilt
-        # lazily, so neither needs collapsing here.
+        # Why only face_node_connectivity is collapsed. The remap can make two
+        # entries of a row identical wherever a row referenced both a duplicate
+        # and its canonical node. The three groups of node-index connectivity
+        # differ in what that means:
+        #
+        # 1. face_node_connectivity is a closed ring, so a repeat changes the
+        #    geometry: a quad (A, P, P, B) at a merged pole is really the
+        #    triangle (A, P, B) and must be stored as such, or area, bounds and
+        #    edge construction all see a zero-length side. Hence the collapse.
+        # 2. node_node_connectivity is an unordered neighbor list padded with
+        #    fill, not a ring. A repeat there is a redundant listing that names
+        #    the same neighbor twice; it does not change what the row means, and
+        #    cyclic collapsing would be the wrong operation for it (dedup would
+        #    be). UXarray cannot construct this variable, so it only exists when
+        #    read from a file, and nothing downstream consumes it.
+        # 3. Everything in _DERIVED_CONNECTIVITY_TO_INVALIDATE (edge_node,
+        #    face_edge, edge_face, face_face, node_edge, node_face) is dropped a
+        #    few lines below and rebuilt lazily from the corrected rings, so a
+        #    repeat introduced by the remap never survives.
         canonical_values = np.unique(
             np.fromiter(
                 duplicate_node_map.values(),

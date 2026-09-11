@@ -5,6 +5,7 @@ import xarray as xr
 
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.grid.connectivity import _merge_coincident_grid_ds_nodes
 from uxarray.grid.validation import (
     _check_duplicate_nodes_indices,
     _find_duplicate_nodes,
@@ -199,11 +200,13 @@ def test_duplicate_nodes_minimal_example():
 
         3-----2/7-----5    lat 1
         |      |      |
+        |  f0  |  f1  |
+        |      |      |
         0-----1/6-----4    lat 0
        lon 0  lon 1  lon 2
 
-    1/6 and 2/7 mark coincident pairs: 6 duplicates 1 at (lon 1, lat 0) and 7
-    duplicates 2 at (lon 1, lat 1). 4 is (lon 2, lat 0) and 5 is (lon 2, lat 1).
+    f0 = [0, 1, 2, 3] uses the shared edge as nodes 1, 2; f1 = [6, 4, 5, 7]
+    uses the duplicates 6, 7 for the same two corners.
     """
     node_lon = np.array([0.0, 1.0, 1.0, 0.0, 2.0, 2.0, 1.0, 1.0])
     node_lat = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0])
@@ -222,22 +225,57 @@ def test_duplicate_nodes_minimal_example():
     )
 
 
-def test_duplicate_nodes_tolerance():
-    """Near-coincident (within ERROR_TOLERANCE) nodes still merge.
+@pytest.mark.parametrize(
+    "lon_offset, merges",
+    [
+        (1e-9, True),  # 1.7e-11 chord, well inside
+        (1e-7, True),  # 1.7e-09 chord, inside
+        (1e-5, False),  # 1.7e-07 chord, outside
+    ],
+)
+def test_duplicate_nodes_tolerance(lon_offset, merges):
+    """Nodes merge only when they are coincident within the merge tolerance.
 
-    Same topology as test_duplicate_nodes_minimal_example, but duplicate node
-    6 is offset by 1e-9 degrees in lon, well within the 1e-8 chord tolerance,
-    so it must still canonicalize to node 1.
+    Same topology as test_duplicate_nodes_minimal_example, but duplicate node 6
+    is offset in lon. The tolerance is a chord length of ERROR_TOLERANCE (1e-8)
+    on the unit sphere, so the cutoff sits near 5.7e-7 degrees: the first two
+    offsets must still canonicalize 6 to 1, the third must not.
     """
-    node_lon = np.array([0.0, 1.0, 1.0, 0.0, 2.0, 2.0, 1.0 + 1e-9, 1.0])
+    node_lon = np.array([0.0, 1.0, 1.0, 0.0, 2.0, 2.0, 1.0 + lon_offset, 1.0])
     node_lat = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0])
     face_node_connectivity = np.array([[0, 1, 2, 3], [6, 4, 5, 7]])
 
     grid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
 
     duplicates = _find_duplicate_nodes(grid)
-    assert duplicates == {6: 1, 7: 2}
+    # Node 7 is an exact duplicate of node 2 in every case.
+    assert duplicates == ({6: 1, 7: 2} if merges else {7: 2})
     assert not _check_duplicate_nodes_indices(grid)
+
+    # Face 1's first corner follows node 6: canonicalized to 1 when merged,
+    # left as 6 when the offset puts it outside the tolerance.
+    assert grid.face_node_connectivity.values[1][0] == (1 if merges else 6)
+
+
+def test_merge_warns_when_node_locations_are_unknown():
+    """Without node coordinates the merge cannot run; it must say so rather
+    than quietly return connectivity that may still hold duplicates."""
+    grid_ds = xr.Dataset(
+        {
+            "face_node_connectivity": (
+                ("n_face", "n_max_face_nodes"),
+                np.array([[0, 1, 2, 3], [6, 4, 5, 7]]),
+            )
+        }
+    )
+
+    with pytest.warns(RuntimeWarning, match="Coincident nodes were not merged"):
+        out = _merge_coincident_grid_ds_nodes(grid_ds)
+
+    nt.assert_equal(
+        out["face_node_connectivity"].values,
+        grid_ds["face_node_connectivity"].values,
+    )
 
 
 def test_get_dual_rejects_faces_referencing_duplicate_nodes():
