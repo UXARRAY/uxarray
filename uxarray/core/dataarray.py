@@ -11,7 +11,6 @@ from xarray.core import dtypes
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
-import uxarray
 from uxarray.constants import GRID_DIMS
 from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.gradient import (
@@ -596,8 +595,10 @@ class UxDataArray(xr.DataArray):
         -------
         uxds: UxDataSet
         """
+        from uxarray.core.dataset import UxDataset
+
         xrds = super().to_dataset(dim=dim, name=name, promote_attrs=promote_attrs)
-        uxds = uxarray.core.dataset.UxDataset(xrds, uxgrid=self._uxgrid)
+        uxds = UxDataset(xrds, uxgrid=self._uxgrid)
 
         return uxds
 
@@ -2075,18 +2076,17 @@ class UxDataArray(xr.DataArray):
                 **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
             )
 
-            da = self._slice_from_grid(sliced_grid)
+            result = self._slice_from_grid(sliced_grid)
 
             # if there are any remaining indexers, apply them
             if indexers:
-                xarr = super(UxDataArray, da).isel(
+                result = super(UxDataArray, result).isel(
                     indexers=indexers, drop=drop, missing_dims=missing_dims
                 )
                 # re‐wrap so the grid sticks around
-                return type(self)(xarr, uxgrid=sliced_grid)
+                result = type(self)(result, uxgrid=sliced_grid)
 
-            # no other dims, return the grid‐sliced da
-            return da
+            return result
         else:  # len(grid_dims)>1; _validate_indexers should have crashed.
             raise AssertionError("internal implementation error if reached this line")
 
@@ -2321,7 +2321,7 @@ class UxDataArray(xr.DataArray):
                 "Data variable must be either node, edge, or face centered."
             )
 
-        return UxDataArray(da_sliced, uxgrid=sliced_grid)
+        return type(self)(da_sliced, uxgrid=sliced_grid)
 
     def get_dual(self):
         """Compute the dual mesh for a data array, returns a new data array
@@ -2359,9 +2359,7 @@ class UxDataArray(xr.DataArray):
         dims = [dim_map.get(dim, dim) for dim in self.dims]
 
         # Construct the new data array
-        uxda = uxarray.UxDataArray(
-            uxgrid=dual, data=self.data, dims=dims, name=self.name
-        )
+        uxda = type(self)(uxgrid=dual, data=self.data, dims=dims, name=self.name)
 
         return uxda
 

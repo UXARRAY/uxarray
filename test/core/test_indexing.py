@@ -39,17 +39,17 @@ def test_sel_indexes_grid():
 def test_sel_uses_grid_dim_labels():
     """ensure obj.sel({grid_dim: ...}) actually utilizes coordinate labels on that grid dim,
     for UxDataArrays and UxDatasets. Regression test for #1641.
-    TODO: fix #1714 then uncomment the UxDataset tests below
+    Also contains regression test for #1714.
     """
     # test corresponding to the workflow described in #1641, but for UxDataset
     uxds = ux.tutorial.open_dataset("outCSne30-vortex")
-    # (uncomment the next few lines after fixing #1714)
-    # uxds1 = uxds.assign_coords(n_face=np.arange(uxds.n_face.size))
-    # uxds2 = uxds1.isel(n_face=range(0, 100, 5))
-    # uxds3 = uxds2 + 7
-    # # "check what the results look like on what were originally faces 20, 30, and 40"
-    # uxds4 = uxds3.sel(n_face=[20,30,40])
-    # assert uxds4.sizes['n_face'] == uxds4.uxgrid.n_face == 3
+    # (the next few lines, through the `assert`, also serve as a regression test for #1714)
+    uxds1 = uxds.assign_coords(n_face=np.arange(uxds.n_face.size))
+    uxds2 = uxds1.isel(n_face=range(0, 100, 5))
+    uxds3 = uxds2 + 7
+    # "check what the results look like on what were originally faces 20, 30, and 40"
+    uxds4 = uxds3.sel(n_face=[20,30,40])
+    assert uxds4.sizes['n_face'] == uxds4.uxgrid.n_face == 3
 
     # test corresponding to the workflow described in #1641, for UxDataArray
     uxarr = uxds['psi']
@@ -70,15 +70,14 @@ def test_sel_uses_grid_dim_labels():
 
 def test_can_index_grid_dim_not_in_data():
     """ensure isel() and sel() can both index a grid dim even if that dim is not present in the data itself;
-    for UxDataArrays and UxDatasets. TODO: fix #1713 then uncomment the UxDataset tests below.
+    for UxDataArrays and UxDatasets. The UxDataset checks serve as a regression test for #1713.
     """
     ds = ux.tutorial.open_dataset("outCSne30-vortex")
-    # (uncomment the next few lines after fixing #1713)
-    # assert "n_face" in ds.dims
-    # result = ds.isel(n_edge=7)
-    # assert result.sizes["n_face"] == result.uxgrid.n_face == 2
-    # result = ds.sel(n_edge=7)
-    # assert result.sizes["n_face"] == result.uxgrid.n_face == 2
+    assert "n_face" in ds.dims
+    result = ds.isel(n_edge=7)
+    assert result.sizes["n_face"] == result.uxgrid.n_face == 2
+    result = ds.sel(n_edge=7)
+    assert result.sizes["n_face"] == result.uxgrid.n_face == 2
 
     arr = ds["psi"]
     result = arr.isel(n_edge=7)
@@ -110,7 +109,7 @@ def test_sel_can_use_slice():
     """ensure sel() can use slice() objects as indexers, and provides expected results,
     with expected sizes, for UxDataArrays and UxDatasets.
     Regression test inspired by reviewer comment in #1641, also related to #1639.
-    TODO: fix #1714 then uncomment the relevant UxDataset tests below
+    Also contains regression test for #1714.
     """
     grid = ux.Grid.from_healpix(zoom=0)  # 12 faces
     arr = ux.UxDataArray(
@@ -129,10 +128,10 @@ def test_sel_can_use_slice():
     uxds = ux.UxDataset({'data': arr.to_xarray()}, uxgrid=grid)
     result = uxds.sel(n_face=slice(0, 2))
     assert result.n_face.size == result.uxgrid.n_face == 2
-    # (uncomment the next few lines after fixing #1714)
-    # labeled_ds = uxds.assign_coords(n_face=np.arange(grid.n_face))
-    # result = labeled_ds.sel(n_face=slice(0, 2))
-    # assert result.n_face.size == result.uxgrid.n_face == 3
+    # (the remaining lines also serve as a regression test for #1714)
+    labeled_ds = uxds.assign_coords(n_face=np.arange(grid.n_face))
+    result = labeled_ds.sel(n_face=slice(0, 2))
+    assert result.n_face.size == result.uxgrid.n_face == 3
 
 def test_isel_can_use_bool():
     """ensure isel() supports indexing by a boolean indexer array.
@@ -253,7 +252,7 @@ def test_sel_crash_if_provided_selection_options_with_coordless_dims():
     whenever any of the indexed dims have no associated coordinates.
     (Tests below also demonstrate that this behavior is consistent with xarray.)
     Regression test inspired by reviewer comment in #1641.
-    TODO: fix #1714 then uncomment the relevant UxDataset tests below
+    Also includes a regression test for #1714.
     """
     kw_options = ({"method": "nearest"}, {"method": "nearest", "tolerance": 0.1})
 
@@ -264,13 +263,13 @@ def test_sel_crash_if_provided_selection_options_with_coordless_dims():
     assert set(ds0.dims) == {'n_face'}
     ds0_labeled = ds0.assign_coords({'n_face': [0,10,20,30]})
 
-    # (uncomment the next few lines after fixing #1714)
-    # ds0.sel(n_face=[0,1])  # (sanity check: no crash when no options provided)
-    # for kw in kw_options:
-    #     with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
-    #         ds0.sel(n_face=[0,1], **kw)  # provides method, tolerance, or both.
-    #     # separately: checking to ensure that passing these options is fine in "labeled" case.
-    #     ds0_labeled.sel(n_face=[0,10], **kw)
+    # (the next few lines also serve as a regression test for #1714)
+    ds0.sel(n_face=[0,1])  # (sanity check: no crash when no options provided)
+    for kw in kw_options:
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+            ds0.sel(n_face=[0,1], **kw)  # provides method, tolerance, or both.
+        # separately: checking to ensure that passing these options is fine in "labeled" case.
+        ds0_labeled.sel(n_face=[0,10], **kw)
 
     # ensure same behavior for xarray objects:
     ds0.to_xarray().sel(n_face=[0,1])
@@ -280,9 +279,9 @@ def test_sel_crash_if_provided_selection_options_with_coordless_dims():
         ds0_labeled.to_xarray().sel(n_face=[0,10], **kw)
 
     # ensure supplying just tolerance raises a different error, if indexing is otherwise valid:
-    # (uncomment the next few lines after fixing #1714)
-    # with pytest.raises(ValueError, match=r"tolerance argument only valid if doing.+"):
-    #     ds0_labeled.sel(n_face=[0,10], tolerance=0.1)
+    # (the following pytest.raises statement also serves as a regression test for #1714)
+    with pytest.raises(ValueError, match=r"tolerance argument only valid if doing.+"):
+        ds0_labeled.sel(n_face=[0,10], tolerance=0.1)
     with pytest.raises(ValueError, match=r"tolerance argument only valid if doing.+"):
         ds0_labeled.to_xarray().sel(n_face=[0,10], tolerance=0.1)
 
