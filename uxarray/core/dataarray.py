@@ -44,7 +44,10 @@ from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
-from uxarray.utils.coords import _preserve_valid_coords
+from uxarray.utils.coords import (
+    _assign_grid_dim_indexer_coords_if_appropriate,
+    _preserve_valid_coords,
+)
 
 if TYPE_CHECKING:
     import cartopy.crs as ccrs
@@ -2008,6 +2011,7 @@ class UxDataArray(xr.DataArray):
         the result would have 'n_face' with just those two faces. For data on 'n_edge',
         the result would have 'n_edge' with all edges located on either of those two faces.
         Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
+        Grid dimensions are never renamed (even if indexed by 1D DataArray with different dim name).
 
         Parameters
         ----------
@@ -2078,6 +2082,10 @@ class UxDataArray(xr.DataArray):
 
             result = self._slice_from_grid(sliced_grid)
 
+            result = _assign_grid_dim_indexer_coords_if_appropriate(
+                result, grid_dim, grid_indexer
+            )
+
             # if there are any remaining indexers, apply them
             if indexers:
                 result = super(UxDataArray, result).isel(
@@ -2107,6 +2115,7 @@ class UxDataArray(xr.DataArray):
         the result would have 'n_face' with just those two faces. For data on 'n_edge',
         the result would have 'n_edge' with all edges located on either of those two faces.
         Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
+        Grid dimensions are never renamed (even if indexed by 1D DataArray with different dim name).
 
         By default, grid dims do not have coordinates assigned. But, if they have
         been assigned, `.sel()` respects them in the intuitive way. For example,

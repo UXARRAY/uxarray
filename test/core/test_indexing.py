@@ -153,51 +153,116 @@ def test_isel_can_use_bool():
 def test_indexing_by_dataarray():
     """ensure isel() and sel() with indexer=xr.DataArray(...) both work as expected.
     The dims/coords of the Grid object should never incorporate indexer's dims/coords.
-    The dims/coords of the data object (UxDataArray or UxDataset) should not incorporate
+
+    The dims of the data object (UxDataArray or UxDataset) should not incorporate
     the indexer's dims when indexing along a grid dim (e.g. 'n_face') (this is already true),
-    but should probably incorporate its coords (this isn't true yet; see issue #1712).
+    (e.g. don't rename 'n_face' to match the indexer's dim name!) see issue #1712 for details.
+
+    Though, the coords of the data object *should* incorporate the indexer's coords when possible:
+        - Always incorporate the indexer's scalar coords.
+        - For 1D coords, it is more complicated:
+            only incorporate 1D coords if grid dim is 'n_face'
+                (because 'n_edge' and 'n_node' indexing don't necessarily lead to same
+                size indexer as result)
+            and when data is located along 'n_face'
+                (because otherwise the inder's dim doesn't align with the result's grid dim).
+            I.e., only incorporate 1D coords when indexing face-centered data along 'n_face'.
+    See #1712 for more details.
 
     Regression test for bug in branch (fixed before merging to main) for PR 1729.
+
+    TODO: update accordingly after fixing #1758.
     """
+    # --- n_face indexing of n_face data --- #
     # ensure grid's dims/coords do not incorporate indexer's dims/coords:
     indexer0 = xr.DataArray(0, coords={"newcoord": 7})
     indexer1 = xr.DataArray([1,2], dims="newdim", coords={"newdim": [7,8]})
+    indexer2 = indexer1.assign_coords({"other1dcoord": ("newdim", [9,10]), "scalarcoord": 100})
     ds = ux.tutorial.open_dataset("quad-hexagon")
+    assert "n_face" in ds.dims  # behavior for #1712 depends on data location.
     result0_isel = ds.isel(n_face=indexer0)
     assert "newcoord" not in result0_isel.uxgrid._ds.coords
-    # assert "newcoord" in result0_isel.coords   # uncomment after fixing #1712
+    assert "newcoord" in result0_isel.coords   # regression test for #1712
     result0_sel = ds.sel(n_face=indexer0)
     assert "newcoord" not in result0_sel.uxgrid._ds.coords
-    # assert "newcoord" in result0_sel.coords   # uncomment after fixing #1712
+    assert "newcoord" in result0_sel.coords   # regression test for #1712
     result1_isel = ds.isel(n_face=indexer1)
     assert "newdim" not in result1_isel.uxgrid._ds.dims
     assert "newdim" not in result1_isel.uxgrid._ds.coords
     assert "newdim" not in result1_isel.dims and "n_face" in result1_isel.dims  # didn't rename 'n_face'.
-    # assert "newdim" in result1_isel.coords   # uncomment after fixing #1712
+    assert "newdim" in result1_isel.coords   # regression test for #1712
     result1_sel = ds.sel(n_face=indexer1)
     assert "newdim" not in result1_sel.uxgrid._ds.dims
     assert "newdim" not in result1_sel.uxgrid._ds.coords
     assert "newdim" not in result1_sel.dims and "n_face" in result1_sel.dims
-    # assert "newdim" in result1_sel.coords   # uncomment after fixing #1712
+    assert "newdim" in result1_sel.coords   # regression test for #1712
+    result2_isel = ds.isel(n_face=indexer2)
+    assert np.all(result2_isel.coords["other1dcoord"] == [9,10])
+    assert result2_isel.coords["scalarcoord"] == 100
+    result2_sel = ds.sel(n_face=indexer2)
+    assert np.all(result2_sel.coords["other1dcoord"] == [9,10])
+    assert result2_sel.coords["scalarcoord"] == 100
 
     # repeat tests but with UxDataArray:
     arr = ds['t2m']
     result0_isel = arr.isel(n_face=indexer0)
     assert "newcoord" not in result0_isel.uxgrid._ds.coords
-    # assert "newcoord" in result0_isel.coords
+    assert "newcoord" in result0_isel.coords
     result0_sel = arr.sel(n_face=indexer0)
     assert "newcoord" not in result0_sel.uxgrid._ds.coords
-    # assert "newcoord" in result0_sel.coords
+    assert "newcoord" in result0_sel.coords
     result1_isel = arr.isel(n_face=indexer1)
     assert "newdim" not in result1_isel.uxgrid._ds.dims
     assert "newdim" not in result1_isel.uxgrid._ds.coords
     assert "newdim" not in result1_isel.dims and "n_face" in result1_isel.dims
-    # assert "newdim" in result1_isel.coords
+    assert "newdim" in result1_isel.coords
     result1_sel = arr.sel(n_face=indexer1)
     assert "newdim" not in result1_sel.uxgrid._ds.dims
     assert "newdim" not in result1_sel.uxgrid._ds.coords
     assert "newdim" not in result1_sel.dims and "n_face" in result1_sel.dims
-    # assert "newdim" in result1_sel.coords
+    assert "newdim" in result1_sel.coords
+    result2_isel = arr.isel(n_face=indexer2)
+    assert np.all(result2_isel.coords["other1dcoord"] == [9,10])
+    assert result2_isel.coords["scalarcoord"] == 100
+    result2_sel = arr.sel(n_face=indexer2)
+    assert np.all(result2_sel.coords["other1dcoord"] == [9,10])
+    assert result2_sel.coords["scalarcoord"] == 100
+
+    # --- non-n_face indexing and/or non-n_face data --- #
+    # using loops to avoid writing extremely long test;
+    # loops are slightly harder to debug but worthwhile to include in at least one test,
+    # to cover more combinations of cases (e.g., discovered #1758 while making this test).
+    ds_face = ds
+    ds_node = ux.tutorial.open_dataset("quad-hexagon-random-node")
+    #ds_edge = ux.tutorial.open_dataset("quad-hexagon-random-edge")  # uncomment after fixing #1758
+    assert "n_face" in ds_face.dims
+    assert "n_node" in ds_node.dims
+    #assert "n_edge" in ds_edge.dims   # uncomment after fixing #1758
+    counter = 0  # (count up during loop to make sure nothing is skipped unexpectedly)
+    for method in "isel", "sel":
+        for dataset in [ds_face, ds_node]:  # include after fixing #1758
+            for grid_dim in ("n_face", "n_edge", "n_node"):
+                for to_array in [False, True]:
+                    if grid_dim == "n_face" and "n_face" in dataset.dims:
+                        continue  # already tested this above!
+                    counter += 1
+                    obj = dataset[list(dataset.data_vars)[0]] if to_array else dataset
+                    result0 = getattr(obj, method)({grid_dim: indexer0})
+                    assert "newcoord" not in result0.uxgrid._ds.coords
+                    assert "newcoord" in result0.coords  # 0D coord should always show up!
+                    result1 = getattr(obj, method)({grid_dim: indexer1})
+                    assert "newdim" not in result1.uxgrid._ds.dims
+                    assert "newdim" not in result1.uxgrid._ds.coords
+                    assert "newdim" not in result1.dims
+                    assert "newdim" not in result1.coords
+                    result2 = getattr(obj, method)({grid_dim: indexer2})
+                    assert "other1dcoord" not in result2.uxgrid._ds.coords
+                    assert "other1dcoord" not in result2.coords
+                    assert result2.coords["scalarcoord"] == 100
+    n_data_grid_dim_combos = 2 * 3 - 1  # after fixing #1758, update to: 3 * 3 - 1.
+    # the -1 accounts for skipping when both are "n_face" above.
+    assert counter == 2 * n_data_grid_dim_combos * 2
+
 
 def test_indexing_does_not_edit_indexers_dict():
     """ensure isel() and sel() do not edit the provided indexers dict.

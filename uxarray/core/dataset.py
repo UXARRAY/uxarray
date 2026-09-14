@@ -28,6 +28,7 @@ from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDatasetPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
+from uxarray.utils.coords import _assign_grid_dim_indexer_coords_if_appropriate
 
 
 class UxDataset(xr.Dataset):
@@ -425,6 +426,7 @@ class UxDataset(xr.Dataset):
         the result would have 'n_face' with just those two faces. For data on 'n_edge',
         the result would have 'n_edge' with all edges located on either of those two faces.
         Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
+        Grid dimensions are never renamed (even if indexed by 1D DataArray with different dim name).
 
         Parameters
         ----------
@@ -495,6 +497,10 @@ class UxDataset(xr.Dataset):
 
             result = self._slice_from_grid(sliced_grid)
 
+            result = _assign_grid_dim_indexer_coords_if_appropriate(
+                result, grid_dim, grid_indexer
+            )
+
             # if there are any remaining indexers, apply them
             if indexers:
                 result = super(UxDataset, result).isel(
@@ -525,6 +531,7 @@ class UxDataset(xr.Dataset):
         the result would have 'n_face' with just those two faces. For data on 'n_edge',
         the result would have 'n_edge' with all edges located on either of those two faces.
         Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
+        Grid dimensions are never renamed (even if indexed by 1D DataArray with different dim name).
 
         By default, grid dims do not have coordinates assigned. But, if they have
         been assigned, `.sel()` respects them in the intuitive way. For example,
@@ -553,7 +560,8 @@ class UxDataset(xr.Dataset):
             multi-index, the indexer may also be a dict-like object with keys
             matching index level names.
             If DataArrays are passed as indexers, xarray-style indexing will be
-            carried out. See :ref:`indexing` for the details.
+            carried out (see :ref:`indexing` for the details),
+            with one exception: grid dimensions will never be renamed.
             One of indexers or indexers_kwargs must be provided.
         method : {None, "nearest", "pad", "ffill", "backfill", "bfill"}, optional
             Method to use for inexact matches:
