@@ -1,4 +1,4 @@
-import functools
+import threading
 import warnings
 from typing import Callable
 
@@ -1214,49 +1214,104 @@ _GUFUNC_LAYOUT = "(n),(k),(m),(m),()->(m)"
 _GUFUNC_KWARGS = {"nopython": True, "cache": True, "target": "parallel"}
 
 
-def _make_kernel(reduce_fn):
-    """Returns a kernel, compiled on its first call, that gathers each
-    neighborhood, then calls ``reduce_fn(window, param)`` on the 1-D result.
+def _lazy(impl):
+    """Returns a kernel that compiles ``impl`` into a gufunc on its first call.
 
-    ``reduce_fn`` must be numba-compilable, and must be defined in a real
-    source file for ``cache=True`` to find it.
+    Two properties of ``impl`` are load-bearing, and both are easy to undo by
+    accident.
+
+    *It is compiled lazily.* ``guvectorize`` compiles at decoration time when it
+    is given explicit signatures, so decorating at module scope would build
+    every kernel during ``import uxarray``. That dominated the import, and for
+    ``target="parallel"`` it also started numba's threading layer, leaving a
+    thread pool that makes forks unsafe.
+    ``test_no_numba_kernels_built_on_import`` guards against a regression.
+
+    *It is a module-level function.* ``cache=True`` needs a real source file to
+    key against, and, less obviously, the body must not close over anything.
+    Numba keys a cached function on a hash of its closure, and a ``Dispatcher``
+    serializes with a ``uuid4`` regenerated in every process; a kernel closing
+    over a reducer therefore hashed differently in every process, so the cache
+    never hit and its index grew without bound. A module-level body has no
+    closure and reaches its reducer as a global, which numba resolves at
+    compile time and leaves out of the key, so each kernel is compiled once per
+    machine instead of once per process. Edits still invalidate the cache:
+    numba stamps it with the source file's mtime, and the reducers live in this
+    file.
+
+    The lock is not optional. ``_apply`` hands these kernels to
+    ``dask="parallelized"``, so the first call can arrive on every worker thread
+    at once. ``functools.cache`` does not hold a lock across the call it
+    memoizes, so each thread would start its own full compilation, serialized
+    behind numba's global compiler lock.
     """
-    # A reducer shared between kernels arrives already compiled; numba rejects
-    # jitting a dispatcher twice.
-    if not hasattr(reduce_fn, "py_func"):
-        reduce_fn = njit(cache=True)(reduce_fn)
-
-    @functools.cache
-    def build():
-        @guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
-        def kernel(data, flat, starts, counts, param, out):
-            widest = 0
-            for i in range(counts.shape[0]):
-                if counts[i] > widest:
-                    widest = counts[i]
-            buffer = np.empty(widest, dtype=np.float64)
-
-            for i in range(starts.shape[0]):
-                count = counts[i]
-                if count == 0:
-                    out[i] = np.nan
-                    continue
-                start = starts[i]
-                for j in range(count):
-                    buffer[j] = data[flat[start + j]]
-                out[i] = reduce_fn(buffer[:count], param)
-
-        return kernel
+    lock = threading.Lock()
+    built = []
 
     def kernel(*args):
-        return build()(*args)
+        if not built:
+            with lock:
+                if not built:
+                    built.append(
+                        guvectorize(
+                            _GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS
+                        )(impl)
+                    )
+        return built[0](*args)
 
     return kernel
 
 
+@njit(cache=True)
+def _widest(counts):
+    """Largest neighborhood, so each kernel allocates its buffer once."""
+    widest = 0
+    for i in range(counts.shape[0]):
+        if counts[i] > widest:
+            widest = counts[i]
+    return widest
+
+
+@njit(cache=True)
+def _gather(data, flat, start, count, buffer):
+    """Copies one neighborhood's values into ``buffer[:count]``."""
+    for j in range(count):
+        buffer[j] = data[flat[start + j]]
+
+
 # Reducers take ``(window, param)``; those without a parameter ignore the
-# second argument. Numba keys its cache by code object rather than qualified
-# name, so the identically-named lambdas below do not collide.
+# second argument. Each is a module-level ``njit`` so that the kernel bodies
+# below can reach it as a global rather than closing over it -- see ``_lazy``.
+@njit(cache=True)
+def _mean(window, _):
+    return np.mean(window)
+
+
+@njit(cache=True)
+def _sum(window, _):
+    return np.sum(window)
+
+
+@njit(cache=True)
+def _min(window, _):
+    return np.min(window)
+
+
+@njit(cache=True)
+def _max(window, _):
+    return np.max(window)
+
+
+@njit(cache=True)
+def _ptp(window, _):
+    return np.max(window) - np.min(window)
+
+
+@njit(cache=True)
+def _quantile(window, q):
+    return np.quantile(window, q)
+
+
 @njit(cache=True)
 def _variance(window, ddof):
     """Variance with a delta degrees of freedom. Numba's ``np.var`` takes no
@@ -1272,6 +1327,11 @@ def _variance(window, ddof):
 
 
 @njit(cache=True)
+def _std(window, ddof):
+    return np.sqrt(_variance(window, ddof))
+
+
+@njit(cache=True)
 def _median(window, _):
     """numba's ``np.median`` selects by partitioning, and whether a NaN survives
     that depends on where it lands -- so unlike numpy's, it propagates NaN
@@ -1283,6 +1343,114 @@ def _median(window, _):
         if np.isnan(value):
             return np.nan
     return np.median(window)
+
+
+# One kernel body per reduction. They are spelled out rather than generated
+# because each must be a module-level function with no closure for ``cache=True``
+# to work (see ``_lazy``). The obvious deduplication -- a single shared body
+# taking the reducer as an argument -- makes the reducer a dynamic global, which
+# numba refuses to cache at all ("Cannot cache compiled function ... as it uses
+# dynamic globals"), so the gather is shared through ``_widest``/``_gather``
+# instead and only the reducer named on the last line differs.
+
+
+def _mean_impl(data, flat, starts, counts, param, out):
+    buffer = np.empty(_widest(counts), dtype=np.float64)
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        _gather(data, flat, starts[i], count, buffer)
+        out[i] = _mean(buffer[:count], param)
+
+
+def _sum_impl(data, flat, starts, counts, param, out):
+    buffer = np.empty(_widest(counts), dtype=np.float64)
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        _gather(data, flat, starts[i], count, buffer)
+        out[i] = _sum(buffer[:count], param)
+
+
+def _min_impl(data, flat, starts, counts, param, out):
+    buffer = np.empty(_widest(counts), dtype=np.float64)
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        _gather(data, flat, starts[i], count, buffer)
+        out[i] = _min(buffer[:count], param)
+
+
+def _max_impl(data, flat, starts, counts, param, out):
+    buffer = np.empty(_widest(counts), dtype=np.float64)
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        _gather(data, flat, starts[i], count, buffer)
+        out[i] = _max(buffer[:count], param)
+
+
+def _ptp_impl(data, flat, starts, counts, param, out):
+    buffer = np.empty(_widest(counts), dtype=np.float64)
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        _gather(data, flat, starts[i], count, buffer)
+        out[i] = _ptp(buffer[:count], param)
+
+
+def _median_impl(data, flat, starts, counts, param, out):
+    buffer = np.empty(_widest(counts), dtype=np.float64)
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        _gather(data, flat, starts[i], count, buffer)
+        out[i] = _median(buffer[:count], param)
+
+
+def _variance_impl(data, flat, starts, counts, param, out):
+    buffer = np.empty(_widest(counts), dtype=np.float64)
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        _gather(data, flat, starts[i], count, buffer)
+        out[i] = _variance(buffer[:count], param)
+
+
+def _std_impl(data, flat, starts, counts, param, out):
+    buffer = np.empty(_widest(counts), dtype=np.float64)
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        _gather(data, flat, starts[i], count, buffer)
+        out[i] = _std(buffer[:count], param)
+
+
+def _quantile_impl(data, flat, starts, counts, param, out):
+    buffer = np.empty(_widest(counts), dtype=np.float64)
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        _gather(data, flat, starts[i], count, buffer)
+        out[i] = _quantile(buffer[:count], param)
 
 
 def _as_quantile(q, scale: float):
@@ -1500,32 +1668,25 @@ class Neighborhood:
     # ``reduce``. If new compiled reductions are desired, they should follow
     # this pattern.
     #
-    # ``_make_kernel`` defers each build to the kernel's first call. The
-    # deferred compilation ensures that these kernels will only be compiled
-    # individually and lazily. Further, the lazy compilation prevents gufuncs
-    # from spawning threadpools eagerly and disrupting threading and forking in
-    # other contexts. They are wrapped in ``staticmethod`` because a plain
-    # function in a class body would bind ``self`` as the kernel's first
-    # argument.
+    # ``_lazy`` defers each build to the kernel's first call, so none of these
+    # is compiled by ``import uxarray`` and a reduction that is never used is
+    # never built. That also keeps the import from starting numba's threading
+    # layer, which would leave a thread pool behind and make forks unsafe.
+    # They are wrapped in ``staticmethod`` because a plain function in a class
+    # body would bind ``self`` as the kernel's first argument.
 
-    _mean_kernel = staticmethod(_make_kernel(lambda window, _: np.mean(window)))
-    _sum_kernel = staticmethod(_make_kernel(lambda window, _: np.sum(window)))
-    _min_kernel = staticmethod(_make_kernel(lambda window, _: np.min(window)))
-    _max_kernel = staticmethod(_make_kernel(lambda window, _: np.max(window)))
-    _ptp_kernel = staticmethod(
-        _make_kernel(lambda window, _: np.max(window) - np.min(window))
-    )
-    _median_kernel = staticmethod(_make_kernel(_median))
-    _var_kernel = staticmethod(_make_kernel(_variance))
-    _std_kernel = staticmethod(
-        _make_kernel(lambda window, ddof: np.sqrt(_variance(window, ddof)))
-    )
+    _mean_kernel = staticmethod(_lazy(_mean_impl))
+    _sum_kernel = staticmethod(_lazy(_sum_impl))
+    _min_kernel = staticmethod(_lazy(_min_impl))
+    _max_kernel = staticmethod(_lazy(_max_impl))
+    _ptp_kernel = staticmethod(_lazy(_ptp_impl))
+    _median_kernel = staticmethod(_lazy(_median_impl))
+    _var_kernel = staticmethod(_lazy(_variance_impl))
+    _std_kernel = staticmethod(_lazy(_std_impl))
 
     # ``percentile`` is ``quantile`` on a 0-100 scale, so both methods
     # rescale onto this one kernel rather than compiling a near-duplicate.
-    _quantile_kernel = staticmethod(
-        _make_kernel(lambda window, q: np.quantile(window, q))
-    )
+    _quantile_kernel = staticmethod(_lazy(_quantile_impl))
 
     def mean(self, uxda):
         """Mean of each neighborhood."""
