@@ -462,6 +462,10 @@ class UxDataset(xr.Dataset):
         -------
         UxDataset
             A new UxDataset indexed according to `indexers` and updated grid if applicable.
+            If indexer DataArrays have coordinates that do not conflict with
+            this object, then these coordinates will be attached,
+            except that 1D coordinates of indexers applied along a grid dimension will
+            only be included if it is 'n_face' and the data also has 'n_face' dimension.
 
         Raises
         ------
@@ -594,7 +598,8 @@ class UxDataset(xr.Dataset):
             and the uxgrid indexed appropriately as well, if indexing any grid dim.
             If indexer DataArrays have coordinates that do not conflict with
             this object, then these coordinates will be attached,
-            except for indexers along a grid dimension (see issue #1712).
+            except that 1D coordinates of indexers applied along a grid dimension will
+            only be included if it is 'n_face' and the data also has 'n_face' dimension.
             In general, each array's data will be a view of the array's data
             in this dataset, unless indexing along a grid dimension or otherwise
             triggering vectorized indexing by using an array indexer,
