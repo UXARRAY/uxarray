@@ -179,6 +179,39 @@ def _find_package_source_files(root: Path):
             yield path
 
 
+def _is_type_checking_block(node) -> bool:
+    """True for ``if TYPE_CHECKING:`` blocks, whose imports never run."""
+    if not isinstance(node, ast.If):
+        return False
+    test = node.test
+    if isinstance(test, ast.Name):
+        return test.id == "TYPE_CHECKING"
+    if isinstance(test, ast.Attribute):
+        return test.attr == "TYPE_CHECKING"
+    return False
+
+
+def _iter_scope_statements(node, *, descend_into_classes: bool = False):
+    """Yield every statement belonging to `node`'s own scope.
+
+    Descends through nested blocks (if / try / with / for / while / match),
+    because Python has no block scope. Stops at nested function definitions,
+    which are visited separately.
+    """
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            continue
+        if isinstance(child, ast.ClassDef) and not descend_into_classes:
+            continue
+        if _is_type_checking_block(child):
+            continue
+        if isinstance(child, ast.stmt):
+            yield child
+        yield from _iter_scope_statements(
+            child, descend_into_classes=descend_into_classes
+        )
+
+
 def _analyze_optional_imports_in_function(
     func_node, filepath: Path, qualname: str
 ) -> OptionalImportCheckResult:
@@ -186,15 +219,15 @@ def _analyze_optional_imports_in_function(
     telling which optional dependencies were imported and which were hinted
     via _raise_hint_if_optional_deps_missing().
 
-    Inspects only the *direct* statements of a function body (not nested
-    blocks, not nested functions). _raise_hint_if_optional_deps_missing()
-    should be called directly in all functions with optional imports.
+    Inspects every statement in the function's own scope, including those
+    nested in if/try/with/for blocks, but not those in nested functions
+    (which are analyzed separately as their own scope).
     """
     result = OptionalImportCheckResult(
         qualname=qualname, filepath=filepath, lineno=func_node.lineno
     )
 
-    for stmt in func_node.body:
+    for stmt in _iter_scope_statements(func_node):
         if isinstance(stmt, ast.Import):
             for alias in stmt.names:
                 top = _top_level_module_from_dotted_name(alias.name)
@@ -222,6 +255,31 @@ def _analyze_optional_imports_in_function(
                     if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
                         result.hinted_deps.add(arg.value)
 
+    return result
+
+
+def _analyze_optional_imports_at_module_level(
+    tree, filepath: Path
+) -> OptionalImportCheckResult:
+    """Returns OptionalImportCheckResult for a module's top-level scope.
+
+    A module-level optional import runs at ``import uxarray`` time, which makes
+    the dependency mandatory no matter what the hint says -- so hinted_deps is
+    left empty and any import found here is always reported as missing. Class
+    bodies count as module level, since they execute on import too.
+    ``if TYPE_CHECKING:`` imports are skipped; they never execute.
+    """
+    result = OptionalImportCheckResult(qualname="<module>", filepath=filepath, lineno=1)
+    for stmt in _iter_scope_statements(tree, descend_into_classes=True):
+        if isinstance(stmt, ast.Import):
+            for alias in stmt.names:
+                top = _top_level_module_from_dotted_name(alias.name)
+                if top in _OPTIONAL_DEPS_TO_EXTRAS:
+                    result.imported_deps.add(top)
+        elif isinstance(stmt, ast.ImportFrom) and stmt.module and stmt.level == 0:
+            top = _top_level_module_from_dotted_name(stmt.module)
+            if top in _OPTIONAL_DEPS_TO_EXTRAS:
+                result.imported_deps.add(top)
     return result
 
 
@@ -260,6 +318,9 @@ def _optional_import_usage_throughout(
     for filepath in _find_package_source_files(src_root):
         source = filepath.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(filepath))
+        module_check = _analyze_optional_imports_at_module_level(tree, filepath)
+        if module_check.imported_deps:
+            results.append(module_check)
         for check in _iter_functions_optional_import_checks(tree, filepath):
             if check.imported_deps or check.hinted_deps:
                 results.append(check)
