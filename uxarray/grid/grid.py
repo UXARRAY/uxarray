@@ -19,7 +19,10 @@ from uxarray.core.utils import _open_dataset_with_fallback
 from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
 from uxarray.formatting_html import grid_repr
-from uxarray.grid.angles import _compute_face_node_angles_convex
+from uxarray.grid.angles import (
+    _compute_equiangle_skewness,
+    _compute_face_node_angles_convex,
+)
 from uxarray.grid.area import _get_all_face_area_from_coords
 from uxarray.grid.bounds import _populate_face_bounds
 from uxarray.grid.connectivity import (
@@ -61,6 +64,7 @@ from uxarray.grid.intersections import (
 from uxarray.grid.neighbors import (
     BallTree,
     KDTree,
+    Neighborhood,
     SpatialHash,
     _populate_edge_face_distances,
     _populate_edge_node_distances,
@@ -502,7 +506,11 @@ class Grid:
 
     @classmethod
     def from_structured(
-        cls, ds: xr.Dataset = None, lon=None, lat=None, tol: float | None = 1e-10
+        cls,
+        ds: xr.Dataset = None,
+        lon=None,
+        lat=None,
+        tol: float | None = None,
     ):
         """
         Converts a structured ``xarray.Dataset`` or longitude and latitude coordinates into an unstructured ``uxarray.Grid``.
@@ -526,8 +534,9 @@ class Grid:
             Should be a one-dimensional or two-dimensional array following CF conventions.
 
         tol : float, optional
-            Tolerance for considering nodes as identical when constructing the grid from longitude and latitude.
-            Default is `1e-10`.
+            Tolerance in degrees for considering nodes as identical when constructing the grid from
+            longitude and latitude. Defaults to ``None``, which matches nodes within
+            ``uxarray.constants.ERROR_TOLERANCE`` on the unit sphere.
 
         Returns
         -------
@@ -753,6 +762,8 @@ class Grid:
         -------
         If two grids are equal : bool
         """
+        if self is other:
+            return True
 
         if not isinstance(other, Grid):
             return False
@@ -1272,7 +1283,13 @@ class Grid:
         Connectivity variable representing the indices of nodes (mesh vertices) that define each edge.
 
         Each row (i.e., each edge) contains exactly two node indices that define the start and end points of the edge.
-        The nodes are stored in an arbitrary order.
+        Constructed edges are stored as ascending node pairs and numbered in lexicographic order of that pair; edges
+        read from a file keep the order and orientation they were stored in.
+
+        The result is cached after the first access; subsequent calls return the stored value without recomputing it.
+        Computing edge_node_connectivity always derives face_edge_connectivity as part of the same pass, both
+        numbered in the constructed edge order. A grid that already carries a face_edge_connectivity but no
+        edge_node_connectivity therefore raises instead of renumbering the edges the stored variable refers to.
 
         Returns
         -------
@@ -1318,6 +1335,11 @@ class Grid:
         :py:attr:`~uxarray.Grid.n_max_face_edges`. In grids with a mix of geometries (e.g., triangles and hexagons),
         rows containing fewer than :py:attr:`~uxarray.Grid.n_max_face_edges` indices are padded with the fill value defined in
         :py:attr:`~uxarray.constants.INT_FILL_VALUE`.
+
+        The result is cached after the first access; subsequent calls return the stored value without recomputing it.
+        If edge_node_connectivity has not yet been computed, it is derived together with face_edge_connectivity in
+        the same pass. If edge_node_connectivity is already present, face_edge_connectivity is instead derived
+        independently from the existing connectivity data.
 
         Returns
         -------
@@ -1791,7 +1813,7 @@ class Grid:
         coordinates : str, default="face centers"
             Selects which tree to query, with "nodes" selecting the Corner Nodes, "edge centers" selecting the Edge
             Centers of each edge, and "face centers" selecting the Face Centers of each face
-        coordinate_system : str, default="cartesian"
+        coordinate_system : str, default="spherical"
             Selects which coordinate type to use to create the tree, "cartesian" selecting cartesian coordinates, and
             "spherical" selecting spherical coordinates.
         distance_metric : str, default="haversine"
@@ -1808,7 +1830,17 @@ class Grid:
             BallTree instance
         """
 
-        if self._ball_tree is None or reconstruct:
+        # Rebuild whenever any tree-defining parameter differs from the cached
+        # instance. Previously only ``coordinates`` was compared, so switching
+        # ``coordinate_system`` or ``distance_metric`` silently returned a stale
+        # tree built with the original settings.
+        if (
+            self._ball_tree is None
+            or coordinates != self._ball_tree._coordinates
+            or coordinate_system != self._ball_tree.coordinate_system
+            or distance_metric != self._ball_tree.distance_metric
+            or reconstruct
+        ):
             self._ball_tree = BallTree(
                 self,
                 coordinates=coordinates,
@@ -1816,11 +1848,49 @@ class Grid:
                 coordinate_system=coordinate_system,
                 reconstruct=reconstruct,
             )
-        else:
-            if coordinates != self._ball_tree._coordinates:
-                self._ball_tree.coordinates = coordinates
 
         return self._ball_tree
+
+    def neighborhood(self, r: float = 1.0, on: str = "face centers") -> Neighborhood:
+        """Finds the grid elements within ``r`` degrees of every element of
+        ``on``, returning a reusable :class:`Neighborhood`.
+
+        The radius query behind this dominates the cost of a neighborhood
+        reduction, so building this once and reducing several times over it is
+        substantially cheaper than calling :meth:`UxDataArray.neighborhood`
+        repeatedly, which rebuilds it on every call.
+
+        Unlike :meth:`UxDataArray.neighborhood`, the result is not bound to
+        any data, so its reduction methods take the data to reduce as an
+        argument. That is what lets several variables share one query.
+
+        Parameters
+        ----------
+        r : float, default=1.
+            Radius of the neighborhood, in degrees of great-circle distance.
+        on : str, default="face centers"
+            Grid location to center the neighborhood on: "nodes",
+            "edge centers", or "face centers".
+
+        Returns
+        -------
+        Neighborhood
+
+        Examples
+        --------
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")  # doctest: +SKIP
+        >>> nb = uxds.uxgrid.neighborhood(r=5.0)  # doctest: +SKIP
+        >>> smooth = nb.mean(uxds["psi"])  # doctest: +SKIP
+        >>> p90 = nb.percentile(uxds["psi"], q=90)  # doctest: +SKIP
+
+        See Also
+        --------
+        Neighborhood : The reductions available on the returned object.
+        UxDataArray.neighborhood : Neighborhood bound to a single variable.
+        UxDataset.neighborhood : Neighborhood across every variable in a dataset.
+        """
+        return Neighborhood(self, r=r, on=on)
 
     def _get_scipy_kd_tree(
         self, coordinates: str | None = "face", reconstruct: bool = False
@@ -1908,7 +1978,15 @@ class Grid:
             KDTree instance
         """
 
-        if self._kd_tree is None or reconstruct:
+        # Rebuild whenever any tree-defining parameter differs from the cached
+        # instance (see ``get_ball_tree`` for details).
+        if (
+            self._kd_tree is None
+            or coordinates != self._kd_tree._coordinates
+            or coordinate_system != self._kd_tree.coordinate_system
+            or distance_metric != self._kd_tree.distance_metric
+            or reconstruct
+        ):
             self._kd_tree = KDTree(
                 self,
                 coordinates=coordinates,
@@ -1916,10 +1994,6 @@ class Grid:
                 coordinate_system=coordinate_system,
                 reconstruct=reconstruct,
             )
-
-        else:
-            if coordinates != self._kd_tree._coordinates:
-                self._kd_tree.coordinates = coordinates
 
         return self._kd_tree
 
@@ -1973,6 +2047,40 @@ class Grid:
             source_grid_spec=self.source_grid_spec,
             source_dims_dict=self._source_dims_dict,
         )
+
+    def compute_skewness(self, method: str = "equiangle", *, as_uxarray: bool = False):
+        """Returns the skewness of each face in the grid, computed using the specified method.
+        Skewness is a measure of how much a face deviates from being regular,
+        e.g. having equal angles at all nodes. Values close to 0 indicate a regular face,
+        while values close to 1 indicate a highly skewed / nearly degenerate face.
+
+        Parameters
+        ----------
+        method: str, defaults to "equiangle"
+            The method to use for computing skewness. Options are:
+            - "equiangle": computes the equiangular skewness of each face:
+                equiangle_skewness = max((Amax - Areg) / (pi - Areg), (Areg - Amin) / Areg)
+                where Amin, Amax = min, max of the angles at the nodes of the face,
+                and Areg = internal angle at all nodes for a regular polygon with
+                the same number of sides and covering the same area as this face.
+            - (other options not yet implemented)
+        as_uxarray: bool, defaults to False
+            Whether to return a uxarray.DataArray (if True) or an xarray.DataArray (if False).
+            If True, equivalent to uxarray.DataArray(self.compute_skewness(..., as_uxarray=False), uxgrid=self).
+
+        Returns
+        -------
+        skewness : xr.DataArray or uxarray.UxDataArray (if as_uxarray=True)
+            The skewness of each face in the grid.
+            Has 'n_face' dimension, with same size as in self.
+        """
+        if method == "equiangle":
+            face_node_angles = self.compute_face_node_angles(as_uxarray=as_uxarray)
+            return _compute_equiangle_skewness(face_node_angles, self.n_nodes_per_face)
+        else:
+            raise NotImplementedError(
+                f"Skewness computation method '{method}' is not implemented."
+            )
 
     def compute_face_node_angles(
         self,
@@ -2179,9 +2287,9 @@ class Grid:
         Parameters
         ----------
         quadrature_rule : str, optional
-            Quadrature rule to use. Defaults to "triangular".
+            Quadrature rule used to integrate each face, either ``"triangular"`` or ``"gaussian"``.
         order : int, optional
-            Order of quadrature rule. Defaults to 4.
+            Order of quadrature rule; 1, 4, 8, 10, or 12 for ``"triangular"``; 1 to 10 for ``"gaussian"``.
         latitude_adjusted_area : bool, optional
             If True, corrects the area of the faces accounting for lines of constant lattitude. Defaults to False.
 
@@ -2190,8 +2298,16 @@ class Grid:
         1. Area of all the faces in the mesh : np.ndarray
         2. Jacobian of all the faces in the mesh : np.ndarray
         """
-        # if self._face_areas is None: # this allows for using the cached result,
-        # but is not the expected behavior behavior as we are in need to recompute if this function is called with different quadrature_rule or order
+        if quadrature_rule == "triangular" and order not in (1, 4, 8, 10, 12):
+            raise ValueError(
+                "Invalid order when computing face areas with quadrature_rule=='triangular'; "
+                f"Expected one of (1, 4, 8, 10, 12), got order={order!r}"
+            )
+        if quadrature_rule == "gaussian" and order not in range(1, 11):
+            raise ValueError(
+                "Invalid order when computing face areas with quadrature_rule=='gaussian'; "
+                f"Expected an integer between 1 and 10, got order={order!r}"
+            )
 
         self.normalize_cartesian_coordinates()
         x = self.node_x.values
@@ -2638,10 +2754,10 @@ class Grid:
         """Indexes an unstructured grid along a given dimension (``n_node``,
         ``n_edge``, or ``n_face``) and returns a new grid.
 
-        Currently only supports inclusive selection, meaning that for cases where node or edge indices are provided,
-        any face that contains that element is included in the resulting subset. This means that additional elements
-        beyond those that were initially provided in the indices will be included. Support for more methods, such as
-        exclusive and clipped indexing is in the works.
+        The indexing method is inclusive: for cases where node or edge indices are provided,
+        the result is formed by the subset of all faces which contain any of the indicated nodes or edges
+        (together with all nodes and edges which are present on any of those faces), which means
+        that the result may include additional elements beyond those explicitly requested.
 
         Parameters
         ----------
