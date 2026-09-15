@@ -2,6 +2,11 @@ import numpy as np
 from numba import njit, prange
 
 from uxarray.constants import ERROR_TOLERANCE
+from uxarray.utils.numba_math import (
+    _numba_cross3,
+    _numba_dot3,
+    _numba_mul3_scalar,
+)
 
 
 @njit(cache=True)
@@ -13,7 +18,7 @@ def calculate_face_area(
     order=4,
     latitude_adjusted_area=False,
 ):
-    """Calculate area of a face on sphere.
+    """Calculate area of a face on sphere. Returns (area, jacobian)
 
     Parameters
     ----------
@@ -64,9 +69,14 @@ def calculate_face_area(
 def _face_area_from_quadrature(x, y, z, dG, dW, is_gaussian, latitude_adjusted_area):
     """Compute one face's area/jacobian from precomputed quadrature points.
 
+    This method assumes but does not check that (x,y,z) are normalized to the unit sphere.
+
     Split out of :func:`calculate_face_area` so the quadrature points ``dG``/``dW``
     (which depend only on the rule and order, not on the face) can be computed once
     and reused across every face, instead of being rebuilt per face.
+
+    dG has shape (n_points, 3) for triangular quadrature and (1, n_points) for Gaussian quadrature.
+    dW has shape (n_points,) for both quadrature types.
     """
     area = 0.0  # set area to 0
     jacobian = 0.0  # set jacobian to 0
@@ -80,14 +90,14 @@ def _face_area_from_quadrature(x, y, z, dG, dW, is_gaussian, latitude_adjusted_a
     total_correction = 0.0
     # node1 (the fan apex, vertex 0) is shared by every sub-triangle, so build it
     # once instead of per triangle.
-    node1 = np.array([x[0], y[0], z[0]], dtype=x.dtype)
+    node1 = (x[0], y[0], z[0])
     n_weights = len(dW)
-    for j in range(0, num_triangles):
-        node2 = np.array([x[j + 1], y[j + 1], z[j + 1]], dtype=x.dtype)
-        node3 = np.array([x[j + 2], y[j + 2], z[j + 2]], dtype=x.dtype)
+    for j in range(num_triangles):
+        node2 = (x[j + 1], y[j + 1], z[j + 1])
+        node3 = (x[j + 2], y[j + 2], z[j + 2])
 
-        for p in range(n_weights):
-            if is_gaussian:
+        if is_gaussian:
+            for p in range(n_weights):
                 for q in range(n_weights):
                     dA = dG[0][p]
                     dB = dG[0][q]
@@ -96,7 +106,8 @@ def _face_area_from_quadrature(x, y, z, dG, dW, is_gaussian, latitude_adjusted_a
                     )
                     area += dW[p] * dW[q] * node_jacobian
                     jacobian += node_jacobian
-            else:
+        else:
+            for p in range(n_weights):
                 dA = dG[p][0]
                 dB = dG[p][1]
                 node_jacobian = _calculate_spherical_triangle_jacobian_barycentric(
@@ -111,14 +122,11 @@ def _face_area_from_quadrature(x, y, z, dG, dW, is_gaussian, latitude_adjusted_a
     # TODO: Make this work when latitude_adjusted_area is False and each edge has a flag that indicates if it is a constant latitude edge
     if latitude_adjusted_area:
         for i in range(num_nodes):
-            node1 = np.array([x[i], y[i], z[i]], dtype=x.dtype)
-            node2 = np.array(
-                [
-                    x[(i + 1) % num_nodes],
-                    y[(i + 1) % num_nodes],
-                    z[(i + 1) % num_nodes],
-                ],
-                dtype=x.dtype,
+            node1 = (x[i], y[i], z[i])
+            node2 = (
+                x[(i + 1) % num_nodes],
+                y[(i + 1) % num_nodes],
+                z[(i + 1) % num_nodes],
             )
             # Check if z-coordinates are approximately equal
             if np.isclose(node1[2], node2[2], atol=ERROR_TOLERANCE):
@@ -147,6 +155,7 @@ def _face_area_from_quadrature(x, y, z, dG, dW, is_gaussian, latitude_adjusted_a
 
                 # Skip the edge if it spans more than 180 degrees of longitude
                 if abs(lon_diff) > np.pi:
+                    # TODO: this line is currently unreachable... does this mean there is an error above?
                     continue
 
                 # Calculate the correction term
@@ -166,31 +175,32 @@ def _face_area_from_quadrature(x, y, z, dG, dW, is_gaussian, latitude_adjusted_a
 
 @njit(cache=True)
 def _edge_passes_through_pole(node1, node2):
-    """
-    Check if the edge passes through a pole.
+    """Returns whether this edge passes through a pole.
 
-    Parameters:
-    - node1: first node of the edge (normalized).
-    - node2: second node of the edge (normalized).
-
-    Returns:
-    - bool: True if the edge passes through a pole, False otherwise.
+    Parameters
+    ----------
+    node1, node2: iterable of length 3
+        (x,y,z) of the first and second nodes of this edge, normalized to the unit sphere.
     """
     # Calculate the normal vector to the plane defined by the origin, node1, and node2
-    n = np.cross(node1, node2)
+    n = _numba_cross3(node1, node2)
 
     # Check for numerical stability issues with the normal vector
-    if np.allclose(n, 0):
+    if (
+        np.isclose(n[0], 0, atol=ERROR_TOLERANCE)
+        and np.isclose(n[1], 0, atol=ERROR_TOLERANCE)
+        and np.isclose(n[2], 0, atol=ERROR_TOLERANCE)
+    ):  # (use isclose instead of allclose to avoid making tiny numpy array; see issue #1648)
         # Handle cases where the cross product is near zero, such as when nodes are nearly identical or opposite
         return False
 
     # North and South Pole vectors
-    p_north = np.array([0.0, 0.0, 1.0])
-    p_south = np.array([0.0, 0.0, -1.0])
+    p_north = (0.0, 0.0, 1.0)
+    p_south = (0.0, 0.0, -1.0)
 
     # Check if the normal vector is orthogonal to either pole
-    return np.isclose(np.dot(n, p_north), 0, atol=ERROR_TOLERANCE) or np.isclose(
-        np.dot(n, p_south), 0, atol=ERROR_TOLERANCE
+    return np.isclose(_numba_dot3(n, p_north), 0, atol=ERROR_TOLERANCE) or np.isclose(
+        _numba_dot3(n, p_south), 0, atol=ERROR_TOLERANCE
     )
 
 
@@ -230,7 +240,8 @@ def _get_all_face_area_from_coords(
         count or order for Gaussian or spherical resp. Defaults to 4 for spherical.
 
     latitude_adjusted_area : bool, optional
-        If True, performs the check if any face consists of an edge that has constant latitude, modifies the area of that face by applying the correction term due to that edge. Default is False.
+        If True, performs the check if any face consists of an edge that has constant latitude,
+        modifies the area of that face by applying the correction term due to that edge. Default is False.
 
     Returns
     -------
@@ -286,19 +297,16 @@ def _get_all_face_area_from_coords(
 
 @njit(cache=True)
 def _area_correction(node1, node2):
-    """
-    Calculate the area correction A using the given formula.
+    """Return area correction A for an edge that is a line of constant latitude.
 
-    Parameters:
-    - node1: first node of the edge (normalized).
-    - node2: second node of the edge (normalized).
-    - z: z-coordinate (shared by both points and part of the formula, normalized).
-
-    Returns:
-    - A: correction term of the area, when one of the edges is a line of constant latitude
+    Parameters
+    ----------
+    node1, node2 : iterable of length 3
+        (x,y,z) of the first and second nodes of this edge, normalized to the unit sphere.
     """
     x1, y1, z = node1
     x2, y2, _ = node2
+    # (z is the same for both nodes, since this is a constant-latitude edge)
 
     # Calculate terms
     term1 = x1 * y2 - x2 * y1
@@ -322,14 +330,8 @@ def _calculate_spherical_triangle_jacobian(node1, node2, node3, d_a, d_b):
 
     Parameters
     ----------
-    node1 : list, required
-        First node of the triangle
-
-    node2 : list, required
-        Second node of the triangle
-
-    node3 : list, required
-        Third node of the triangle
+    node1, node2, node3 : iterable of length 3, required
+        (x,y,z) of the first, second, and third nodes of the triangle, normalized to the unit sphere.
 
     d_a : float, required
         quadrature point
@@ -341,61 +343,54 @@ def _calculate_spherical_triangle_jacobian(node1, node2, node3, d_a, d_b):
     -------
     jacobian : float
     """
-    d_f = np.array(
-        [
-            (1.0 - d_b) * ((1.0 - d_a) * node1[0] + d_a * node2[0]) + d_b * node3[0],
-            (1.0 - d_b) * ((1.0 - d_a) * node1[1] + d_a * node2[1]) + d_b * node3[1],
-            (1.0 - d_b) * ((1.0 - d_a) * node1[2] + d_a * node2[2]) + d_b * node3[2],
-        ]
+    # TODO: rewrite expressions below using numba_math 3-vector helper functions? E.g.:
+    #   d_da_f = _numba_mul3_scalar(_numba_sub3(node2, node1), 1.0 - d_b)
+
+    d_f = (
+        (1.0 - d_b) * ((1.0 - d_a) * node1[0] + d_a * node2[0]) + d_b * node3[0],
+        (1.0 - d_b) * ((1.0 - d_a) * node1[1] + d_a * node2[1]) + d_b * node3[1],
+        (1.0 - d_b) * ((1.0 - d_a) * node1[2] + d_a * node2[2]) + d_b * node3[2],
     )
 
-    d_da_f = np.array(
-        [
-            (1.0 - d_b) * (node2[0] - node1[0]),
-            (1.0 - d_b) * (node2[1] - node1[1]),
-            (1.0 - d_b) * (node2[2] - node1[2]),
-        ]
+    d_da_f = (
+        (1.0 - d_b) * (node2[0] - node1[0]),
+        (1.0 - d_b) * (node2[1] - node1[1]),
+        (1.0 - d_b) * (node2[2] - node1[2]),
     )
 
-    d_db_f = np.array(
-        [
-            -(1.0 - d_a) * node1[0] - d_a * node2[0] + node3[0],
-            -(1.0 - d_a) * node1[1] - d_a * node2[1] + node3[1],
-            -(1.0 - d_a) * node1[2] - d_a * node2[2] + node3[2],
-        ]
+    d_db_f = (
+        -(1.0 - d_a) * node1[0] - d_a * node2[0] + node3[0],
+        -(1.0 - d_a) * node1[1] - d_a * node2[1] + node3[1],
+        -(1.0 - d_a) * node1[2] - d_a * node2[2] + node3[2],
     )
 
     d_inv_r = 1.0 / np.sqrt(d_f[0] * d_f[0] + d_f[1] * d_f[1] + d_f[2] * d_f[2])
 
-    d_da_g = np.array(
-        [
-            d_da_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
-            - d_f[0] * (d_da_f[1] * d_f[1] + d_da_f[2] * d_f[2]),
-            d_da_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
-            - d_f[1] * (d_da_f[0] * d_f[0] + d_da_f[2] * d_f[2]),
-            d_da_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
-            - d_f[2] * (d_da_f[0] * d_f[0] + d_da_f[1] * d_f[1]),
-        ]
+    d_da_g = (
+        d_da_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
+        - d_f[0] * (d_da_f[1] * d_f[1] + d_da_f[2] * d_f[2]),
+        d_da_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
+        - d_f[1] * (d_da_f[0] * d_f[0] + d_da_f[2] * d_f[2]),
+        d_da_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
+        - d_f[2] * (d_da_f[0] * d_f[0] + d_da_f[1] * d_f[1]),
     )
 
-    d_db_g = np.array(
-        [
-            d_db_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
-            - d_f[0] * (d_db_f[1] * d_f[1] + d_db_f[2] * d_f[2]),
-            d_db_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
-            - d_f[1] * (d_db_f[0] * d_f[0] + d_db_f[2] * d_f[2]),
-            d_db_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
-            - d_f[2] * (d_db_f[0] * d_f[0] + d_db_f[1] * d_f[1]),
-        ]
+    d_db_g = (
+        d_db_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
+        - d_f[0] * (d_db_f[1] * d_f[1] + d_db_f[2] * d_f[2]),
+        d_db_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
+        - d_f[1] * (d_db_f[0] * d_f[0] + d_db_f[2] * d_f[2]),
+        d_db_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
+        - d_f[2] * (d_db_f[0] * d_f[0] + d_db_f[1] * d_f[1]),
     )
 
     d_denom_term = d_inv_r * d_inv_r * d_inv_r
 
-    d_da_g *= d_denom_term
-    d_db_g *= d_denom_term
+    d_da_g = _numba_mul3_scalar(d_da_g, d_denom_term)
+    d_db_g = _numba_mul3_scalar(d_db_g, d_denom_term)
 
     #  Cross product gives local Jacobian
-    node_cross = np.cross(d_da_g, d_db_g)
+    node_cross = _numba_cross3(d_da_g, d_db_g)
     d_jacobian = np.sqrt(
         node_cross[0] * node_cross[0]
         + node_cross[1] * node_cross[1]
@@ -412,14 +407,8 @@ def _calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, d_a,
 
     Parameters
     ----------
-    node1 : list, required
-        First node of the triangle
-
-    node2 : list, required
-        Second node of the triangle
-
-    node3 : list, required
-        Third node of the triangle
+    node1, node2, node3 : iterable of length 3, required
+        (x,y,z) of the first, second, and third nodes of the triangle, normalized to the unit sphere.
 
     d_a : float, required
         first component of barycentric coordinates of quadrature point
@@ -432,53 +421,47 @@ def _calculate_spherical_triangle_jacobian_barycentric(node1, node2, node3, d_a,
     jacobian : float
     """
     # Calculate the position vector d_f
-    d_f = np.array(
-        [
-            d_a * node1[0] + d_b * node2[0] + (1.0 - d_a - d_b) * node3[0],
-            d_a * node1[1] + d_b * node2[1] + (1.0 - d_a - d_b) * node3[1],
-            d_a * node1[2] + d_b * node2[2] + (1.0 - d_a - d_b) * node3[2],
-        ]
+    d_f = (
+        d_a * node1[0] + d_b * node2[0] + (1.0 - d_a - d_b) * node3[0],
+        d_a * node1[1] + d_b * node2[1] + (1.0 - d_a - d_b) * node3[1],
+        d_a * node1[2] + d_b * node2[2] + (1.0 - d_a - d_b) * node3[2],
     )
 
     # Calculate the gradients d_da_f and d_db_f
-    d_da_f = np.array([node1[0] - node3[0], node1[1] - node3[1], node1[2] - node3[2]])
-    d_db_f = np.array([node2[0] - node3[0], node2[1] - node3[1], node2[2] - node3[2]])
+    d_da_f = (node1[0] - node3[0], node1[1] - node3[1], node1[2] - node3[2])
+    d_db_f = (node2[0] - node3[0], node2[1] - node3[1], node2[2] - node3[2])
 
     # Calculate the inverse radius
     d_inv_r = 1.0 / np.sqrt(d_f[0] * d_f[0] + d_f[1] * d_f[1] + d_f[2] * d_f[2])
 
     # Calculate the gradients d_da_g and d_db_g
-    d_da_g = np.array(
-        [
-            d_da_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
-            - d_f[0] * (d_da_f[1] * d_f[1] + d_da_f[2] * d_f[2]),
-            d_da_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
-            - d_f[1] * (d_da_f[0] * d_f[0] + d_da_f[2] * d_f[2]),
-            d_da_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
-            - d_f[2] * (d_da_f[0] * d_f[0] + d_da_f[1] * d_f[1]),
-        ]
+    d_da_g = (
+        d_da_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
+        - d_f[0] * (d_da_f[1] * d_f[1] + d_da_f[2] * d_f[2]),
+        d_da_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
+        - d_f[1] * (d_da_f[0] * d_f[0] + d_da_f[2] * d_f[2]),
+        d_da_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
+        - d_f[2] * (d_da_f[0] * d_f[0] + d_da_f[1] * d_f[1]),
     )
 
-    d_db_g = np.array(
-        [
-            d_db_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
-            - d_f[0] * (d_db_f[1] * d_f[1] + d_db_f[2] * d_f[2]),
-            d_db_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
-            - d_f[1] * (d_db_f[0] * d_f[0] + d_db_f[2] * d_f[2]),
-            d_db_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
-            - d_f[2] * (d_db_f[0] * d_f[0] + d_db_f[1] * d_f[1]),
-        ]
+    d_db_g = (
+        d_db_f[0] * (d_f[1] * d_f[1] + d_f[2] * d_f[2])
+        - d_f[0] * (d_db_f[1] * d_f[1] + d_db_f[2] * d_f[2]),
+        d_db_f[1] * (d_f[0] * d_f[0] + d_f[2] * d_f[2])
+        - d_f[1] * (d_db_f[0] * d_f[0] + d_db_f[2] * d_f[2]),
+        d_db_f[2] * (d_f[0] * d_f[0] + d_f[1] * d_f[1])
+        - d_f[2] * (d_db_f[0] * d_f[0] + d_db_f[1] * d_f[1]),
     )
 
     # Calculate the denominator term
     d_denom_term = d_inv_r * d_inv_r * d_inv_r
 
     # Scale the gradients
-    d_da_g *= d_denom_term
-    d_db_g *= d_denom_term
+    d_da_g = _numba_mul3_scalar(d_da_g, d_denom_term)
+    d_db_g = _numba_mul3_scalar(d_db_g, d_denom_term)
 
     # Calculate the cross product
-    node_cross = np.cross(d_da_g, d_db_g)
+    node_cross = _numba_cross3(d_da_g, d_db_g)
 
     # Calculate the Jacobian
     d_jacobian = np.sqrt(
@@ -501,10 +484,10 @@ def get_gauss_quadrature_dg(n_count):
 
     Returns
     -------
-        d_g : double
-            numpy array of size n_count, quadrature points. Scaled before returning.
-        d_w : double
-            numpy array of size n_count x 3, weights. Scaled before returning.
+        d_g : np.ndarray of shape (1, n_count)
+            Quadrature points. Scaled before returning.
+        d_w : np.ndarray of shape (n_count,)
+            Quadrature weights. Scaled before returning.
 
     Raises
     ------
@@ -735,8 +718,10 @@ def get_tri_quadrature_dg(n_order):
 
     Returns
     -------
-        d_g, d_w : ndarray
-            points and weights, with dimension order x 3
+        d_g : np.ndarray of shape (n_points, 3)
+            Quadrature points. n_points = 33, 25, 16, 6 or 1, depending on order.
+        d_w : np.ndarray of shape (n_points,)
+            Quadrature weights. n_points = 33, 25, 16, 6 or 1, depending on order.
     """
     # 12th order quadrature rule (33 points)
     if n_order == 12:
