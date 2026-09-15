@@ -107,7 +107,8 @@ class Gradient(DatasetBenchmark):
 
     def track_peakmem_gradient(self, resolution):
         """Transient high-water allocation of taking a gradient."""
-        return peak_allocated(lambda: self.uxds[data_var].gradient())
+        with numba_threads(1):
+            return peak_allocated(lambda: self.uxds[data_var].gradient())
 
     track_peakmem_gradient.unit = "bytes"
 
@@ -159,6 +160,9 @@ class GeoDataFrame(DatasetBenchmark):
 
 
 class ConnectivityConstruction(DatasetBenchmark):
+    # ASV: only run this benchmark once, since the results will be cached
+    number = 1
+
     def time_n_nodes_per_face(self, resolution):
         _ = self.uxds.uxgrid.n_nodes_per_face
 

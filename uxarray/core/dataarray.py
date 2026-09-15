@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from html import escape
-from typing import TYPE_CHECKING, Any, Hashable, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Hashable, Iterable, Literal, Mapping, Optional
 from warnings import warn
 
 import numpy as np
@@ -19,7 +19,11 @@ from uxarray.core.gradient import (
     _calculate_edge_node_difference,
     _compute_gradient,
 )
-from uxarray.core.utils import _map_dims_to_ugrid
+from uxarray.core.utils import (
+    _map_dims_to_ugrid,
+    _resolve_coordinate_labels_to_indices,
+    _validate_indexers,
+)
 from uxarray.core.zonal import (
     _compute_conservative_zonal_mean_bands,
     _compute_non_conservative_zonal_mean,
@@ -597,7 +601,7 @@ class UxDataArray(xr.DataArray):
 
         return uxds
 
-    def to_xarray(self):
+    def to_xarray(self) -> xr.DataArray:
         return xr.DataArray(self)
 
     def integrate(
@@ -1676,8 +1680,17 @@ class UxDataArray(xr.DataArray):
             other, scale_by_radius=scale_by_radius
         )
 
-        # Compute curl = ∂v/∂x - ∂u/∂y
-        curl_values = grad_v_zonal.data - grad_u_meridional.data
+        # Compute curl = ∂v/∂x - ∂u/∂y + u·tan(φ)/a
+        #
+        # The trailing term is the spherical metric term. Dropping it is only
+        # valid on a plane; on the sphere it costs a factor of two on
+        # solid-body rotation. When the derivatives have been divided by the
+        # radius the term carries the same 1/a factor.
+        tan_lat = np.tan(np.deg2rad(self.uxgrid.face_lat.values))
+        metric = self.data * tan_lat
+        if scale_by_radius and "sphere_radius" in self.uxgrid._ds.attrs:
+            metric = metric / self.uxgrid._ds.attrs["sphere_radius"]
+        curl_values = grad_v_zonal.data - grad_u_meridional.data + metric
 
         u_units = self.attrs.get("units", "")
         has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
@@ -1693,7 +1706,9 @@ class UxDataArray(xr.DataArray):
             attrs={
                 "long_name": f"Curl of ({self.name}, {other.name})",
                 "units": curl_units,
-                "description": "Curl of vector field computed as ∂v/∂x - ∂u/∂y",
+                "description": (
+                    "Curl of vector field computed as ∂v/∂x - ∂u/∂y + u·tan(φ)/a"
+                ),
             },
             uxgrid=self.uxgrid,
             name=f"curl_{self.name}_{other.name}",
@@ -1769,7 +1784,7 @@ class UxDataArray(xr.DataArray):
         u_gradient = self.gradient(scale_by_radius=scale_by_radius)
         v_gradient = other.gradient(scale_by_radius=scale_by_radius)
 
-        # For divergence: div(V) = ∂u/∂x + ∂v/∂y
+        # For divergence: div(V) = ∂u/∂x + ∂v/∂y - v·tan(φ)/a
         # We use the zonal gradient (∂/∂lon) of u and meridional gradient (∂/∂lat) of v
         u = u_gradient["zonal_gradient"]
         v = v_gradient["meridional_gradient"]
@@ -1777,6 +1792,14 @@ class UxDataArray(xr.DataArray):
         # Align DataArrays to ensure coords/dims match, then perform xarray-aware addition
         u, v = xr.align(u, v)
         divergence = u + v
+
+        # Spherical metric term, the companion of the one in curl(). Omitting
+        # it is only valid on a plane.
+        tan_lat = np.tan(np.deg2rad(self.uxgrid.face_lat.values))
+        metric = other.values * tan_lat
+        if scale_by_radius and "sphere_radius" in self.uxgrid._ds.attrs:
+            metric = metric / self.uxgrid._ds.attrs["sphere_radius"]
+        divergence = divergence - metric
         divergence.name = "divergence"
 
         # Infer units consistently with gradient()/curl(): a divergence is a
@@ -1977,11 +2000,13 @@ class UxDataArray(xr.DataArray):
         The data is indexed, as well as the underlying grid when applicable.
 
         Grid dimensions ('n_node', 'n_edge', 'n_face') are treated specially
-        when `ignore_grid=False`. Providing one of them will slice to the specified
-        nodes, edges, or faces, regardless of data location. If the data does not
-        contain the specified dimension, the result will have the minimal grid
-        region containing everything specified. For example, using n_edge=7 for data
-        on 'n_face' makes a result with 'n_face' with just the two faces on edge 7.
+        when `ignore_grid=False` (this is the default). Any one of them can be indexed,
+        regardless of data location, and the result will be sliced to form the minimal grid
+        of faces containing all the nodes, edges, or faces specified. For example,
+        using n_edge=7 selects just the two faces touching edge 7. For data on 'n_face',
+        the result would have 'n_face' with just those two faces. For data on 'n_edge',
+        the result would have 'n_edge' with all edges located on either of those two faces.
+        Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
 
         Parameters
         ----------
@@ -2026,8 +2051,6 @@ class UxDataArray(xr.DataArray):
             If parameters are invalid for xarray's .isel(), such as if
             slicing by a nonexistent dimension, or using invalid indexers.
         """
-        from uxarray.core.utils import _validate_indexers
-
         indexers, grid_dims = _validate_indexers(
             indexers, indexers_kwargs, "isel", ignore_grid
         )
@@ -2045,6 +2068,7 @@ class UxDataArray(xr.DataArray):
         elif len(grid_dims) == 1:
             # pop off the one grid‐dim indexer
             grid_dim = grid_dims.pop()
+            indexers = indexers.copy()  # don't modify the original dict
             grid_indexer = indexers.pop(grid_dim)
 
             sliced_grid = self.uxgrid.isel(
@@ -2063,6 +2087,141 @@ class UxDataArray(xr.DataArray):
 
             # no other dims, return the grid‐sliced da
             return da
+        else:  # len(grid_dims)>1; _validate_indexers should have crashed.
+            raise AssertionError("internal implementation error if reached this line")
+
+    def sel(
+        self,
+        indexers: Mapping[Any, Any] | None = None,
+        method: str | None = None,
+        tolerance: int | float | Iterable[int | float] | None = None,
+        drop: bool = False,
+        **indexers_kwargs: Any,
+    ):
+        """Returns a new array indexed by labels, instead of indices, along the specified dimension(s).
+
+        Grid dimensions ('n_node', 'n_edge', 'n_face') are treated specially. Any one of them
+        can be indexed, regardless of data location, and the result will be sliced to form the
+        minimal grid of faces containing all the nodes, edges, or faces specified. For example,
+        using n_edge=7 selects just the two faces touching edge 7. For data on 'n_face',
+        the result would have 'n_face' with just those two faces. For data on 'n_edge',
+        the result would have 'n_edge' with all edges located on either of those two faces.
+        Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
+
+        By default, grid dims do not have coordinates assigned. But, if they have
+        been assigned, `.sel()` respects them in the intuitive way. For example,
+        using `.sel(n_face=30)` for data with `n_face` coordinates [0,10,20,30,40]
+        would be equivalent to using `.isel(n_face=3)`. Meanwhile, if the data
+        does not contain the specified grid dim (as in the n_edge=7 example above),
+        it also cannot contain coordinates along that grid dim,
+        so in that case `.sel()` performs index-based selection just like `.isel()`.
+
+        Under the hood, this method is powered by using pandas's powerful Index
+        objects. This makes label based indexing essentially just as fast as
+        using integer indexing.
+
+        It also means this method uses pandas's (well documented) logic for
+        indexing. This means you can use string shortcuts for datetime indexes
+        (e.g., '2000-01' to select all values in January 2000). It also means
+        that slices are treated as inclusive of both the start and stop values,
+        unlike normal Python indexing, for any dimensions with coordinate labels.
+        (Dimensions without coordinates treat slices normally.)
+
+        Parameters
+        ----------
+        indexers : dict, optional
+            A dict with keys matching dimensions and values given
+            by scalars, slices or arrays of tick labels. For dimensions with
+            multi-index, the indexer may also be a dict-like object with keys
+            matching index level names.
+            If DataArrays are passed as indexers, xarray-style indexing will be
+            carried out. See :ref:`indexing` for the details.
+            One of indexers or indexers_kwargs must be provided.
+        method : {None, "nearest", "pad", "ffill", "backfill", "bfill"}, optional
+            Method to use for inexact matches:
+
+            * None (default): only exact matches
+            * pad / ffill: propagate last valid index value forward
+            * backfill / bfill: propagate next valid index value backward
+            * nearest: use nearest valid index value
+
+            Can only provide ``method`` if all indexed dims actually have coords,
+            else raises ValueError (consistent with xarray sel() behavior).
+        tolerance : optional
+            Maximum distance between original and new labels for inexact
+            matches. The values of the index at the matching locations must
+            satisfy the equation ``abs(index[indexer] - target) <= tolerance``.
+            Can only provide ``tolerance`` if all indexed dims actually have coords,
+            else raises ValueError (consistent with xarray sel() behavior).
+        drop : bool, optional
+            If ``drop=True``, drop coordinates variables in `indexers` instead
+            of making them scalar.
+        **indexers_kwargs : {dim: indexer, ...}, optional
+            The keyword arguments form of ``indexers``.
+            One of indexers or indexers_kwargs must be provided.
+
+        Returns
+        -------
+        obj : UxDataArray
+            A new UxDataArray with each dimension is indexed appropriately,
+            and the uxgrid indexed appropriately as well, if indexing any grid dim.
+            If indexer DataArrays have coordinates that do not conflict with
+            this object, then these coordinates will be attached,
+            except for indexers along a grid dimension (see issue #1712).
+            In general, the result's data will be a view of the data in this array,
+            unless indexing along a grid dimension or otherwise
+            triggering vectorized indexing by using an array indexer,
+            in which case the data will be a copy.
+        """
+        indexers, grid_dims = _validate_indexers(
+            indexers, indexers_kwargs, "sel", ignore_grid=False
+        )  # (sel doesn't support ignore_grid=True option)
+
+        if len(grid_dims) == 0:
+            # no grid dims --> just call xarray's sel
+            return type(self)(
+                self.to_xarray().sel(
+                    indexers=indexers,
+                    method=method,
+                    tolerance=tolerance,
+                    drop=drop,
+                ),
+                uxgrid=self.uxgrid,
+            )
+        elif len(grid_dims) == 1:
+            # pop off the one grid‐dim indexer
+            grid_dim = list(grid_dims)[0]
+            indexers = indexers.copy()  # don't modify the original dict
+            grid_indexer = indexers.pop(grid_dim)
+            if grid_dim in self.coords:  # label-based indexing
+                grid_indices = _resolve_coordinate_labels_to_indices(
+                    grid_dim,
+                    grid_indexer,
+                    self.coords[grid_dim],
+                    method=method,
+                    tolerance=tolerance,
+                )
+            else:  # index-based indexing
+                # crash if provided `method` or `tolerance`, as promised in docstring;
+                if method is not None or tolerance is not None:
+                    raise ValueError(
+                        f"cannot supply selection options {dict(method=method, tolerance=tolerance)} "
+                        f"for dimension {grid_dim!r} that has no associated coordinate or index"
+                    )
+                grid_indices = grid_indexer
+
+            # offload the grid-indexing work to isel():
+            result = self.isel({grid_dim: grid_indices}, drop=drop)
+
+            # index by other dims if any remain:
+            ds = result.to_xarray().sel(
+                indexers=indexers,  # (grid_dim indexer was popped)
+                method=method,
+                tolerance=tolerance,
+                drop=drop,
+            )
+
+            return type(self)(ds, uxgrid=result.uxgrid)
         else:  # len(grid_dims)>1; _validate_indexers should have crashed.
             raise AssertionError("internal implementation error if reached this line")
 
@@ -2144,17 +2303,17 @@ class UxDataArray(xr.DataArray):
 
         if self._face_centered():
             da_sliced = self.isel(
-                n_face=sliced_grid._ds["subgrid_face_indices"], ignore_grid=True
+                n_face=sliced_grid._ds["_subgrid_face_indices"], ignore_grid=True
             )
 
         elif self._edge_centered():
             da_sliced = self.isel(
-                n_edge=sliced_grid._ds["subgrid_edge_indices"], ignore_grid=True
+                n_edge=sliced_grid._ds["_subgrid_edge_indices"], ignore_grid=True
             )
 
         elif self._node_centered():
             da_sliced = self.isel(
-                n_node=sliced_grid._ds["subgrid_node_indices"], ignore_grid=True
+                n_node=sliced_grid._ds["_subgrid_node_indices"], ignore_grid=True
             )
 
         else:
