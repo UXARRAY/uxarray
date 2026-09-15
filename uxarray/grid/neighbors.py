@@ -1214,52 +1214,40 @@ _GUFUNC_LAYOUT = "(n),(k),(m),(m),()->(m)"
 _GUFUNC_KWARGS = {"nopython": True, "cache": True, "target": "parallel"}
 
 
-def _lazy(impl):
-    """Returns a kernel that compiles ``impl`` into a gufunc on its first call.
+class _LazyKernel:
+    """Compiles ``impl`` into a gufunc on first access, once per process.
 
-    Two properties of ``impl`` are load-bearing, and both are easy to undo by
-    accident.
-
-    *It is compiled lazily.* ``guvectorize`` compiles at decoration time when it
-    is given explicit signatures, so decorating at module scope would build
-    every kernel during ``import uxarray``. That dominated the import, and for
-    ``target="parallel"`` it also started numba's threading layer, leaving a
-    thread pool that makes forks unsafe.
-    ``test_no_numba_kernels_built_on_import`` guards against a regression.
-
-    *It is a module-level function.* ``cache=True`` needs a real source file to
-    key against, and, less obviously, the body must not close over anything.
-    Numba keys a cached function on a hash of its closure, and a ``Dispatcher``
-    serializes with a ``uuid4`` regenerated in every process; a kernel closing
-    over a reducer therefore hashed differently in every process, so the cache
-    never hit and its index grew without bound. A module-level body has no
-    closure and reaches its reducer as a global, which numba resolves at
-    compile time and leaves out of the key, so each kernel is compiled once per
-    machine instead of once per process. Edits still invalidate the cache:
-    numba stamps it with the source file's mtime, and the reducers live in this
-    file.
-
-    The lock is not optional. ``_apply`` hands these kernels to
-    ``dask="parallelized"``, so the first call can arrive on every worker thread
-    at once. ``functools.cache`` does not hold a lock across the call it
-    memoizes, so each thread would start its own full compilation, serialized
-    behind numba's global compiler lock.
+    ``impl`` must stay a module-level function, for two reasons that fail
+    quietly. ``guvectorize`` compiles at decoration time, so building one at
+    module scope would compile during ``import uxarray`` and start numba's
+    threading layer, leaving a thread pool that makes forks unsafe
+    (``test_no_numba_kernels_built_on_import`` guards this); and numba keys its
+    cache on a hash of the closure, where a ``Dispatcher`` serializes with a
+    per-process ``uuid4``, so a body capturing its reducer hashes differently in
+    every process and ``cache=True`` never hits. Holding the gufunc on the
+    descriptor rather than the instance keeps the throwaway ``Neighborhood``
+    that ``Grid.neighborhood()`` returns from recompiling, and the explicit lock
+    is why this is not a ``functools.cached_property``, which holds none --
+    though in practice ``_apply_kernel`` resolves the attribute on the calling
+    thread, so the kernel is built before any dask task runs rather than raced
+    for inside one.
     """
-    lock = threading.Lock()
-    built = []
 
-    def kernel(*args):
-        if not built:
-            with lock:
-                if not built:
-                    built.append(
-                        guvectorize(
-                            _GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS
-                        )(impl)
-                    )
-        return built[0](*args)
+    def __init__(self, impl):
+        self._impl = impl
+        self._lock = threading.Lock()
+        self._kernel = None
 
-    return kernel
+    def __get__(self, obj, objtype=None):
+        kernel = self._kernel
+        if kernel is None:
+            with self._lock:
+                if self._kernel is None:
+                    self._kernel = guvectorize(
+                        _GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS
+                    )(self._impl)
+                kernel = self._kernel
+        return kernel
 
 
 @njit(cache=True)
@@ -1280,8 +1268,8 @@ def _gather(data, flat, start, count, buffer):
 
 
 # Reducers take ``(window, param)``; those without a parameter ignore the
-# second argument. Each is a module-level ``njit`` so that the kernel bodies
-# below can reach it as a global rather than closing over it -- see ``_lazy``.
+# second argument. Each is a module-level ``njit`` so the bodies below reach it
+# as a global rather than closing over it -- see ``_LazyKernel``.
 @njit(cache=True)
 def _mean(window, _):
     return np.mean(window)
@@ -1345,13 +1333,11 @@ def _median(window, _):
     return np.median(window)
 
 
-# One kernel body per reduction. They are spelled out rather than generated
-# because each must be a module-level function with no closure for ``cache=True``
-# to work (see ``_lazy``). The obvious deduplication -- a single shared body
-# taking the reducer as an argument -- makes the reducer a dynamic global, which
-# numba refuses to cache at all ("Cannot cache compiled function ... as it uses
-# dynamic globals"), so the gather is shared through ``_widest``/``_gather``
-# instead and only the reducer named on the last line differs.
+# One kernel body per reduction, spelled out because each must be a module-level
+# function with no closure (see ``_LazyKernel``). Deduplicating them into one
+# body taking the reducer as an argument makes it a dynamic global, which numba
+# refuses to cache at all, so only the gather is shared and the bodies differ
+# just in the reducer named on the last line.
 
 
 def _mean_impl(data, flat, starts, counts, param, out):
@@ -1668,25 +1654,23 @@ class Neighborhood:
     # ``reduce``. If new compiled reductions are desired, they should follow
     # this pattern.
     #
-    # ``_lazy`` defers each build to the kernel's first call, so none of these
-    # is compiled by ``import uxarray`` and a reduction that is never used is
-    # never built. That also keeps the import from starting numba's threading
-    # layer, which would leave a thread pool behind and make forks unsafe.
-    # They are wrapped in ``staticmethod`` because a plain function in a class
-    # body would bind ``self`` as the kernel's first argument.
+    # Built on first access, so the import compiles nothing and an unused
+    # reduction is never compiled at all. No ``staticmethod`` is needed: a
+    # descriptor hands back the gufunc itself, so ``self`` is never bound as the
+    # kernel's first argument.
 
-    _mean_kernel = staticmethod(_lazy(_mean_impl))
-    _sum_kernel = staticmethod(_lazy(_sum_impl))
-    _min_kernel = staticmethod(_lazy(_min_impl))
-    _max_kernel = staticmethod(_lazy(_max_impl))
-    _ptp_kernel = staticmethod(_lazy(_ptp_impl))
-    _median_kernel = staticmethod(_lazy(_median_impl))
-    _var_kernel = staticmethod(_lazy(_variance_impl))
-    _std_kernel = staticmethod(_lazy(_std_impl))
+    _mean_kernel = _LazyKernel(_mean_impl)
+    _sum_kernel = _LazyKernel(_sum_impl)
+    _min_kernel = _LazyKernel(_min_impl)
+    _max_kernel = _LazyKernel(_max_impl)
+    _ptp_kernel = _LazyKernel(_ptp_impl)
+    _median_kernel = _LazyKernel(_median_impl)
+    _var_kernel = _LazyKernel(_variance_impl)
+    _std_kernel = _LazyKernel(_std_impl)
 
     # ``percentile`` is ``quantile`` on a 0-100 scale, so both methods
     # rescale onto this one kernel rather than compiling a near-duplicate.
-    _quantile_kernel = staticmethod(_lazy(_quantile_impl))
+    _quantile_kernel = _LazyKernel(_quantile_impl)
 
     def mean(self, uxda):
         """Mean of each neighborhood."""
