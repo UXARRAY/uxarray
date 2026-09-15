@@ -3,6 +3,7 @@ import xarray as xr
 
 import uxarray.conventions.ugrid as ugrid
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.errors import GridInvalidError
 from uxarray.grid.connectivity import _replace_fill_values
 
 
@@ -103,8 +104,21 @@ def _read_ugrid(ds):
 
         # the file's name for this connectivity's trailing axis, e.g. 'n2'
         source_dim = ds[conn_name].dims[1]
+
+        # a core dim in the trailing slot means both dims are node, edge or face
+        # dims, which no UGRID connectivity has
         if source_dim in core_dims:
-            continue  # malformed file: a core dim in the trailing slot
+            # file's variable name: e.g. 'edge_nodes'
+            orig_name = next(k for k, v in conn_dict.items() if v == conn_name)
+            # both of its dimensions: e.g. 'edg_n' and 'nod2'
+            found = " and ".join(repr(d) for d in ds[conn_name].dims)
+            # expected dimensions: e.g. ('n_edge', 'two')
+            expected = tuple(ugrid.CONNECTIVITY[conn_name]["dims"])
+            raise GridInvalidError(
+                f"'{orig_name}' is used as {conn_name}, but its dimensions {found} "
+                f"are both node, edge or face dimensions. Expected dimensions like "
+                f"{expected}."
+            )
 
         # the name the conventions give that axis, e.g. 'two'
         ugrid_dim = ugrid.CONNECTIVITY[conn_name]["dims"][1]
