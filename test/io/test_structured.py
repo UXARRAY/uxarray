@@ -1,3 +1,4 @@
+import numpy as np
 import uxarray as ux
 import xarray as xr
 import pytest
@@ -74,3 +75,48 @@ def test_from_xarray_with_grid_from_latlon(ds_name):
     subset = uxds["air"].isel(time=0).subset.bounding_circle((-100.0, 40.0), 5)
     assert "n_face" in subset.dims
     assert subset.sizes["n_face"] > 0
+
+
+def test_global_structured_grid_merges_poles_and_seam():
+    """Nodes coincident on the sphere must be merged, even though their
+    (lon, lat) pairs differ. Regression test for issue #1689."""
+    n_lon, n_lat = 36, 18
+    d_lat = 180.0 / n_lat
+    lon = np.linspace(-180, 180, n_lon, endpoint=False)
+    lat = np.linspace(-90 + d_lat / 2, 90 - d_lat / 2, n_lat)
+
+    uxgrid = ux.Grid.from_structured(lon=lon, lat=lat)
+
+    # Every duplicated pole node and antimeridian node must be gone.
+    assert uxgrid.n_node < (n_lon + 1) * (n_lat + 1)
+    assert np.isclose(uxgrid.node_lat.values, 90.0).sum() == 1
+    assert np.isclose(uxgrid.node_lat.values, -90.0).sum() == 1
+
+    # A closed sphere: V - E + F == 2.
+    assert uxgrid.n_node - uxgrid.n_edge + uxgrid.n_face == 2
+
+    # The pole is now a real singularity touching every longitude column, and
+    # its faces are triangles rather than quads with a repeated corner.
+    face_nodes = uxgrid.face_node_connectivity.values
+    n_nodes_per_face = uxgrid.n_nodes_per_face.values
+    assert (n_nodes_per_face == 3).sum() == 2 * n_lon
+
+    for face, n_nodes in zip(face_nodes, n_nodes_per_face):
+        nodes = face.tolist()[:n_nodes]
+        assert len(set(nodes)) == n_nodes
+
+    pole = int(np.flatnonzero(np.isclose(uxgrid.node_lat.values, 90.0))[0])
+    assert (face_nodes == pole).any(axis=1).sum() == n_lon
+
+
+def test_regional_structured_grid_is_unchanged():
+    """A grid that touches neither pole nor the antimeridian must keep every
+    node and stay entirely quadrilateral."""
+    lon = np.linspace(-50, -10, 20)
+    lat = np.linspace(10, 40, 15)
+
+    uxgrid = ux.Grid.from_structured(lon=lon, lat=lat)
+
+    assert uxgrid.n_node == 21 * 16
+    assert uxgrid.n_face == 20 * 15
+    assert (uxgrid.n_nodes_per_face.values == 4).all()
