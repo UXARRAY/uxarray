@@ -114,8 +114,8 @@ def test_encode_esmf_ragged_indices_are_usable(tmp_path):
     reader. Nothing raises, so check the encoded output rather than a round trip.
     """
     uxgrid = ux.Grid.from_topology(
-        node_lon=np.array([0.0, 10.0, 10.0, 0.0, 20.0]),
-        node_lat=np.array([0.0, 0.0, 10.0, 10.0, 0.0]),
+        node_lon=np.array([0.0, 120.0, 120.0, 0.0, 240.0]),
+        node_lat=np.array([0.0, 0.0, 10.0, 10.0, 5.0]),
         face_node_connectivity=np.array([
             [0, 1, 2, 3],
             [1, 4, 2, INT_FILL_VALUE],
