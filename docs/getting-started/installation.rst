@@ -10,7 +10,7 @@ The easiest way to get everything installed is to use conda or pip.
 
 .. admonition:: Conda versus Pip
 
-    Conda installs UXarray with all optional depencies.
+    Conda installs UXarray with all optional dependencies.
     Pip installs only the minimal required dependencies by default, but it
     is also easy to include any/all optional dependencies too, if desired.
 
