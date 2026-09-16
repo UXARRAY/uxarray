@@ -1217,20 +1217,19 @@ _GUFUNC_KWARGS = {"nopython": True, "cache": True, "target": "parallel"}
 class _LazyKernel:
     """Compiles ``impl`` into a gufunc on first access, once per process.
 
-    ``impl`` must stay a module-level function, for two reasons that fail
-    quietly. ``guvectorize`` compiles at decoration time, so building one at
-    module scope would compile during ``import uxarray`` and start numba's
-    threading layer, leaving a thread pool that makes forks unsafe
-    (``test_no_numba_kernels_built_on_import`` guards this); and numba keys its
+    ``impl`` must stay a module-level function, for two reasons: 1) ``guvectorize``
+    compiles at decoration, so building one at module scope would compile during
+    ``import uxarray``, spawning numba's thread pool and making forks unsafe
+    (``test_no_numba_kernels_built_on_import`` guards this); 2) numba keys its
     cache on a hash of the closure, where a ``Dispatcher`` serializes with a
     per-process ``uuid4``, so a body capturing its reducer hashes differently in
-    every process and ``cache=True`` never hits. Holding the gufunc on the
-    descriptor rather than the instance keeps the throwaway ``Neighborhood``
+    every process. Holding the gufunc on the descriptor
+     rather than the instance keeps the throwaway ``Neighborhood``
     that ``Grid.neighborhood()`` returns from recompiling, and the explicit lock
     is why this is not a ``functools.cached_property``, which holds none --
     though in practice ``_apply_kernel`` resolves the attribute on the calling
     thread, so the kernel is built before any dask task runs rather than raced
-    for inside one.
+    for inside of one.
     """
 
     def __init__(self, impl):
