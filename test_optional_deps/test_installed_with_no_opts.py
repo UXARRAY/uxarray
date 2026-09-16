@@ -38,7 +38,7 @@ def test_check_requires_viz_and_geo():
         check_requires_viz_and_geo()
 
 
-def test_messages_of_raise_hint_if_optional_deps_missing():
+def test_messages_of_raise_hint_if_optional_deps_missing(monkeypatch):
     """additional tests for reasonable-looking messages from _raise_hint_if_optional_deps_missing.
     Hard-codes expected messages to prove it is working as expected in a variety of cases.
     Only including this test in the no_opts case because it covers all kinds of messages.
@@ -104,13 +104,14 @@ def test_messages_of_raise_hint_if_optional_deps_missing():
 
     # to fully test the _raise_hint_if_optional_deps_missing() function,
     # need to check cases with more than 2 extras. Add corresponding "fake packages" here.
-    uxarray.utils.imports._OPTIONAL_DEPS_TO_EXTRAS.update(
-        {
-            "_fakepackage1_": "_fakeextra1_",
-            "_fakepackage2_": ("_fakeextra1_", "_fakeextra2_"),
-            "_fakepackage3_": ("_fakeextra1_", "_fakeextra2_", "_fakeextra3_"),
-        }
-    )
+    fake_extras = {
+        "_fakepackage1_": "_fakeextra1_",
+        "_fakepackage2_": ("_fakeextra1_", "_fakeextra2_"),
+        "_fakepackage3_": ("_fakeextra1_", "_fakeextra2_", "_fakeextra3_"),
+    }
+    for pkg, extra in fake_extras.items():
+        monkeypatch.setitem(uxarray.utils.imports._OPTIONAL_DEPS_TO_EXTRAS, pkg, extra)
+        # monkeypatch to ensure the dict gets restored to its default state after this test ends.
 
     assert _get_errmsg("matplotlib", "spatialpandas", "_fakepackage1_") == (
         "Failed to import: _fakepackage1_, matplotlib, spatialpandas.\n"
