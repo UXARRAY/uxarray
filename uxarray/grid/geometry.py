@@ -83,7 +83,7 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
     return unique_points[:unique_count]
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def _pad_closed_face_nodes(
     face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
 ):
@@ -1053,7 +1053,7 @@ def _populate_max_face_radius(grid):
     return max_distance
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def calculate_max_face_radius(
     face_node_connectivity: np.ndarray,
     node_x: np.ndarray,

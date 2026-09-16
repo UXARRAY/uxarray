@@ -1082,7 +1082,7 @@ def _populate_edge_node_distances(grid):
     )
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
     """Helper for computing the arc-distance between nodes compose each
     edge."""
@@ -1117,7 +1117,7 @@ def _populate_edge_face_distances(grid):
     )
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def _construct_edge_face_distances(face_lon, face_lat, edge_faces):
     """Helper for computing the arc-distance between faces that saddle a given
     edge."""
