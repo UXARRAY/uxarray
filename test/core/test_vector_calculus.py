@@ -266,7 +266,7 @@ class TestDivergenceQuadHex:
         u_component = uxds['t2m']
 
         # Test with non-UxDataArray
-        with pytest.raises(TypeError, match="other must be a UxDataArray"):
+        with pytest.raises(TypeError, match=r"u.divergence\(v\) expected UxDataArray v; got type\(v\)="):
             u_component.divergence(np.array([1, 2, 3]))
 
         # Test with different grids (create a simple test case)
@@ -533,7 +533,7 @@ class TestCurlQuadHex:
         u_component = uxds['t2m']
 
         # Test with non-UxDataArray
-        with pytest.raises(TypeError, match="other must be a UxDataArray"):
+        with pytest.raises(TypeError, match=r"u.curl\(v\) expected UxDataArray v; got type\(v\)="):
             u_component.curl(np.array([1, 2, 3]))
 
         # Test with different grids (create a simple test case)
