@@ -303,8 +303,11 @@ def _optional_import_usage_throughout(
 # (used by pytest test suite to ensure that optional-dependency imports
 # never occur at tops of files.)
 
+
 def _analyze_optional_imports_at_module_level(
-    tree, filepath: Path, src_root: Path | None = None,
+    tree,
+    filepath: Path,
+    src_root: Path | None = None,
 ) -> tuple[str, list[tuple[int, str]]]:
     """Returns (module_name, [(lineno, optional_dep), ...]), for all optional deps
     imported in a module's top-level scope.
@@ -344,7 +347,7 @@ def _analyze_optional_imports_at_module_level(
 
 
 def _optional_imports_at_module_level(
-    src_root: str | Path
+    src_root: str | Path,
 ) -> dict[str, list[tuple[int, str]]]:
     """Returns dict of {module_name: [(lineno, optional_dep), ...]} for all source files
     under `src_root` which import a known optional dependency at module top-level scope.
@@ -355,7 +358,9 @@ def _optional_imports_at_module_level(
     for filepath in _find_package_source_files(src_root):
         source = filepath.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(filepath))
-        module_name, deplist = _analyze_optional_imports_at_module_level(tree, filepath, src_root)
+        module_name, deplist = _analyze_optional_imports_at_module_level(
+            tree, filepath, src_root
+        )
         if len(deplist) > 0:
             results[module_name] = deplist
     return results
