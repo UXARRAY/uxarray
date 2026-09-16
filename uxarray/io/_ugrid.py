@@ -92,7 +92,8 @@ def _encode_ugrid(ds):
     if "grid_topology" in ds:
         ds = ds.drop_vars(["grid_topology"])
 
-    grid_topology = ugrid.BASE_GRID_TOPOLOGY_ATTRS
+    # copy so the additions below never leak into the module-level constant
+    grid_topology = dict(ugrid.BASE_GRID_TOPOLOGY_ATTRS)
 
     if "n_edge" in ds.dims:
         grid_topology["edge_dimension"] = "n_edge"
