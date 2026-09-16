@@ -547,3 +547,17 @@ def test_uxgrid_None_is_invalid_in_uxdataarray():
     # it also applies (for non-None non-Grid objects) during __init__:
     with pytest.raises(TypeError):
         ux.UxDataArray([4,5], dims=['n_face'], uxgrid="not a grid")
+
+
+def test_uxdataarray_astype_returns_uxdataarray():
+    """Ensures UxDataArray.astype() result type is UxDataArray.
+    Regression test for issue #1737.
+    """
+    obj = ux.tutorial.open_dataset('quad-hexagon')['t2m']
+    result = obj.astype('float64')
+    assert isinstance(result, ux.UxDataArray)
+    assert result.uxgrid == obj.uxgrid
+    assert result.dtype == np.float64
+    result = obj.astype('float32')
+    assert obj.dtype == np.float32  # the original dtype was float32
+    assert result.identical(obj)  # so astype() should be a no-op.
