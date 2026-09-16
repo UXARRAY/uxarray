@@ -179,6 +179,39 @@ def _find_package_source_files(root: Path):
             yield path
 
 
+def _is_type_checking_block(node) -> bool:
+    """True for ``if TYPE_CHECKING:`` blocks, whose imports never run."""
+    if not isinstance(node, ast.If):
+        return False
+    test = node.test
+    if isinstance(test, ast.Name):
+        return test.id == "TYPE_CHECKING"
+    if isinstance(test, ast.Attribute):
+        return test.attr == "TYPE_CHECKING"
+    return False
+
+
+def _iter_scope_statements(node, *, descend_into_classes: bool = False):
+    """Yield every statement belonging to `node`'s own scope.
+
+    Descends through nested blocks (if / try / with / for / while / match),
+    because Python has no block scope. Stops at nested function definitions,
+    which are visited separately.
+    """
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            continue
+        if isinstance(child, ast.ClassDef) and not descend_into_classes:
+            continue
+        if _is_type_checking_block(child):
+            continue
+        if isinstance(child, ast.stmt):
+            yield child
+        yield from _iter_scope_statements(
+            child, descend_into_classes=descend_into_classes
+        )
+
+
 def _analyze_optional_imports_in_function(
     func_node, filepath: Path, qualname: str
 ) -> OptionalImportCheckResult:
@@ -186,15 +219,15 @@ def _analyze_optional_imports_in_function(
     telling which optional dependencies were imported and which were hinted
     via _raise_hint_if_optional_deps_missing().
 
-    Inspects only the *direct* statements of a function body (not nested
-    blocks, not nested functions). _raise_hint_if_optional_deps_missing()
-    should be called directly in all functions with optional imports.
+    Inspects every statement in the function's own scope, including those
+    nested in if/try/with/for blocks, but not those in nested functions
+    (which are analyzed separately as their own scope).
     """
     result = OptionalImportCheckResult(
         qualname=qualname, filepath=filepath, lineno=func_node.lineno
     )
 
-    for stmt in func_node.body:
+    for stmt in _iter_scope_statements(func_node):
         if isinstance(stmt, ast.Import):
             for alias in stmt.names:
                 top = _top_level_module_from_dotted_name(alias.name)
@@ -263,4 +296,71 @@ def _optional_import_usage_throughout(
         for check in _iter_functions_optional_import_checks(tree, filepath):
             if check.imported_deps or check.hinted_deps:
                 results.append(check)
+    return results
+
+
+# ------- help methods to check for optional imports at tops of files ------- #
+# (used by pytest test suite to ensure that optional-dependency imports
+# never occur at tops of files.)
+
+
+def _analyze_optional_imports_at_module_level(
+    tree,
+    filepath: Path,
+    src_root: Path | None = None,
+) -> tuple[str, list[tuple[int, str]]]:
+    """Returns (module_name, [(lineno, optional_dep), ...]), for all optional deps
+    imported in a module's top-level scope.
+
+    A module-level optional import runs at ``import uxarray`` time, which makes
+    the dependency mandatory instead of optional, which is a mistake.
+    Class bodies count as module level, since they execute on import too.
+    ``if TYPE_CHECKING:`` imports are skipped; they never execute.
+
+    src_root: None or str
+        if provided, module_name is reported appropriately,
+        else module_name is just the filename without suffix (e.g. "foo" for "foo.py").
+    """
+    if src_root is None:
+        module_name = filepath.stem
+    else:
+        if not isinstance(src_root, Path):
+            src_root = Path(src_root)
+        rel_parts = list(filepath.relative_to(src_root.parent).with_suffix("").parts)
+        if rel_parts[-1] == "__init__":
+            rel_parts.pop()
+        module_name = ".".join(rel_parts)
+
+    found: list[tuple[int, str]] = []
+    for stmt in _iter_scope_statements(tree, descend_into_classes=True):
+        if isinstance(stmt, ast.Import):
+            for alias in stmt.names:
+                top = _top_level_module_from_dotted_name(alias.name)
+                if top in _OPTIONAL_DEPS_TO_EXTRAS:
+                    found.append((getattr(alias, "lineno", stmt.lineno), top))
+        elif isinstance(stmt, ast.ImportFrom) and stmt.module and stmt.level == 0:
+            top = _top_level_module_from_dotted_name(stmt.module)
+            if top in _OPTIONAL_DEPS_TO_EXTRAS:
+                found.append((stmt.lineno, top))
+
+    return module_name, found
+
+
+def _optional_imports_at_module_level(
+    src_root: str | Path,
+) -> dict[str, list[tuple[int, str]]]:
+    """Returns dict of {module_name: [(lineno, optional_dep), ...]} for all source files
+    under `src_root` which import a known optional dependency at module top-level scope.
+    """
+    if not isinstance(src_root, Path):
+        src_root = Path(src_root)
+    results = {}
+    for filepath in _find_package_source_files(src_root):
+        source = filepath.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(filepath))
+        module_name, deplist = _analyze_optional_imports_at_module_level(
+            tree, filepath, src_root
+        )
+        if len(deplist) > 0:
+            results[module_name] = deplist
     return results
