@@ -331,3 +331,39 @@ def test_plot_with_features(gridpath, datasetpath):
     # the crash associated with issue #1542 only occurs when actually trying to render:
     renderer = hv.renderer("matplotlib")
     renderer.get_plot(plot)
+
+
+def test_central_longitude_of_handles_cartopy_026_platecarree():
+    """Cartopy 0.26 changed PlateCarree from ``proj=eqc`` to ``proj=latlong``,
+    which carries the prime meridian as ``pm`` and drops ``lon_0`` entirely.
+
+    Reading ``lon_0`` directly raised ``KeyError: 'lon_0'`` on every plotting
+    call that defaulted to PlateCarree. Stub the params rather than branching on
+    the installed cartopy, so both layouts stay covered on either version.
+    """
+    from uxarray.grid.geometry import _central_longitude_of
+
+    class _FakeProjection:
+        def __init__(self, params):
+            self.proj4_params = params
+
+    # cartopy >= 0.26 PlateCarree: pm, no lon_0
+    assert _central_longitude_of(_FakeProjection({"proj": "latlong", "pm": 0.0})) == 0.0
+    assert _central_longitude_of(_FakeProjection({"proj": "latlong", "pm": 30})) == 30.0
+
+    # cartopy < 0.26 PlateCarree, and projections that still use lon_0
+    assert _central_longitude_of(_FakeProjection({"proj": "eqc", "lon_0": 0.0})) == 0.0
+    assert _central_longitude_of(_FakeProjection({"proj": "robin", "lon_0": 45})) == 45.0
+
+    # neither key: fall back rather than raise
+    assert _central_longitude_of(_FakeProjection({"proj": "weird"})) == 0.0
+
+
+def test_plot_topology_with_explicit_projection(gridpath):
+    """`plot.edges` with an explicit projection exercises the central-longitude
+    lookup that regressed under cartopy 0.26."""
+    import cartopy.crs as ccrs
+
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
+    uxgrid.plot.edges(backend="matplotlib", projection=ccrs.PlateCarree())
+    uxgrid.plot.edges(backend="matplotlib", projection=ccrs.Robinson())
