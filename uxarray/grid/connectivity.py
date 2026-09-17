@@ -589,6 +589,34 @@ _DERIVED_CONNECTIVITY_TO_INVALIDATE = (
     "node_face_connectivity",
 )
 
+# Formats whose node list is, by construction, an already-unique set of vertices
+# that faces index into -- so no two node indices can name the same location and
+# the coincident search cannot find anything to merge.
+#
+# MPAS stores nVertices once in lonVertex/latVertex (or xVertex/yVertex/zVertex)
+# and verticesOnCell indexes into it; a vertex shared by three cells is stored
+# once and referenced three times. HEALPix node positions are generated
+# analytically from the pixelization, not read from a file.
+#
+# This is a property of the format, not of any one file: it is what lets the
+# search be skipped rather than merely observed to find nothing. Formats that
+# store per-face corners instead (SCRIP's (n_face, n_corner) grid_corner_lon,
+# Exodus, GEOS-CS) inherently repeat shared corners and must still be searched.
+# UGRID is deliberately absent: it permits either layout, and geoflow-small is a
+# real UGRID file in the test suite with 2150 duplicate nodes.
+_SPECS_WITHOUT_COINCIDENT_NODES = frozenset({"MPAS", "HEALPix"})
+
+
+def _spec_guarantees_unique_nodes(source_grid_spec):
+    """Whether ``source_grid_spec`` names a format that cannot have coincident
+    nodes, so the search may be skipped outright.
+
+    Unknown or absent specs answer False: the search is the safe default, and a
+    format is only listed here once its node layout has been shown to make
+    duplicates impossible.
+    """
+    return source_grid_spec in _SPECS_WITHOUT_COINCIDENT_NODES
+
 
 def _merge_coincident_grid_ds_nodes(grid_ds, tolerance=ERROR_TOLERANCE):
     """Canonicalize coincident (within ``tolerance``) node indices in a raw grid

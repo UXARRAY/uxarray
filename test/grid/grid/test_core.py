@@ -5,9 +5,13 @@ import xarray as xr
 
 import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
-from uxarray.grid.connectivity import _merge_coincident_grid_ds_nodes
+from uxarray.grid.connectivity import (
+    _merge_coincident_grid_ds_nodes,
+    _spec_guarantees_unique_nodes,
+)
 from uxarray.grid.validation import (
     _check_duplicate_nodes_indices,
+    _find_duplicate_node_map,
     _find_duplicate_nodes,
 )
 from uxarray.errors import GridInvalidError
@@ -365,3 +369,55 @@ def test_no_duplicate_nodes_ne30pg3(gridpath):
     grid = ux.open_grid(grid_path)
 
     assert len(_find_duplicate_nodes(grid)) == 0
+
+
+def test_spec_guarantees_unique_nodes_membership():
+    """Only formats whose node list is an already-unique vertex array may claim
+    the skip; per-face-corner formats must still be searched."""
+    assert _spec_guarantees_unique_nodes("MPAS")
+    assert _spec_guarantees_unique_nodes("HEALPix")
+
+    # SCRIP/Exodus/GEOS-CS store corners per face, so shared corners repeat, and
+    # UGRID permits either layout (geoflow-small has 2150 duplicates).
+    for spec in ("Scrip", "Exodus", "GEOS-CS", "UGRID", "ESMF", "ICON"):
+        assert not _spec_guarantees_unique_nodes(spec)
+
+    # An unrecognized or absent spec must fall back to searching.
+    assert not _spec_guarantees_unique_nodes(None)
+    assert not _spec_guarantees_unique_nodes("SomeFutureFormat")
+
+
+def test_skipped_spec_really_has_no_coincident_nodes(gridpath):
+    """The skip is only sound if these grids genuinely have nothing to merge.
+
+    Guards against the skip silently hiding real duplicates: if an MPAS file ever
+    did contain coincident nodes, skipping the search would be a correctness bug,
+    not just an optimization.
+    """
+    for parts in (
+        ("mpas", "QU", "480", "grid.nc"),
+        ("mpas", "QU", "mesh.QU.1920km.151026.nc"),
+        ("mpas", "QU", "oQU480.231010.nc"),
+    ):
+        grid = ux.open_grid(gridpath(*parts))
+        assert grid.source_grid_spec == "MPAS"
+        assert _spec_guarantees_unique_nodes(grid.source_grid_spec)
+        assert (
+            _find_duplicate_node_map(grid.node_lon.values, grid.node_lat.values) == {}
+        )
+
+    healpix = ux.Grid.from_healpix(zoom=3)
+    assert _spec_guarantees_unique_nodes(healpix.source_grid_spec)
+    assert (
+        _find_duplicate_node_map(healpix.node_lon.values, healpix.node_lat.values) == {}
+    )
+
+
+def test_duplicates_still_merged_for_non_skipped_specs(gridpath):
+    """The skip must not weaken the #865 fix for formats that do have duplicates."""
+    grid = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
+    assert grid.source_grid_spec == "UGRID"
+    assert not _spec_guarantees_unique_nodes(grid.source_grid_spec)
+    # 3840, matching test_dual_duplicate_nodes above: on main this grid cannot
+    # produce a dual at all. (The PR description's 3803 predates a later change.)
+    assert grid.get_dual().n_face == 3840

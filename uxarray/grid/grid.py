@@ -34,6 +34,7 @@ from uxarray.grid.connectivity import (
     _populate_n_nodes_per_face,
     _populate_node_edge_connectivity,
     _populate_node_face_connectivity,
+    _spec_guarantees_unique_nodes,
 )
 from uxarray.grid.coordinates import (
     _populate_edge_centroids,
@@ -197,7 +198,14 @@ class Grid:
         # ``merge_coincident_nodes`` is internal: it is set to False only where
         # uxarray builds a grid out of another grid's already-canonical data, so
         # the search is not paid again on nodes that cannot need it.
-        if merge_coincident_nodes:
+        # Formats listed in ``_SPECS_WITHOUT_COINCIDENT_NODES`` index faces into an
+        # already-unique vertex list, so the search cannot find anything to merge
+        # and is skipped -- it is the dominant cost of opening a large grid of
+        # those formats (an argsort over every node), paid for a guaranteed
+        # no-op.
+        if merge_coincident_nodes and not _spec_guarantees_unique_nodes(
+            source_grid_spec
+        ):
             grid_ds = _merge_coincident_grid_ds_nodes(grid_ds)
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
