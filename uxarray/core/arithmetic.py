@@ -22,6 +22,15 @@ when data dims are otherwise compatible
     and by comparing uxgrids of all inputs during __array_ufunc__,
     if multiple inputs to __array_ufunc__ have a "uxgrid" attr.
     (The former fixes, e.g., objA + objB; the latter fixes, e.g., np.add(objA, objB))
+
+Note:
+    Grids with n_face==1 are intentionally excluded from automatic comparisons,
+    because including them would breaks workflows operating on single faces, like:
+        arr.isel(n_face=0) < arr.isel(n_face=7)
+    The downside of not fixing this, though, is that the result's grid will match n_face==0,
+    silently dropping the n_face==7 information (as in issue #1718).
+    If isel() is ever updated to drop n_face dimension from arr.isel(n_face=0) instead,
+    should update the relevant code inside _binary_op and __array_ufunc__ below.
 """
 
 import operator
@@ -62,9 +71,16 @@ class UxSupportsArithmetic:
         """returns f(self, other) (or f(other, self), if `reflexive`) for f a binary operation,
         such as adding or multiplying. Like super()._binary_op, except that
         if `other` has a uxgrid, first ensure it is compatible with self.uxgrid.
+        Grids are considered "compatible" here if they compare as equal,
+        OR if either grid has n_face==1 (to avoid breaking "scalar-like" workflows,
+        because isel(n_face=int) maybe should provide scalar, but currently doesn't).
         """
         if isinstance(other, UxSupportsArithmetic):
-            if self.uxgrid != other.uxgrid:
+            if (
+                (self.uxgrid.n_face > 1)
+                and (other.uxgrid.n_face > 1)
+                and (self.uxgrid != other.uxgrid)
+            ):
                 raise GridsMismatchError(
                     f"A.uxgrid != B.uxgrid during binary operation {f.__name__!r}, "
                     f"with type(A)={type(self).__name__}, type(B)={type(other).__name__}."
@@ -75,6 +91,10 @@ class UxSupportsArithmetic:
         """Like super().__array_ufunc__, except that if multiple inputs have a uxgrid,
         ensure they are all compatible, and if any outputs are xr.DataArray or xr.Dataset,
         convert to the appropriate uxarray type (UxDataArray or UxDataset).
+
+        Grids are considered "compatible" here if they compare as equal,
+        OR if they have n_face==1 (to avoid breaking "scalar-like" workflows,
+        because isel(n_face=int) maybe should provide scalar, but currently doesn't).
         """
         from uxarray.core.dataarray import UxDataArray
         from uxarray.core.dataset import UxDataset
@@ -85,22 +105,28 @@ class UxSupportsArithmetic:
             if isinstance(obj, UxSupportsArithmetic)
         ]
 
-        # At least one input is guaranteed to have a uxgrid, otherwise numpy
-        # would not have delegated to this method during the ufunc call.
-        # It might be self (often, the first input in inputs with a grid would be self),
-        # but doesn't need to be --> use the first grid, rather than self's grid, as reference.
-        j_ref, grid_ref = uxgrids[0]
+        # when checking for equality, and when deciding which grid to attach to result,
+        # will pretend that any grids with n_face==1 are scalars (see above).
+        nonscalar_grids = [(i, grid) for i, grid in uxgrids if grid.n_face > 1]
 
-        # check that all uxgrids are compatible:
-        if len(uxgrids) > 1:
-            for j, grid in uxgrids[1:]:
-                if grid != grid_ref:
-                    raise GridsMismatchError(
-                        f"Multiple inputs to {ufunc.__name__!r} have incompatible uxgrids. "
-                        f"Got inputs[{j}].uxgrid != inputs[{j_ref}].uxgrid, for inputs "
-                        f"with types: type(inputs[{j}])={type(inputs[j])}, "
-                        f"type(inputs[{j_ref}])={type(inputs[j_ref])}."
-                    )
+        if len(nonscalar_grids) == 0:
+            # no nonscalar grids; keep first grid.
+            # At least one input is guaranteed to have a uxgrid, otherwise numpy
+            # would not have delegated to this method during the ufunc call.
+            j_ref, grid_ref = uxgrids[0]
+        else:
+            # At least one nonscalar grid; output grid should match it.
+            j_ref, grid_ref = nonscalar_grids[0]
+            # check that all nonscalar uxgrids are compatible:
+            if len(nonscalar_grids) > 1:
+                for j, grid in nonscalar_grids[1:]:
+                    if grid != grid_ref:
+                        raise GridsMismatchError(
+                            f"Multiple inputs to {ufunc.__name__!r} have incompatible uxgrids. "
+                            f"Got inputs[{j}].uxgrid != inputs[{j_ref}].uxgrid, for inputs "
+                            f"with types: type(inputs[{j}])={type(inputs[j])}, "
+                            f"type(inputs[{j_ref}])={type(inputs[j_ref])}."
+                        )
         result = super().__array_ufunc__(ufunc, method, *inputs, **kwargs)
 
         # convert any xr.DataArray / xr.Dataset outputs to appropriate uxarray type:

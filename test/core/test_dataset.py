@@ -331,7 +331,7 @@ def test_uxdataset_astype_returns_uxdataset():
     result = obj.astype('float64')
     assert isinstance(result, ux.UxDataset)
     assert result.uxgrid == obj.uxgrid
-    assert result.dtype == np.float64
+    assert result.dtypes['t2m'] == np.float64
     result = obj.astype('float32')
-    assert obj.dtype == np.float32  # the original dtype was float32
+    assert obj.dtypes['t2m'] == np.float32  # the original dtype was float32
     assert result.identical(obj)  # so astype() should be a no-op.
