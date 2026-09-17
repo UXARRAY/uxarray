@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.grid import Grid
 
+from uxarray.grid.geometry import _central_longitude_of
 from uxarray.plot.utils import backend as plotting_backend
 
 # import speedup trick:
@@ -258,7 +259,7 @@ class GridPlotAccessor:
             kwargs["color"] = "black"
         if "crs" not in kwargs:
             if "projection" in kwargs:
-                central_longitude = kwargs["projection"].proj4_params["lon_0"]
+                central_longitude = _central_longitude_of(kwargs["projection"])
             else:
                 central_longitude = 0.0
             kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
@@ -459,7 +460,7 @@ class UxDataArrayPlotAccessor:
             kwargs["projection"] = projection
             kwargs["geo"] = True
             if "crs" not in kwargs:
-                central_longitude = projection.proj4_params["lon_0"]
+                central_longitude = _central_longitude_of(projection)
                 kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
         if "clabel" not in kwargs and self._uxda.name is not None:
