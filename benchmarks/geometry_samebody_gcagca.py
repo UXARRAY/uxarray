@@ -318,10 +318,8 @@ _prepared = None
 def _prepare():
     """The packed cases, with the batched drivers warmed, once per process.
 
-    Building the cases is 4.06s of the 4.27s this used to spend in every
-    ``setup``; compiling the drivers is 0.08s, since they are all
-    ``@njit(cache=True)``. This method allows for reuse of cases in forked
-    benchmarks to reduce time spent on case generation.
+    Rebuilding cases in every asv benchmark that needs them was previously the
+    bulk of walltime spent on these benchmarks.
     """
     global _prepared
     if _prepared is None:

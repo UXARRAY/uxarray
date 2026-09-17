@@ -62,12 +62,7 @@
     "install_timeout": 600,
 
     // Fork each benchmark from one interpreter that has already imported the
-    // suite, instead of starting a fresh one per benchmark. Saves the ~0.9s
-    // uxarray import and the numba kernel load on every one of ~160 benchmark
-    // processes, and lets a fixture loaded at import be inherited rather than
-    // re-read. asv leaves this at "spawn" by default because fork and threads
-    // mix badly; nothing in this suite runs a parallel kernel at import time,
-    // which is what makes it safe here -- keep it that way.
+    // suite, instead of starting a fresh one per benchmark.
     "launch_method": "forkserver",
 
     // ``benchmark_timeout`` is not a key asv reads -- the one that sets the
@@ -114,14 +109,13 @@
             // forked from a parent that holds a pool then dies with "Terminating:
             // fork() called from a process already using GNU OpenMP". numba
             // *prefers* TBB, so a developer machine that has it cannot reproduce
-            // that -- hence pinning it here rather than inheriting whatever the
-            // environment happens to offer.
+            // that, hence pinning it here.
             "tbb": [""]
         },
 
         // Belt to that brace: if TBB is ever unavailable, pick the other
-        // fork-safe layer rather than quietly falling back to the one that
-        // breaks. ``forksafe`` raises if no fork-safe layer exists at all.
+        // fork-safe layer rather. ``forksafe`` raises if no fork-safe layer
+        // exists at all.
         "env_nobuild": {"NUMBA_THREADING_LAYER": ["forksafe"]}
     },
 
@@ -195,9 +189,9 @@
     // the number of builds to keep, per environment.
     //
     // Raised from the default of 2, which is exactly the number of commits
-    // ``asv continuous`` builds and so leaves no headroom: with rounds
-    // interleaved it revisits each commit, and a wheel that has been evicted
-    // in between is built again from scratch.
+    // ``asv continuous`` builds and so it leaves no headroom: with forking,
+    // we need an extra round per commit, so 4 is the baseline for 2 commits
+    // with correct caching.
     "build_cache_size": 4,
 
     // The commits after which the regression search in `asv publish`
