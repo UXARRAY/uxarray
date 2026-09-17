@@ -102,6 +102,48 @@ def _distributed_client_active():
     return True
 
 
+def _lookup_node_ids(lon_block, lat_block, lookup):
+    """Map one block of corner coordinates to their unique-node ids.
+
+    Module-level rather than a closure so the ordering contract below can be
+    tested directly.
+
+    ``map_blocks`` requires the returned block to stay positionally aligned
+    with its inputs. Polars' docs say explicitly not to rely on an observed
+    join order without asking for one, so ``maintain_order="left"`` asks.
+    Getting this wrong would splice misaligned ids into
+    face_node_connectivity -- every face built from the wrong corners, a
+    silently wrong mesh rather than an error -- so it is requested rather
+    than assumed, even though today's polars happens to preserve order.
+
+    Parameters
+    ----------
+    lon_block, lat_block : numpy.ndarray
+        One block of corner coordinates.
+    lookup : polars.DataFrame
+        Columns ``lon``, ``lat``, ``unique_id``; one row per unique node.
+
+    Returns
+    -------
+    numpy.ndarray
+        ``unique_id`` per input corner, in input order.
+    """
+    block = pl.DataFrame({"lon": lon_block, "lat": lat_block})
+    joined = block.join(lookup, on=["lon", "lat"], how="left", maintain_order="left")
+    ids = joined["unique_id"].to_numpy().astype(INT_DTYPE)
+
+    # Cheap alignment check: a left join that changed the row count means the
+    # lookup was not unique on (lon, lat), which would make the result
+    # meaningless. Catch it here rather than downstream in the connectivity.
+    if ids.shape[0] != lon_block.shape[0]:
+        raise GridInvalidError(
+            "SCRIP node lookup changed the corner count "
+            f"({lon_block.shape[0]} -> {ids.shape[0]}); the unique-node table "
+            "is not unique on (lon, lat)."
+        )
+    return ids
+
+
 def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
     """Find unique SCRIP corner coordinates without materializing the full
     corner table, for dask-backed corner arrays (i.e. the grid was opened
@@ -180,19 +222,8 @@ def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
         }
     )
 
-    def _lookup_block(lon_block, lat_block, lookup=lookup):
-        block = pl.DataFrame({"lon": lon_block, "lat": lat_block}).with_row_count(
-            "original_index"
-        )
-        # join can reorder rows -- sort back so this block's output stays
-        # positionally aligned with lon_block/lat_block, as map_blocks requires.
-        joined = block.join(lookup, on=["lon", "lat"], how="left").sort(
-            "original_index"
-        )
-        return joined["unique_id"].to_numpy().astype(INT_DTYPE)
-
     unq_inv = dask_array.map_blocks(
-        _lookup_block, corner_lon, corner_lat, dtype=INT_DTYPE
+        _lookup_node_ids, corner_lon, corner_lat, lookup=lookup, dtype=INT_DTYPE
     )
 
     return unq_lon, unq_lat, unq_inv
