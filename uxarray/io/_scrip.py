@@ -1,5 +1,6 @@
 from typing import Any, Sequence
 
+import dask
 import dask.array as dask_array
 import dask.dataframe as dd
 import numpy as np
@@ -83,6 +84,24 @@ def _dedup_scrip_nodes_eager(corner_lon, corner_lat):
     return unq_lon, unq_lat, unq_inv
 
 
+def _distributed_client_active():
+    """True when a ``distributed`` client is running in this process.
+
+    Kept separate so the import stays optional: ``distributed`` is not a
+    uxarray dependency, and its absence simply means no cluster is in play.
+    """
+    try:
+        from distributed import default_client
+    except ImportError:
+        return False
+
+    try:
+        default_client()
+    except (ValueError, RuntimeError):
+        return False
+    return True
+
+
 def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
     """Find unique SCRIP corner coordinates without materializing the full
     corner table, for dask-backed corner arrays (i.e. the grid was opened
@@ -98,6 +117,11 @@ def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
        partition-by-partition (spilling to disk as needed) rather than
        requiring it resident in memory all at once, as the Polars path
        does. Only this small unique-node table is computed eagerly here.
+       The shuffle is pinned to the disk method: without a ``distributed``
+       client dask's default picks a wholly in-memory shuffle, which on a
+       226M-face grid peaked at 17.9 GiB against 12.1 GiB for the disk
+       shuffle -- the same answer for 32% less memory, which is the whole
+       point of taking this path.
     2. The inverse index -- which unique node each of the (many) original
        corners maps to -- is built by broadcasting that small table back
        across the corner array's own blocks with ``map_blocks`` (not
@@ -124,16 +148,30 @@ def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
     coords = dask_array.stack([corner_lon, corner_lat], axis=1)
     ddf = dd.from_dask_array(coords, columns=["lon", "lat"])
 
-    unique_pairs = (
-        ddf.drop_duplicates(subset=["lon", "lat"], keep="first")
-        .compute()
-        .reset_index(drop=True)
-    )
+    # Only set the shuffle method if the caller has not chosen one, and only
+    # when there is no distributed client -- with a cluster, dask's p2p
+    # shuffle is the better default and should not be overridden here.
+    shuffle_cfg = {}
+    if dask.config.get("dataframe.shuffle.method", None) is None:
+        if not _distributed_client_active():
+            shuffle_cfg["dataframe.shuffle.method"] = "disk"
+
+    with dask.config.set(shuffle_cfg):
+        unique_pairs = (
+            ddf.drop_duplicates(subset=["lon", "lat"], keep="first")
+            .compute()
+            .reset_index(drop=True)
+        )
+    # Drop the parent DataFrame as soon as the two columns are extracted.
+    # "Small" is relative: on a 226M-face grid the unique-node table is
+    # 3.4 GiB, so holding it past its last use is not free.
     unq_lon = unique_pairs["lon"].to_numpy()
     unq_lat = unique_pairs["lat"].to_numpy()
+    del unique_pairs
 
-    # Small (one row per unique node) lookup table, broadcast to every
-    # block below instead of shuffling the full corner table again.
+    # Lookup table (one row per unique node) broadcast to every block below
+    # instead of shuffling the full corner table a second time. Built as a
+    # zero-copy view over unq_lon/unq_lat rather than a third copy of them.
     lookup = pl.DataFrame(
         {
             "lon": unq_lon,
