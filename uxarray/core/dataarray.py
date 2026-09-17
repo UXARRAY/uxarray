@@ -14,6 +14,7 @@ from xarray.core.utils import UncachedAccessor
 import uxarray
 from uxarray.constants import GRID_DIMS
 from uxarray.core.aggregation import _uxda_grid_aggregate
+from uxarray.core.arithmetic import UxSupportsArithmetic
 from uxarray.core.gradient import (
     _calculate_edge_face_difference,
     _calculate_edge_node_difference,
@@ -55,7 +56,7 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
 
 
-class UxDataArray(xr.DataArray):
+class UxDataArray(UxSupportsArithmetic, xr.DataArray):
     """Grid informed ``xarray.DataArray`` with an attached ``Grid`` accessor
     and grid-specific functionality.
 
@@ -593,6 +594,40 @@ class UxDataArray(xr.DataArray):
 
     def to_xarray(self) -> xr.DataArray:
         return xr.DataArray(self)
+
+    def astype(self, dtype, **kw_super):
+        """Copy of this uxarray object, with data cast to a specified type.
+        Leaves coordinate dtype unchanged.
+
+        Behaves just like :meth:`xarray.DataArray.astype`, except that
+        the returned object is a UxDataArray with same uxgrid as the input.
+        """
+        da = super().astype(dtype, **kw_super)
+        return type(self)(da, uxgrid=self._uxgrid)
+
+    def _binary_op(self, other, f, reflexive=False, **kw_super):
+        """returns f(self, other) (or f(other, self), if `reflexive`) for f a binary operation,
+        such as adding or multiplying. Like super()._binary_op, except that
+        if `other` is an xarray.Dataset, convert the result to a UxDataset.
+
+        (UxDataArray needs to handle this to ensure UxDataArray + xr.Dataset --> UxDataset,
+        rather than returning xr.Dataset.)
+
+        (It is not possible to handle the xr.Dataset + UxDataArray --> UxDataset case without
+        touching xarray code directly, but all other combinations should behave as expected,
+        i.e. result is uxarray-typed whenever either input is uxarray-typed.)
+        """
+        if isinstance(other, xr.Dataset) and not isinstance(
+            other, UxSupportsArithmetic
+        ):
+            from uxarray.core.dataset import UxDataset
+
+            result = other._binary_op(self, f, reflexive=not reflexive, **kw_super)
+            # e.g. self - other --> result = other.__rsub__(self).
+            result = UxDataset(result, uxgrid=self.uxgrid)
+        else:
+            result = super()._binary_op(other, f, reflexive=reflexive, **kw_super)
+        return result
 
     def integrate(
         self, quadrature_rule: str | None = "triangular", order: int | None = 4
