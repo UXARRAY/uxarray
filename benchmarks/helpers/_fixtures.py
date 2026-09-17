@@ -3,22 +3,6 @@
 ASV gives every benchmark its own process, so a grid opened in ``setup`` is
 opened once per benchmark rather than once per run. This module provides flexible
 access to files across benchmark runs by caching the needed files.
-
-Benchmarks that do measure opening a file behave as before.
-
-Two flavors:
-
-``topology``
-    the three arrays ``Grid.from_topology`` needs and nothing else
-``grid`` / ``dataset``
-    everything the reader produced from ``Grid.open_grid`` and
-    ``Grid.open_dataset``
-
-Artifacts are keyed on both the uxarray build and the files, because an
-artifact is one version's reader output and ASV diffs commits. Likewise, there's a
-fresh read per commit. ``prime`` covers every source that is readable here,
-and there is a CLI (``python -m benchmarks.helpers._fixtures``) to fill the
-cache from a batch script instead of from inside a benchmark.
 """
 
 import hashlib
@@ -58,27 +42,27 @@ from ._warmup import warm_in_parent
 BENCHMARK_DIR = Path(__file__).resolve().parents[1]
 REPO_DIR = BENCHMARK_DIR.parent
 
-_COOKBOOK_MESH_URL = (
+_OQU_MESH_URL = (
     "https://github.com/ProjectPythia/unstructured-grid-viz-cookbook/raw/main/meshfiles"
 )
 
 
-def _cookbook_mesh(filename):
+def _oqu_mesh(filename):
     """Path to a Cookbook mesh, fetched once if this checkout lacks it."""
     path = BENCHMARK_DIR / filename
     if not path.is_file():
-        urllib.request.urlretrieve(f"{_COOKBOOK_MESH_URL}/{filename}", filename=path)
+        urllib.request.urlretrieve(f"{_OQU_MESH_URL}/{filename}", filename=path)
     return path
 
 
 # Grids and grid/data pairs, by mesh resolution.
 OQU_GRIDS = {
-    "480km": _cookbook_mesh("oQU480.grid.nc"),
-    "120km": _cookbook_mesh("oQU120.grid.nc"),
+    "480km": _oqu_mesh("oQU480.grid.nc"),
+    "120km": _oqu_mesh("oQU120.grid.nc"),
 }
 OQU_DATASETS = {
-    "480km": (OQU_GRIDS["480km"], _cookbook_mesh("oQU480.data.nc")),
-    "120km": (OQU_GRIDS["120km"], _cookbook_mesh("oQU120.data.nc")),
+    "480km": (OQU_GRIDS["480km"], _oqu_mesh("oQU480.data.nc")),
+    "120km": (OQU_GRIDS["120km"], _oqu_mesh("oQU120.data.nc")),
 }
 
 DYAMOND_GRIDS = {
@@ -160,7 +144,7 @@ def _write(dataset, artifact_path, writer):
     os.replace(scratch, artifact_path)
 
 
-def _read_dataset(artifact_path):
+def _read_cached_dataset(artifact_path):
     """Reads back a cached ``xr.Dataset``."""
     return xr.open_dataset(artifact_path, mask_and_scale=False).load()
 
@@ -218,7 +202,7 @@ def _cached_grid_ds(grid_path):
     """The cached internal dataset of ``grid_path``, held for this process."""
     artifact_path = _ensure((Path(grid_path),), "grid", ".nc")
     if artifact_path not in _loaded:
-        _loaded[artifact_path] = _read_dataset(artifact_path)
+        _loaded[artifact_path] = _read_cached_dataset(artifact_path)
     return _loaded[artifact_path]
 
 
@@ -242,22 +226,24 @@ def cached_dataset(grid_path, data_path):
     source = (Path(grid_path), Path(data_path))
     artifact_path = _ensure(source, "data", ".nc")
     if artifact_path not in _loaded:
-        _loaded[artifact_path] = _read_dataset(artifact_path)
+        _loaded[artifact_path] = _read_cached_dataset(artifact_path)
     return ux.UxDataset(_loaded[artifact_path].copy(), uxgrid=cached_grid(grid_path))
 
 
 def prime(workers=1):
     """Fills the cache for every source the fixtures can serve.
 
-    Returns the sources it had to read. Idempotent, and once warm costs a
-    ``stat`` per file, so it is cheap to call ahead of every run.
+    Returns the sources it had to read. Idempotent, and once warm it only costs a
+    ``stat`` per file.
 
     ``workers`` reads that many sources at once, which is worth having when the
     sources differ wildly in size and live somewhere slow: the small ones finish
     while a larger grid is still being read, instead of queueing behind all the
     file fetches. Only pays off when a read is slower than a process start due to
-    the new interpreter startup. Processes rather than threads because the standard
-    netCDF/HDF5 stack is not generally thread-safe for concurrent opens.
+    the new interpreter overhead.
+
+    Processes rather than threads here, because the standard netCDF/HDF5 stack is not
+    generally thread-safe for concurrent opens.
     """
     sources = [(path,) for path in OQU_GRIDS.values()]
     sources += [(path,) for path in GRIDS_BY_FORMAT.values()]
@@ -296,16 +282,8 @@ def prime(workers=1):
 
 
 def preload_topologies(grid_paths):
-    """Loads topologies here so forked benchmarks inherit them.
+    """Loads topologies here so forked benchmarks inherit them."""
 
-    Reading an artifact caches it on disk, not in the next process: under
-    ``launch_method: forkserver`` each benchmark is forked from the interpreter
-    that imported the suite, so it starts with whatever *that* process holds and
-    reads its own copy of everything else.
-
-    Safe to call at import: reading arrays starts no numba thread pool, which is
-    what a forked child cannot inherit (see :mod:`benchmarks.helpers._warmup`).
-    """
     loaded = 0
     for grid_path in grid_paths:
         cached_topology(grid_path)  # held by the process-level memo from here on
@@ -339,31 +317,19 @@ class CachedFixtures:
 
 
 if __name__ == "__main__":
-    # Fills the cache ahead of ``asv run``, so no benchmark -- and not even
-    # ``setup_cache`` -- pays for reading a source grid. Worth a line in a batch
-    # script whenever the dyamond grids are in play.
+    # Fills the cache ahead of ``asv run``
     print(f"fixture cache: {cache_dir()}", flush=True)
 
     # Four at a time only where the dyamond grids are readable, since those are
-    # the reads worth overlapping: on the oQU pair alone, priming in parallel is
-    # slower than doing it sequentially (1.69s against 0.52s), because starting
-    # an interpreter costs more than reading a small local file.
+    # the reads worth overlapping. Priming in parallel with small files is
+    # slower than doing it sequentially due to overhead.
     for source in prime(workers=4 if DYAMOND_AVAILABLE else 1) or [None]:
         print(f"  read {' + '.join(Path(p).name for p in source)}" if source else "  nothing to do", flush=True)
 
 
 def warm_netcdf():
-    """Brings the netCDF/HDF5 stack up here, so the forks inherit it loaded.
+    """Brings the netCDF/HDF5 stack up here, so the forks inherit it loaded."""
 
-    The first ``open_dataset`` in a process spends ~65ms initializing the
-    library before it reads a byte, and nothing else in the parent pays that:
-    the topology fixtures go through numpy. So today every forked child that
-    touches a cached ``.nc`` artifact pays it again, one at a time.
-
-    The file is closed again. What the children want is the loaded library, not
-    a handle -- an inherited HDF5 handle is shared rather than copied, and
-    parent and child would then read through one file offset.
-    """
     artifacts = sorted(cache_dir().glob("*.nc"), key=lambda path: path.stat().st_size)
     if not artifacts:
         return  # cache not primed yet, so the first child pays it as before
