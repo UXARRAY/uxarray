@@ -141,6 +141,22 @@ def _build_polygon_shells(
     return polygon_shells
 
 
+def _central_longitude_of(projection):
+    """Central longitude of a cartopy projection, in degrees.
+
+    Most projections record it as ``lon_0``, but Cartopy 0.26 changed
+    ``PlateCarree`` from ``proj=eqc`` to ``proj=latlong``, which carries the
+    prime meridian as ``pm`` and has no ``lon_0`` at all. Reading ``lon_0``
+    directly raises ``KeyError`` on that projection, so check both and fall back
+    to 0.0 for any projection that declares neither.
+    """
+    params = projection.proj4_params
+    for key in ("lon_0", "pm"):
+        if key in params:
+            return float(params[key])
+    return 0.0
+
+
 def _correct_central_longitude(node_lon, node_lat, projection):
     """Shifts the central longitude of an unstructured grid, which moves the
     antimeridian when visualizing, which is used when projections have a
@@ -148,11 +164,11 @@ def _correct_central_longitude(node_lon, node_lat, projection):
     import cartopy.crs as ccrs
 
     if projection:
-        central_longitude = projection.proj4_params["lon_0"]
+        central_longitude = _central_longitude_of(projection)
         if central_longitude != 0.0:
             _source_projection = ccrs.PlateCarree(central_longitude=0.0)
             _destination_projection = ccrs.PlateCarree(
-                central_longitude=projection.proj4_params["lon_0"]
+                central_longitude=central_longitude
             )
 
             lonlat_proj = _destination_projection.transform_points(
