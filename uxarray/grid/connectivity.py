@@ -644,6 +644,10 @@ def _merge_coincident_grid_ds_nodes(grid_ds, tolerance=ERROR_TOLERANCE):
         for index in np.flatnonzero(canonical != np.arange(n_node, dtype=INT_DTYPE))
     }
     if not duplicate_node_map:
+        # No coincident nodes: return ``grid_ds`` untouched. Everything below --
+        # the ``_NODE_INDEX_CONNECTIVITY_TO_REMAP`` remap, the face-ring collapse
+        # and the ``_DERIVED_CONNECTIVITY_TO_INVALIDATE`` drop -- only runs when
+        # duplicates were actually found.
         return grid_ds
 
     grid_ds = grid_ds.copy()
