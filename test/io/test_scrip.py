@@ -120,6 +120,33 @@ def test_scrip_radians_units(gridpath):
     nt.assert_allclose(np.sort(grid.node_lat.values), np.sort(expected_node_lat), atol=1e-10)
 
 
+def test_scrip_dask_lazy_dedup_matches_eager(gridpath):
+    """Opening a SCRIP grid with ``chunks=`` must produce the same mesh as
+    the eager path -- same node count, same per-face corner coordinates --
+    even though the underlying dedup algorithm differs (dask-native vs.
+    Polars) once the corner arrays are dask-backed."""
+    grid_file = gridpath("scrip", "outCSne8", "outCSne8.nc")
+
+    grid_eager = ux.open_grid(grid_file)
+    grid_lazy = ux.open_grid(grid_file, chunks={"grid_size": 7})
+
+    import dask.array as da
+
+    assert isinstance(grid_lazy._ds["face_node_connectivity"].data, da.Array)
+
+    fnc_eager = grid_eager.face_node_connectivity.values
+    fnc_lazy = grid_lazy.face_node_connectivity.values
+
+    corners_eager_lon = np.sort(grid_eager.node_lon.values[fnc_eager], axis=1)
+    corners_eager_lat = np.sort(grid_eager.node_lat.values[fnc_eager], axis=1)
+    corners_lazy_lon = np.sort(grid_lazy.node_lon.values[fnc_lazy], axis=1)
+    corners_lazy_lat = np.sort(grid_lazy.node_lat.values[fnc_lazy], axis=1)
+
+    nt.assert_allclose(corners_eager_lon, corners_lazy_lon, atol=1e-10)
+    nt.assert_allclose(corners_eager_lat, corners_lazy_lat, atol=1e-10)
+    assert grid_eager.n_node == grid_lazy.n_node
+
+
 def test_open_multigrid_mask_active_value_per_grid_override(gridpath):
     """Per-grid override supports masks with different active values."""
     grid_file = gridpath("scrip", "oasis", "grids.nc")

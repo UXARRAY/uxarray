@@ -1,5 +1,7 @@
 from typing import Any, Sequence
 
+import dask.array as dask_array
+import dask.dataframe as dd
 import numpy as np
 import polars as pl
 import xarray as xr
@@ -38,6 +40,126 @@ def _values_in_degrees(data_array):
     return values
 
 
+def _dedup_scrip_nodes_eager(corner_lon, corner_lat):
+    """Find unique SCRIP corner coordinates using Polars.
+
+    Historical, numpy-only implementation, used whenever the corner arrays
+    are not dask-backed. Unchanged behavior.
+
+    Parameters
+    ----------
+    corner_lon, corner_lat : numpy.ndarray
+        Flattened (``grid_size * grid_corners``,) corner coordinates.
+
+    Returns
+    -------
+    unq_lon, unq_lat, unq_inv : numpy.ndarray
+        Unique node coordinates (in order of first appearance) and, for
+        every input corner, the index into ``unq_lon``/``unq_lat`` of the
+        node it maps to.
+    """
+    df = pl.DataFrame({"lon": corner_lon, "lat": corner_lat}).with_row_count(
+        "original_index"
+    )
+
+    # Get unique rows (first occurrence). This preserves the order in which they appear.
+    unique_df = df.unique(subset=["lon", "lat"], keep="first")
+
+    # unq_ind: The indices of the unique rows in the original array
+    unq_ind = unique_df["original_index"].to_numpy().astype(INT_DTYPE)
+
+    # To get the inverse index (unq_inv): map each original row back to its unique row index.
+    # Add a unique_id to the unique_df which will serve as the "inverse" mapping.
+    unique_df = unique_df.with_row_count("unique_id")
+
+    # Join original df with unique_df to find out which unique_id corresponds to each row
+    df_joined = df.join(unique_df.drop("original_index"), on=["lon", "lat"], how="left")
+    unq_inv = df_joined["unique_id"].to_numpy().astype(INT_DTYPE)
+
+    # Extract unique lon and lat values using unq_ind
+    unq_lon = corner_lon[unq_ind]
+    unq_lat = corner_lat[unq_ind]
+
+    return unq_lon, unq_lat, unq_inv
+
+
+def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
+    """Find unique SCRIP corner coordinates without materializing the full
+    corner table, for dask-backed corner arrays (i.e. the grid was opened
+    with ``chunks=``).
+
+    Real meshes share most corners between adjacent faces, so the set of
+    *unique* nodes is far smaller than the full *corner* table (which has
+    one row per face-corner, duplicated at every shared vertex). This
+    exploits that:
+
+    1. ``dask.dataframe``'s shuffle-based ``drop_duplicates`` finds the
+       unique ``(lon, lat)`` pairs, processing the corner table
+       partition-by-partition (spilling to disk as needed) rather than
+       requiring it resident in memory all at once, as the Polars path
+       does. Only this small unique-node table is computed eagerly here.
+    2. The inverse index -- which unique node each of the (many) original
+       corners maps to -- is built by broadcasting that small table back
+       across the corner array's own blocks with ``map_blocks`` (not
+       ``dask.dataframe.map_partitions``, whose output has unknown chunk
+       sizes -- ``map_blocks`` preserves the input's known chunk structure
+       exactly), and is returned as a dask array, not computed here. It
+       stays lazy through the rest of ``_to_ugrid`` and is only
+       materialized when something downstream (e.g. writing the grid to
+       disk) actually needs it.
+
+    Parameters
+    ----------
+    corner_lon, corner_lat : dask.array.Array
+        Flattened (``grid_size * grid_corners``,) corner coordinates.
+
+    Returns
+    -------
+    unq_lon, unq_lat : numpy.ndarray
+        Unique node coordinates.
+    unq_inv : dask.array.Array
+        For every input corner, the index into ``unq_lon``/``unq_lat`` of
+        the node it maps to.
+    """
+    coords = dask_array.stack([corner_lon, corner_lat], axis=1)
+    ddf = dd.from_dask_array(coords, columns=["lon", "lat"])
+
+    unique_pairs = (
+        ddf.drop_duplicates(subset=["lon", "lat"], keep="first")
+        .compute()
+        .reset_index(drop=True)
+    )
+    unq_lon = unique_pairs["lon"].to_numpy()
+    unq_lat = unique_pairs["lat"].to_numpy()
+
+    # Small (one row per unique node) lookup table, broadcast to every
+    # block below instead of shuffling the full corner table again.
+    lookup = pl.DataFrame(
+        {
+            "lon": unq_lon,
+            "lat": unq_lat,
+            "unique_id": np.arange(len(unq_lon), dtype=INT_DTYPE),
+        }
+    )
+
+    def _lookup_block(lon_block, lat_block, lookup=lookup):
+        block = pl.DataFrame({"lon": lon_block, "lat": lat_block}).with_row_count(
+            "original_index"
+        )
+        # join can reorder rows -- sort back so this block's output stays
+        # positionally aligned with lon_block/lat_block, as map_blocks requires.
+        joined = block.join(lookup, on=["lon", "lat"], how="left").sort(
+            "original_index"
+        )
+        return joined["unique_id"].to_numpy().astype(INT_DTYPE)
+
+    unq_inv = dask_array.map_blocks(
+        _lookup_block, corner_lon, corner_lat, dtype=INT_DTYPE
+    )
+
+    return unq_lon, unq_lat, unq_inv
+
+
 def _to_ugrid(in_ds, out_ds):
     """If input dataset (``in_ds``) file is an unstructured SCRIP file,
     function will reassign SCRIP variables to UGRID conventions in output file
@@ -51,34 +173,22 @@ def _to_ugrid(in_ds, out_ds):
         # Create node_lon & node_lat variables from grid_corner_lat/lon
         # Turn latitude and longitude scrip arrays into 1D
         # Convert to degrees if needed
-        # materialized here: fed to polars and numpy fancy-indexing below
-        corner_lat = np.asarray(_values_in_degrees(in_ds["grid_corner_lat"])).ravel()
-        corner_lon = np.asarray(_values_in_degrees(in_ds["grid_corner_lon"])).ravel()
+        corner_lat_raw = _values_in_degrees(in_ds["grid_corner_lat"]).ravel()
+        corner_lon_raw = _values_in_degrees(in_ds["grid_corner_lon"]).ravel()
 
-        # Use Polars to find unique coordinate pairs
-        df = pl.DataFrame({"lon": corner_lon, "lat": corner_lat}).with_row_count(
-            "original_index"
-        )
-
-        # Get unique rows (first occurrence). This preserves the order in which they appear.
-        unique_df = df.unique(subset=["lon", "lat"], keep="first")
-
-        # unq_ind: The indices of the unique rows in the original array
-        unq_ind = unique_df["original_index"].to_numpy().astype(INT_DTYPE)
-
-        # To get the inverse index (unq_inv): map each original row back to its unique row index.
-        # Add a unique_id to the unique_df which will serve as the "inverse" mapping.
-        unique_df = unique_df.with_row_count("unique_id")
-
-        # Join original df with unique_df to find out which unique_id corresponds to each row
-        df_joined = df.join(
-            unique_df.drop("original_index"), on=["lon", "lat"], how="left"
-        )
-        unq_inv = df_joined["unique_id"].to_numpy().astype(INT_DTYPE)
-
-        # Extract unique lon and lat values using unq_ind
-        unq_lon = corner_lon[unq_ind]
-        unq_lat = corner_lat[unq_ind]
+        if isinstance(corner_lat_raw, dask_array.Array) or isinstance(
+            corner_lon_raw, dask_array.Array
+        ):
+            # Lazily opened (chunks= was passed to open_grid): dedup without
+            # ever materializing the full corner table.
+            unq_lon, unq_lat, unq_inv = _dedup_scrip_nodes_dask(
+                corner_lon_raw, corner_lat_raw
+            )
+        else:
+            # Eagerly opened: unchanged Polars-based path.
+            corner_lat = np.asarray(corner_lat_raw)
+            corner_lon = np.asarray(corner_lon_raw)
+            unq_lon, unq_lat, unq_inv = _dedup_scrip_nodes_eager(corner_lon, corner_lat)
 
         # Reshape face nodes array into original shape for use in 'face_node_connectivity'
         unq_inv = np.reshape(unq_inv, (len(in_ds.grid_size), len(in_ds.grid_corners)))
