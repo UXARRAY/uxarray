@@ -5,6 +5,7 @@ Related issues: #1224, #1539
 """
 import subprocess
 import sys
+from pathlib import Path
 
 
 def _assert_not_imported_after_import_uxarray(module_name):
@@ -66,6 +67,29 @@ def test_no_numba_kernels_built_on_import():
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_py_typed_marker_is_installed():
+    """Test that the PEP 561 ``py.typed`` marker ships with the package.
+
+    uxarray annotates its public API, but a type checker is only allowed to
+    use those annotations if the package declares itself typed by shipping an
+    (empty) ``py.typed`` file. Without it, mypy and pyright silently treat
+    every uxarray import as ``Any``, and ``--strict`` users get an error on
+    ``import uxarray``.
+
+    This asserts against the *installed* package rather than the source tree:
+    ``MANIFEST.in`` globs only ``*.py``, so the marker can be present in git
+    and still be missing from a built wheel.
+    """
+    import uxarray
+
+    marker = Path(uxarray.__file__).parent / "py.typed"
+    assert marker.is_file(), (
+        f"PEP 561 marker missing from the installed package at {marker}. "
+        "Type checkers will ignore uxarray's annotations. See "
+        "[tool.setuptools.package-data] in pyproject.toml and MANIFEST.in."
+    )
 
 
 # TODO: similar tests for cartopy, holoviews, and other optional deps.
