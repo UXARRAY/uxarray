@@ -47,16 +47,16 @@ dev = [
     'ruff',
 ]
 geo = [
-    "cartopy",  # in both geo and viz because it is needed by to_geodataframe() and by plotting routines.
+    "cartopy>=0.26",  # in both geo and viz because it is needed by to_geodataframe() and by plotting routines. 0.26 is the first release that works with matplotlib 3.11; see issue #1542.
     "geopandas>=1.0",  # 1.0 is the first release requiring pyogrio, the file-IO backend read_file needs. See #1693.
     "healpix",
     "pyproj",
     "spatialpandas",
 ]
 viz = [
-    "cartopy",
+    "cartopy>=0.26",  # 0.26 is the first release that works with matplotlib 3.11; see issue #1542.
     "datashader",
-    "matplotlib<3.11",  # matplotlib 3.11.0 breaks some plots but <3.11 is fine; see issue #1542.
+    "matplotlib",
     "geoviews",
     "holoviews",
     "hvplot",
