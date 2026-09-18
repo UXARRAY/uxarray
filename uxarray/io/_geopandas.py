@@ -5,6 +5,7 @@ import xarray as xr
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, WGS84_CRS
 from uxarray.conventions import ugrid
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 from uxarray.utils.warnings import find_stack_level
 
 
@@ -68,7 +69,7 @@ def _gpd_read(filepath, driver=None, **kwargs):
     int
         Maximum number of nodes in a polygon/multipolygon.
     """
-
+    _raise_hint_if_optional_deps_missing("geopandas")
     import geopandas as gpd
 
     gdf = gpd.read_file(filepath, driver=driver, **kwargs)
