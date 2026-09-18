@@ -496,3 +496,34 @@ def test_sel_crash_if_provided_selection_options_with_coordless_dims():
             arr1.to_xarray().sel(time=4, **kw)
         with pytest.raises(ValueError, match=r"cannot supply selection options"):
             arr1.to_xarray().sel(time=4, n_face=[3], **kw)
+
+def test_isel_crash_if_coordinates_conflict():
+    """Ensure isel crashes if there is a coordinates conflict,
+    such as indexing an array with time dim by an array with a scalar time coord.
+    Regression test for bug (2) discovered during review of PR #1759.
+    """
+    ds = ux.tutorial.open_dataset("outCSne30-timeseries")
+    arr = ds['psi']
+    indexer0 = xr.DataArray(0, coords={'time': arr['time'][0].item()})
+    indexer1 = arr.isel(time=0).argmax('n_face')
+    assert isinstance(indexer1, ux.UxDataArray)
+    assert 'time' in indexer1.coords and 'time' not in indexer1.dims
+    MATCH_ERRMSG = "dimension coordinate 'time' conflicts between indexed and indexing objects"
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        arr.to_xarray().isel(n_face=indexer0)  # sanity check that xarray also crashes here.
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        arr.isel(n_face=indexer0)
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        arr.to_xarray().isel(n_face=indexer1)  # sanity check that xarray also crashes here.
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        arr.isel(n_face=indexer1)
+
+    # repeat tests for UxDataArray:
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        ds.to_xarray().isel(n_face=indexer0)
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        ds.isel(n_face=indexer0)
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        ds.to_xarray().isel(n_face=indexer1)
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        ds.isel(n_face=indexer1)

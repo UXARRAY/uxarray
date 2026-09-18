@@ -6,6 +6,7 @@ from typing import Hashable, Iterable, Mapping
 
 import numpy as np
 import xarray as xr
+import xarray.core.coordinates
 import xarray.core.utils as xr_core_utils
 
 from uxarray.errors import DimensionError
@@ -110,6 +111,8 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
             (Also in this case, if indexer.to_xarray() exists, call it, to avoid recursion.)
     """
     if isinstance(indexer, xr.DataArray):
+        xr.core.coordinates.assert_coordinate_consistent(uxarray_obj, indexer.coords)
+        # ^ e.g. if uxarray_obj has time dim but indexer has time scalar coord, crash!
         if indexer.ndim == 0:
             coords = indexer.coords
         elif indexer.ndim == 1:
