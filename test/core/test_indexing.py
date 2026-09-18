@@ -308,6 +308,19 @@ def test_indexing_by_dataarray():
     assert counter == 2 * n_data_grid_dim_combos * 2
 
 
+def test_dataset_isel_keeps_bonus_coords():
+    """ensure UxDataset.isel() keeps "bonus" coords,
+    i.e. coords in the dataset which do not actually appear in any data var.
+    Regression test for bug (3) discovered during review of PR #1759.
+    """
+    ds = ux.tutorial.open_dataset('quad-hexagon')
+    ds = ds.assign_coords({'bonus_coord': xr.DataArray(['a', 'b'], dims=['bonus_dim'])})
+    assert 'bonus_coord' in ds.coords
+    assert all('bonus_coord' not in arr for arr in ds.data_vars.values())
+    result = ds.isel(n_face=0)
+    assert 'bonus_coord' in result.coords and 'bonus_dim' in result.dims
+
+
 def test_indexing_does_not_edit_indexers_dict():
     """ensure isel() and sel() do not edit the provided indexers dict.
     Regression test for #1711.

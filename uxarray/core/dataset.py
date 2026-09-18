@@ -402,7 +402,24 @@ class UxDataset(xr.Dataset):
             else:
                 data_vars[name] = da
 
-        ds_sliced = xr.Dataset(data_vars=data_vars, attrs=self.attrs)
+        # Also account for any coords which aren't attached to any data_var:
+        bonus_coords = {}
+        for coord in self.coords:
+            for data_var in data_vars.values():
+                if coord in data_var.coords:
+                    break
+            else:  # didn't break
+                da = self.coords[coord]
+                if hasattr(da, "_slice_from_grid") and any(
+                    dim in da.dims for dim in GRID_DIMS
+                ):
+                    bonus_coords[coord] = da._slice_from_grid(sliced_grid)
+                else:
+                    bonus_coords[coord] = da
+
+        ds_sliced = xr.Dataset(
+            data_vars=data_vars, coords=bonus_coords, attrs=self.attrs
+        )
         return type(self)(ds_sliced, uxgrid=sliced_grid)
 
     def isel(
