@@ -6,6 +6,59 @@ import xarray as xr
 
 import uxarray as ux
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.conventions import ugrid
+
+
+def test_connectivity_dims_renamed_to_ugrid(gridpath):
+    """Every connectivity gets the trailing dimension the conventions give it.
+
+    FESOM2 mesh diagnostics store that axis as 'n2' for the edge connectivities,
+    and share one size-3 dimension across all three face connectivities.
+    """
+    uxgrid = ux.open_grid(gridpath("ugrid", "fesom", "fesom.mesh.diag.nc"))
+
+    present = [name for name in ugrid.CONNECTIVITY_NAMES if name in uxgrid._ds]
+    assert "edge_node_connectivity" in present
+    assert "face_edge_connectivity" in present
+
+    for conn_name in present:
+        assert list(uxgrid._ds[conn_name].dims) == ugrid.CONNECTIVITY[conn_name]["dims"]
+
+    assert "n2" not in uxgrid._ds.dims
+    assert uxgrid._source_dims_dict["n2"] == "two"
+
+
+def test_shared_source_dim_split_per_connectivity(gridpath):
+    """One source dimension shared by several connectivities becomes several.
+
+    fesom.mesh.diag.nc stores face_nodes, face_edges and face_links all on a
+    single size-3 dimension 'n3'. Each has a different UGRID name, which one
+    swap_dims call cannot express, so the extras are renamed per variable.
+    """
+    uxgrid = ux.open_grid(gridpath("ugrid", "fesom", "fesom.mesh.diag.nc"))
+
+    assert uxgrid._ds["face_node_connectivity"].dims == ("n_face", "n_max_face_nodes")
+    assert uxgrid._ds["face_edge_connectivity"].dims == ("n_face", "n_max_face_edges")
+    assert uxgrid._ds["face_face_connectivity"].dims == ("n_face", "n_max_face_faces")
+
+    assert "n3" not in uxgrid._ds.dims
+    for dim in ("n_max_face_nodes", "n_max_face_edges", "n_max_face_faces"):
+        assert uxgrid._ds.sizes[dim] == 3
+
+
+def test_shared_source_dim_claimed_by_face_node_connectivity(gridpath):
+    """Variables that are not connectivity keep the face_node name they had.
+
+    'n3' is also used by gradient_sca_x/y, which are ordinary data variables.
+    face_node_connectivity claims the dataset-wide rename so those keep
+    n_max_face_nodes rather than following whichever connectivity came first.
+    """
+    uxgrid = ux.open_grid(gridpath("ugrid", "fesom", "fesom.mesh.diag.nc"))
+
+    for var_name in ("gradient_sca_x", "gradient_sca_y"):
+        assert uxgrid._ds[var_name].dims == ("n_max_face_nodes", "n_face")
+
+    assert uxgrid._source_dims_dict["n3"] == "n_max_face_nodes"
 
 
 def test_read_ugrid(gridpath, mesh_constants):

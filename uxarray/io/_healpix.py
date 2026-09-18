@@ -6,6 +6,7 @@ import xarray as xr
 
 import uxarray.conventions.ugrid as ugrid
 from uxarray.constants import INT_DTYPE
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 
 def get_zoom_from_cells(cells):
@@ -67,6 +68,7 @@ def pix2corner_ang(
     ----
     This will be updated when https://github.com/ntessore/healpix/issues/66 is implemented.
     """
+    _raise_hint_if_optional_deps_missing("healpix")
     import healpix as hp
 
     if nest:
@@ -103,6 +105,7 @@ def _pixels_to_ugrid(zoom, nest):
         A dataset containing pixel longitude and latitude coordinates along with related attributes.
 
     """
+    _raise_hint_if_optional_deps_missing("healpix")
     import healpix as hp
 
     ds = xr.Dataset()
