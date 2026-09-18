@@ -470,8 +470,10 @@ def _grid_to_matplotlib_polycollection(
     # Handle unsupported configuration: splitting periodic elements with projection
     if periodic_elements == "split" and projection is not None:
         raise ValueError(
-            'Must provide `projection` when periodic_elements=="split" '
-            "while attempting to create polycollection, but got projection=None."
+            'Must not provide `projection` when periodic_elements=="split", '
+            "while attempting to create matplotlib polycollection. "
+            "Consider using the 'transform' kwarg instead.\n"
+            f"(Got projection={projection})"
         )
 
     # Correct the central longitude and build polygon shells

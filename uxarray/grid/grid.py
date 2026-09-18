@@ -313,17 +313,32 @@ class Grid:
                 source_dims_dict = kwargs.get("source_dims_dict") or {}
         else:
             try:
-                if os.path.isdir(dataset):
+                is_dir = os.path.isdir(dataset)
+            except TypeError as err:
+                raise TypeError(
+                    f"Expected xarray.Dataset or path-like object, but got {type(dataset)}, "
+                    f"in {cls.__name__}.from_dataset()"
+                ) from err
+            if is_dir:
+                try:
                     # FESOM2 ASCII directory.
                     grid_ds, source_dims_dict = _read_fesom2_asci(dataset)
                     source_grid_spec = "FESOM2"
                     return cls(grid_ds, source_grid_spec, source_dims_dict)
-            except TypeError as err:
+                except TypeError as err:
+                    raise GridInvalidError(
+                        f"Expected FESOM2 ASCII directory format but could not parse directory "
+                        f"contents into a valid grid, in {cls.__name__}.from_dataset(directory), "
+                        f"for directory={os.path.abspath(dataset)!r}"
+                    ) from err
+            elif os.path.exists(dataset):  # and isn't a directory
                 raise GridInvalidError(
-                    "Grid.from_dataset(directory) expected FESOM2 ASCII directory format, "
-                    "but could not parse directory's contents into a valid grid, "
-                    f"for directory={os.path.abspath(dataset)!r}"
-                ) from err
+                    f"Expected a directory in {cls.__name__}.from_dataset(filepath), "
+                    f"but got a single file ({os.path.abspath(dataset)!r}). "
+                    "Consider uxarray.open_grid() or uxarray.Grid.from_file() instead."
+                )
+            else:  # path-like but does not exist
+                raise FileNotFoundError(os.path.abspath(dataset))
 
         return cls(
             grid_ds,
