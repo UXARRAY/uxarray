@@ -120,6 +120,149 @@ def test_scrip_radians_units(gridpath):
     nt.assert_allclose(np.sort(grid.node_lat.values), np.sort(expected_node_lat), atol=1e-10)
 
 
+@pytest.mark.parametrize(
+    "chunks",
+    [
+        {"grid_size": 7},  # many tiny partitions
+        {"grid_size": 10**6},  # one partition, larger than the grid
+        "auto",  # what a caller (and the docstring) would reach for
+        -1,
+    ],
+    ids=["tiny_chunks", "single_chunk", "auto", "minus_one"],
+)
+def test_scrip_dask_lazy_dedup_matches_eager(gridpath, chunks):
+    """Opening a SCRIP grid with ``chunks=`` must produce the same mesh as
+    the eager path, even though the underlying dedup algorithm differs
+    (dask-native vs. Polars) once the corner arrays are dask-backed.
+
+    The comparison is on corner coordinates *in winding order*, not sorted:
+    the two paths are free to number nodes differently, but the order of
+    corners within a face is what determines area sign and normal
+    direction, so it must be preserved exactly.
+    """
+    grid_file = gridpath("scrip", "outCSne8", "outCSne8.nc")
+
+    grid_eager = ux.open_grid(grid_file)
+    grid_lazy = ux.open_grid(grid_file, chunks=chunks)
+
+    import dask.array as da
+
+    assert isinstance(grid_lazy._ds["face_node_connectivity"].data, da.Array), (
+        "chunks= did not produce a dask-backed connectivity, so this test "
+        "would silently compare the eager path against itself"
+    )
+
+    assert grid_eager.n_face == grid_lazy.n_face
+    assert grid_eager.n_node == grid_lazy.n_node
+
+    fnc_eager = grid_eager.face_node_connectivity.values
+    fnc_lazy = grid_lazy.face_node_connectivity.values
+
+    # Same set of unique nodes, independent of how each path numbered them.
+    nodes_eager = np.unique(
+        np.stack([grid_eager.node_lon.values, grid_eager.node_lat.values], 1), axis=0
+    )
+    nodes_lazy = np.unique(
+        np.stack([grid_lazy.node_lon.values, grid_lazy.node_lat.values], 1), axis=0
+    )
+    nt.assert_allclose(nodes_eager, nodes_lazy, atol=1e-10)
+
+    # Same corners per face, in the same order.
+    nt.assert_allclose(
+        grid_eager.node_lon.values[fnc_eager],
+        grid_lazy.node_lon.values[fnc_lazy],
+        atol=1e-10,
+    )
+    nt.assert_allclose(
+        grid_eager.node_lat.values[fnc_eager],
+        grid_lazy.node_lat.values[fnc_lazy],
+        atol=1e-10,
+    )
+
+
+def test_scrip_dask_lazy_dedup_matches_eager_radians(gridpath):
+    """The lazy path must also agree with the eager one when the file is in
+    radians, i.e. when ``_values_in_degrees`` converts a dask array rather
+    than returning it untouched."""
+    grid_file = gridpath("scrip", "scrip_radians", "scrip_radians_grid.nc")
+
+    grid_eager = ux.open_grid(grid_file)
+    grid_lazy = ux.open_grid(grid_file, chunks={"grid_size": 3})
+
+    import dask.array as da
+
+    assert isinstance(grid_lazy._ds["face_node_connectivity"].data, da.Array)
+    assert grid_eager.n_node == grid_lazy.n_node
+
+    fnc_eager = grid_eager.face_node_connectivity.values
+    fnc_lazy = grid_lazy.face_node_connectivity.values
+    nt.assert_allclose(
+        grid_eager.node_lon.values[fnc_eager],
+        grid_lazy.node_lon.values[fnc_lazy],
+        atol=1e-10,
+    )
+    nt.assert_allclose(
+        grid_eager.node_lat.values[fnc_eager],
+        grid_lazy.node_lat.values[fnc_lazy],
+        atol=1e-10,
+    )
+
+
+def test_lookup_node_ids_preserves_input_order():
+    """``_lookup_node_ids`` must return ids positionally aligned with its
+    inputs. It joins against the unique-node table to do so, and polars does
+    not promise a join preserves the left frame's order, so the restore is
+    load-bearing: without it dask's ``map_blocks`` would splice misaligned
+    ids into face_node_connectivity and every face would be built from the
+    wrong corners -- a silently wrong mesh, not an error.
+
+    The lookup table here is deliberately ordered differently from the block
+    so that a join returning ids in *lookup* order is distinguishable from
+    one returning them in *block* order.
+    """
+    import polars as pl
+
+    from uxarray.io._scrip import _lookup_node_ids
+
+    lookup = pl.DataFrame(
+        {
+            "lon": [30.0, 10.0, 20.0],
+            "lat": [3.0, 1.0, 2.0],
+            "unique_id": np.array([0, 1, 2], dtype=INT_DTYPE),
+        }
+    )
+    # Blocks repeat nodes (as a real corner table does) and visit them in an
+    # order matching neither the lookup nor a sorted order.
+    lon_block = np.array([20.0, 30.0, 10.0, 20.0, 10.0])
+    lat_block = np.array([2.0, 3.0, 1.0, 2.0, 1.0])
+
+    ids = _lookup_node_ids(lon_block, lat_block, lookup)
+
+    nt.assert_array_equal(ids, np.array([2, 0, 1, 2, 1], dtype=INT_DTYPE))
+    assert len(ids) == len(lon_block)
+
+    # The ids must round-trip back to the coordinates they came from -- the
+    # property face_node_connectivity actually depends on.
+    nt.assert_allclose(lookup["lon"].to_numpy()[ids], lon_block)
+    nt.assert_allclose(lookup["lat"].to_numpy()[ids], lat_block)
+
+
+def test_scrip_dask_dedup_does_not_materialize_corner_arrays(gridpath):
+    """The point of the dask path is that the full corner table is never
+    resident. Guard it: the connectivity must still be lazy after open, so
+    a future refactor that quietly calls ``.compute()`` in the reader --
+    reintroducing the OOM this path exists to avoid -- fails here rather
+    than only on a multi-GB file nobody runs in CI.
+    """
+    import dask.array as da
+
+    grid = ux.open_grid(gridpath("scrip", "outCSne8", "outCSne8.nc"), chunks="auto")
+
+    fnc = grid._ds["face_node_connectivity"].data
+    assert isinstance(fnc, da.Array)
+    assert fnc.npartitions >= 1
+
+
 def test_open_multigrid_mask_active_value_per_grid_override(gridpath):
     """Per-grid override supports masks with different active values."""
     grid_file = gridpath("scrip", "oasis", "grids.nc")
