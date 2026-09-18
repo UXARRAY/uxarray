@@ -3,6 +3,7 @@ import xarray as xr
 
 import uxarray.conventions.ugrid as ugrid
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.errors import GridInvalidError
 from uxarray.grid.connectivity import _replace_fill_values
 
 
@@ -78,9 +79,66 @@ def _read_ugrid(ds):
             if dims[1] == grid_dim:
                 ds[conn_name] = da.T
 
-    dim_dict[ds["face_node_connectivity"].dims[1]] = ugrid.N_MAX_FACE_NODES_DIM
+    # The core dims cover only each connectivity's grid element axis; the trailing
+    # axis still carries whatever the file called it. One source dimension can
+    # serve several connectivities that want different names (FESOM shares one
+    # size-3 dim across all three face connectivities), and dim_dict holds only
+    # one name per dimension, so the first claim renames it dataset-wide and the
+    # rest are renamed per variable below. face_node_connectivity claims first so
+    # that variables which are not connectivity keep n_max_face_nodes.
+    core_dims = set(dim_dict)  # snapshot before the loop starts adding to it
+
+    # every connectivity, face_node first
+    claim_order = ["face_node_connectivity"] + [
+        name for name in ugrid.CONNECTIVITY_NAMES if name != "face_node_connectivity"
+    ]
+
+    # the connectivities this file actually has
+    present_conn_names = set(conn_dict.values())
+
+    # conn name -> {current dim name: wanted dim name}, applied after swap_dims
+    per_var_dim_dict = {}
+    for conn_name in claim_order:
+        if conn_name not in present_conn_names:
+            continue
+
+        # the file's name for this connectivity's trailing axis, e.g. 'n2'
+        source_dim = ds[conn_name].dims[1]
+
+        # a core dim in the trailing slot means both dims are node, edge or face
+        # dims, which no UGRID connectivity has
+        if source_dim in core_dims:
+            # file's variable name: e.g. 'edge_nodes'
+            orig_name = next(k for k, v in conn_dict.items() if v == conn_name)
+            # both of its dimensions: e.g. 'edg_n' and 'nod2'
+            found = " and ".join(repr(d) for d in ds[conn_name].dims)
+            # expected dimensions: e.g. ('n_edge', 'two')
+            expected = tuple(ugrid.CONNECTIVITY[conn_name]["dims"])
+            raise GridInvalidError(
+                f"'{orig_name}' is used as {conn_name}, but its dimensions {found} "
+                f"are both node, edge or face dimensions. Expected dimensions like "
+                f"{expected}."
+            )
+
+        # the name the conventions give that axis, e.g. 'two'
+        ugrid_dim = ugrid.CONNECTIVITY[conn_name]["dims"][1]
+
+        if source_dim not in dim_dict:
+            dim_dict[source_dim] = ugrid_dim  # unclaimed, so rename dataset-wide
+        elif dim_dict[source_dim] != ugrid_dim:
+            # claimed by an earlier connectivity under a different name, so this
+            # one is renamed on its own. swap_dims runs first, hence the key is
+            # the name that claim already gave the dimension.
+            per_var_dim_dict[conn_name] = {dim_dict[source_dim]: ugrid_dim}
 
     ds = ds.swap_dims(dim_dict)
+
+    # the claims dim_dict had no room for: same dimension, a different name.
+    # swap_dims just renamed FESOM's n3 to n_max_face_nodes everywhere; this then
+    # gives face_edge_connectivity its own n_max_face_edges, and likewise
+    # face_face_connectivity its own n_max_face_faces.
+    for conn_name, rename_dict in per_var_dim_dict.items():
+        ds[conn_name] = ds[conn_name].rename(rename_dict)
 
     return ds, dim_dict
 
@@ -92,7 +150,8 @@ def _encode_ugrid(ds):
     if "grid_topology" in ds:
         ds = ds.drop_vars(["grid_topology"])
 
-    grid_topology = ugrid.BASE_GRID_TOPOLOGY_ATTRS
+    # copy so the additions below never leak into the module-level constant
+    grid_topology = dict(ugrid.BASE_GRID_TOPOLOGY_ATTRS)
 
     if "n_edge" in ds.dims:
         grid_topology["edge_dimension"] = "n_edge"
