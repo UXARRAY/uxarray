@@ -11,7 +11,7 @@ from xarray.core import dtypes
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
-import uxarray
+from uxarray.constants import GRID_DIMS
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.utils import (
     _map_dims_to_ugrid,
@@ -28,6 +28,7 @@ from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDatasetPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
+from uxarray.utils.coords import _assign_grid_dim_indexer_coords_if_appropriate
 
 
 class UxDataset(xr.Dataset):
@@ -387,33 +388,39 @@ class UxDataset(xr.Dataset):
 
         return cls.from_xarray(ds, uxgrid, {face_dim: "n_face"})
 
-    def _slice_dataset_from_grid(self, sliced_grid, grid_dim: str, grid_indexer):
+    def _slice_from_grid(self, sliced_grid):
+        """returns UxDataset based on slicing self according to sliced_grid.
+        sliced_grid should be a ``Grid`` which came directly from self.uxgrid.isel(...)
+        (or from slicing something equal to self.uxgrid), else behavior is undefined.
+        """
         data_vars = {}
         for name, da in self.data_vars.items():
-            if grid_dim in da.dims:
-                if hasattr(da, "_slice_from_grid"):
-                    data_vars[name] = da._slice_from_grid(sliced_grid)
-                else:
-                    data_vars[name] = da.isel({grid_dim: grid_indexer})
+            if hasattr(da, "_slice_from_grid") and any(
+                dim in da.dims for dim in GRID_DIMS
+            ):
+                data_vars[name] = da._slice_from_grid(sliced_grid)
             else:
                 data_vars[name] = da
 
-        coords = {}
-        for cname, cda in self.coords.items():
-            if grid_dim in cda.dims:
-                # Prefer authoritative coords from the sliced grid if available
-                replacement = getattr(sliced_grid, cname, None)
-                coords[cname] = (
-                    replacement
-                    if replacement is not None
-                    else cda.isel({grid_dim: grid_indexer})
-                )
-            else:
-                coords[cname] = cda
+        # Also account for any coords which aren't attached to any data_var:
+        bonus_coords = {}
+        for coord in self.coords:
+            for data_var in data_vars.values():
+                if coord in data_var.coords:
+                    break
+            else:  # didn't break
+                da = self.coords[coord]
+                if hasattr(da, "_slice_from_grid") and any(
+                    dim in da.dims for dim in GRID_DIMS
+                ):
+                    bonus_coords[coord] = da._slice_from_grid(sliced_grid)
+                else:
+                    bonus_coords[coord] = da
 
-        ds = xr.Dataset(data_vars=data_vars, coords=coords, attrs=self.attrs)
-
-        return ds
+        ds_sliced = xr.Dataset(
+            data_vars=data_vars, coords=bonus_coords, attrs=self.attrs
+        )
+        return type(self)(ds_sliced, uxgrid=sliced_grid)
 
     def isel(
         self,
@@ -436,6 +443,7 @@ class UxDataset(xr.Dataset):
         the result would have 'n_face' with just those two faces. For data on 'n_edge',
         the result would have 'n_edge' with all edges located on either of those two faces.
         Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
+        Grid dimensions are never renamed (even if indexed by 1D DataArray with different dim name).
 
         Parameters
         ----------
@@ -471,6 +479,10 @@ class UxDataset(xr.Dataset):
         -------
         UxDataset
             A new UxDataset indexed according to `indexers` and updated grid if applicable.
+            If indexer DataArrays have coordinates that do not conflict with
+            this object, then these coordinates will be attached,
+            except that 1D coordinates of indexers applied along a grid dimension will
+            only be included if it is 'n_face' and the data also has 'n_face' dimension.
 
         Raises
         ------
@@ -500,23 +512,25 @@ class UxDataset(xr.Dataset):
             indexers = indexers.copy()  # don't modify the original dict
             grid_indexer = indexers.pop(grid_dim)
 
-            # slice the grid
             sliced_grid = self.uxgrid.isel(
                 **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
             )
 
-            ds = self._slice_dataset_from_grid(
-                sliced_grid=sliced_grid,
-                grid_dim=grid_dim,
-                grid_indexer=grid_indexer,
+            result = self._slice_from_grid(sliced_grid)
+
+            result = _assign_grid_dim_indexer_coords_if_appropriate(
+                result, grid_dim, grid_indexer
             )
 
+            # if there are any remaining indexers, apply them
             if indexers:
-                ds = xr.Dataset.isel(
-                    ds, indexers=indexers, drop=drop, missing_dims=missing_dims
+                result = super(UxDataset, result).isel(
+                    indexers=indexers, drop=drop, missing_dims=missing_dims
                 )
+                # re‐wrap so the grid sticks around
+                result = type(self)(result, uxgrid=sliced_grid)
 
-            return type(self)(ds, uxgrid=sliced_grid)
+            return result
         else:  # len(grid_dims)>1; _validate_indexers should have crashed.
             raise AssertionError("internal implementation error if reached this line")
 
@@ -538,6 +552,7 @@ class UxDataset(xr.Dataset):
         the result would have 'n_face' with just those two faces. For data on 'n_edge',
         the result would have 'n_edge' with all edges located on either of those two faces.
         Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
+        Grid dimensions are never renamed (even if indexed by 1D DataArray with different dim name).
 
         By default, grid dims do not have coordinates assigned. But, if they have
         been assigned, `.sel()` respects them in the intuitive way. For example,
@@ -566,7 +581,8 @@ class UxDataset(xr.Dataset):
             multi-index, the indexer may also be a dict-like object with keys
             matching index level names.
             If DataArrays are passed as indexers, xarray-style indexing will be
-            carried out. See :ref:`indexing` for the details.
+            carried out (see :ref:`indexing` for the details),
+            with one exception: grid dimensions will never be renamed.
             One of indexers or indexers_kwargs must be provided.
         method : {None, "nearest", "pad", "ffill", "backfill", "bfill"}, optional
             Method to use for inexact matches:
@@ -599,7 +615,8 @@ class UxDataset(xr.Dataset):
             and the uxgrid indexed appropriately as well, if indexing any grid dim.
             If indexer DataArrays have coordinates that do not conflict with
             this object, then these coordinates will be attached,
-            except for indexers along a grid dimension (see issue #1712).
+            except that 1D coordinates of indexers applied along a grid dimension will
+            only be included if it is 'n_face' and the data also has 'n_face' dimension.
             In general, each array's data will be a view of the array's data
             in this dataset, unless indexing along a grid dimension or otherwise
             triggering vectorized indexing by using an array indexer,
@@ -921,7 +938,7 @@ class UxDataset(xr.Dataset):
         )
 
         # Initialize new dataset
-        dataset = uxarray.UxDataset(uxgrid=dual)
+        dataset = type(self)(uxgrid=dual)
 
         # Dictionary to swap dimensions
         dim_map = {"n_face": "n_node", "n_node": "n_face"}
@@ -932,9 +949,7 @@ class UxDataset(xr.Dataset):
             dims = [dim_map.get(dim, dim) for dim in self[var].dims]
 
             # Construct the new data array
-            uxda = uxarray.UxDataArray(
-                uxgrid=dual, data=self[var].data, dims=dims, name=var
-            )
+            uxda = UxDataArray(uxgrid=dual, data=self[var].data, dims=dims, name=var)
 
             # Add data array to dataset
             dataset[var] = uxda

@@ -6,7 +6,10 @@ from typing import Hashable, Iterable, Mapping
 
 import numpy as np
 import xarray as xr
+import xarray.core.coordinates
 import xarray.core.utils as xr_core_utils
+
+from uxarray.errors import DimensionError
 
 
 def _preserve_valid_coords(
@@ -84,3 +87,50 @@ def _indices1d_from_indexing(xarray_obj, dim, indexer):
     if dim in xarray_obj.coords:
         xarray_obj = xarray_obj.drop_vars(dim)
     return xarray_obj[dim].isel({dim: indexer}).values
+
+
+def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexer):
+    """returns uxarray_obj but with coords assigned from indexer if appropriate.
+    "appropriate" `indexer` is a 0D or 1D xr.DataArray and has any relevant coordinates to assign.
+    2D+ xr.DataArray indexers are not supported for grid dimensions and cause DimensionError here.
+    All other indexers do not provide coordinate info, so uxarray_obj gets returned unchanged.
+
+    For 0D indexer, just assign indexer.coords if nonempty (else, return uxarray_obj unchanged).
+    For 1D indexer, depends on grid_dim and uxarray_obj.
+        if grid_dim=="n_face" and "n_face" in uxarray_obj:
+            swap indexer's 1 dim to be "n_face" instead of its original name,
+            then assign indexer.coords.
+        in all other cases:
+            drop indexer's 1 dim, then assign indexer.coords if nonempty.
+            (For "n_edge" and "n_node" indexing, the result's shape won't necessarily
+            match the indexer's shape, so coords along the grid dim can't be assigned.
+            Meanwhile, if grid_dim not in uxarray_obj, it is impossible to assign coords
+            along that dim, so once again, coords along the grid dim can't be assigned.)
+        Note: if indexer is booleans, instead use indexer.isel(indexer_dim=indexer).coords,
+            because the result will only keep values wherever indexer value is True.
+            (Also in this case, if indexer.to_xarray() exists, call it, to avoid recursion.)
+    """
+    if isinstance(indexer, xr.DataArray):
+        xr.core.coordinates.assert_coordinate_consistent(uxarray_obj, indexer.coords)
+        # ^ e.g. if uxarray_obj has time dim but indexer has time scalar coord, crash!
+        if indexer.ndim == 0:
+            coords = indexer.coords
+        elif indexer.ndim == 1:
+            the_dim = indexer.dims[0]
+            if grid_dim == "n_face" and "n_face" in uxarray_obj.dims:
+                if indexer.dtype == bool:
+                    if hasattr(indexer, "to_xarray"):
+                        indexer = indexer.to_xarray()
+                    indexer = indexer.isel({the_dim: indexer})
+                coords = indexer.swap_dims({the_dim: "n_face"}).coords
+            else:
+                # remove any 1D coords (but keep scalar coords)
+                coords = indexer.isel({the_dim: 0}, drop=True).coords
+        else:
+            raise DimensionError(
+                f"2D+ indexers are not supported for grid dimensions. Got xr.DataArray "
+                f"indexer with ndim={indexer.ndim}, along grid_dim={grid_dim!r}."
+            )
+        if coords:
+            return uxarray_obj.assign_coords(coords)
+    return uxarray_obj
