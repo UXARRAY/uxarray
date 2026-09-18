@@ -4,7 +4,7 @@ channels:
   - nodefaults
 dependencies:
   - antimeridian
-  - cartopy
+  - cartopy>=0.26   # 0.26 is the first release that works with matplotlib 3.11; see issue #1542.
   - dask
   - datashader
   - geoviews
@@ -14,7 +14,7 @@ dependencies:
   - holoviews
   - hvplot
   - hypothesis
-  - matplotlib-base<3.11   # 3.11.0 breaks some plots but <3.11 is fine; see issue #1542.
+  - matplotlib-base
   - matplotlib-inline
   - netcdf4
   - numba
