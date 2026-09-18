@@ -150,6 +150,50 @@ def test_isel_can_use_bool():
     result = arr.isel(n_face=[False, False, False, False])
     assert result.sizes['n_face'] == result.uxgrid.n_face == 0
 
+
+def test_isel_can_use_bool_with_coords():
+    """ensure isel() supports indexing by a boolean indexer array with coords.
+    Regression test for bug (1) discovered during review of PR #1759.
+    """
+    ds = ux.tutorial.open_dataset("quad-hexagon")
+    arr = ds['t2m']
+
+    # simplest case: boolean xr.DataArray mask with coords.
+    tokeep0 = xr.DataArray([True, False, True, False], coords={'tokeep': [2,4,6,8]})
+    # (also want to test UxDataArray boolean mask (ensure no infinite recursion))
+    tokeep1 = arr * xr.DataArray([True, False, True, True], dims={'n_face'}) > 0
+    assert isinstance(tokeep1, ux.UxDataArray)
+    # (also want to test UxDataArray boolean mask with coords
+    tokeep2 = tokeep1.assign_coords(tokeep=('n_face', [1,3,5,7]))
+    assert isinstance(tokeep2, ux.UxDataArray)
+    assert np.all(tokeep2.coords['tokeep'] == [1,3,5,7])
+
+    # test on UxDataArray
+    result0 = arr.isel(n_face=tokeep0)
+    assert result0.sizes['n_face'] == result0.uxgrid.n_face == 2
+    assert np.all(result0.coords['tokeep'] == [2,6])
+    result1 = arr.isel(n_face=tokeep1)
+    assert result1.sizes['n_face'] == result1.uxgrid.n_face == 3
+    result2 = arr.isel(n_face=tokeep2)
+    assert result2.sizes['n_face'] == result2.uxgrid.n_face == 3
+    assert np.all(result2.coords['tokeep'] == [1,5,7])
+    # (reviewer found bug on arr.where(), so doing a spot check for that here too)
+    result_where2 = arr.where(tokeep2, drop=True)
+    assert result2.equals(result_where2)
+
+    # repeat tests for UxDataset
+    result0 = ds.isel(n_face=tokeep0)
+    assert result0.sizes['n_face'] == result0.uxgrid.n_face == 2
+    assert np.all(result0.coords['tokeep'] == [2,6])
+    result1 = ds.isel(n_face=tokeep1)
+    assert result1.sizes['n_face'] == result1.uxgrid.n_face == 3
+    result2 = ds.isel(n_face=tokeep2)
+    assert result2.sizes['n_face'] == result2.uxgrid.n_face == 3
+    assert np.all(result2.coords['tokeep'] == [1,5,7])
+    result_where2 = ds.where(tokeep2, drop=True)
+    assert result2.equals(result_where2)
+
+
 def test_indexing_by_dataarray():
     """ensure isel() and sel() with indexer=xr.DataArray(...) both work as expected.
     The dims/coords of the Grid object should never incorporate indexer's dims/coords.

@@ -105,6 +105,9 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
             match the indexer's shape, so coords along the grid dim can't be assigned.
             Meanwhile, if grid_dim not in uxarray_obj, it is impossible to assign coords
             along that dim, so once again, coords along the grid dim can't be assigned.)
+        Note: if indexer is booleans, instead use indexer.isel(indexer_dim=indexer).coords,
+            because the result will only keep values wherever indexer value is True.
+            (Also in this case, if indexer.to_xarray() exists, call it, to avoid recursion.)
     """
     if isinstance(indexer, xr.DataArray):
         if indexer.ndim == 0:
@@ -112,6 +115,10 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
         elif indexer.ndim == 1:
             the_dim = indexer.dims[0]
             if grid_dim == "n_face" and "n_face" in uxarray_obj.dims:
+                if indexer.dtype == bool:
+                    if hasattr(indexer, "to_xarray"):
+                        indexer = indexer.to_xarray()
+                    indexer = indexer.isel({the_dim: indexer})
                 coords = indexer.swap_dims({the_dim: "n_face"}).coords
             else:
                 # remove any 1D coords (but keep scalar coords)
