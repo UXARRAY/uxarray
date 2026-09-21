@@ -99,7 +99,9 @@ def _scan():
     """
     kernels, trees = [], {}
     for path in sorted(PKG.rglob("*.py")):
-        tree = ast.parse(path.read_text())
+        # Explicit encoding: the default is the locale's, which on Windows is
+        # a codepage that cannot decode the U+2010 in (e.g.) core/dataarray.py.
+        tree = ast.parse(path.read_text(encoding="utf-8"))
         trees[path] = tree
         for node in ast.walk(tree):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
