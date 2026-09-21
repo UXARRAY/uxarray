@@ -43,6 +43,26 @@ jobs:
             python-build
             mamba
 
+      # asv does not benchmark in the environment above; it builds its own under
+      # benchmarks/env/ (from ci/environment.yml, see benchmarks/asv.conf.json)
+      # and that one is rebuilt from scratch on every run, because each run gets
+      # a fresh runner. Restoring the directory skips the whole solve-and-link:
+      # once it is there, Environment.create() returns without calling _setup()
+      # as soon as asv-env-info.json matches the configured tool, python and
+      # requirements (asv/environment.py).
+      #
+      # That check does not look at the installed packages, so the key has to
+      # carry everything that determines them: ci/environment.yml for the package
+      # set, asv.conf.json for the matrix and for which environment file is used.
+      # Deliberately no restore-keys -- a prefix match would restore an
+      # environment built from an older ci/environment.yml, and asv would reuse
+      # it without noticing, which is the failure this is meant to avoid.
+      - name: Cache asv environment
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ASV_DIR }}/env
+          key: "asv-env-${{runner.os}}-${{runner.arch}}-${{hashFiles(env.CONDA_ENV_FILE, 'benchmarks/asv.conf.json')}}"
+
       - name: Run Benchmarks
         shell: bash -l {0}
         id: benchmark
