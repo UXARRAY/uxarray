@@ -727,6 +727,41 @@ def _is_projected_grid(uxgrid) -> bool:
 def _set_desired_longitude_range(uxgrid):
     """Sets the longitude range to [-180, 180] for all longitude variables.
 
+    The wrap is elementwise rather than guarded by ``lon.max() > 180``. The
+    guard was a reduction, and a reduction on a dask-backed coordinate is a
+    compute -- so ``Grid.__init__``, which calls this, pulled every longitude
+    array into memory before the caller had asked for anything. The
+    elementwise form stays in the graph and splits over chunks.
+
+    On the elements that need wrapping the two are bit-identical -- same
+    expression, same order. They differ on the elements that do not: the
+    reduction ran ``(lon + 180) % 360 - 180`` over the whole array once any
+    value exceeded 180, and that round-trip is not exact, so it perturbed
+    in-range longitudes by up to ~3e-14 degrees. ``xr.where`` passes those
+    through untouched.
+
+    An element is wrapped when it falls outside [-180, 180] on *either* side.
+    The negative half of that predicate is what the reduction was missing: it
+    tested the maximum alone, so a longitude below -180 was normalized only
+    when the same array happened to also hold one above 180, and was left
+    where it was otherwise.
+
+    Both endpoints are kept, rather than folding 180.0 onto -180.0 for a
+    half-open [-180, 180). ``_xyz_to_lonlat_deg`` does produce the half-open
+    interval, so a grid reloaded through Cartesian coordinates disagrees with
+    its original at a node sitting exactly on the antimeridian -- but that
+    node is the *point* of ``antimeridian_face_indices``, which reads a face
+    as crossing from the span of its longitudes. Folding 180.0 to -180.0
+    collapses the span of a face that touches the antimeridian from the west
+    and hides it. The round-trip comparison is the cheaper of the two to make
+    periodic, and the Exodus tests do that.
+
+    Each variable is wrapped at most once. ``edge_lat`` calls this on every
+    access, outside its populate guard, so without the memo an unconditional
+    wrap would stack a ``where`` layer onto the graph per property access. Keying on the ``xr.Variable`` object makes the memo
+    self-invalidating: assigning into ``_ds`` replaces that object, so a
+    repopulated or user-assigned coordinate is wrapped again.
+
     Skipped entirely for projected grids: wrapping meter-scale coordinates
     as if they were degrees silently corrupts the geometry. A ``UserWarning``
     is issued once per Grid instance so users know which operations are invalid.
@@ -747,16 +782,23 @@ def _set_desired_longitude_range(uxgrid):
             uxgrid._projected_warning_issued = True
         return
 
+    memo = getattr(uxgrid, "_wrapped_lon_vars", None)
+    if memo is None:
+        memo = uxgrid._wrapped_lon_vars = {}
+
     with xr.set_options(keep_attrs=True):
         for lon_name in ["node_lon", "edge_lon", "face_lon"]:
             if lon_name in uxgrid._ds:
                 da = uxgrid._ds[lon_name]
                 if da.size == 0:
                     continue
-                if da.max() > 180:
-                    wrapped = (uxgrid._ds[lon_name] + 180) % 360 - 180
-                    wrapped.name = da.name
-                    uxgrid._ds[lon_name] = wrapped
+                if memo.get(lon_name) is da.variable:
+                    continue
+                out_of_range = (da > 180) | (da < -180)
+                wrapped = xr.where(out_of_range, (da + 180) % 360 - 180, da)
+                wrapped.name = da.name
+                uxgrid._ds[lon_name] = wrapped
+                memo[lon_name] = uxgrid._ds[lon_name].variable
 
 
 def prepare_points(points, normalize):

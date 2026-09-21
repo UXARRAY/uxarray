@@ -6,6 +6,33 @@ import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
 
 
+def _assert_lon_close(actual, desired, err_msg, atol=ERROR_TOLERANCE):
+    """Compare longitudes as directions on a circle, to an absolute tolerance.
+
+    Used for the Exodus round-trips, which are the ones that go
+    lon/lat -> xyz -> lon/lat and so come back through ``_xyz_to_lonlat_deg``.
+    ``assert_allclose(..., rtol=...)`` is the wrong instrument for that on two
+    counts. A longitude near zero has no magnitude for a relative tolerance to
+    be measured against -- 2.1e-14 vs 2.8e-14 is 7e-15 degrees apart and fails
+    at rtol=1e-8 (``outCSne30`` nodes 4372 and 4749). And longitude is
+    periodic: ``_xyz_to_lonlat_deg`` wraps into the half-open [-180, 180),
+    while ``_set_desired_longitude_range`` keeps both endpoints, so a node on
+    the antimeridian reads 180.0 on the original and -180.0 on the reload --
+    the same meridian, scored as a 360-degree error (179 nodes of
+    ``outRLL1deg``, and ``outCSne30`` nodes 3966 and 5155, which sit one ulp
+    short of 180 and land on -180.0 once rounded through Cartesian).
+
+    All of it was masked before. The old ``_set_desired_longitude_range``
+    wrapped the whole array whenever any element exceeded 180, applying to the
+    original grid the identical ``(lon + 180) % 360 - 180`` that the reload
+    applies -- so both sides carried the same perturbation and the same
+    endpoint fold. The wrap is elementwise now and leaves in-range longitudes
+    alone, which leaves the round-trip's own error exposed.
+    """
+    diff = (np.asarray(actual) - np.asarray(desired) + 180.0) % 360.0 - 180.0
+    np.testing.assert_allclose(diff, 0.0, atol=atol, err_msg=err_msg)
+
+
 def test_normalize_existing_coordinates_non_norm_initial(gridpath):
     from uxarray.grid.validation import _check_normalization
     uxgrid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
@@ -145,11 +172,10 @@ def test_grid_ugrid_exodus_roundtrip(gridpath):
             err_msg=f"UGRID longitude mismatch for {grid_name}",
             rtol=ERROR_TOLERANCE
         )
-        np.testing.assert_allclose(
+        _assert_lon_close(
             original_grid.node_lon.values,
             reloaded_exodus.node_lon.values,
             err_msg=f"Exodus longitude mismatch for {grid_name}",
-            rtol=ERROR_TOLERANCE
         )
         np.testing.assert_allclose(
             original_grid.node_lat.values,
@@ -185,11 +211,10 @@ def test_exodus_roundtrip_rll1deg_node_lonlat(gridpath, tmp_path):
 
     reloaded_exodus = ux.open_grid(exodus_filepath)
 
-    np.testing.assert_allclose(
+    _assert_lon_close(
         grid.node_lon.values,
         reloaded_exodus.node_lon.values,
         err_msg="Exodus longitude mismatch for RLL1deg",
-        rtol=ERROR_TOLERANCE,
     )
     np.testing.assert_allclose(
         grid.node_lat.values,
