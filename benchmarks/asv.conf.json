@@ -35,18 +35,8 @@
     // Customizable commands for installing and uninstalling the project.
     // See asv.conf.json documentation.
     //
-    // ``--no-deps``, because "conda_environment_file" below builds the
-    // environment from ci/environment.yml and conda has already put every
-    // dependency in place. Without it pip resolves the wheel's requirements from
-    // PyPI and, together with ``--force-reinstall``, lays PyPI wheels over
-    // conda's builds on every commit. This is the same reasoning as the
-    // ``python -m pip install . --no-deps`` the test job uses (ci.yml).
-    //
-    // ``--force-reinstall`` is kept from asv's own default command
-    // (``_install_project`` in asv/environment.py): ``asv continuous`` needs it
-    // because the project version does not necessarily change between the two
-    // commits it installs (asv gh-1421). It stays cheap here precisely because
-    // ``--no-deps`` confines it to uxarray itself.
+    // --no-deps: conda already installed every dependency from ci/environment.yml.
+    // --force-reinstall is asv's default; the version may not change (asv gh-1421).
     "install_command": [
         "in-dir={env_dir} python -m pip install {wheel_file} --no-deps --force-reinstall"
     ],
@@ -72,28 +62,8 @@
     "environment_type": "conda",
     "conda_channels": ["conda-forge"],
 
-    // Build the benchmarking environment from the same file as the rest of CI,
-    // so benchmarks run against the package set the project is actually tested
-    // against and a dependency only has to be added in one place.
-    //
-    // Previously asv built this environment from "matrix" alone, which listed
-    // xarray and netcdf4 and nothing else. #1548 then moved cartopy, matplotlib
-    // and spatialpandas out of the core dependencies into the "geo" and "viz"
-    // extras; the wheel install stopped pulling them in, and
-    // ``to_geodataframe()`` and ``to_polycollection()`` went from being measured
-    // to reporting "failed" with an OptionalDependencyNotFoundError. Tracking
-    // ci/environment.yml removes that whole class of drift rather than the two
-    // instances of it.
-    //
-    // The path is relative to the directory asv runs in, which is this one --
-    // see ``working-directory: ${{ env.ASV_DIR }}`` in
-    // .github/workflows/asv-benchmarking-pr.yml.
-    //
-    // Note that ci/environment.yml pins no Python version on purpose (ci.yml
-    // supplies one per matrix entry through micromamba's create-args), and asv
-    // only injects "pythons" into an environment it builds without a file. So
-    // conda resolves the interpreter here, and "pythons" below just names the
-    // environment; it does not select one.
+    // Same package set as the rest of CI, so benchmarks cannot drift from it:
+    // #1548 made cartopy, matplotlib and spatialpandas optional and broke two.
     "conda_environment_file": "../ci/environment.yml",
 
     // timeout in seconds for installing any dependencies in environment
@@ -129,17 +99,8 @@
     // new environments.  A value of ``null`` means that the variable
     // will not be set for the current combination.
     //
-    // Only what ci/environment.yml does not already provide; asv applies these
-    // as a ``conda env update`` over the environment built from that file.
-    // xarray and netcdf4 used to be listed here and now come from the file.
-    //
-    // python-build and wheel are what "build_command" below runs on, and
-    // setuptools_scm is what it builds with, since its second command passes
-    // --no-build-isolation. They are named here rather than left implicit
-    // because asv seeds an environment with wheel and pip only when it is
-    // building that environment without a file (``_setup`` in
-    // asv/plugins/conda.py), which is no longer the case. pip itself is in
-    // ci/environment.yml. pyfma comes from PyPI.
+    // Only what ci/environment.yml lacks: the build tools, which asv seeds itself
+    // only when building an environment without a file, plus pyfma from PyPI.
      "matrix": {
         "python-build": [""],
         "wheel": [""],
