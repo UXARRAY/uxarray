@@ -110,8 +110,12 @@ def _crash_if_1d_xarray_indexer_dim_in_uxarray_obj(uxarray_obj, grid_dim, indexe
     if isinstance(indexer, xr.DataArray):
         if indexer.ndim == 1:
             the_dim = indexer.dims[0]
-            nonscalar_coords = [c for c in uxarray_obj.coords if len(uxarray_obj.coords[c].dims) > 0]
-            if the_dim != grid_dim and (the_dim in uxarray_obj.dims or the_dim in nonscalar_coords):
+            nonscalar_coords = [
+                c for c in uxarray_obj.coords if len(uxarray_obj.coords[c].dims) > 0
+            ]
+            if the_dim != grid_dim and (
+                the_dim in uxarray_obj.dims or the_dim in nonscalar_coords
+            ):
                 raise NotImplementedError(
                     f"Indexing a {type(uxarray_obj).__name__} along a grid dimension ({grid_dim!r}), using "
                     f"an xarray DataArray whose dimension ({the_dim!r}) is already present in the original "
@@ -145,7 +149,9 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
             (Also in this case, if indexer.to_xarray() exists, call it, to avoid recursion.)
     """
     if isinstance(indexer, xr.DataArray):
-        xr.core.coordinates.assert_coordinate_consistent(uxarray_obj, indexer.coords.variables)
+        xr.core.coordinates.assert_coordinate_consistent(
+            uxarray_obj, indexer.coords.variables
+        )
         # ^ e.g. if uxarray_obj has time dim but indexer has time scalar coord, crash!
         if indexer.ndim == 0:
             coords = indexer.coords
@@ -156,7 +162,10 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
                     if hasattr(indexer, "to_xarray"):
                         indexer = indexer.to_xarray()
                     indexer = indexer.isel({the_dim: indexer})
-                if the_dim in uxarray_obj.coords and len(uxarray_obj.coords[the_dim].dims)==0:
+                if (
+                    the_dim in uxarray_obj.coords
+                    and len(uxarray_obj.coords[the_dim].dims) == 0
+                ):
                     raise DimensionError(
                         f"The indexer's dimension ({the_dim!r}) already exists as a scalar "
                         f"coordinate in the {type(uxarray_obj).__name__} object being indexed."
