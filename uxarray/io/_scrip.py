@@ -59,27 +59,52 @@ def _dedup_scrip_nodes_eager(corner_lon, corner_lat):
         every input corner, the index into ``unq_lon``/``unq_lat`` of the
         node it maps to.
     """
-    df = pl.DataFrame({"lon": corner_lon, "lat": corner_lat}).with_row_count(
-        "original_index"
+    # Multi-key dedup by sorting, not by hashing.
+    #
+    # A Polars hash-join is the faster tool for this in general -- hashing is
+    # O(N) against the O(N log N) of a sort, and that is why the join was
+    # written here first. What it costs is space: the join must hold the
+    # corner table, a hash table keyed on every row of it, and the joined
+    # result, all live at the same time. np.lexsort trades the asymptotically
+    # better time for a bounded, predictable footprint -- an argsort plus two
+    # gathers, working on index arrays rather than building a new index
+    # structure.
+    #
+    # That trade is worth taking here because a SCRIP corner table is the
+    # largest thing in the file and the reason large meshes fail to open at
+    # all: the mesh this was written for has 3.6 billion corner rows, where
+    # "slower but it finishes" beats "faster if it fits". Measured on a
+    # 4M-face / 48M-corner grid, peak RSS for the whole open is 13.9 GiB with
+    # the join and 3.6 GiB with the sort, at roughly twice the wall time.
+    #
+    # np.unique(axis=0) is the third obvious spelling and is worse than
+    # either: it builds an (n, 2) copy and compares rows as records.
+    #
+    # The dask path below keeps a hash-based shuffle instead, and should: it
+    # never holds the whole table, so it is not paying the cost this sort
+    # avoids. Sorting there measured *worse* -- 191 GiB against 118 GiB on the
+    # 3.6-billion-row table -- because lexsort must materialize what the
+    # shuffle deliberately streams.
+    order = np.lexsort((corner_lat, corner_lon))
+    sorted_lon = corner_lon[order]
+    sorted_lat = corner_lat[order]
+
+    # First element of each run of equal (lon, lat) pairs.
+    is_new = np.empty(order.shape[0], dtype=bool)
+    is_new[0] = True
+    np.logical_or(
+        sorted_lon[1:] != sorted_lon[:-1],
+        sorted_lat[1:] != sorted_lat[:-1],
+        out=is_new[1:],
     )
 
-    # Get unique rows (first occurrence). This preserves the order in which they appear.
-    unique_df = df.unique(subset=["lon", "lat"], keep="first")
+    # Running count of distinct pairs gives each sorted row its node id;
+    # scattering through `order` puts those ids back in input order.
+    unq_inv = np.empty(order.shape[0], dtype=INT_DTYPE)
+    unq_inv[order] = np.cumsum(is_new) - 1
 
-    # unq_ind: The indices of the unique rows in the original array
-    unq_ind = unique_df["original_index"].to_numpy().astype(INT_DTYPE)
-
-    # To get the inverse index (unq_inv): map each original row back to its unique row index.
-    # Add a unique_id to the unique_df which will serve as the "inverse" mapping.
-    unique_df = unique_df.with_row_count("unique_id")
-
-    # Join original df with unique_df to find out which unique_id corresponds to each row
-    df_joined = df.join(unique_df.drop("original_index"), on=["lon", "lat"], how="left")
-    unq_inv = df_joined["unique_id"].to_numpy().astype(INT_DTYPE)
-
-    # Extract unique lon and lat values using unq_ind
-    unq_lon = corner_lon[unq_ind]
-    unq_lat = corner_lat[unq_ind]
+    unq_lon = sorted_lon[is_new]
+    unq_lat = sorted_lat[is_new]
 
     return unq_lon, unq_lat, unq_inv
 
@@ -128,18 +153,45 @@ def _lookup_node_ids(lon_block, lat_block, lookup):
     numpy.ndarray
         ``unique_id`` per input corner, in input order.
     """
+    unq_lon, unq_lat = lookup
+
+    # Binary search into the sorted unique-node arrays, rather than a join
+    # against a DataFrame copy of them. The lookup tables are already sorted
+    # lexicographically by (lon, lat), so the node id of a corner is the
+    # position where its pair would be inserted -- no hash table, and nothing
+    # allocated per block beyond the answer itself.
+    unq_lon, unq_lat = lookup
+
+    # A hash join per block, deliberately -- the opposite choice from the
+    # eager path above, for the opposite reason.
+    #
+    # There the join's hash table was the problem, because it was keyed on
+    # the whole corner table. Here the probe side is one block, so the hash
+    # table is bounded by the block rather than the mesh and the O(N) lookup
+    # is simply the better algorithm. np.searchsorted over the sorted unique
+    # table is the obvious space-saving alternative and measured 9-15x slower
+    # at 4M unique nodes, depending on how the composite key is spelled,
+    # because binary search on a two-column key means either a structured
+    # dtype comparison or a second pass to break ties within equal
+    # longitudes.
     block = pl.DataFrame({"lon": lon_block, "lat": lat_block})
-    joined = block.join(lookup, on=["lon", "lat"], how="left", maintain_order="left")
+    table = pl.DataFrame(
+        {
+            "lon": unq_lon,
+            "lat": unq_lat,
+            "unique_id": np.arange(unq_lon.shape[0], dtype=INT_DTYPE),
+        }
+    )
+    joined = block.join(table, on=["lon", "lat"], how="left", maintain_order="left")
     ids = joined["unique_id"].to_numpy().astype(INT_DTYPE)
 
-    # Cheap alignment check: a left join that changed the row count means the
-    # lookup was not unique on (lon, lat), which would make the result
-    # meaningless. Catch it here rather than downstream in the connectivity.
-    if ids.shape[0] != lon_block.shape[0]:
+    # A corner absent from the unique table joins to null, which would become
+    # a garbage node id. Catch it rather than let the two halves of the dedup
+    # disagree silently.
+    if ids.shape[0] != lon_block.shape[0] or joined["unique_id"].null_count():
         raise GridInvalidError(
-            "SCRIP node lookup changed the corner count "
-            f"({lon_block.shape[0]} -> {ids.shape[0]}); the unique-node table "
-            "is not unique on (lon, lat)."
+            "a SCRIP corner is absent from the unique-node table; the dedup "
+            "and the lookup disagree."
         )
     return ids
 
@@ -211,16 +263,11 @@ def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
     unq_lat = unique_pairs["lat"].to_numpy()
     del unique_pairs
 
-    # Lookup table (one row per unique node) broadcast to every block below
-    # instead of shuffling the full corner table a second time. Built as a
-    # zero-copy view over unq_lon/unq_lat rather than a third copy of them.
-    lookup = pl.DataFrame(
-        {
-            "lon": unq_lon,
-            "lat": unq_lat,
-            "unique_id": np.arange(len(unq_lon), dtype=INT_DTYPE),
-        }
-    )
+    # The two arrays are the lookup; the per-block join builds its own small
+    # frame from them. Previously a polars DataFrame was constructed here and
+    # captured by the closure -- a third full copy of the unique-node table,
+    # live for the whole graph, measured at ~47% of the dedup's peak.
+    lookup = (unq_lon, unq_lat)
 
     unq_inv = dask_array.map_blocks(
         _lookup_node_ids, corner_lon, corner_lat, lookup=lookup, dtype=INT_DTYPE

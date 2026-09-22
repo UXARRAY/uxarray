@@ -210,41 +210,52 @@ def test_scrip_dask_lazy_dedup_matches_eager_radians(gridpath):
 
 def test_lookup_node_ids_preserves_input_order():
     """``_lookup_node_ids`` must return ids positionally aligned with its
-    inputs. It joins against the unique-node table to do so, and polars does
-    not promise a join preserves the left frame's order, so the restore is
-    load-bearing: without it dask's ``map_blocks`` would splice misaligned
-    ids into face_node_connectivity and every face would be built from the
-    wrong corners -- a silently wrong mesh, not an error.
+    inputs, and must find every corner.
 
-    The lookup table here is deliberately ordered differently from the block
-    so that a join returning ids in *lookup* order is distinguishable from
-    one returning them in *block* order.
+    ``map_blocks`` splices each block's output back by position, so a lookup
+    that reordered rows would build every face from the wrong corners -- a
+    silently wrong mesh, not an error. The lookup is a binary search over the
+    sorted unique-node arrays, so this also pins that the arrays it is handed
+    really are sorted: an unsorted table would make searchsorted return
+    nonsense and the guard inside would fire.
     """
-    import polars as pl
-
     from uxarray.io._scrip import _lookup_node_ids
 
-    lookup = pl.DataFrame(
-        {
-            "lon": [30.0, 10.0, 20.0],
-            "lat": [3.0, 1.0, 2.0],
-            "unique_id": np.array([0, 1, 2], dtype=INT_DTYPE),
-        }
-    )
-    # Blocks repeat nodes (as a real corner table does) and visit them in an
-    # order matching neither the lookup nor a sorted order.
+    # sorted lexicographically by (lon, lat), as the dedup produces them
+    unq_lon = np.array([10.0, 20.0, 30.0])
+    unq_lat = np.array([1.0, 2.0, 3.0])
+
+    # blocks repeat nodes, as a real corner table does, in neither sorted nor
+    # lookup order
     lon_block = np.array([20.0, 30.0, 10.0, 20.0, 10.0])
     lat_block = np.array([2.0, 3.0, 1.0, 2.0, 1.0])
 
-    ids = _lookup_node_ids(lon_block, lat_block, lookup)
+    ids = _lookup_node_ids(lon_block, lat_block, (unq_lon, unq_lat))
 
-    nt.assert_array_equal(ids, np.array([2, 0, 1, 2, 1], dtype=INT_DTYPE))
+    nt.assert_array_equal(ids, np.array([1, 2, 0, 1, 0], dtype=INT_DTYPE))
     assert len(ids) == len(lon_block)
 
-    # The ids must round-trip back to the coordinates they came from -- the
-    # property face_node_connectivity actually depends on.
-    nt.assert_allclose(lookup["lon"].to_numpy()[ids], lon_block)
-    nt.assert_allclose(lookup["lat"].to_numpy()[ids], lat_block)
+    # the property face_node_connectivity depends on: ids round-trip back to
+    # the coordinates they came from
+    nt.assert_allclose(unq_lon[ids], lon_block)
+    nt.assert_allclose(unq_lat[ids], lat_block)
+
+
+def test_lookup_node_ids_rejects_a_corner_it_cannot_find():
+    """A corner absent from the unique table must raise, not guess.
+
+    searchsorted returns an insertion point for a missing key rather than an
+    error, so without the check a mismatch between the two halves of the
+    dedup would map that corner to an arbitrary neighbouring node.
+    """
+    from uxarray.errors import GridInvalidError
+    from uxarray.io._scrip import _lookup_node_ids
+
+    unq_lon = np.array([10.0, 20.0])
+    unq_lat = np.array([1.0, 2.0])
+
+    with pytest.raises(GridInvalidError, match="absent from the unique-node table"):
+        _lookup_node_ids(np.array([15.0]), np.array([1.5]), (unq_lon, unq_lat))
 
 
 def test_scrip_dask_dedup_does_not_materialize_corner_arrays(gridpath):
