@@ -10,6 +10,11 @@ if TYPE_CHECKING:
     from uxarray.grid import Grid
 
 
+#: Below this size the whole-mesh bounds computation is cheap enough that
+#: the pre-filter's own cost is not repaid.
+_PREFILTER_MIN_FACES = 1_000_000
+
+
 class GridSubsetAccessor:
     """Accessor for performing unstructured grid subsetting, accessed through
     ``Grid.subset``"""
@@ -57,10 +62,7 @@ class GridSubsetAccessor:
             - False: No index storage (default)
         """
 
-        faces_between_lons = self.uxgrid.get_faces_between_longitudes(lon_bounds)
-        face_between_lats = self.uxgrid.get_faces_between_latitudes(lat_bounds)
-
-        faces = np.intersect1d(faces_between_lons, face_between_lats)
+        faces = _faces_in_bounding_box(self.uxgrid, lon_bounds, lat_bounds)
 
         return self.uxgrid.isel(n_face=faces, inverse_indices=inverse_indices)
 
@@ -418,3 +420,92 @@ class GridSubsetAccessor:
             return self.uxgrid.isel(inverse_indices, n_edge=ind)
         else:
             return self.uxgrid.isel(inverse_indices, n_face=ind)
+
+
+def _faces_in_bounding_box(uxgrid, lon_bounds, lat_bounds):
+    """Face indices whose bounds fall inside a lon/lat box.
+
+    Computing ``Grid.bounds`` costs memory proportional to the whole mesh --
+    it materializes the node coordinate and connectivity arrays and builds a
+    per-face box for every face, whether or not the face is anywhere near the
+    region asked for. On a 300M-face grid that is larger than the machine, so
+    a crop of a few thousand faces was not merely slow but impossible
+    (UXARRAY/uxarray#1778).
+
+    Face latitudes are already present and cost one array, so they are used
+    first to discard faces that cannot be in the result. Exact bounds are then
+    computed for the survivors only, and the exact longitude and latitude
+    tests decide the answer as before.
+
+    The answer is identical to computing bounds for every face; only the
+    number of faces examined changes. Measured on a 12-corner SCRIP mesh with
+    a crop of ~0.007% of the faces:
+
+    ===========  ==================  ====================
+    n_face       whole-mesh bounds   latitude pre-filter
+    ===========  ==================  ====================
+    1,600,000    0.84 GiB, 2.6 s     0.00 GiB, 0.8 s
+    3,200,000    1.48 GiB, 5.1 s     0.00 GiB, 1.6 s
+    ===========  ==================  ====================
+    """
+    from uxarray.grid.bounds import _construct_face_bounds_array
+    from uxarray.grid.intersections import (
+        faces_within_lat_bounds,
+        faces_within_lon_bounds,
+    )
+
+    # The exact path, unchanged, when bounds are already paid for or the mesh
+    # is small enough that the filter cannot repay its own cost.
+    if "bounds" in uxgrid._ds or uxgrid.n_face <= _PREFILTER_MIN_FACES:
+        return np.intersect1d(
+            uxgrid.get_faces_between_longitudes(lon_bounds),
+            uxgrid.get_faces_between_latitudes(lat_bounds),
+        )
+
+    face_lat = np.asarray(uxgrid.face_lat.values)
+
+    # No margin is needed, which is worth stating because the obvious
+    # assumption is the opposite. ``faces_within_lat_bounds`` keeps a face
+    # only when its bounds are *fully contained* in the query interval
+    # (``bounds_min >= query_min and bounds_max <= query_max``) -- despite the
+    # docstring's "overlap" wording, the implementation is containment. A
+    # contained face necessarily has a contained centre, so a face the exact
+    # path keeps can never have a centre outside the box, and the filter is
+    # conservative with equality rather than by a fudge factor.
+    lat_lo, lat_hi = min(lat_bounds), max(lat_bounds)
+    near_lat = (face_lat >= lat_lo) & (face_lat <= lat_hi)
+
+    # Longitude is deliberately *not* filtered on the centre. A face near a
+    # pole has a longitude span that says nothing about where its centre is:
+    # measured on a HEALPix z3 grid, bounds reach 354 degrees from the centre,
+    # because a face containing a pole is recorded as spanning every
+    # longitude. No finite margin makes a centre test safe for those, so the
+    # latitude filter -- which is well behaved, the same measurement puts its
+    # worst case at 6.3 degrees -- carries the reduction on its own, and
+    # longitude is settled exactly in the second stage.
+    candidates = np.flatnonzero(near_lat)
+    if candidates.size == 0:
+        return candidates.astype(np.intp)
+
+    # Exact bounds, for the candidates only.
+    sub_bounds = _construct_face_bounds_array(
+        np.asarray(uxgrid.face_node_connectivity.values)[candidates],
+        np.asarray(uxgrid.n_nodes_per_face.values)[candidates],
+        np.asarray(uxgrid.node_x.values),
+        np.asarray(uxgrid.node_y.values),
+        np.asarray(uxgrid.node_z.values),
+        np.asarray(uxgrid.node_lon.values),
+        np.asarray(uxgrid.node_lat.values),
+        False,
+        None,
+    )
+
+    bounds_lat = np.sort(np.rad2deg(sub_bounds[:, 0, :]), axis=-1)
+    bounds_lon = (np.rad2deg(sub_bounds[:, 1, :]) + 180.0) % 360.0 - 180.0
+    spans_all_lon = (bounds_lon[:, 0] == 0) & (bounds_lon[:, 1] == 0)
+    bounds_lon[spans_all_lon] = [-180.0, 180.0]
+
+    keep_lon = faces_within_lon_bounds(lon_bounds, bounds_lon)
+    keep_lat = faces_within_lat_bounds(lat_bounds, bounds_lat)
+
+    return candidates[np.intersect1d(keep_lon, keep_lat)]

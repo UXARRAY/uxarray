@@ -331,3 +331,160 @@ def test_isel_dask_connectivity(gridpath, monkeypatch):
                 eager_subset._ds[name].values,
                 err_msg=f"force_sparse={force_sparse}: {name}",
             )
+
+
+class TestBoundingBoxPrefilter:
+    """The centre pre-filter must be an optimization, not a behaviour change.
+
+    ``bounding_box`` used to compute ``Grid.bounds`` -- a per-face box for
+    every face in the mesh -- before it could test which faces fall inside
+    the region asked for. That cost is proportional to the mesh rather than
+    the crop, so a few-hundred-face region out of a 300M-face grid needed
+    more memory than the machine had (#1778). Face centres are already
+    resident and are used first to discard faces that cannot reach the box;
+    exact bounds are then computed for the survivors only.
+
+    A faster subset that quietly drops faces near the edge of the box would
+    be worse than a slow one, so what is pinned here is that the answer does
+    not move.
+    """
+
+    @staticmethod
+    def _exact(grid, lon_bounds, lat_bounds):
+        """The pre-filter-free path, kept here as the reference answer."""
+        return np.intersect1d(
+            grid.get_faces_between_longitudes(lon_bounds),
+            grid.get_faces_between_latitudes(lat_bounds),
+        )
+
+    # Boxes chosen for the cases a centre-based filter could plausibly get
+    # wrong: tiny (most faces excluded), whole-globe (none excluded), polar
+    # (faces whose bounds span far more longitude than their centre suggests)
+    # and antimeridian-spanning (where the interval is a union, not a range).
+    BOXES = [
+        ([-30, 30], [-20, 20]),
+        ([-1, 1], [-1, 1]),
+        ([-180, 180], [-90, 90]),
+        ([0, 10], [80, 89]),
+        ([0, 10], [-89, -80]),
+        ([170, -170], [-10, 10]),
+        ([-106.6, -93.5], [25.8, 36.5]),
+        ([100, 140], [0, 45]),
+    ]
+
+    @pytest.mark.parametrize("zoom", [3, 4, 5])
+    @pytest.mark.parametrize("lon_bounds,lat_bounds", BOXES)
+    def test_prefilter_matches_the_exact_path(self, zoom, lon_bounds, lat_bounds):
+        from uxarray.subset.grid_accessor import _faces_in_bounding_box
+
+        grid = ux.Grid.from_healpix(zoom)
+        expected = self._exact(ux.Grid.from_healpix(zoom), lon_bounds, lat_bounds)
+        actual = _faces_in_bounding_box(grid, lon_bounds, lat_bounds)
+
+        np.testing.assert_array_equal(np.sort(expected), np.sort(actual))
+
+    def test_a_precomputed_bounds_array_is_used_as_is(self):
+        """A grid that already has ``bounds`` should not pay for the filter.
+
+        The saving comes from *not* building the whole-mesh index. Once it
+        exists the exact path is free, and taking the filter anyway would add
+        work for nothing.
+        """
+        from uxarray.subset.grid_accessor import _faces_in_bounding_box
+
+        grid = ux.Grid.from_healpix(4)
+        _ = grid.bounds  # pay for it up front
+        assert "bounds" in grid._ds
+
+        expected = self._exact(grid, [-30, 30], [-20, 20])
+        actual = _faces_in_bounding_box(grid, [-30, 30], [-20, 20])
+        np.testing.assert_array_equal(np.sort(expected), np.sort(actual))
+
+    def test_an_empty_region_returns_no_faces(self):
+        """A box over open ocean far from any face must come back empty, not
+        raise -- the candidate array is empty before the exact stage runs."""
+        from uxarray.subset.grid_accessor import _faces_in_bounding_box
+
+        grid = ux.Grid.from_healpix(3)
+        faces = _faces_in_bounding_box(grid, [0.0, 0.001], [0.0, 0.001])
+        assert len(faces) == 0
+
+    def test_subsetting_still_returns_a_usable_grid(self):
+        """The accessor, not just the helper: the crop must still be a Grid."""
+        grid = ux.Grid.from_healpix(4)
+        sub = grid.subset.bounding_box(lon_bounds=[-30, 30], lat_bounds=[-20, 20])
+        assert int(sub.n_face) > 0
+        assert int(sub.n_face) < int(grid.n_face)
+        assert sub.face_lon.size == sub.n_face
+
+    def test_a_polar_face_is_not_excluded_by_its_centre(self):
+        """Longitude must not be filtered on face centres.
+
+        A face containing a pole is recorded as spanning every longitude, so
+        its bounds sit up to 354 degrees from its own centre on a HEALPix z3
+        grid. An early version of the pre-filter tested longitude centres
+        with a generous margin and still would have dropped those faces for
+        a narrow box -- no finite margin can cover a 354 degree gap. The
+        equivalence tests above did not catch it, because the boxes they use
+        happen not to need any face whose centre lies outside them.
+
+        This pins the measurement directly rather than through a subset, so
+        the reason survives even if the filter is rewritten.
+        """
+        grid = ux.Grid.from_healpix(3)
+        bounds_lon = np.asarray(grid.face_bounds_lon.values)
+        bounds_lat = np.asarray(grid.face_bounds_lat.values)
+        face_lon = np.asarray(grid.face_lon.values)
+        face_lat = np.asarray(grid.face_lat.values)
+
+        lon_reach = np.maximum(
+            np.abs(bounds_lon[:, 0] - face_lon), np.abs(bounds_lon[:, 1] - face_lon)
+        ).max()
+        lat_reach = np.maximum(
+            np.abs(bounds_lat[:, 0] - face_lat), np.abs(bounds_lat[:, 1] - face_lat)
+        ).max()
+
+        assert lon_reach > 180.0, (
+            "longitude bounds no longer reach far beyond the face centre; if "
+            "that is genuinely true the longitude centre-filter could be "
+            "reinstated, but check why before doing so"
+        )
+        assert lat_reach < 45.0, (
+            "latitude bounds now reach further from the centre than the "
+            f"filter's margin assumes ({lat_reach:.1f} deg); the latitude "
+            "pre-filter is no longer safe"
+        )
+
+    def test_containment_is_what_makes_a_centre_filter_safe(self):
+        """The assumption the pre-filter rests on, checked rather than trusted.
+
+        ``faces_within_lat_bounds`` reads as an overlap test -- its docstring
+        says "overlap" -- but the implementation keeps a face only when its
+        bounds are *fully contained* in the query interval. That distinction
+        is the whole justification for filtering on centres: a fully
+        contained face must have a contained centre, so nothing the exact
+        path keeps can be discarded by the centre test, and no safety margin
+        is required.
+
+        If that ever becomes a genuine overlap test, this fails and the
+        pre-filter needs a margin before it is correct again.
+        """
+        grid = ux.Grid.from_healpix(5)
+        face_lat = np.asarray(grid.face_lat.values)
+
+        straddlers = 0
+        rng = np.random.default_rng(0)
+        for _ in range(40):
+            la = rng.uniform(-70, 60)
+            lat_bounds = [la, la + 4]
+            kept = grid.get_faces_between_latitudes(lat_bounds)
+            centre_inside = np.flatnonzero(
+                (face_lat >= lat_bounds[0]) & (face_lat <= lat_bounds[1])
+            )
+            straddlers += len(np.setdiff1d(kept, centre_inside))
+
+        assert straddlers == 0, (
+            f"{straddlers} faces were kept whose centre lies outside the "
+            "query interval, so the latitude filter is now an overlap test "
+            "and the centre pre-filter would silently drop them"
+        )
