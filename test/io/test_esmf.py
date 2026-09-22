@@ -36,7 +36,12 @@ def test_read_esmf_dataset(gridpath, datasetpath):
         assert dim in uxds.dims
 
 @pytest.mark.parametrize("mask_and_scale", [True, False])
-def test_read_esmf_padding_independent_of_cf_decoding(mask_and_scale, tmp_path):
+@pytest.mark.parametrize(
+    "num_element_conn", [[4, 3, 3], [4, 4, 4]], ids=["counted", "miscounted"]
+)
+def test_read_esmf_padding_independent_of_cf_decoding(
+    num_element_conn, mask_and_scale, tmp_path
+):
     """Padding is recognized whether or not xarray decoded the fill value.
 
     ESMF pads a short face in `elementConn` with that variable's `_FillValue`.
@@ -65,7 +70,7 @@ def test_read_esmf_padding_independent_of_cf_decoding(mask_and_scale, tmp_path):
                 attrs={"_FillValue": np.int32(-1)},
             ),
             "numElementConn": xr.DataArray(
-                np.array([4, 3, 3], dtype=np.byte), dims="elementCount"
+                np.array(num_element_conn, dtype=np.byte), dims="elementCount"
             ),
         }
     )
@@ -84,7 +89,12 @@ def test_read_esmf_padding_independent_of_cf_decoding(mask_and_scale, tmp_path):
             [0, 3, 4, INT_FILL_VALUE],
         ]),
     )
-    np.testing.assert_array_equal(uxgrid.n_nodes_per_face.values, [4, 3, 3])
+    # The connectivity knows each face's real size whatever the file claimed
+    real_sizes = (uxgrid.face_node_connectivity.values != INT_FILL_VALUE).sum(axis=1)
+    np.testing.assert_array_equal(real_sizes, [4, 3, 3])
+
+    # "n_nodes_per_face" is still the declared count, so a miscount survives here
+    np.testing.assert_array_equal(uxgrid.n_nodes_per_face.values, num_element_conn)
     assert uxgrid.n_node == 5
 
 def test_esmf_round_trip_consistency(gridpath):
