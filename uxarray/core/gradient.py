@@ -180,8 +180,8 @@ def _compute_gradient(data, scale_by_radius=True):
     #     )
     else:
         raise DataCenteringError(
-            "_compute_gradient(data) is only supported for face_centered data; got "
-            f"data.data_location={data.data_location}, data.sizes={dict(**data.sizes)}"
+            "_compute_gradient(data) is only supported for face-centered data; got "
+            f"data.data_mapping={data.data_mapping!r}, data.sizes={dict(**data.sizes)}"
         )
 
     has_sphere_radius = "sphere_radius" in uxgrid._ds.attrs

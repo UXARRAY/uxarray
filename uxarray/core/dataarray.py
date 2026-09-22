@@ -396,7 +396,7 @@ class UxDataArray(xr.DataArray):
                 return poly_collection
         else:
             raise DataCenteringError(
-                f"to_polycollection() expects face_centered data; got {self.data_location} data "
+                f"to_polycollection() expects face-centered data; got data with data_mapping={self.data_mapping!r} "
                 f"(with sizes={dict(**self.sizes)}). Consider running "
                 "``UxDataArray.topological_mean(destination='face')`` to aggregate the data onto faces."
             )
@@ -648,7 +648,7 @@ class UxDataArray(xr.DataArray):
         else:
             raise DimensionError(
                 "Integration of data with n_face not as the final dimension is not yet supported. "
-                f"Got face_centered data, but the final dimension was {self.dims[-1]}, not 'n_face'."
+                f"Got face-centered data, but the final dimension was {self.dims[-1]}, not 'n_face'."
             )
 
         # construct a uxda with integrated quantity
@@ -714,7 +714,7 @@ class UxDataArray(xr.DataArray):
         if not self._face_centered():
             raise DataCenteringError(
                 "zonal_mean() of non-face-centered data is not currently supported. "
-                f"(Got {self.data_location} data with sizes={dict(**self.sizes)}.) "
+                f"(Got data with data_mapping={self.data_mapping!r}, sizes={dict(**self.sizes)}.) "
                 "Consider applying .topological_mean('face') to aggregate data onto faces."
             )
 
@@ -872,7 +872,7 @@ class UxDataArray(xr.DataArray):
         if not self._face_centered():
             raise DataCenteringError(
                 "zonal_anomaly() of non-face-centered data is not currently supported. "
-                f"(Got {self.data_location} data with sizes={dict(**self.sizes)}.) "
+                f"(Got data with data_mapping={self.data_mapping!r}, sizes={dict(**self.sizes)}.) "
                 "Consider applying .topological_mean('face') to aggregate data onto faces."
             )
 
@@ -959,7 +959,7 @@ class UxDataArray(xr.DataArray):
         if not self._face_centered():
             raise DataCenteringError(
                 "azimuthal_mean() of non-face-centered data is not currently supported. "
-                f"(Got {self.data_location} data with sizes={dict(**self.sizes)}.) "
+                f"(Got data with data_mapping={self.data_mapping!r}, sizes={dict(**self.sizes)}.) "
                 "Consider applying .topological_mean('face') to aggregate data onto faces."
             )
 
@@ -1813,14 +1813,14 @@ class UxDataArray(xr.DataArray):
             _wrong_locs = []
             if not self._face_centered():
                 _wrong_locs.append(
-                    f"u.data_location={self.data_location}, u.sizes={dict(**self.sizes)}"
+                    f"u.data_mapping={self.data_mapping!r}, u.sizes={dict(**self.sizes)}"
                 )
             if not other._face_centered():
                 _wrong_locs.append(
-                    f"v.data_location={self.data_location}, v.sizes={dict(**self.sizes)}"
+                    f"v.data_mapping={self.data_mapping!r}, v.sizes={dict(**self.sizes)}"
                 )
             raise DataCenteringError(
-                "u.divergence(v) is only supported for face_centered data; got "
+                "u.divergence(v) is only supported for face-centered data; got "
                 + ", ".join(_wrong_locs)
             )
 
@@ -1921,18 +1921,18 @@ class UxDataArray(xr.DataArray):
             _wrong_locs = []
             if not self._face_centered():
                 _wrong_locs.append(
-                    f"u.data_location={self.data_location}, u.sizes={dict(**self.sizes)}"
+                    f"u.data_mapping={self.data_mapping!r}, u.sizes={dict(**self.sizes)}"
                 )
             if not v._face_centered():
                 _wrong_locs.append(
-                    f"v.data_location={self.data_location}, v.sizes={dict(**self.sizes)}"
+                    f"v.data_mapping={self.data_mapping!r}, v.sizes={dict(**self.sizes)}"
                 )
             if not q._face_centered():
                 _wrong_locs.append(
-                    f"q.data_location={self.data_location}, q.sizes={dict(**self.sizes)}"
+                    f"q.data_mapping={self.data_mapping!r}, q.sizes={dict(**self.sizes)}"
                 )
             raise DataCenteringError(
-                "u.scalardotgradient(v, q) is only supported for face_centered data; got "
+                "u.scalardotgradient(v, q) is only supported for face-centered data; got "
                 + ", ".join(_wrong_locs)
             )
 
@@ -1996,11 +1996,11 @@ class UxDataArray(xr.DataArray):
                 name = f"{var_name}edge_face_difference"
             elif destination == "face":
                 raise DataCenteringError(
-                    "difference() for face_centered data does not permit destination='face'."
+                    "difference() for face-centered data does not permit destination='face'."
                 )
             elif destination == "node":
                 raise DataCenteringError(
-                    "difference() for face_centered data with destination='node' is not yet supported."
+                    "difference() for face-centered data with destination='node' is not yet supported."
                 )
 
         elif self._node_centered():
@@ -2012,21 +2012,21 @@ class UxDataArray(xr.DataArray):
                 name = f"{var_name}edge_node_difference"
             elif destination == "node":
                 raise DataCenteringError(
-                    "difference() for node_centered data does not permit destination='node'."
+                    "difference() for node-centered data does not permit destination='node'."
                 )
 
             elif destination == "face":
                 raise DataCenteringError(
-                    "difference() for node_centered data with destination='face' is not yet supported."
+                    "difference() for node-centered data with destination='face' is not yet supported."
                 )
 
         elif self._edge_centered():
-            raise NotImplementedError("difference() for edge_centered data")
+            raise NotImplementedError("difference() for edge-centered data")
 
         else:
             raise DataCenteringError(
-                "Expected face_centered, node_centered, or edge_centered data; "
-                f"got data at data_location={self.data_location}, in difference()"
+                "Expected data mapped to faces, nodes, or edges; "
+                f"got data with data_mapping={self.data_mapping!r}, in difference()"
             )
 
         uxda = UxDataArray(
@@ -2387,8 +2387,8 @@ class UxDataArray(xr.DataArray):
 
         else:
             raise DataCenteringError(
-                "Expected face_centered, node_centered, or edge_centered data; "
-                f"got data at data_location={self.data_location}, in _slice_from_grid()"
+                "Expected data mapped to faces, nodes, or edges; "
+                f"got data with data_mapping={self.data_mapping!r}, in _slice_from_grid()"
             )
 
         return UxDataArray(da_sliced, uxgrid=sliced_grid)

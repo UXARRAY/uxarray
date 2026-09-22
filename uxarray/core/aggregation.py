@@ -54,8 +54,8 @@ def _uxda_grid_aggregate(uxda, destination, aggregation, **kwargs):
 
     else:
         raise DataCenteringError(
-            f"topological_{aggregation} expected node_centered, edge_centered, or face_centered data; "
-            f"got array with array.data_location={uxda.data_location!r} and array.dims={uxda.dims!r}."
+            f"topological_{aggregation} expected data mapped to nodes, edges, or faces; "
+            f"got array with array.data_mapping={uxda.data_mapping!r} and array.dims={uxda.dims!r}."
         )
 
 
@@ -65,7 +65,7 @@ def _node_to_face_aggregation(uxda, aggregation, aggregation_func_kwargs):
 
     if not uxda._node_centered():
         raise DataCenteringError(
-            f"Expected node_centered data; got array with array.data_location={uxda.data_location!r} "
+            f"Expected node-centered data; got array with array.data_mapping={uxda.data_mapping!r} "
             f"and array.dims={uxda.dims!r}, during node-to-face aggregation."
         )
 
@@ -196,7 +196,7 @@ def _node_to_edge_aggregation(uxda, aggregation, aggregation_func_kwargs):
 
     if not uxda._node_centered():
         raise DataCenteringError(
-            f"Expected node_centered data; got array with array.data_location={uxda.data_location!r} "
+            f"Expected node-centered data; got array with array.data_mapping={uxda.data_mapping!r} "
             f"and array.dims={uxda.dims!r}, during node-to-edge aggregation."
         )
 
