@@ -120,7 +120,7 @@ class BaseAccessor:
     def _process_result(self, result):
         """Process method results to preserve uxgrid. To be overridden by subclasses."""
         raise NotImplementedError(
-            f"_process_result, for BaseAccessor subclass {type(self).__name__}"
+            f"_process_result, for BaseAccessor subclass {type(self)}"
         )
 
     # Delegation for common dunder methods

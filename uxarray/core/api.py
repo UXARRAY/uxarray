@@ -198,7 +198,7 @@ def open_multigrid(
     if isinstance(grid_filename_or_obj, (str, os.PathLike)):
         _provided_input_str = f"file, {os.path.abspath(grid_filename_or_obj)!r}"
     else:
-        _provided_input_str = str(type(grid_filename_or_obj))
+        _provided_input_str = type(grid_filename_or_obj).__name__
 
     try:
         active_value_map: Mapping[str, MaskValue] | None = (
@@ -311,7 +311,7 @@ def open_multigrid(
                     _provided_mask_str = (
                         f"file, {os.path.abspath(mask_filename)!r}"
                         if isinstance(mask_filename, (str, os.PathLike))
-                        else str(type(mask_filename))
+                        else type(mask_filename).__name__
                     )
                     warn(
                         f"Mask variable {mask_var!r} not found in the provided mask {_provided_mask_str}. "
