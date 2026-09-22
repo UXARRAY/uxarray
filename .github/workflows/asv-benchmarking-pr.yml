@@ -46,7 +46,7 @@ jobs:
       # asv rebuilds its own env under benchmarks/env/ each run; caching skips the
       # solve. No restore-keys: asv reuses a restored env without checking it.
       - name: Cache asv environment
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.ASV_DIR }}/env
           key: "asv-env-${{runner.os}}-${{runner.arch}}-${{hashFiles(env.CONDA_ENV_FILE, 'benchmarks/asv.conf.json')}}"
