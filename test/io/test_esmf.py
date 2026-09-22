@@ -48,8 +48,8 @@ def test_read_esmf_padding_independent_of_cf_decoding(mask_and_scale, tmp_path):
 
     So the padding has to be located before the cast, from `numElementConn`.
     """
-    node_lon = np.array([0.0, 10.0, 10.0, 0.0, 20.0])
-    node_lat = np.array([0.0, 0.0, 10.0, 10.0, 0.0])
+    node_lon = np.array([0.0, 120.0, 120.0, 0.0, 240.0])
+    node_lat = np.array([0.0, 0.0, 10.0, 10.0, 5.0])
 
     # 1-based and -1 padded, as ESMF specifies: one quad and two triangles
     in_ds = xr.Dataset(
