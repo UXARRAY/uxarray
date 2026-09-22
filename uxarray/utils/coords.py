@@ -111,11 +111,21 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
             coords = indexer.coords
         elif indexer.ndim == 1:
             the_dim = indexer.dims[0]
-            if grid_dim == "n_face" and "n_face" in uxarray_obj.dims:
+            if (
+                grid_dim == "n_face"
+                and "n_face" in uxarray_obj.dims
+                # a boolean mask is as long as the *original* grid dim, not the
+                # result, so its 1D coords cannot be laid over the result.
+                and indexer.sizes[the_dim] == uxarray_obj.sizes["n_face"]
+            ):
                 coords = indexer.swap_dims({the_dim: "n_face"}).coords
             else:
-                # remove any 1D coords (but keep scalar coords)
-                coords = indexer.isel({the_dim: 0}, drop=True).coords
+                # remove any 1D coords (but keep scalar coords). Drop by name rather
+                # than via ``.isel({the_dim: 0})``, which raises IndexError when the
+                # indexer selects nothing.
+                coords = indexer.drop_vars(
+                    [c for c in indexer.coords if the_dim in indexer[c].dims]
+                ).coords
         else:
             raise DimensionError(
                 f"2D+ indexers are not supported for grid dimensions. Got xr.DataArray "

@@ -402,7 +402,26 @@ class UxDataset(xr.Dataset):
             else:
                 data_vars[name] = da
 
-        ds_sliced = xr.Dataset(data_vars=data_vars, attrs=self.attrs)
+        # Coords are only carried over by ``data_vars`` when some variable happens to
+        # share their dims, so they must be sliced explicitly here. Coords along a grid
+        # dim follow that dim's subgrid indices; all others pass through untouched.
+        coords = {}
+        for name, coord in self.coords.items():
+            var = coord.variable
+            for dim in GRID_DIMS:
+                if dim not in var.dims:
+                    continue
+                indices_name = f"_subgrid_{dim[2:]}_indices"
+                if indices_name not in sliced_grid._ds:
+                    # the sliced grid dropped this dim entirely (e.g. n_edge without
+                    # face_edge_connectivity), so the coord cannot be carried over.
+                    var = None
+                    break
+                var = var.isel({dim: sliced_grid._ds[indices_name].values})
+            if var is not None:
+                coords[name] = var
+
+        ds_sliced = xr.Dataset(data_vars=data_vars, coords=coords, attrs=self.attrs)
         return type(self)(ds_sliced, uxgrid=sliced_grid)
 
     def isel(

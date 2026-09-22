@@ -209,4 +209,12 @@ def _resolve_coordinate_labels_to_indices(
     selected = coord_with_indices.sel(
         {dim: labels_to_sel}, method=method, tolerance=tolerance
     )
-    return selected[_indices_coord_name].values  # (return as np.ndarray, not DataArray)
+    indices_selected = selected[_indices_coord_name]
+    if isinstance(labels_to_sel, xr.DataArray):
+        # Keep the indexer's own dims/coords so that sel() attaches them just like
+        # isel() does (#1712). Drop `dim`'s labels and the helper coord, which belong
+        # to `coord_array` rather than the indexer and are reapplied by the caller.
+        return indices_selected.drop_vars(
+            [c for c in (dim, _indices_coord_name) if c in indices_selected.coords]
+        )
+    return indices_selected.values  # (return as np.ndarray, not DataArray)
