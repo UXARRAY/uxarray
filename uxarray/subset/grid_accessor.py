@@ -14,6 +14,9 @@ if TYPE_CHECKING:
 #: the pre-filter's own cost is not repaid.
 _PREFILTER_MIN_FACES = 1_000_000
 
+#: Floor on cos(lat) so the polar margin stays finite at the pole itself.
+_MIN_COS_LAT = 1e-6
+
 
 class GridSubsetAccessor:
     """Accessor for performing unstructured grid subsetting, accessed through
@@ -475,15 +478,39 @@ def _faces_in_bounding_box(uxgrid, lon_bounds, lat_bounds):
     lat_lo, lat_hi = min(lat_bounds), max(lat_bounds)
     near_lat = (face_lat >= lat_lo) & (face_lat <= lat_hi)
 
-    # Longitude is deliberately *not* filtered on the centre. A face near a
-    # pole has a longitude span that says nothing about where its centre is:
-    # measured on a HEALPix z3 grid, bounds reach 354 degrees from the centre,
-    # because a face containing a pole is recorded as spanning every
-    # longitude. No finite margin makes a centre test safe for those, so the
-    # latitude filter -- which is well behaved, the same measurement puts its
-    # worst case at 6.3 degrees -- carries the reduction on its own, and
-    # longitude is settled exactly in the second stage.
-    candidates = np.flatnonzero(near_lat)
+    # Longitude needs a margin, unlike latitude, and the margin has to widen
+    # towards the poles. Meridians converge, so a face of fixed area spans
+    # more longitude the higher its latitude -- the same cell that covers a
+    # degree at the equator covers many near the pole. Normalising the
+    # measured reach by ``1 / cos(lat)`` collapses it to a constant 4.39 face
+    # widths across HEALPix zooms 4, 5 and 6, which is what makes a bound
+    # derivable rather than tuned: 8 face widths, latitude-corrected, had zero
+    # violations across zooms 3 through 7.
+    #
+    # Two cases cannot be filtered on a centre at all and are always kept.
+    # A face whose bounds are stored min > max crosses the antimeridian, so
+    # its "centre" is not between them. A face containing a pole is recorded
+    # as spanning every longitude. Both are rare -- under 1% of faces by zoom
+    # 6 -- so keeping them unconditionally costs almost nothing, and the exact
+    # stage discards them if they do not belong.
+    face_lon = np.asarray(uxgrid.face_lon.values)
+    bounds_lon = np.asarray(uxgrid.face_bounds_lon.values)
+
+    unfilterable = (bounds_lon[:, 0] > bounds_lon[:, 1]) | (
+        (bounds_lon[:, 0] <= -179.999) & (bounds_lon[:, 1] >= 179.999)
+    )
+
+    face_width = np.degrees(np.sqrt(4.0 * np.pi / max(int(uxgrid.n_face), 1)))
+    margin = 8.0 * face_width / np.maximum(np.cos(np.radians(face_lat)), _MIN_COS_LAT)
+
+    lon_lo, lon_hi = lon_bounds[0], lon_bounds[1]
+    if lon_lo <= lon_hi:
+        near_lon = (face_lon >= lon_lo - margin) & (face_lon <= lon_hi + margin)
+    else:
+        # the query itself spans the antimeridian: a union, not a range
+        near_lon = (face_lon >= lon_lo - margin) | (face_lon <= lon_hi + margin)
+
+    candidates = np.flatnonzero(near_lat & (near_lon | unfilterable))
     if candidates.size == 0:
         return candidates.astype(np.intp)
 
