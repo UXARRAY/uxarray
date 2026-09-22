@@ -552,7 +552,7 @@ def test_isel_crash_if_coordinates_conflict():
     with pytest.raises(ux.errors.DimensionError, match=MATCH_ERRMSG_2):
         ds_t0.isel(n_face=indexer2)
 
-def test_isel_when_indexer_extra_dims_match():
+def test_isel_when_indexer_dim_in_uxarray_obj():
     """Ensure isel() crashes with NotImplementedError when the indexer's dim has
     the same name as a dim or non-scalar coordinate in the uxarray object being indexed.
     Regression test for follow-up to bug (2) discovered during review of PR #1759.
