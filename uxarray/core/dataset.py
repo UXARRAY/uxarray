@@ -898,7 +898,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         Leaves coordinate dtype unchanged.
 
         Behaves just like :meth:`xarray.Dataset.astype`, except that
-        the returned object is a UxDataArray with same uxgrid as the input.
+        the returned object is a UxDataset with same uxgrid as the input.
         """
         da = super().astype(dtype, **kw_super)
         return type(self)(da, uxgrid=self._uxgrid)

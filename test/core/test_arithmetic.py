@@ -28,7 +28,7 @@ COMPARISON_BINARY_OPS = [
     operator.lt, operator.le, operator.gt, operator.ge, operator.eq, operator.ne,
 ]
 
-ALL_BINARY_OPS = MATH_BINARY_OPS + COMPARISON_BINARY_OPS
+NONDESTRUCTIVE_BINARY_OPS = MATH_BINARY_OPS + COMPARISON_BINARY_OPS
 
 # spot-check a few binary ufuncs too:
 BINARY_UFUNCS_TO_TEST = [
@@ -38,10 +38,22 @@ BINARY_UFUNCS_TO_TEST = [
 # later tests will spot-check a few unary ufuncs too:
 UNARY_UFUNCS_TO_TEST = [np.negative, np.absolute, np.square]
 
+# Inplace binary math operators which uxarray should guarantee work as expected.
+# Created based on list of inplace binary ops supported for xarray objects.
+# Separated from NONDESTRUCTIVE_BINARY_OPS because there is no need to test for types
+# (A+=B won't change A's type); just need to ensure the grid compatibility check occurs.
+INPLACE_BINARY_OPS = [
+    operator.iadd, operator.isub, operator.imul, operator.ipow,
+    operator.itruediv, operator.ifloordiv, operator.imod,
+    operator.iand, operator.ior, operator.ixor,
+    operator.ilshift, operator.irshift,
+]
 
-def test_binary_ops_and_binary_ufuncs_output_types():
-    """Checks types of outputs behave as expected in binary operations,
+
+def test_nondestructive_binary_ops_and_binary_ufuncs_output_types():
+    """Checks types of outputs behave as expected in nondestructive binary operations,
     including in a few binary ufuncs like np.add and np.minimum.
+    ("nondestructive" meaning neither operand is modified in-place.)
     Includes regression test for issue #1695 (binary ops)
     and partial regression test for issue #1685 (but just binary ufuncs here)
 
@@ -102,7 +114,7 @@ def test_binary_ops_and_binary_ufuncs_output_types():
     xds = xr.Dataset({'varname': xarr})
     uds = ux.UxDataset({'varname': uarr}, uxgrid=uarr.uxgrid)
 
-    for op in ALL_BINARY_OPS + BINARY_UFUNCS_TO_TEST:
+    for op in NONDESTRUCTIVE_BINARY_OPS + BINARY_UFUNCS_TO_TEST:
         # (A) UxDataArray * UxDataArray --> UxDataArray
         assert isinstance(op(uarr, uarr), ux.UxDataArray)
         # (B) UxDataArray * UxDataset --> UxDataset
@@ -122,7 +134,7 @@ def test_binary_ops_and_binary_ufuncs_output_types():
         # (I) xr.DataArray * UxDataArray --> UxDataArray
         assert isinstance(op(xarr, uarr), ux.UxDataArray)
         # (J) xr.DataArray * UxDataset --> UxDataset
-        if op in ALL_BINARY_OPS:
+        if op in NONDESTRUCTIVE_BINARY_OPS:
             assert isinstance(op(xarr, uds), ux.UxDataset)
         else:
             assert isinstance(op(xarr, uds), xr.Dataset)
@@ -156,7 +168,7 @@ def test_multi_output_ufunc_output_types():
     assert isinstance(out2, ux.UxDataArray)
 
 
-def test_ops_check_grid_compatibility():
+def test_nondestructive_ops_check_grid_compatibility():
     """Ensure ops check that grids compare as equal before proceeding.
     E.g., uxarr0 + uxarr1 should crash if uxarr0.uxgrid != uxarr1.uxgrid.
     Regression test for issue #1718.
@@ -176,3 +188,51 @@ def test_ops_check_grid_compatibility():
         udsA - uarrB
     with pytest.raises(ux.errors.GridsMismatchError):
         uarrA / uarrA.to_xarray() + uarrB
+
+
+def test_inplace_binary_ops_check_grid_compatibility():
+    """Ensure inplace ops check that grids compare as equal before proceeding.
+    E.g., uxarr0 += uxarr1 should crash if uxarr0.uxgrid != uxarr1.uxgrid.
+    Regression test for issue #1718.
+    """
+    grid0 = ux.Grid.from_healpix(zoom=0)
+    grid1 = ux.Grid.from_healpix(zoom=1)
+    # int dtype to avoid complaints from lshift/rshift (which don't support floats).
+    uarr0 = ux.UxDataArray(np.ones(grid0.n_face, dtype=int), dims='n_face', uxgrid=grid0)
+    uarr1_full = ux.UxDataArray(np.ones(grid1.n_face, dtype=int), dims='n_face', uxgrid=grid1)
+    uarr1 = uarr1_full.isel(n_face=slice(grid0.n_face))
+    assert uarr0.uxgrid != uarr1.uxgrid
+    uarr2 = uarr1 * 10
+    assert uarr1.uxgrid == uarr2.uxgrid
+    for op in INPLACE_BINARY_OPS:
+        u0 = uarr0.copy()
+        u1 = uarr1.copy()
+        u2 = uarr2.copy()
+        if op is operator.itruediv:  # itruediv produces floats; destinations can't be int array.
+            u0 = u0.astype('float')
+            u1 = u1.astype('float')
+        with pytest.raises(ux.errors.GridsMismatchError):
+            op(u0, u1)
+        # if grids are compatible, there should be no error:
+        op(u1, u2)
+        # if second object does not have a uxgrid, there should be no error:
+        op(u1, u2.to_xarray())
+
+    # repeat tests for UxDatasets:
+    uds0 = uarr0.to_dataset(name='varname')
+    uds1 = uarr1.to_dataset(name='varname')
+    uds2 = uarr2.to_dataset(name='varname')
+    assert all(isinstance(uds, ux.UxDataset) for uds in [uds0, uds1, uds2])
+    for op in INPLACE_BINARY_OPS:
+        u0 = uds0.copy()
+        u1 = uds1.copy()
+        u2 = uds2.copy()
+        if op is operator.itruediv:  # itruediv produces floats; destinations can't be int array.
+            u0 = u0.astype('float')
+            u1 = u1.astype('float')
+        with pytest.raises(ux.errors.GridsMismatchError):
+            op(u0, u1)
+        # if grids are compatible, there should be no error:
+        op(u1, u2)
+        # if second object does not have a uxgrid, there should be no error:
+        op(u1, u2.to_xarray())

@@ -71,6 +71,22 @@ class UxSupportsArithmetic:
         """returns f(self, other) (or f(other, self), if `reflexive`) for f a binary operation,
         such as adding or multiplying. Like super()._binary_op, except that
         if `other` has a uxgrid, first ensure it is compatible with self.uxgrid.
+        """
+        self._raise_if_grids_incompatible_during(other, f)
+        return super()._binary_op(other, f, reflexive=reflexive, **kw_super)
+
+    def _inplace_binary_op(self, other, f):
+        """returns f(self, other) for f a binary in-place operation,
+        such as A+=B. Like super()._inplace_binary_op, except that
+        if `other` has a uxgrid, first ensure it is compatible with self.uxgrid.
+        """
+        self._raise_if_grids_incompatible_during(other, f)
+        return super()._inplace_binary_op(other, f)
+
+    def _raise_if_grids_incompatible_during(self, other, f):
+        """raise GridsMismatchError if other has a uxgrid which is incompatible with self.
+        f is only used for error message, as f.__name__.
+
         Grids are considered "compatible" here if they compare as equal,
         OR if either grid has n_face==1 (to avoid breaking "scalar-like" workflows,
         because isel(n_face=int) maybe should provide scalar, but currently doesn't).
@@ -83,9 +99,9 @@ class UxSupportsArithmetic:
             ):
                 raise GridsMismatchError(
                     f"A.uxgrid != B.uxgrid during binary operation {f.__name__!r}, "
-                    f"with type(A)={type(self).__name__}, type(B)={type(other).__name__}."
+                    f"with type(A)={type(self).__name__}, type(B)={type(other).__name__}. "
+                    f"(Got A.uxgrid.sizes={self.uxgrid.sizes}; B.uxgrid.sizes={other.uxgrid.sizes}.)"
                 )
-        return super()._binary_op(other, f, reflexive=reflexive, **kw_super)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         """Like super().__array_ufunc__, except that if multiple inputs have a uxgrid,
