@@ -47,7 +47,7 @@ dev = [
     'ruff',
 ]
 geo = [
-    "cartopy>=0.26",  # in both geo and viz because it is needed by to_geodataframe() and by plotting routines. 0.26 is the first release that works with matplotlib 3.11; see issue #1542.
+    "cartopy",  # also in [viz]; needed here by to_geodataframe(). No lower bound: the 0.26 floor exists only for matplotlib 3.11, which is a [viz] dependency.
     "geopandas>=1.0",  # 1.0 is the first release requiring pyogrio, the file-IO backend read_file needs. See #1693.
     "healpix",
     "pyproj",
