@@ -32,7 +32,7 @@ def test_multi_dim(gridpath):
 
 
 def test_integrate_crashes_when_nnode_equals_nface():
-    """Ensure UxDataArray.integrate() crashes for non-face_centered data, even if n_node==n_face.
+    """Ensure UxDataArray.integrate() crashes for non-face-centered data, even if n_node==n_face.
     regression test for issue #1616.
     """
     # Below is a visualization of the example here, with (ni)=node i; fj=face j:
@@ -79,7 +79,7 @@ def test_integrate_crashes_when_nnode_equals_nface():
     # make array of values, convert to uxarray
     vals = xr.DataArray([100,200,300,400,500,600], dims=['n_node'])
     uxarr = ux.UxDataArray(vals, uxgrid=uxgrid)
-    # ensure integrate() crashes for non-face_centered data, even if n_node==n_face
+    # ensure integrate() crashes for non-face-centered data, even if n_node==n_face
     with pytest.raises(ValueError):
         uxarr.integrate()
 

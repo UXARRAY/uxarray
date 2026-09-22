@@ -381,7 +381,7 @@ class TestZonalAnomaly:
         uxda = ux.UxDataArray(
             np.zeros(uxgrid.n_node), dims=["n_node"], uxgrid=uxgrid
         )
-        with pytest.raises(DataCenteringError, match="non-face_centered data is not currently supported"):
+        with pytest.raises(DataCenteringError, match="non-face-centered data is not currently supported"):
             uxda.zonal_anomaly()
 
     def test_invalid_lat_input_raises(self):

@@ -646,7 +646,7 @@ class UxDataArray(xr.DataArray):
 
         elif not self._face_centered():
             raise DataCenteringError(
-                "Integration of non-face_centered data is not yet supported. "
+                "Integration of non-face-centered data is not yet supported. "
                 f"(Got {self.data_location} data with sizes={dict(**self.sizes)}.) "
                 "Consider applying .topological_mean('face') to aggregate data onto faces."
             )
@@ -719,7 +719,7 @@ class UxDataArray(xr.DataArray):
         """
         if not self._face_centered():
             raise DataCenteringError(
-                "zonal_mean() of non-face_centered data is not currently supported. "
+                "zonal_mean() of non-face-centered data is not currently supported. "
                 f"(Got {self.data_location} data with sizes={dict(**self.sizes)}.) "
                 "Consider applying .topological_mean('face') to aggregate data onto faces."
             )
@@ -877,7 +877,7 @@ class UxDataArray(xr.DataArray):
         """
         if not self._face_centered():
             raise DataCenteringError(
-                "zonal_anomaly() of non-face_centered data is not currently supported. "
+                "zonal_anomaly() of non-face-centered data is not currently supported. "
                 f"(Got {self.data_location} data with sizes={dict(**self.sizes)}.) "
                 "Consider applying .topological_mean('face') to aggregate data onto faces."
             )
@@ -964,7 +964,7 @@ class UxDataArray(xr.DataArray):
 
         if not self._face_centered():
             raise DataCenteringError(
-                "azimuthal_mean() of non-face_centered data is not currently supported. "
+                "azimuthal_mean() of non-face-centered data is not currently supported. "
                 f"(Got {self.data_location} data with sizes={dict(**self.sizes)}.) "
                 "Consider applying .topological_mean('face') to aggregate data onto faces."
             )
