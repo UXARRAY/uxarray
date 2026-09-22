@@ -149,18 +149,18 @@ class GCAGCAIntersection:
         from uxarray.grid.intersections import (
             _accux_gca,
             _try_gca_gca_intersection,
-            gca_gca_intersection,
+            gca_gca_intersection
         )
+
+        self.gca_gca_intersection = gca_gca_intersection
+        self.gca_a = np.stack([_W0, _W1])
+        self.gca_b = np.stack([_V0, _V1])
+        gca_gca_intersection(self.gca_a, self.gca_b)
 
         self._accux_gca = _accux_gca
         self._try_gca_gca_intersection = _try_gca_gca_intersection
-        self.gca_gca_intersection = gca_gca_intersection
-
-        self.gca_a = np.stack([_W0, _W1])
-        self.gca_b = np.stack([_V0, _V1])
         _accux_gca(_W0, _W1, _V0, _V1)
         _try_gca_gca_intersection(_W0, _W1, _V0, _V1)
-        gca_gca_intersection(self.gca_a, self.gca_b)
 
     def time_accux_gca_kernel(self):
         """Layer 1: pure numerical kernel."""
