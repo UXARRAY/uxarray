@@ -105,7 +105,15 @@ def _read_esmf(in_ds):
     fill_mask = (positions >= n_nodes_per_face).transpose(face_dim, node_dim)
 
     # NaN is never a usable index, whatever "numElementConn" claims
+    # NaN is never a usable index, whatever "numElementConn" claims
     fill_mask = fill_mask | element_conn.isnull()
+
+    # ...and neither is the declared sentinel, whatever "numElementConn" claims
+    sentinel = element_conn.attrs.get(
+        "_FillValue", element_conn.encoding.get("_FillValue")
+    )
+    if sentinel is not None:
+        fill_mask = fill_mask | (element_conn == sentinel)
 
     face_node_connectivity = element_conn.fillna(0).astype(INT_DTYPE) - start_index
     face_node_connectivity = xr.where(fill_mask, INT_FILL_VALUE, face_node_connectivity)
