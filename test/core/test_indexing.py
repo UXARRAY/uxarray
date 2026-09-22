@@ -514,14 +514,17 @@ def test_isel_crash_if_coordinates_conflict():
     """Ensure isel crashes if there is a coordinates conflict,
     such as indexing an array with time dim by an array with a scalar time coord.
     Regression test for bug (2) discovered during review of PR #1759.
+    (Also checks indexing an array with scalar time coord by an array with a time dim.)
     """
     ds = ux.tutorial.open_dataset("outCSne30-timeseries")
     arr = ds['psi']
     indexer0 = xr.DataArray(0, coords={'time': arr['time'][0].item()})
     indexer1 = arr.isel(time=0).argmax('n_face')
+    indexer2 = xr.DataArray([0,1], dims='time', coords={'time': arr['time'][:2].values})
     assert isinstance(indexer1, ux.UxDataArray)
     assert 'time' in indexer1.coords and 'time' not in indexer1.dims
     MATCH_ERRMSG = "dimension coordinate 'time' conflicts between indexed and indexing objects"
+    MATCH_ERRMSG_2 = "The indexer's dimension \('time'\) already exists as a scalar"
     with pytest.raises(IndexError, match=MATCH_ERRMSG):
         arr.to_xarray().isel(n_face=indexer0)  # sanity check that xarray also crashes here.
     with pytest.raises(IndexError, match=MATCH_ERRMSG):
@@ -530,6 +533,10 @@ def test_isel_crash_if_coordinates_conflict():
         arr.to_xarray().isel(n_face=indexer1)  # sanity check that xarray also crashes here.
     with pytest.raises(IndexError, match=MATCH_ERRMSG):
         arr.isel(n_face=indexer1)
+    arr_t0 = arr.isel(time=0)
+    assert 'time' in arr_t0.coords and 'time' not in arr_t0.dims
+    with pytest.raises(ux.errors.DimensionError, match=MATCH_ERRMSG_2):
+        arr_t0.isel(n_face=indexer2)
 
     # repeat tests for UxDataArray:
     with pytest.raises(IndexError, match=MATCH_ERRMSG):
@@ -540,3 +547,45 @@ def test_isel_crash_if_coordinates_conflict():
         ds.to_xarray().isel(n_face=indexer1)
     with pytest.raises(IndexError, match=MATCH_ERRMSG):
         ds.isel(n_face=indexer1)
+    ds_t0 = ds.isel(time=0)
+    assert 'time' in ds_t0.coords and 'time' not in ds_t0.dims
+    with pytest.raises(ux.errors.DimensionError, match=MATCH_ERRMSG_2):
+        ds_t0.isel(n_face=indexer2)
+
+def test_isel_when_indexer_extra_dims_match():
+    """Ensure isel() crashes with NotImplementedError when the indexer's dim has
+    the same name as a dim or non-scalar coordinate in the uxarray object being indexed.
+    Regression test for follow-up to bug (2) discovered during review of PR #1759.
+    """
+    ds = ux.tutorial.open_dataset('quad-hexagon').expand_dims(time=[100,200])
+    arr = ds['t2m']
+    imax = arr.argmax('n_face')
+    assert set(imax.dims) == {'time'} and set(imax.coords) == {'time'}
+    assert set(ds.dims) == {'time', 'n_face'} and set(ds.coords) == {'time'}
+    assert imax.coords['time'].equals(ds.coords['time'])
+    # pure xarray indexing here returns a result with only 'time' dimension;
+    # that's the main reason uxarray should raise NotImplementedError in this case.
+    xr_result = ds.to_xarray().isel(n_face=imax.to_xarray())
+    assert set(xr_result.dims) == {'time'}
+    ERRMSG = (
+        r"Indexing a {typestr} .+ using an xarray DataArray whose dimension \('time'\) "
+        r"is already present .+ is not yet supported"
+    )
+    with pytest.raises(NotImplementedError, match=ERRMSG.format(typestr="UxDataset")):
+        ds.isel(n_face=imax)
+    ds1 = ds.swap_dims({'time': 'otherdim'})
+    assert 'time' in ds1.coords and 'time' not in ds1.dims
+    with pytest.raises(NotImplementedError, match=ERRMSG.format(typestr="UxDataset")):
+        ds1.isel(n_face=imax)
+
+    # repeat tests for UxDataArray:
+    assert set(arr.dims) == {'time', 'n_face'} and set(arr.coords) == {'time'}
+    assert imax.coords['time'].equals(arr.coords['time'])
+    xr_result = arr.to_xarray().isel(n_face=imax.to_xarray())
+    assert set(xr_result.dims) == {'time'}
+    with pytest.raises(NotImplementedError, match=ERRMSG.format(typestr="UxDataArray")):
+        arr.isel(n_face=imax)
+    arr1 = arr.swap_dims({'time': 'otherdim'})
+    assert 'time' in arr1.coords and 'time' not in arr1.dims
+    with pytest.raises(NotImplementedError, match=ERRMSG.format(typestr="UxDataArray")):
+        arr1.isel(n_face=imax)

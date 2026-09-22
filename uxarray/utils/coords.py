@@ -89,6 +89,40 @@ def _indices1d_from_indexing(xarray_obj, dim, indexer):
     return xarray_obj[dim].isel({dim: indexer}).values
 
 
+def _crash_if_1d_xarray_indexer_dim_in_uxarray_obj(uxarray_obj, grid_dim, indexer):
+    """if xarray indexer's dim is not grid_dim and is in uxarray object, raise NotImplementedError
+    rather than silently treating indexer as indexer.values, or silently giving a confusing result.
+    (Should only be applied where indexer is indexing uxarray_obj along grid_dim.)
+
+    In this case, uxarray_obj.to_xarray().isel({grid_dim: indexer}) produces "pointwise" indexing,
+    but that is difficult to support reliably along a grid dimension.
+
+    Example: uxarr.isel(n_face=uxarr.argmax('n_face')) for uxarr a UxDataArray with 'time' dimension,
+    should maybe produce "the maximum values of uxarr across all faces, at every face where there is
+    a maximum at any given time, for all times" or something like that?
+    (It very confusing, and unclear if any user is doing something like this.)
+
+    In xarray, uxarr.to_xarray().isel(n_face=uxarr.argmax('n_face')) produces an array with only the
+    'time' dimension, telling the maximum value of uxarray across all faces, at each time.
+
+    (Only handles 1D xr.DataArray indexers; 0D, 2D+, and non-DataArray indexers are handled elsewhere.)
+    """
+    if isinstance(indexer, xr.DataArray):
+        if indexer.ndim == 1:
+            the_dim = indexer.dims[0]
+            nonscalar_coords = [c for c in uxarray_obj.coords if len(uxarray_obj.coords[c].dims) > 0]
+            if the_dim != grid_dim and (the_dim in uxarray_obj.dims or the_dim in nonscalar_coords):
+                raise NotImplementedError(
+                    f"Indexing a {type(uxarray_obj).__name__} along a grid dimension ({grid_dim!r}), using "
+                    f"an xarray DataArray whose dimension ({the_dim!r}) is already present in the original "
+                    f"{type(uxarray_obj).__name__}'s dims or non-scalar coords, is not yet supported. "
+                    f"Consider using obj.to_xarray() for basic xarray indexing, "
+                    f"using indexer.data to convert to indexer to a non-DataArray object, "
+                    f"or using indexer.rename({{{the_dim!r}: 'any_unused_dim_name'}}) to avoid matching dims."
+                )
+    # all other cases handled elsewhere.
+
+
 def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexer):
     """returns uxarray_obj but with coords assigned from indexer if appropriate.
     "appropriate" `indexer` is a 0D or 1D xr.DataArray and has any relevant coordinates to assign.
@@ -111,7 +145,7 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
             (Also in this case, if indexer.to_xarray() exists, call it, to avoid recursion.)
     """
     if isinstance(indexer, xr.DataArray):
-        xr.core.coordinates.assert_coordinate_consistent(uxarray_obj, indexer.coords)
+        xr.core.coordinates.assert_coordinate_consistent(uxarray_obj, indexer.coords.variables)
         # ^ e.g. if uxarray_obj has time dim but indexer has time scalar coord, crash!
         if indexer.ndim == 0:
             coords = indexer.coords
@@ -122,6 +156,11 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
                     if hasattr(indexer, "to_xarray"):
                         indexer = indexer.to_xarray()
                     indexer = indexer.isel({the_dim: indexer})
+                if the_dim in uxarray_obj.coords and len(uxarray_obj.coords[the_dim].dims)==0:
+                    raise DimensionError(
+                        f"The indexer's dimension ({the_dim!r}) already exists as a scalar "
+                        f"coordinate in the {type(uxarray_obj).__name__} object being indexed."
+                    )  #
                 coords = indexer.swap_dims({the_dim: "n_face"}).coords
             else:
                 # remove any 1D coords (but keep scalar coords)

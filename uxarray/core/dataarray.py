@@ -46,6 +46,7 @@ from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
 from uxarray.utils.coords import (
     _assign_grid_dim_indexer_coords_if_appropriate,
+    _crash_if_1d_xarray_indexer_dim_in_uxarray_obj,
     _preserve_valid_coords,
 )
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
@@ -2000,8 +2001,10 @@ class UxDataArray(xr.DataArray):
         using n_edge=7 selects just the two faces touching edge 7. For data on 'n_face',
         the result would have 'n_face' with just those two faces. For data on 'n_edge',
         the result would have 'n_edge' with all edges located on either of those two faces.
+
         Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
         Grid dimensions are never renamed (even if indexed by 1D DataArray with different dim name).
+        Grid dimension indexer cannot have a non-grid dimension which exists in the original UxDataArray.
 
         Parameters
         ----------
@@ -2070,6 +2073,8 @@ class UxDataArray(xr.DataArray):
             indexers = indexers.copy()  # don't modify the original dict
             grid_indexer = indexers.pop(grid_dim)
 
+            _crash_if_1d_xarray_indexer_dim_in_uxarray_obj(self, grid_dim, grid_indexer)
+
             sliced_grid = self.uxgrid.isel(
                 **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
             )
@@ -2108,8 +2113,10 @@ class UxDataArray(xr.DataArray):
         using n_edge=7 selects just the two faces touching edge 7. For data on 'n_face',
         the result would have 'n_face' with just those two faces. For data on 'n_edge',
         the result would have 'n_edge' with all edges located on either of those two faces.
+
         Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
         Grid dimensions are never renamed (even if indexed by 1D DataArray with different dim name).
+        Grid dimension indexer cannot have a non-grid dimension which exists in the original UxDataArray.
 
         By default, grid dims do not have coordinates assigned. But, if they have
         been assigned, `.sel()` respects them in the intuitive way. For example,

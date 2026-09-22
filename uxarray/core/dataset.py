@@ -28,7 +28,10 @@ from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDatasetPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
-from uxarray.utils.coords import _assign_grid_dim_indexer_coords_if_appropriate
+from uxarray.utils.coords import (
+    _assign_grid_dim_indexer_coords_if_appropriate,
+    _crash_if_1d_xarray_indexer_dim_in_uxarray_obj,
+)
 
 
 class UxDataset(xr.Dataset):
@@ -442,8 +445,10 @@ class UxDataset(xr.Dataset):
         using n_edge=7 selects just the two faces touching edge 7. For data on 'n_face',
         the result would have 'n_face' with just those two faces. For data on 'n_edge',
         the result would have 'n_edge' with all edges located on either of those two faces.
+
         Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
         Grid dimensions are never renamed (even if indexed by 1D DataArray with different dim name).
+        Grid dimension indexer cannot have a non-grid dimension which exists in the original UxDataset.
 
         Parameters
         ----------
@@ -512,6 +517,8 @@ class UxDataset(xr.Dataset):
             indexers = indexers.copy()  # don't modify the original dict
             grid_indexer = indexers.pop(grid_dim)
 
+            _crash_if_1d_xarray_indexer_dim_in_uxarray_obj(self, grid_dim, grid_indexer)
+
             sliced_grid = self.uxgrid.isel(
                 **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
             )
@@ -551,8 +558,10 @@ class UxDataset(xr.Dataset):
         using n_edge=7 selects just the two faces touching edge 7. For data on 'n_face',
         the result would have 'n_face' with just those two faces. For data on 'n_edge',
         the result would have 'n_edge' with all edges located on either of those two faces.
+
         Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
         Grid dimensions are never renamed (even if indexed by 1D DataArray with different dim name).
+        Grid dimension indexer cannot have a non-grid dimension which exists in the original UxDataset.
 
         By default, grid dims do not have coordinates assigned. But, if they have
         been assigned, `.sel()` respects them in the intuitive way. For example,
