@@ -55,6 +55,7 @@ geo = [
 ]
 viz = [
     "cartopy<0.26",  # cartopy 0.26.0 breaks some geoviews plots; see issue #1780.
+    # (cartopy pin intentionally here but not in "geo" extras because geoviews is only in "viz".)
     "datashader",
     "matplotlib<3.11",  # matplotlib 3.11.0 breaks some plots but <3.11 is fine; see issue #1542.
     "geoviews",  # no version pin; newer should support any cartopy; see holoviz/geoviews#884.
