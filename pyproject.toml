@@ -54,10 +54,10 @@ geo = [
     "spatialpandas",
 ]
 viz = [
-    "cartopy",
+    "cartopy<0.26",  # cartopy 0.26.0 breaks some geoviews plots; see issue #1780.
     "datashader",
     "matplotlib<3.11",  # matplotlib 3.11.0 breaks some plots but <3.11 is fine; see issue #1542.
-    "geoviews",
+    "geoviews",  # no version pin; newer should support any cartopy; see holoviz/geoviews#884.
     "holoviews",
     "hvplot",
 ]
