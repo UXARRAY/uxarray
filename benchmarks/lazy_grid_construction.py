@@ -6,18 +6,24 @@ not: ``_set_desired_longitude_range`` decided whether to wrap by asking
 compute -- one whole longitude array read and reduced per constructor call,
 and the constructor runs again on every ``isel`` and every ``copy()``.
 
-Wall time will not show this on a test-sized mesh, and it is the wrong
-instrument anyway: the quantity that changed is discrete. So the number here
-is a count of dask graph executions, which is exact, has no variance, and
-moves by one the moment the reduction comes back.
+Two instruments. ``LazyGridConstruction`` counts dask graph executions on a
+test-sized mesh: exact, no variance, and it moves by one the moment a
+reduction comes back. ``OpenGridChunked`` is the wall-time and peak-memory
+view of the same thing across two resolutions, which is what the rest of the
+suite -- every other ``open_grid`` in it is eager -- cannot see.
 """
 
+import math
 import os
+import warnings
 from pathlib import Path
 
 from dask.callbacks import Callback
 
 import uxarray as ux
+
+from .helpers._fixtures import OQU_GRIDS, OQU_RESOLUTIONS
+from .helpers._peakmem import peak_allocated
 
 current_path = Path(os.path.dirname(os.path.realpath(__file__))).parents[0]
 
@@ -70,3 +76,58 @@ class LazyGridConstruction:
         with counter:
             uxgrid.isel(n_face=slice(0, 100))
         return counter.n
+
+
+#: Chunks per grid dimension, held fixed across resolutions so the graph is
+#: the same shape at both and only the data under it grows.
+N_CHUNKS = 4
+
+
+class OpenGridChunked:
+    """``open_grid`` with ``chunks=``, across both oQU resolutions.
+
+    Reads the file directly rather than through ``CachedFixtures``, because
+    reading the file is the subject here. The 120km mesh is ~16x the 480km one
+    (59,329 nodes against 3,947).
+
+    Track each resolution against its own history, not against the other. The
+    two files are different formats -- oQU480.grid.nc is netCDF4/HDF5,
+    oQU120.grid.nc is netCDF3 -- and the HDF5 open costs more, so 480km reads
+    *slower* than 120km despite a sixteenth of the data.
+    """
+
+    param_names = ["resolution"]
+    params = [OQU_RESOLUTIONS]
+
+    def setup(self, resolution):
+        self.grid_path = OQU_GRIDS[resolution]
+        # An eager open for the sizes, which also pays the first-open cost of
+        # the netCDF backend here rather than in the first sample.
+        uxgrid = ux.open_grid(self.grid_path)
+        self.chunks = {
+            "n_node": math.ceil(uxgrid.n_node / N_CHUNKS),
+            "n_face": math.ceil(uxgrid.n_face / N_CHUNKS),
+        }
+        self._open()
+
+    def _open(self):
+        with warnings.catch_warnings():
+            # oQU480 stores layerThickness, ssh and zMid as one chunk of all
+            # 1791 cells, so any n_face chunking splits them and xarray warns
+            # once per open. They are data variables the grid reader drops.
+            warnings.filterwarnings(
+                "ignore", message="The specified chunks separate the stored chunks"
+            )
+            # A copy: open_grid adds the source-format dimension names to the
+            # dict it is handed (match_chunks_to_ugrid), so reusing one would
+            # have every sample after the first open with a different argument.
+            return ux.open_grid(self.grid_path, chunks=dict(self.chunks))
+
+    def time_open_grid(self, resolution):
+        self._open()
+
+    def track_peakmem_open_grid(self, resolution):
+        """Transient high-water allocation of a chunked ``open_grid``."""
+        return peak_allocated(self._open)
+
+    track_peakmem_open_grid.unit = "bytes"
