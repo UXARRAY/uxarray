@@ -34,7 +34,12 @@
 
     // Customizable commands for installing and uninstalling the project.
     // See asv.conf.json documentation.
-    // "install_command": ["in-dir={env_dir} python -mpip install {wheel_file}"],
+    //
+    // --no-deps: conda already installed every dependency from ci/environment.yml.
+    // --force-reinstall is asv's default; the version may not change (asv gh-1421).
+    "install_command": [
+        "in-dir={env_dir} python -m pip install {wheel_file} --no-deps --force-reinstall"
+    ],
     // "uninstall_command": ["return-code=any python -mpip uninstall -y {project}"],
 
     // List of branches to benchmark. If not provided, defaults to "master"
@@ -56,6 +61,10 @@
     // variable.
     "environment_type": "conda",
     "conda_channels": ["conda-forge"],
+
+    // Same package set as the rest of CI, so benchmarks cannot drift from it:
+    // #1548 made cartopy, matplotlib and spatialpandas optional and broke two.
+    "conda_environment_file": "../ci/environment.yml",
 
     // timeout in seconds for installing any dependencies in environment
     // defaults to 10 min
@@ -97,10 +106,13 @@
     // will not be set for the current combination.
     //
      "matrix": {
+        // Only what ci/environment.yml lacks: the build tools, which asv seeds itself
+        // only when building an environment without a file, plus pyfma from PyPI
+        // and tbb (below).
         "req": {
+            "python-build": [""],
+            "wheel": [""],
             "setuptools_scm": [""],
-            "xarray": [""],
-            "netcdf4": [""],
             "pip+pyfma": [""],
 
             // numba picks its threading layer by availability, and only ``tbb``
