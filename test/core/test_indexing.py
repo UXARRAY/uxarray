@@ -291,7 +291,7 @@ def test_indexing_by_dataarray():
     #assert "n_edge" in ds_edge.dims   # uncomment after fixing #1758
     counter = 0  # (count up during loop to make sure nothing is skipped unexpectedly)
     for method in "isel", "sel":
-        for dataset in [ds_face, ds_node]:  # include after fixing #1758
+        for dataset in [ds_face, ds_node]:  # include ds_edge after fixing #1758
             for grid_dim in ("n_face", "n_edge", "n_node"):
                 for to_array in [False, True]:
                     if grid_dim == "n_face" and "n_face" in dataset.dims:
@@ -332,6 +332,61 @@ def test_dataset_isel_keeps_bonus_coords():
     uxds = uxds.assign_coords(node_id=("n_node", np.arange(uxds.uxgrid.n_node)))
     sub = uxds.isel(n_face=[0, 1])
     assert 'node_id' in sub.coords
+
+
+def test_indexing_by_size_0_array():
+    """ensure indexing by size 0 indexer works as expected (size 0 result).
+    Regression test for second reviewer's example (3) from PR 1759.
+    """
+    def _as_array(obj):  # return UxDataArray from UxDataArray, or UxDataset's data_vars[0].
+        return obj[list(obj.data_vars)[0]] if isinstance(obj, ux.UxDataset) else obj
+
+    # example (3) from PR 1759
+    uxds = ux.tutorial.open_dataset("quad-hexagon")
+    assert set(uxds.dims) == {'n_face'}
+    uxds = uxds.assign_coords(node_id=("n_node", np.arange(uxds.uxgrid.n_node)))
+    assert set(uxds.dims) == {'n_face', 'n_node'}
+    hits = np.where(uxds.uxgrid.edge_lon > 1e9)[0]   # empty
+    assert hits.size == 0
+    result = uxds.isel(n_edge=xr.DataArray(hits, dims="selected"))
+    assert _as_array(result).size == 0
+    assert 'node_id' in result.coords
+    assert set(result.dims) == {'n_face', 'n_node'}
+    assert result.sizes['n_face'] == result.sizes['n_node'] == 0
+    assert result.uxgrid.n_face == result.uxgrid.n_node == result.uxgrid.n_edge == 0
+
+    # simpler tests, but applied across isel, sel, UxDataArray, UxDataset, n_edge, n_node, and n_face:
+    ds_face = ux.tutorial.open_dataset("quad-hexagon-random-face")
+    ds_node = ux.tutorial.open_dataset("quad-hexagon-random-node")
+    #ds_edge = ux.tutorial.open_dataset("quad-hexagon-random-edge")  # uncomment after fixing #1758
+    assert "n_face" in ds_face.dims
+    assert "n_node" in ds_node.dims
+    #assert "n_edge" in ds_edge.dims   # uncomment after fixing #1758
+    counter = 0  # (count up during loop to make sure nothing is skipped unexpectedly)
+    for method in "isel", "sel":
+        for dataset in [ds_face, ds_node]:  # include ds_edge after fixing #1758
+            for grid_dim in ("n_face", "n_edge", "n_node"):
+                for to_array in [False, True]:
+                    counter += 1
+                    obj = _as_array(dataset) if to_array else dataset
+                    # index by empty list:
+                    result = getattr(obj, method)({grid_dim: []})
+                    assert _as_array(result).size == 0
+                    assert set(result.dims) == set(obj.dims)
+                    # index by empty numpy array:
+                    result = getattr(obj, method)({grid_dim: np.array([])})
+                    assert _as_array(result).size == 0
+                    assert set(result.dims) == set(obj.dims)
+                    # index by empty xr.DataArray:
+                    result = getattr(obj, method)({grid_dim: xr.DataArray([])})
+                    assert _as_array(result).size == 0
+                    assert set(result.dims) == set(obj.dims)
+                    # index by empty xr.DataArray with a scalar coord:
+                    indexer = xr.DataArray([]).assign_coords({"scalar7": 7})
+                    result = getattr(obj, method)({grid_dim: indexer})
+                    assert _as_array(result).size == 0
+                    assert set(result.dims) == set(obj.dims)
+                    assert result.coords["scalar7"] == 7
 
 
 def test_indexing_does_not_edit_indexers_dict():
