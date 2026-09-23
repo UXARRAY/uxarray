@@ -77,6 +77,8 @@ jobs:
         shell: bash -l {0}
         id: benchmark
         run: |
+          # Fill the fixture cache before asv preimports the suite, which would otherwise build it serially in the forkserver parent
+          python -m benchmarks.helpers._fixtures
           cd benchmarks
           asv machine --machine GH-Actions --os ubuntu-latest --arch x64 --cpu "2-core unknown" --ram 7GB
           asv run v2024.02.0..main --skip-existing --parallel || true
