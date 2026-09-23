@@ -42,10 +42,10 @@ def _values_in_degrees(data_array):
 
 
 def _dedup_scrip_nodes_eager(corner_lon, corner_lat):
-    """Find unique SCRIP corner coordinates using Polars.
+    """Find unique SCRIP corner coordinates using a NumPy lexicographic sort.
 
-    Historical, numpy-only implementation, used whenever the corner arrays
-    are not dask-backed. Unchanged behavior.
+    This eager implementation is used whenever the corner arrays are not
+    Dask-backed.
 
     Parameters
     ----------
@@ -55,9 +55,9 @@ def _dedup_scrip_nodes_eager(corner_lon, corner_lat):
     Returns
     -------
     unq_lon, unq_lat, unq_inv : numpy.ndarray
-        Unique node coordinates (in order of first appearance) and, for
-        every input corner, the index into ``unq_lon``/``unq_lat`` of the
-        node it maps to.
+        Unique node coordinates in lexicographic ``(lon, lat)`` order and,
+        for every input corner, the index into ``unq_lon``/``unq_lat`` of
+        the node it maps to.
     """
     # Multi-key dedup by sorting, not by hashing.
     #
@@ -145,21 +145,14 @@ def _lookup_node_ids(lon_block, lat_block, lookup):
     ----------
     lon_block, lat_block : numpy.ndarray
         One block of corner coordinates.
-    lookup : polars.DataFrame
-        Columns ``lon``, ``lat``, ``unique_id``; one row per unique node.
+    lookup : tuple of numpy.ndarray
+        Unique longitude and latitude arrays; one entry per unique node.
 
     Returns
     -------
     numpy.ndarray
         ``unique_id`` per input corner, in input order.
     """
-    unq_lon, unq_lat = lookup
-
-    # Binary search into the sorted unique-node arrays, rather than a join
-    # against a DataFrame copy of them. The lookup tables are already sorted
-    # lexicographically by (lon, lat), so the node id of a corner is the
-    # position where its pair would be inserted -- no hash table, and nothing
-    # allocated per block beyond the answer itself.
     unq_lon, unq_lat = lookup
 
     # A hash join per block, deliberately -- the opposite choice from the
