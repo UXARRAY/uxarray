@@ -193,6 +193,13 @@ def test_isel_can_use_bool_with_coords():
     result_where2 = ds.where(tokeep2, drop=True)
     assert result2.equals(result_where2)
 
+    # also test second reviewer's example (2) from PR #1759:
+    uxds = ux.tutorial.open_dataset("quad-hexagon")
+    uxds = uxds.assign_coords(node_id=("n_node", np.arange(uxds.uxgrid.n_node)))
+    mask = xr.DataArray([True, False, True, False], dims="n_face",
+                        coords={"lab": ("n_face", [10, 20, 30, 40])})
+    uxds.isel(n_face=mask)    # (just ensuring it doesn't crash)
+
 
 def test_indexing_by_dataarray():
     """ensure isel() and sel() with indexer=xr.DataArray(...) both work as expected.
@@ -319,6 +326,12 @@ def test_dataset_isel_keeps_bonus_coords():
     assert all('bonus_coord' not in arr for arr in ds.data_vars.values())
     result = ds.isel(n_face=0)
     assert 'bonus_coord' in result.coords and 'bonus_dim' in result.dims
+
+    # also test using second reviewer's example (1) from PR #1759:
+    uxds = ux.tutorial.open_dataset("quad-hexagon")
+    uxds = uxds.assign_coords(node_id=("n_node", np.arange(uxds.uxgrid.n_node)))
+    sub = uxds.isel(n_face=[0, 1])
+    assert 'node_id' in sub.coords
 
 
 def test_indexing_does_not_edit_indexers_dict():
