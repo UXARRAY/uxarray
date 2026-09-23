@@ -724,6 +724,29 @@ def _is_projected_grid(uxgrid) -> bool:
     return False
 
 
+def _lon_within_range(da) -> bool:
+    """Whether every element of ``da`` already lies in [-180, 180].
+
+    A guard, not a decision. When this is true the wrap below is the identity
+    on every element, so skipping it cannot change a value.
+
+    It exists to keep the eager path off the ``where``. The wrap has to be
+    elementwise to stay out of a dask compute, but elementwise costs a pass
+    plus ~18 bytes per node of temporaries -- two bool masks, the arithmetic,
+    the result -- where a reduction costs a pass and allocates nothing. On an
+    array that is already in range, measured at 4M nodes, that is 20.9ms and
+    72 MB to hand back the input unchanged, against 4.6ms and nothing.
+    Reductions are what made the old code compute, so this one is allowed
+    only where there is nothing to defer: ``da.chunks is None``. A
+    dask-backed array skips it and goes straight to the ``where``.
+
+    ``and`` short-circuits, so an array that does need wrapping usually pays
+    a single ``max`` -- the same reduction the old code paid -- before
+    falling through.
+    """
+    return bool(da.max() <= 180 and da.min() >= -180)
+
+
 def _set_desired_longitude_range(uxgrid):
     """Sets the longitude range to [-180, 180] for all longitude variables.
 
@@ -755,6 +778,11 @@ def _set_desired_longitude_range(uxgrid):
     collapses the span of a face that touches the antimeridian from the west
     and hides it. The round-trip comparison is the cheaper of the two to make
     periodic, and the Exodus tests do that.
+
+    None of that applies to a grid whose coordinates are already in memory --
+    there was never a compute to defer there, only a scan -- and elementwise
+    is the slower shape for it. ``_lon_within_range`` keeps the eager path off
+    the ``where`` when the wrap would be the identity anyway.
 
     Each variable is wrapped at most once. ``edge_lat`` calls this on every
     access, outside its populate guard, so without the memo an unconditional
@@ -793,6 +821,9 @@ def _set_desired_longitude_range(uxgrid):
                 if da.size == 0:
                     continue
                 if memo.get(lon_name) is da.variable:
+                    continue
+                if da.chunks is None and _lon_within_range(da):
+                    memo[lon_name] = da.variable
                     continue
                 out_of_range = (da > 180) | (da < -180)
                 wrapped = xr.where(out_of_range, (da + 180) % 360 - 180, da)

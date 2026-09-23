@@ -17,7 +17,10 @@ import xarray as xr
 from dask.callbacks import Callback
 
 import uxarray as ux
-from uxarray.grid.coordinates import _set_desired_longitude_range
+from uxarray.grid.coordinates import (
+    _lon_within_range,
+    _set_desired_longitude_range,
+)
 
 
 class _CountComputes(Callback):
@@ -167,3 +170,49 @@ def test_memo_reopens_when_the_variable_is_replaced(gridpath):
 
     _set_desired_longitude_range(grid)
     assert float(grid._ds["node_lon"].max()) <= 180.0
+
+
+def test_eager_fast_path_agrees_with_the_where_element_for_element():
+    """The in-memory guard must be a pure optimization.
+
+    ``_lon_within_range`` lets the eager path skip the wrap entirely. That is
+    only sound if the wrap would have been the identity, so the two are
+    compared directly rather than the skip being assumed correct.
+    """
+    rng = np.random.default_rng(2)
+    cases = {
+        "strictly inside": rng.uniform(-179.0, 179.0, 500),
+        "on both endpoints": np.array([-180.0, 180.0, 0.0, 179.5, -179.5]),
+        "needs wrapping": rng.uniform(0.0, 360.0, 500),
+        "negative tail": rng.uniform(-540.0, -180.5, 500),
+        "with nan": np.array([np.nan, 10.0, 200.0]),
+    }
+
+    for label, values in cases.items():
+        da = xr.DataArray(values, dims="n_node", name="node_lon")
+        unguarded = xr.where(
+            (da > 180) | (da < -180), (da + 180) % 360 - 180, da
+        ).values
+
+        grid = _shim(values.copy())
+        _set_desired_longitude_range(grid)
+
+        nt.assert_array_equal(grid._ds["node_lon"].values, unguarded, err_msg=label)
+
+
+def test_guard_is_skipped_for_dask_backed_arrays(gridpath):
+    """The guard is two reductions, which is exactly what must not run lazily.
+
+    ``test_open_grid_does_not_compute_longitudes`` would catch this too, but
+    only as a compute count; this names the reason.
+    """
+    grid = ux.open_grid(
+        gridpath("ugrid", "outCSne30", "outCSne30.ug"), chunks={"n_node": 1000}
+    )
+    da = grid._ds["node_lon"]
+    assert da.chunks is not None
+
+    counter = _CountComputes()
+    with counter:
+        _lon_within_range(da)
+    assert counter.n > 0, "guard is lazy here; skipping it would be pointless"
