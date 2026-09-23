@@ -15,6 +15,7 @@ from uxarray.grid.intersections import (
 )
 from uxarray.grid.point_in_face import _face_contains_point
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 POLE_POINTS_XYZ = {
     "North": np.array([0.0, 0.0, 1.0]),
@@ -83,7 +84,7 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
     return unique_points[:unique_count]
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def _pad_closed_face_nodes(
     face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
 ):
@@ -116,6 +117,7 @@ def _build_polygon_shells(
 ):
     """Builds an array of polygon shells, which can be used with Shapely to
     construct polygons."""
+    _raise_hint_if_optional_deps_missing("cartopy")
     import cartopy.crs as ccrs
 
     closed_face_nodes = _pad_closed_face_nodes(
@@ -161,6 +163,7 @@ def _correct_central_longitude(node_lon, node_lat, projection):
     """Shifts the central longitude of an unstructured grid, which moves the
     antimeridian when visualizing, which is used when projections have a
     central longitude other than 0.0."""
+    _raise_hint_if_optional_deps_missing("cartopy")
     import cartopy.crs as ccrs
 
     if projection:
@@ -185,6 +188,7 @@ def _correct_central_longitude(node_lon, node_lat, projection):
 def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, engine):
     """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
     or ``geopandas.GeoDataFrame`` with a geometry column of polygons."""
+    _raise_hint_if_optional_deps_missing("geopandas", "spatialpandas")
     import geopandas
     import shapely
     import spatialpandas
@@ -276,6 +280,7 @@ def _build_geodataframe_without_antimeridian(
     """Builds a ``spatialpandas.GeoDataFrame`` or
     ``geopandas.GeoDataFrame``excluding any faces that cross the
     antimeridian."""
+    _raise_hint_if_optional_deps_missing("geopandas", "spatialpandas")
     import geopandas
     import shapely
     import spatialpandas
@@ -312,6 +317,7 @@ def _build_geodataframe_with_antimeridian(
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` or ``geopandas.GeoDataFrame``
     including any faces that cross the antimeridian."""
+    _raise_hint_if_optional_deps_missing("geopandas", "spatialpandas")
     import geopandas
     import spatialpandas
     from spatialpandas.geometry import MultiPolygonArray
@@ -457,6 +463,7 @@ def _grid_to_matplotlib_polycollection(
     grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.PolyCollection``"""
+    _raise_hint_if_optional_deps_missing("cartopy", "matplotlib")
     import cartopy.crs as ccrs
     from matplotlib.collections import PolyCollection
 
@@ -663,6 +670,7 @@ def _grid_to_matplotlib_linecollection(
     grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.LineCollection``"""
+    _raise_hint_if_optional_deps_missing("cartopy", "matplotlib")
     import cartopy.crs as ccrs
     from matplotlib.collections import LineCollection
 
@@ -1069,7 +1077,7 @@ def _populate_max_face_radius(grid):
     return max_distance
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def calculate_max_face_radius(
     face_node_connectivity: np.ndarray,
     node_x: np.ndarray,
