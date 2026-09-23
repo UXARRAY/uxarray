@@ -149,10 +149,19 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
             (Also in this case, if indexer.to_xarray() exists, call it, to avoid recursion.)
     """
     if isinstance(indexer, xr.DataArray):
-        xr.core.coordinates.assert_coordinate_consistent(
-            uxarray_obj, indexer.coords.variables
+        indexing_1d_bool_along_n_face = (
+            indexer.ndim == 1
+            and indexer.dtype == bool
+            and grid_dim == "n_face"
+            and "n_face" in uxarray_obj.dims
         )
-        # ^ e.g. if uxarray_obj has time dim but indexer has time scalar coord, crash!
+        if not indexing_1d_bool_along_n_face:
+            # make sure indexer.coords are consistent with uxarray_obj's coords.
+            # e.g., if uxarray_obj has time dim but indexer has time scalar coord, crash!
+            xr.core.coordinates.assert_coordinate_consistent(
+                uxarray_obj, indexer.coords.variables
+            )
+        # else: handle that check below (using indexer.isel(...) instead.)
         if indexer.ndim == 0:
             coords = indexer.coords
         elif indexer.ndim == 1:
@@ -162,6 +171,9 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
                     if hasattr(indexer, "to_xarray"):
                         indexer = indexer.to_xarray()
                     indexer = indexer.isel({the_dim: indexer})
+                    xr.core.coordinates.assert_coordinate_consistent(
+                        uxarray_obj, indexer.coords.variables
+                    )
                 if (
                     the_dim in uxarray_obj.coords
                     and len(uxarray_obj.coords[the_dim].dims) == 0

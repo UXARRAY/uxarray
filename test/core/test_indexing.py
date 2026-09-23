@@ -200,6 +200,17 @@ def test_isel_can_use_bool_with_coords():
                         coords={"lab": ("n_face", [10, 20, 30, 40])})
     uxds.isel(n_face=mask)    # (just ensuring it doesn't crash)
 
+    # also test what happens if uxarray object has grid dim coords:
+    ds1 = ux.tutorial.open_dataset("quad-hexagon").assign_coords(n_face=[0, 10, 20, 30])
+    arr1 = ds1['t2m']
+    wherebig = arr1 > 297.6  # hard-coding just to make the example easily.
+    # (if quad-hexagon file changes, rework this example)
+    assert np.all(wherebig.values == [False, True, True, False])
+    resultA = arr1.isel(n_face=wherebig)   # shouldn't crash!
+    assert np.all(resultA.coords['n_face'] == [10, 20])
+    resultB = ds1.isel(n_face=wherebig)   # shouldn't crash!
+    assert np.all(resultB.coords['n_face'] == [10, 20])
+
 
 def test_indexing_by_dataarray():
     """ensure isel() and sel() with indexer=xr.DataArray(...) both work as expected.
