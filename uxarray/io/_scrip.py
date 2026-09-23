@@ -1,8 +1,5 @@
 from typing import Any, Sequence
 
-import dask
-import dask.array as dask_array
-import dask.dataframe as dd
 import numpy as np
 import polars as pl
 import xarray as xr
@@ -232,6 +229,10 @@ def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
         For every input corner, the index into ``unq_lon``/``unq_lat`` of
         the node it maps to.
     """
+    import dask
+    import dask.array as dask_array
+    import dask.dataframe as dd
+
     coords = dask_array.stack([corner_lon, corner_lat], axis=1)
     ddf = dd.from_dask_array(coords, columns=["lon", "lat"])
 
@@ -284,6 +285,10 @@ def _to_ugrid(in_ds, out_ds):
         # Convert to degrees if needed
         corner_lat_raw = _values_in_degrees(in_ds["grid_corner_lat"]).ravel()
         corner_lon_raw = _values_in_degrees(in_ds["grid_corner_lon"]).ravel()
+
+        # Import Dask only when this SCRIP path needs to distinguish lazy arrays;
+        # importing it at module load noticeably slows ``import uxarray``.
+        import dask.array as dask_array
 
         if isinstance(corner_lat_raw, dask_array.Array) or isinstance(
             corner_lon_raw, dask_array.Array

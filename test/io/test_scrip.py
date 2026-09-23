@@ -1,13 +1,15 @@
 import os
-import xarray as xr
-import warnings
+
+import dask.array as da
 import numpy as np
 import numpy.testing as nt
 import pytest
+import xarray as xr
 
 import uxarray as ux
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.io._scrip import _detect_multigrid
+from uxarray.constants import INT_DTYPE
+from uxarray.errors import GridInvalidError
+from uxarray.io._scrip import _detect_multigrid, _lookup_node_ids
 
 
 def test_read_ugrid(gridpath, mesh_constants):
@@ -145,11 +147,9 @@ def test_scrip_dask_lazy_dedup_matches_eager(gridpath, chunks):
     grid_eager = ux.open_grid(grid_file)
     grid_lazy = ux.open_grid(grid_file, chunks=chunks)
 
-    import dask.array as da
-
     assert isinstance(grid_lazy._ds["face_node_connectivity"].data, da.Array), (
-        "chunks= did not produce a dask-backed connectivity, so this test "
-        "would silently compare the eager path against itself"
+        f"chunks={chunks!r} did not produce a dask-backed connectivity, so this "
+        "test would silently compare the eager path against itself"
     )
 
     assert grid_eager.n_face == grid_lazy.n_face
@@ -189,8 +189,6 @@ def test_scrip_dask_lazy_dedup_matches_eager_radians(gridpath):
     grid_eager = ux.open_grid(grid_file)
     grid_lazy = ux.open_grid(grid_file, chunks={"grid_size": 3})
 
-    import dask.array as da
-
     assert isinstance(grid_lazy._ds["face_node_connectivity"].data, da.Array)
     assert grid_eager.n_node == grid_lazy.n_node
 
@@ -219,8 +217,6 @@ def test_lookup_node_ids_preserves_input_order():
     really are sorted: an unsorted table would make searchsorted return
     nonsense and the guard inside would fire.
     """
-    from uxarray.io._scrip import _lookup_node_ids
-
     # sorted lexicographically by (lon, lat), as the dedup produces them
     unq_lon = np.array([10.0, 20.0, 30.0])
     unq_lat = np.array([1.0, 2.0, 3.0])
@@ -248,9 +244,6 @@ def test_lookup_node_ids_rejects_a_corner_it_cannot_find():
     error, so without the check a mismatch between the two halves of the
     dedup would map that corner to an arbitrary neighbouring node.
     """
-    from uxarray.errors import GridInvalidError
-    from uxarray.io._scrip import _lookup_node_ids
-
     unq_lon = np.array([10.0, 20.0])
     unq_lat = np.array([1.0, 2.0])
 
@@ -265,8 +258,6 @@ def test_scrip_dask_dedup_does_not_materialize_corner_arrays(gridpath):
     reintroducing the OOM this path exists to avoid -- fails here rather
     than only on a multi-GB file nobody runs in CI.
     """
-    import dask.array as da
-
     grid = ux.open_grid(gridpath("scrip", "outCSne8", "outCSne8.nc"), chunks="auto")
 
     fnc = grid._ds["face_node_connectivity"].data
