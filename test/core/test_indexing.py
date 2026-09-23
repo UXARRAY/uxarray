@@ -418,6 +418,21 @@ def test_indexing_by_size_0_array():
     assert result.sizes['n_face'] == result.sizes['n_node'] == 0
     assert result.uxgrid.n_face == result.uxgrid.n_node == result.uxgrid.n_edge == 0
 
+    # followup to example (3): fancy empty array (with dim that has coords (which are empty))
+    uxds = ux.tutorial.open_dataset("quad-hexagon")
+    fancy_empty = xr.DataArray(np.array([]), dims="selected",
+                            coords={"selected": np.array([], dtype=int)})
+    for grid_dim in ("n_face", "n_edge", "n_node"):
+        resultA = uxds.isel({grid_dim: fancy_empty})
+        assert resultA.sizes == {'n_face': 0}  # and, must not pick up "selected" dim from indexer.
+        resultB = uxds.sel({grid_dim: fancy_empty})
+        assert resultB.sizes == {'n_face': 0}
+        # repeat for UxDataArray:
+        resultC = uxds['t2m'].isel({grid_dim: fancy_empty})
+        assert resultC.sizes == {'n_face': 0}
+        resultD = uxds['t2m'].sel({grid_dim: fancy_empty})
+        assert resultD.sizes == {'n_face': 0}
+
     # simpler tests, but applied across isel, sel, UxDataArray, UxDataset, n_edge, n_node, and n_face:
     ds_face = ux.tutorial.open_dataset("quad-hexagon-random-face")
     ds_node = ux.tutorial.open_dataset("quad-hexagon-random-node")
