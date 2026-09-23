@@ -185,3 +185,14 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
         if coords:
             return uxarray_obj.assign_coords(coords)
     return uxarray_obj
+
+
+def _assert_grid_dim_coord_consistent_if_in_both(uxarray_obj, grid_dim, indexer):
+    """assert grid_dim's coordinate is consistent if in both uxarray_obj and indexer.
+    Otherwise, does nothing.
+    """
+    if isinstance(indexer, xr.DataArray):
+        if grid_dim in uxarray_obj.coords and grid_dim in indexer.coords:
+            xr.core.coordinates.assert_coordinate_consistent(
+                uxarray_obj, {grid_dim: indexer.coords.variables[grid_dim]}
+            )

@@ -29,6 +29,7 @@ from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDatasetPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
 from uxarray.utils.coords import (
+    _assert_grid_dim_coord_consistent_if_in_both,
     _assign_grid_dim_indexer_coords_if_appropriate,
     _crash_if_1d_xarray_indexer_dim_in_uxarray_obj,
 )
@@ -671,6 +672,10 @@ class UxDataset(xr.Dataset):
 
             # offload the grid-indexing work to isel():
             result = self.isel({grid_dim: grid_indices}, drop=drop)
+
+            # special case: if grid_dim in indexer and result.coords, ensure consistency.
+            # (all other coords' consistency checks already occurred in isel().)
+            _assert_grid_dim_coord_consistent_if_in_both(result, grid_dim, grid_indexer)
 
             # index by other dims if any remain:
             ds = result.to_xarray().sel(

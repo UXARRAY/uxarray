@@ -315,6 +315,58 @@ def test_indexing_by_dataarray():
     assert counter == 2 * n_data_grid_dim_combos * 2
 
 
+def test_indexing_of_uxarray_obj_with_grid_dim_coords():
+    """ensure obj.isel() and obj.sel() work properly when obj has coords along grid dim.
+    Regression test for second reviewer's example (4) from PR 1759.
+    """
+    # example (4) from PR 1759
+    uxds = ux.tutorial.open_dataset("quad-hexagon").assign_coords(n_face=[0, 10, 20, 30])
+    pick_by_label = xr.DataArray([0, 20], dims="station", coords={"station": ["A", "B"]})
+    pick_by_index = xr.DataArray([0, 2], dims="station", coords={"station": ["A", "B"]})
+
+    by_index = uxds.isel(n_face=pick_by_index)
+    assert set(by_index.coords) == {'n_face', 'station'}
+    assert np.all(by_index.coords['n_face'] == [0, 20])
+    assert np.all(by_index.coords['station'] == ['A', 'B'])
+    by_label = uxds.sel(n_face=pick_by_label)
+    assert by_label.identical(by_index)
+
+    # repeat above, for UxDataArray:
+    uxarr = uxds['t2m']
+    by_index = uxarr.isel(n_face=pick_by_index)
+    assert set(by_index.coords) == {'n_face', 'station'}
+    assert np.all(by_index.coords['n_face'] == [0, 20])
+    assert np.all(by_index.coords['station'] == ['A', 'B'])
+    by_label = uxarr.sel(n_face=pick_by_label)
+    assert by_label.identical(by_index)
+
+    # sanity check / spot tests: indexer with grid dim and coords:
+    # (A) should be allowed if coords don't conflict with obj
+    # (B) should crash if coords conflict with obj
+    indexerA_sel = xr.DataArray([0, 20], dims="n_face", coords={"n_face": [0, 20]})
+    indexerB_sel = xr.DataArray([0, 20], dims="n_face", coords={"n_face": [7, 99]})
+    indexerA_isel = xr.DataArray([0, 2], dims="n_face", coords={"n_face": [0, 20]})
+    indexerB_isel = xr.DataArray([0, 2], dims="n_face", coords={"n_face": [0, 2]})
+    resultA_sel = uxds.sel(n_face=indexerA_sel)
+    assert np.all(resultA_sel.coords['n_face'] == [0, 20])
+    with pytest.raises(IndexError, match="dimension coordinate 'n_face' conflicts"):
+        _resultB_sel = uxds.sel(n_face=indexerB_sel)
+    resultA_isel = uxds.isel(n_face=indexerA_isel)
+    assert np.all(resultA_isel.coords['n_face'] == [0, 20])
+    with pytest.raises(IndexError, match="dimension coordinate 'n_face' conflicts"):
+        _resultA_sel = uxds.isel(n_face=indexerB_isel)
+
+    # repeat sanity checks, for UxDataArray:
+    resultA_sel = uxarr.sel(n_face=indexerA_sel)
+    assert np.all(resultA_sel.coords['n_face'] == [0, 20])
+    with pytest.raises(IndexError, match="dimension coordinate 'n_face' conflicts"):
+        _resultB_sel = uxarr.sel(n_face=indexerB_sel)
+    resultA_isel = uxarr.isel(n_face=indexerA_isel)
+    assert np.all(resultA_isel.coords['n_face'] == [0, 20])
+    with pytest.raises(IndexError, match="dimension coordinate 'n_face' conflicts"):
+        _resultA_sel = uxarr.isel(n_face=indexerB_isel)
+
+
 def test_dataset_isel_keeps_bonus_coords():
     """ensure UxDataset.isel() keeps "bonus" coords,
     i.e. coords in the dataset which do not actually appear in any data var.
