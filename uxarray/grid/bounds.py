@@ -355,6 +355,78 @@ def _construct_face_bounds(
     return face_latlon_array
 
 
+def _face_bounds_lat_degrees(bounds):
+    """Per-face ``[min, max]`` latitude in degrees from the radian bounds array."""
+    return np.sort(np.rad2deg(bounds[:, 0, :]), axis=-1)
+
+
+def _face_bounds_lon_degrees(bounds):
+    """Per-face ``[min, max]`` longitude in degrees on ``[-180, 180)``.
+
+    A face that spans every longitude (it contains a pole) is stored as
+    ``[0, 2*pi]`` in radians, which normalizes to ``[0, 0]``; it is returned
+    as ``[-180, 180]``.
+    """
+    bounds_lon = (np.rad2deg(bounds[:, 1, :]) + 180.0) % 360.0 - 180.0
+    spans_all_lon = (bounds_lon[:, 0] == 0) & (bounds_lon[:, 1] == 0)
+    bounds_lon[spans_all_lon] = [-180.0, 180.0]
+    return bounds_lon
+
+
+@njit(cache=True, parallel=True, nogil=True)
+def _faces_with_nodes_within_box(
+    face_node_connectivity,
+    n_nodes_per_face,
+    node_lon,
+    node_lat,
+    lon_min,
+    lon_max,
+    lat_min,
+    lat_max,
+):
+    """Mask of the faces whose every node lies inside a longitude/latitude box.
+
+    A face's bounds contain each of its nodes, so this is a necessary
+    condition for the bounds to lie inside the box: it screens candidates
+    for :func:`_construct_face_bounds_array` without missing any face that
+    the exact test on bounds keeps. Longitudes are normalized to
+    ``[-180, 180)`` as the bounds are, and ``lon_min > lon_max`` is a box
+    that crosses the antimeridian, as in
+    :func:`~uxarray.grid.intersections.faces_within_lon_bounds`. The box is
+    widened by ``ERROR_TOLERANCE`` so that round-off in the exact bounds'
+    degree-radian-degree round trip cannot exclude a face the exact test
+    keeps.
+    """
+    n_face = face_node_connectivity.shape[0]
+    within = np.zeros(n_face, dtype=np.bool_)
+
+    crosses_antimeridian = lon_min > lon_max
+    lon_min = lon_min - ERROR_TOLERANCE
+    lon_max = lon_max + ERROR_TOLERANCE
+    lat_min = lat_min - ERROR_TOLERANCE
+    lat_max = lat_max + ERROR_TOLERANCE
+
+    for face_idx in prange(n_face):
+        inside = True
+        for i in range(n_nodes_per_face[face_idx]):
+            node = face_node_connectivity[face_idx, i]
+            lat = node_lat[node]
+            if lat < lat_min or lat > lat_max:
+                inside = False
+                break
+            lon = (node_lon[node] + 180.0) % 360.0 - 180.0
+            if crosses_antimeridian:
+                if lon < lon_min and lon > lon_max:
+                    inside = False
+                    break
+            elif lon < lon_min or lon > lon_max:
+                inside = False
+                break
+        within[face_idx] = inside
+
+    return within
+
+
 @njit(cache=True)
 def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     """Update the latitude-longitude box to include a new point in radians.

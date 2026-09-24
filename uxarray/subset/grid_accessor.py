@@ -10,14 +10,6 @@ if TYPE_CHECKING:
     from uxarray.grid import Grid
 
 
-#: Below this size the whole-mesh bounds computation is cheap enough that
-#: the pre-filter's own cost is not repaid.
-_PREFILTER_MIN_FACES = 1_000_000
-
-#: Floor on cos(lat) so the polar margin stays finite at the pole itself.
-_MIN_COS_LAT = 1e-6
-
-
 class GridSubsetAccessor:
     """Accessor for performing unstructured grid subsetting, accessed through
     ``Grid.subset``"""
@@ -426,113 +418,97 @@ class GridSubsetAccessor:
 
 
 def _faces_in_bounding_box(uxgrid, lon_bounds, lat_bounds):
-    """Face indices whose bounds fall inside a lon/lat box.
+    """Indices of the faces whose bounds lie inside a longitude/latitude box.
 
-    Computing ``Grid.bounds`` costs memory proportional to the whole mesh --
-    it materializes the node coordinate and connectivity arrays and builds a
-    per-face box for every face, whether or not the face is anywhere near the
-    region asked for. On a 300M-face grid that is larger than the machine, so
-    a crop of a few thousand faces was not merely slow but impossible
-    (UXARRAY/uxarray#1778).
-
-    Face latitudes are already present and cost one array, so they are used
-    first to discard faces that cannot be in the result. Exact bounds are then
-    computed for the survivors only, and the exact longitude and latitude
-    tests decide the answer as before.
-
-    The answer is identical to computing bounds for every face; only the
-    number of faces examined changes. Measured on a 12-corner SCRIP mesh with
-    a crop of ~0.007% of the faces:
-
-    ===========  ==================  ====================
-    n_face       whole-mesh bounds   latitude pre-filter
-    ===========  ==================  ====================
-    1,600,000    0.84 GiB, 2.6 s     0.00 GiB, 0.8 s
-    3,200,000    1.48 GiB, 5.1 s     0.00 GiB, 1.6 s
-    ===========  ==================  ====================
+    Returns the same faces as intersecting ``Grid.get_faces_between_longitudes``
+    with ``Grid.get_faces_between_latitudes``, which need ``Grid.bounds`` for
+    every face in the mesh. Here bounds are computed only for the faces whose
+    nodes all lie inside the box, so the cost scales with the region rather
+    than with the mesh (UXARRAY/uxarray#1778). A face's bounds contain each of
+    its nodes, so that screen cannot drop a face the exact test keeps, and it
+    needs no margin or assumption about face size or shape. Bounds that are
+    already cached on the grid are used as they are.
     """
-    from uxarray.grid.bounds import _construct_face_bounds_array
+    from uxarray.grid.bounds import (
+        _face_bounds_lat_degrees,
+        _face_bounds_lon_degrees,
+        _faces_with_nodes_within_box,
+    )
     from uxarray.grid.intersections import (
         faces_within_lat_bounds,
         faces_within_lon_bounds,
     )
 
-    # The exact path, unchanged, when bounds are already paid for or the mesh
-    # is small enough that the filter cannot repay its own cost.
-    if "bounds" in uxgrid._ds or uxgrid.n_face <= _PREFILTER_MIN_FACES:
+    if "bounds" in uxgrid._ds:
         return np.intersect1d(
             uxgrid.get_faces_between_longitudes(lon_bounds),
             uxgrid.get_faces_between_latitudes(lat_bounds),
         )
 
-    face_lat = np.asarray(uxgrid.face_lat.values)
+    face_node_connectivity = uxgrid.face_node_connectivity.values
+    n_nodes_per_face = uxgrid.n_nodes_per_face.values
+    node_lon = uxgrid.node_lon.values
+    node_lat = uxgrid.node_lat.values
 
-    # No margin is needed, which is worth stating because the obvious
-    # assumption is the opposite. ``faces_within_lat_bounds`` keeps a face
-    # only when its bounds are *fully contained* in the query interval
-    # (``bounds_min >= query_min and bounds_max <= query_max``) -- despite the
-    # docstring's "overlap" wording, the implementation is containment. A
-    # contained face necessarily has a contained centre, so a face the exact
-    # path keeps can never have a centre outside the box, and the filter is
-    # conservative with equality rather than by a fudge factor.
-    lat_lo, lat_hi = min(lat_bounds), max(lat_bounds)
-    near_lat = (face_lat >= lat_lo) & (face_lat <= lat_hi)
-
-    # Longitude needs a margin, unlike latitude, and the margin has to widen
-    # towards the poles. Meridians converge, so a face of fixed area spans
-    # more longitude the higher its latitude -- the same cell that covers a
-    # degree at the equator covers many near the pole. Normalising the
-    # measured reach by ``1 / cos(lat)`` collapses it to a constant 4.39 face
-    # widths across HEALPix zooms 4, 5 and 6, which is what makes a bound
-    # derivable rather than tuned: 8 face widths, latitude-corrected, had zero
-    # violations across zooms 3 through 7.
-    #
-    # Two cases cannot be filtered on a centre at all and are always kept.
-    # A face whose bounds are stored min > max crosses the antimeridian, so
-    # its "centre" is not between them. A face containing a pole is recorded
-    # as spanning every longitude. Both are rare -- under 1% of faces by zoom
-    # 6 -- so keeping them unconditionally costs almost nothing, and the exact
-    # stage discards them if they do not belong.
-    face_lon = np.asarray(uxgrid.face_lon.values)
-    bounds_lon = np.asarray(uxgrid.face_bounds_lon.values)
-
-    unfilterable = (bounds_lon[:, 0] > bounds_lon[:, 1]) | (
-        (bounds_lon[:, 0] <= -179.999) & (bounds_lon[:, 1] >= 179.999)
+    candidates = np.flatnonzero(
+        _faces_with_nodes_within_box(
+            face_node_connectivity,
+            n_nodes_per_face,
+            node_lon,
+            node_lat,
+            float(lon_bounds[0]),
+            float(lon_bounds[1]),
+            float(lat_bounds[0]),
+            float(lat_bounds[1]),
+        )
     )
-
-    face_width = np.degrees(np.sqrt(4.0 * np.pi / max(int(uxgrid.n_face), 1)))
-    margin = 8.0 * face_width / np.maximum(np.cos(np.radians(face_lat)), _MIN_COS_LAT)
-
-    lon_lo, lon_hi = lon_bounds[0], lon_bounds[1]
-    if lon_lo <= lon_hi:
-        near_lon = (face_lon >= lon_lo - margin) & (face_lon <= lon_hi + margin)
-    else:
-        # the query itself spans the antimeridian: a union, not a range
-        near_lon = (face_lon >= lon_lo - margin) | (face_lon <= lon_hi + margin)
-
-    candidates = np.flatnonzero(near_lat & (near_lon | unfilterable))
     if candidates.size == 0:
-        return candidates.astype(np.intp)
+        return candidates
 
-    # Exact bounds, for the candidates only.
-    sub_bounds = _construct_face_bounds_array(
-        np.asarray(uxgrid.face_node_connectivity.values)[candidates],
-        np.asarray(uxgrid.n_nodes_per_face.values)[candidates],
-        np.asarray(uxgrid.node_x.values),
-        np.asarray(uxgrid.node_y.values),
-        np.asarray(uxgrid.node_z.values),
-        np.asarray(uxgrid.node_lon.values),
-        np.asarray(uxgrid.node_lat.values),
-        False,
-        None,
+    bounds = _candidate_face_bounds(
+        uxgrid,
+        face_node_connectivity[candidates],
+        n_nodes_per_face[candidates],
+        node_lon,
+        node_lat,
     )
+    keep = np.intersect1d(
+        faces_within_lon_bounds(lon_bounds, _face_bounds_lon_degrees(bounds)),
+        faces_within_lat_bounds(lat_bounds, _face_bounds_lat_degrees(bounds)),
+    )
+    return candidates[keep]
 
-    bounds_lat = np.sort(np.rad2deg(sub_bounds[:, 0, :]), axis=-1)
-    bounds_lon = (np.rad2deg(sub_bounds[:, 1, :]) + 180.0) % 360.0 - 180.0
-    spans_all_lon = (bounds_lon[:, 0] == 0) & (bounds_lon[:, 1] == 0)
-    bounds_lon[spans_all_lon] = [-180.0, 180.0]
 
-    keep_lon = faces_within_lon_bounds(lon_bounds, bounds_lon)
-    keep_lat = faces_within_lat_bounds(lat_bounds, bounds_lat)
+def _candidate_face_bounds(
+    uxgrid, face_node_connectivity, n_nodes_per_face, node_lon, node_lat
+):
+    """Bounds (radians) of the given faces, computed on the nodes they use.
 
-    return candidates[np.intersect1d(keep_lon, keep_lat)]
+    The node coordinates are gathered for those faces only, so nothing here is
+    sized by the whole mesh. Cartesian coordinates already on the grid are
+    reused, as ``Grid.bounds`` would; otherwise they are derived from the
+    gathered longitudes and latitudes instead of being populated for every
+    node.
+    """
+    from uxarray.constants import INT_FILL_VALUE
+    from uxarray.grid.bounds import _construct_face_bounds_array
+    from uxarray.grid.coordinates import _lonlat_rad_to_xyz
+
+    valid = face_node_connectivity != INT_FILL_VALUE
+    nodes, local_index = np.unique(face_node_connectivity[valid], return_inverse=True)
+    local_connectivity = np.full_like(face_node_connectivity, INT_FILL_VALUE)
+    local_connectivity[valid] = local_index
+
+    lon = node_lon[nodes]
+    lat = node_lat[nodes]
+    if "node_x" in uxgrid._ds:
+        uxgrid.normalize_cartesian_coordinates()
+        x = uxgrid.node_x.values[nodes]
+        y = uxgrid.node_y.values[nodes]
+        z = uxgrid.node_z.values[nodes]
+    else:
+        x, y, z = _lonlat_rad_to_xyz(np.deg2rad(lon), np.deg2rad(lat))
+
+    return _construct_face_bounds_array(
+        local_connectivity, n_nodes_per_face, x, y, z, lon, lat, False, None
+    )
