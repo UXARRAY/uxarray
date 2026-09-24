@@ -14,7 +14,7 @@ from uxarray.utils.numba_math import (
 )
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def _lonlat_rad_to_xyz(
     lon: np.ndarray | float,
     lat: np.ndarray | float,
@@ -275,7 +275,7 @@ def _populate_face_centroids(grid, repopulate=False):
         )
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
     """Constructs the xyz centroid coordinate for each face using Cartesian
     Averaging.
@@ -541,7 +541,7 @@ def _populate_face_centerpoints(grid, repopulate=False):
         )
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_face):
     """Constructs the face centerpoint using Welzl's algorithm.
 
