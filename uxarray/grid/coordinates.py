@@ -14,7 +14,7 @@ from uxarray.utils.numba_math import (
 )
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def _lonlat_rad_to_xyz(
     lon: np.ndarray | float,
     lat: np.ndarray | float,
@@ -275,7 +275,7 @@ def _populate_face_centroids(grid, repopulate=False):
         )
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
     """Constructs the xyz centroid coordinate for each face using Cartesian
     Averaging.
@@ -541,7 +541,7 @@ def _populate_face_centerpoints(grid, repopulate=False):
         )
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_face):
     """Constructs the face centerpoint using Welzl's algorithm.
 
@@ -773,7 +773,8 @@ def prepare_points(points, normalize):
             x, y, z = _normalize_xyz(x, y, z)
     else:
         raise DimensionError(
-            "Points must be a sequence of length 2 (longitude, latitude) or 3 (x, y, z coordinates)."
+            "Expected len(points) == 2 (for longitude, latitude) or 3 (for x, y, z coordinates); "
+            f"got len(points)={len(points)}, in grid.coordinates.prepare_points"
         )
 
     return np.vstack([x, y, z]).T
@@ -811,7 +812,8 @@ def points_atleast_2d_xyz(points):
         points_xyz = points
     else:
         raise DimensionError(
-            "Points are neither Cartesian (shape N x 3) nor Spherical (shape N x 2)."
+            "Expected points.shape == (N,2) or (N,3) for (lon, lat) or (x, y, z), "
+            f"respectively; got points.shape == {points.shape}."
         )
 
     return points_xyz

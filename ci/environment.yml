@@ -4,7 +4,7 @@ channels:
   - nodefaults
 dependencies:
   - antimeridian
-  - cartopy
+  - cartopy<0.26   # cartopy 0.26.0 breaks some geoviews plots; see issue #1780.
   - dask
   - datashader
   - geoviews

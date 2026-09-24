@@ -70,7 +70,7 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
         raise ValueError(
             "The input Great Circle Arc spans exactly 180 degrees, which can correspond to multiple planes. "
             "Consider breaking the Great Circle Arc into two smaller arcs."
-        )
+        )  # (numba complains about f-strings, so don't put actual values in message.)
 
     # 2. Verify if the point lies on the plane of the GCA
     cross_product = np.cross(gca_a_xyz, gca_b_xyz)
@@ -224,7 +224,8 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     """
     # Validate extreme_type
     if (extreme_type != "max") and (extreme_type != "min"):
-        raise ValueError("extreme_type must be either 'max' or 'min'")
+        raise ValueError("Invalid extreme_type. Expected 'max' or 'min'.")
+        # (numba complains about f-strings, so don't put `extreme_type` value in message.)
 
     # Extract the two points
     n1 = gca_cart[0]
@@ -305,7 +306,8 @@ def extreme_gca_z(gca_cart, extreme_type):
 
     # Validate extreme_type
     if (extreme_type != "max") and (extreme_type != "min"):
-        raise ValueError("extreme_type must be either 'max' or 'min'")
+        raise ValueError("Invalid extreme_type. Expected 'max' or 'min'.")
+        # (numba complains about f-strings, so don't put `extreme_type` value in message.)
 
     # Extract the two points
     n1 = gca_cart[0]
@@ -499,10 +501,10 @@ def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
 
     Parameters
     ----------
-    q : np.ndarray, shape (3,)
+    q : iterable of length 3
         Query point (unit vector).
-    a, b : np.ndarray, shape (3,)
-        Endpoints of the great-circle arc (unit vectors).
+    a, b : iterable of length 3
+        (x,y,z) coordinates of endpoints of the great-circle arc (unit vectors).
     tol : float, optional
         Tolerance for the collinearity and interval checks.
 
@@ -519,16 +521,6 @@ def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
     Shewchuk, J. R. (1997). Adaptive precision floating-point arithmetic and
     fast robust geometric predicates. Discrete & Computational Geometry, 18,
     305-363. https://doi.org/10.1007/PL00009321
-    """
-    return _on_minor_arc_xyz(q[0], q[1], q[2], a[0], a[1], a[2], b[0], b[1], b[2], tol)
-
-
-@njit(cache=True, inline="always")
-def _on_minor_arc_xyz(q0, q1, q2, a0, a1, a2, b0, b1, b2, tol=_ON_MINOR_ARC_TOL):
-    """Scalar-argument form of :func:`on_minor_arc`, returning a 0/1 int mask.
-
-    Same logic, but takes the nine vector components directly so hot loops can
-    test arc membership without allocating ``(3,)`` arrays for the query point.
     """
     # An attempt to implement a similar Python function that provides the
     # same functionality as AccuSphGeom's on_minor_arc_tol_ptr: the result is
@@ -551,6 +543,9 @@ def _on_minor_arc_xyz(q0, q1, q2, a0, a1, a2, b0, b1, b2, tol=_ON_MINOR_ARC_TOL)
     # implement. The C++ reference's ``on_minor_arc_tol_ptr`` only guards
     # exact coincidence and assumes non-antipodal mesh edges, so this
     # widening is a UXarray-side addition, not a port of the reference.
+    a0, a1, a2 = a
+    b0, b1, b2 = b
+    q0, q1, q2 = q
     cx = a1 * b2 - a2 * b1
     cy = a2 * b0 - a0 * b2
     cz = a0 * b1 - a1 * b0
