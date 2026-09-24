@@ -266,7 +266,7 @@ def _get_cartesian_face_edge_nodes_array(
     return face_edges_cartesian.reshape(n_face, n_max_face_edges, 2, 3)
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _get_cartesian_face_edge_nodes_array_subset(
     face_indices,
     face_node_connectivity,
@@ -499,7 +499,10 @@ def make_setter(key: str):
 
     def setter(self, value):
         if not isinstance(value, xr.DataArray):
-            raise TypeError(f"{key} must be an xr.DataArray")
+            raise TypeError(
+                f"Expected xr.DataArray value when setting Grid.{key}=value; "
+                f"got type(value)={type(value)}."
+            )
         self._ds[key] = value
 
     return setter
