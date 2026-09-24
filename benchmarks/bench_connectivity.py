@@ -7,23 +7,8 @@ from .helpers._fixtures import (
     cached_topology,
     preload_topologies,
 )
-from .helpers._peakmem import peak_allocated
+from .helpers._peakmem import numba_threads, peak_allocated
 from .helpers._warmup import warm_in_parent
-
-
-class GridBenchmark(CachedFixtures):
-    """Class used as a template for benchmarks requiring a ``Grid`` in this
-    module across both resolutions."""
-
-    param_names = ['resolution', ]
-    params = [ALL_RESOLUTIONS, ]
-    timeout = 1200
-
-    def setup(self, resolution, *args, **kwargs):
-        self.uxgrid = self.cached_grid(GRIDS_BY_RESOLUTION[resolution])
-
-    def teardown(self, resolution, *args, **kwargs):
-        del self.uxgrid
 
 CONNECTIVITY_NAMES = [
     "n_nodes_per_face",
@@ -65,10 +50,10 @@ _numba_warmed_up = False
 def _warmup():
     """Compiles the Numba kernels backing each connectivity variable.
 
-    Every kernel in ``uxarray/grid/connectivity.py`` is ``@njit(cache=True)``, so
-    this carries across processes through Numba's on-disk cache -- what makes it
-    usable from ``setup_cache``. Loading from that cache still allocates, so it
-    matters for ``track_peakmem_*`` too, not just timing.
+    Run once in the parent by ``_warm_parent`` below, so every forked benchmark
+    inherits the compiled dispatchers. Loading them off Numba's on-disk cache
+    would otherwise charge both time and allocations to whichever sample touched
+    a kernel first, which matters for ``track_peakmem_*`` as much as timing.
     """
     global _numba_warmed_up
     if _numba_warmed_up:
@@ -80,12 +65,19 @@ def _warmup():
     _numba_warmed_up = True
 
 
-class MinimalGridBenchmark(GridBenchmark):
+class MinimalGridBenchmark(CachedFixtures):
     """Template for benchmarks that construct connectivity variables on demand.
 
     Holds a ``Grid`` carrying nothing but the minimal UGRID topology, plus the
     topology needed to mint further ones, and leaves the Numba kernels compiled.
+
+    Never touches the full cached grid: the topology fixture is all it needs,
+    and it is preloaded in the parent so each fork inherits it rather than
+    reading it again.
     """
+
+    param_names = ['resolution', ]
+    params = [ALL_RESOLUTIONS, ]
 
     # Handover slot for ``_prerequisite_setup``; see its docstring.
     active_grid = None
@@ -196,8 +188,13 @@ class Connectivity(MinimalGridBenchmark):
 class ConnectivityTracemalloc(MinimalGridBenchmark):
     """Peak memory of each connectivity routine on its own.
 
-    The transient high-water allocation of the construction routine, with the
-    ~245MB the process already holds excluded.
+    The transient high-water allocation of the construction routine, with
+    whatever the process already holds -- the inherited topology fixtures
+    included -- excluded.
+
+    ``edge_node_connectivity`` and ``face_edge_connectivity`` are built by
+    ``parallel=True`` kernels, hence the pinning -- see
+    :func:`~benchmarks.helpers._peakmem.numba_threads`.
     """
 
     unit = "bytes"
@@ -205,7 +202,8 @@ class ConnectivityTracemalloc(MinimalGridBenchmark):
     def _peak_building(self, name):
         """Peak allocation of ``name``'s own construction routine."""
         uxgrid = _build_prerequisites(self.minimal_grid(), name)
-        return peak_allocated(lambda: getattr(uxgrid, name).compute())
+        with numba_threads(1):
+            return peak_allocated(lambda: getattr(uxgrid, name).compute())
 
     def track_peakmem_n_nodes_per_face(self, resolution):
         return self._peak_building("n_nodes_per_face")
@@ -236,7 +234,7 @@ class ConnectivityChainTracemalloc(MinimalGridBenchmark):
     """Peak memory of the whole chain rooted at each connectivity variable.
 
     Same instrument as :class:`ConnectivityTracemalloc` -- what the build
-    allocates, with the ~245MB the process already holds excluded -- but wider
+    allocates, with what the process already holds excluded -- but wider
     in scope: no prerequisites are put in place beforehand, so a sample covers
     everything the variable pulls in, not just the routine that produces it.
 
@@ -250,7 +248,8 @@ class ConnectivityChainTracemalloc(MinimalGridBenchmark):
     def _peak_chain(self, name):
         """Peak allocation of building ``name`` and everything it rests on."""
         uxgrid = self.minimal_grid()
-        return peak_allocated(lambda: getattr(uxgrid, name).compute())
+        with numba_threads(1):
+            return peak_allocated(lambda: getattr(uxgrid, name).compute())
 
     def track_peakmem_n_nodes_per_face(self, resolution):
         return self._peak_chain("n_nodes_per_face")
