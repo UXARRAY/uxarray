@@ -31,6 +31,11 @@ jobs:
           fetch-depth: 0
 
 
+      - name: Record CPU topology
+        run: |
+          # A diagnostic; never fail the job over it.
+          lscpu | grep -E 'Model name|^CPU\(s\):|Thread\(s\) per core|Core\(s\) per socket|Socket\(s\)|CPU max MHz' || lscpu || true
+
       - name: Set up Conda environment
         uses: mamba-org/setup-micromamba@v3
         with:
@@ -43,11 +48,21 @@ jobs:
             python-build
             mamba
 
+      # asv rebuilds its own env under benchmarks/env/ each run; caching skips the
+      # solve. No restore-keys: asv reuses a restored env without checking it.
+      - name: Cache asv environment
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.ASV_DIR }}/env
+          key: "asv-env-${{runner.os}}-${{runner.arch}}-${{hashFiles(env.CONDA_ENV_FILE, 'benchmarks/asv.conf.json')}}"
+
       - name: Run Benchmarks
         shell: bash -l {0}
         id: benchmark
         run: |
           set -x
+          # Fill the fixture cache before asv preimports the suite, which would otherwise build it serially in the forkserver parent
+          (cd .. && python -m benchmarks.helpers._fixtures)
           # ID this runner
           asv machine --yes
           echo "Baseline:  ${{ github.event.pull_request.base.sha }} (${{ github.event.pull_request.base.label }})"

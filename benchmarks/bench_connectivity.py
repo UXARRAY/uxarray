@@ -1,55 +1,26 @@
-import os
-import urllib.request
-from pathlib import Path
-
 import uxarray as ux
 
+from .helpers._fixtures import (
+    ALL_RESOLUTIONS,
+    GRIDS_BY_RESOLUTION,
+    CachedFixtures,
+    cached_topology,
+    preload_topologies,
+)
 from .helpers._peakmem import peak_allocated
-
-current_path = Path(os.path.dirname(os.path.realpath(__file__)))
-
-grid_filename_480 = "oQU480.grid.nc"
-grid_filename_120 = "oQU120.grid.nc"
-filenames = [grid_filename_480, grid_filename_120]
-
-for filename in filenames:
-    if not os.path.isfile(current_path / filename):
-        # downloads the files from Cookbook repo, if they haven't been downloaded locally yet
-        url = f"https://github.com/ProjectPythia/unstructured-grid-viz-cookbook/raw/main/meshfiles/{filename}"
-        _, headers = urllib.request.urlretrieve(url, filename=current_path / filename)
-
-oQU_path_dict = {"480km": current_path / grid_filename_480,
-                  "120km": current_path / grid_filename_120}
-
-# Paths to grid files on Glade
-dyamond_path_dict = {"30km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/30km/grid.nc",
-                  "15km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/15km/grid.nc",
-                  "7.5km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/7.5km/grid.nc",
-                  "3.75km": "/glade/campaign/cisl/vast/uxarray/data/dyamond/3.75km/grid.nc"}
-
-# Determines if all file paths exist and are accesible
-all_paths_exist = True
-for file_path in dyamond_path_dict.values():
-    all_paths_exist = all_paths_exist and os.path.exists(file_path)
-
-file_path_dict = oQU_path_dict
-if all_paths_exist:
-    file_path_dict = file_path_dict | dyamond_path_dict
+from .helpers._warmup import warm_in_parent
 
 
-class GridBenchmark:
+class GridBenchmark(CachedFixtures):
     """Class used as a template for benchmarks requiring a ``Grid`` in this
     module across both resolutions."""
-    param_names = ['resolution', ]
 
-    # Conditionally available; could get annoying if there are downstream tools relying on it.
-    if all_paths_exist:
-        params = [['480km', '120km', '30km', '15km', '7.5km', '3.75km'], ]
-    else:
-        params = [['480km', '120km'], ]
+    param_names = ['resolution', ]
+    params = [ALL_RESOLUTIONS, ]
+    timeout = 1200
 
     def setup(self, resolution, *args, **kwargs):
-        self.uxgrid = ux.open_grid(file_path_dict[resolution])
+        self.uxgrid = self.cached_grid(GRIDS_BY_RESOLUTION[resolution])
 
     def teardown(self, resolution, *args, **kwargs):
         del self.uxgrid
@@ -103,33 +74,10 @@ def _warmup():
     if _numba_warmed_up:
         return
     # Resolution affects how long the kernels run, not which signatures compile.
-    uxgrid = ux.Grid.from_topology(*_source_topology(GridBenchmark.params[0][0]))
+    uxgrid = ux.Grid.from_topology(*cached_topology(GRIDS_BY_RESOLUTION[ALL_RESOLUTIONS[0]]))
     for name in CONNECTIVITY_NAMES:
         getattr(uxgrid, name)
     _numba_warmed_up = True
-
-
-_topology_cache = {}
-
-
-def _source_topology(resolution):
-    """The minimal UGRID topology for ``resolution``, read once per process.
-
-    The benchmark grids are MPAS meshes carrying every connectivity variable on
-    disk; reading one would measure the MPAS parser rather than the construction
-    routines, so each variable is left to be built on demand.
-
-    Cached because asv re-runs ``setup`` between repeats, and at dyamond
-    resolutions re-reading the source grid dwarfs the sample it precedes.
-    """
-    if resolution not in _topology_cache:
-        source_grid = ux.open_grid(file_path_dict[resolution])
-        _topology_cache[resolution] = (
-            source_grid.node_lon.data,
-            source_grid.node_lat.data,
-            source_grid.face_node_connectivity.data,
-        )
-    return _topology_cache[resolution]
 
 
 class MinimalGridBenchmark(GridBenchmark):
@@ -146,8 +94,14 @@ class MinimalGridBenchmark(GridBenchmark):
     timeout = 1800
 
     def setup(self, resolution, *args, **kwargs):
-        self.topology = _source_topology(resolution)
+        # The benchmark grids are MPAS meshes, which carry every connectivity
+        # variable on disk. Reading one would measure the MPAS parser rather than
+        # the construction routines, so this takes the minimal UGRID topology
+        # fixture and lets each variable be built on demand.
+        self.topology = self.cached_topology(GRIDS_BY_RESOLUTION[resolution])
 
+        # A no-op once the module-level warm below has run; kept so the class is
+        # still correct if that ever goes away.
         _warmup()
         self.uxgrid = self.minimal_grid()
         MinimalGridBenchmark.active_grid = self.uxgrid
@@ -321,3 +275,15 @@ class ConnectivityChainTracemalloc(MinimalGridBenchmark):
 
     def track_peakmem_node_face(self, resolution):
         return self._peak_chain("node_face_connectivity")
+
+
+# Compiled at import rather than in ``setup``. ASV imports the suite once and forks
+# every benchmark from that parent, so kernels compiled here are inherited by all
+# of them. Only safe while the connectivity kernels are serial
+def _warm_parent():
+    _warmup()
+    # And the topologies themselves...
+    preload_topologies(GRIDS_BY_RESOLUTION[res] for res in ALL_RESOLUTIONS)
+
+
+warm_in_parent(_warm_parent, "the connectivity kernels")
