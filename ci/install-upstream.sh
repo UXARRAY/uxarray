@@ -57,7 +57,6 @@ python -m pip install \
     git+https://github.com/dask/dask.git \
     git+https://github.com/dask/distributed.git \
     git+https://github.com/fatiando/pooch.git \
-    git+https://github.com/pola-rs/polars.git \
     git+https://github.com/holoviz/holoviews.git \
     git+https://github.com/holoviz/hvplot.git \
     git+https://github.com/holoviz/geoviews.git \
