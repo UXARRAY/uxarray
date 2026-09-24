@@ -1,6 +1,8 @@
 import os
 
+import dask
 import dask.array as da
+import dask.dataframe as dd
 import numpy as np
 import numpy.testing as nt
 import pytest
@@ -9,7 +11,11 @@ import xarray as xr
 import uxarray as ux
 from uxarray.constants import INT_DTYPE
 from uxarray.errors import GridInvalidError
-from uxarray.io._scrip import _detect_multigrid, _lookup_node_ids
+from uxarray.io._scrip import (
+    _dedup_scrip_nodes_dask,
+    _detect_multigrid,
+    _lookup_node_ids,
+)
 
 
 def test_read_ugrid(gridpath, mesh_constants):
@@ -213,9 +219,9 @@ def test_lookup_node_ids_preserves_input_order():
     ``map_blocks`` splices each block's output back by position, so a lookup
     that reordered rows would build every face from the wrong corners -- a
     silently wrong mesh, not an error. The lookup is a binary search over the
-    sorted unique-node arrays, so this also pins that the arrays it is handed
-    really are sorted: an unsorted table would make searchsorted return
-    nonsense and the guard inside would fire.
+    sorted unique-node arrays; that the dask dedup really hands it a sorted
+    table is pinned by ``test_scrip_dask_lazy_dedup_matches_eager``, which
+    fails if the sort is missing or sorts on longitude alone.
     """
     # sorted lexicographically by (lon, lat), as the dedup produces them
     unq_lon = np.array([10.0, 20.0, 30.0])
@@ -249,6 +255,33 @@ def test_lookup_node_ids_rejects_a_corner_it_cannot_find():
 
     with pytest.raises(GridInvalidError, match="absent from the unique-node table"):
         _lookup_node_ids(np.array([15.0]), np.array([1.5]), (unq_lon, unq_lat))
+
+
+def test_scrip_dask_dedup_passes_shuffle_method_explicitly(monkeypatch):
+    """dask's drop_duplicates swaps a "disk" *default* shuffle for "tasks",
+    including one set through dask.config, so the method only takes effect
+    when passed as an argument. Setting it through the config instead did
+    nothing, silently. Pin that "disk" is requested, and that a method the
+    caller configured is passed through rather than replaced.
+    """
+    requested = []
+    drop_duplicates = dd.DataFrame.drop_duplicates
+
+    def spy(self, *args, **kwargs):
+        requested.append(kwargs.get("shuffle_method"))
+        return drop_duplicates(self, *args, **kwargs)
+
+    monkeypatch.setattr(dd.DataFrame, "drop_duplicates", spy)
+    monkeypatch.setattr("uxarray.io._scrip._distributed_client_active", lambda: False)
+
+    lon = da.from_array(np.array([0.0, 1.0, 0.0, 2.0]), chunks=2)
+    lat = da.from_array(np.array([5.0, 6.0, 5.0, 7.0]), chunks=2)
+
+    _dedup_scrip_nodes_dask(lon, lat)
+    with dask.config.set({"dataframe.shuffle.method": "tasks"}):
+        _dedup_scrip_nodes_dask(lon, lat)
+
+    assert requested == ["disk", "tasks"]
 
 
 def test_scrip_dask_dedup_does_not_materialize_corner_arrays(gridpath):

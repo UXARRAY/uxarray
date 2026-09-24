@@ -3,6 +3,7 @@ from typing import Any, Sequence
 import numpy as np
 import polars as pl
 import xarray as xr
+from numba import njit
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
@@ -95,13 +96,20 @@ def _dedup_scrip_nodes_eager(corner_lon, corner_lat):
         out=is_new[1:],
     )
 
-    # Running count of distinct pairs gives each sorted row its node id;
-    # scattering through `order` puts those ids back in input order.
-    unq_inv = np.empty(order.shape[0], dtype=INT_DTYPE)
-    unq_inv[order] = np.cumsum(is_new) - 1
-
     unq_lon = sorted_lon[is_new]
     unq_lat = sorted_lat[is_new]
+    # Free the two full-length sorted copies before allocating the two
+    # full-length id arrays below, so they are never live at the same time.
+    del sorted_lon, sorted_lat
+
+    # Running count of distinct pairs gives each sorted row its node id;
+    # scattering through `order` puts those ids back in input order. Counted
+    # in place.
+    ids = np.cumsum(is_new, dtype=INT_DTYPE)
+    del is_new
+    ids -= 1
+    unq_inv = np.empty_like(ids)
+    unq_inv[order] = ids
 
     return unq_lon, unq_lat, unq_inv
 
@@ -124,61 +132,76 @@ def _distributed_client_active():
     return True
 
 
+@njit(cache=True, inline="always")
+def _lt_nan_last(a, b):
+    """``a < b`` in numpy's sort order, which places NaN after every number."""
+    return a < b or (b != b and a == a)
+
+
+@njit(cache=True, inline="always")
+def _eq_nan(a, b):
+    """``a == b``, except that NaN equals NaN, as it does in the dedup."""
+    return a == b or (a != a and b != b)
+
+
+@njit(cache=True, nogil=True)
+def _search_sorted_pairs(sorted_lon, sorted_lat, lon, lat, out):
+    """Binary-search each ``(lon[i], lat[i])`` in a table sorted by (lon, lat).
+
+    Writes the matching row of the table into ``out[i]``, or -1 if the pair
+    is absent, and returns how many pairs were absent.
+    """
+    n = sorted_lon.shape[0]
+    missing = 0
+    for i in range(lon.shape[0]):
+        x = lon[i]
+        y = lat[i]
+        lo = 0
+        hi = n
+        while lo < hi:
+            mid = (lo + hi) // 2
+            mid_lon = sorted_lon[mid]
+            if _lt_nan_last(mid_lon, x) or (
+                _eq_nan(mid_lon, x) and _lt_nan_last(sorted_lat[mid], y)
+            ):
+                lo = mid + 1
+            else:
+                hi = mid
+        if lo < n and _eq_nan(sorted_lon[lo], x) and _eq_nan(sorted_lat[lo], y):
+            out[i] = lo
+        else:
+            out[i] = -1
+            missing += 1
+    return missing
+
+
 def _lookup_node_ids(lon_block, lat_block, lookup):
     """Map one block of corner coordinates to their unique-node ids.
 
-    Module-level rather than a closure so the ordering contract below can be
-    tested directly.
-
-    ``map_blocks`` requires the returned block to stay positionally aligned
-    with its inputs. Polars' docs say explicitly not to rely on an observed
-    join order without asking for one, so ``maintain_order="left"`` asks.
-    Getting this wrong would splice misaligned ids into
-    face_node_connectivity -- every face built from the wrong corners, a
-    silently wrong mesh rather than an error -- so it is requested rather
-    than assumed, even though today's polars happens to preserve order.
 
     Parameters
     ----------
     lon_block, lat_block : numpy.ndarray
         One block of corner coordinates.
     lookup : tuple of numpy.ndarray
-        Unique longitude and latitude arrays; one entry per unique node.
+        ``(unq_lon, unq_lat)``, one entry per unique node, sorted
+        lexicographically by (lon, lat) with NaN last
 
     Returns
     -------
     numpy.ndarray
-        ``unique_id`` per input corner, in input order.
     """
     unq_lon, unq_lat = lookup
 
-    # A hash join per block, deliberately -- the opposite choice from the
-    # eager path above, for the opposite reason.
-    #
-    # There the join's hash table was the problem, because it was keyed on
-    # the whole corner table. Here the probe side is one block, so the hash
-    # table is bounded by the block rather than the mesh and the O(N) lookup
-    # is simply the better algorithm. np.searchsorted over the sorted unique
-    # table is the obvious space-saving alternative and measured 9-15x slower
-    # at 4M unique nodes, depending on how the composite key is spelled,
-    # because binary search on a two-column key means either a structured
-    # dtype comparison or a second pass to break ties within equal
-    # longitudes.
-    block = pl.DataFrame({"lon": lon_block, "lat": lat_block})
-    table = pl.DataFrame(
-        {
-            "lon": unq_lon,
-            "lat": unq_lat,
-            "unique_id": np.arange(unq_lon.shape[0], dtype=INT_DTYPE),
-        }
-    )
-    joined = block.join(table, on=["lon", "lat"], how="left", maintain_order="left")
-    ids = joined["unique_id"].to_numpy().astype(INT_DTYPE)
+    # A binary search per corner against the sorted table: O(block * log
+    # n_unique), allocating nothing beyond the answer. A per-block hash join
+    # looks like the O(block) choice, but it hashes the *table* side.
+    ids = np.empty(lon_block.shape[0], dtype=INT_DTYPE)
+    missing = _search_sorted_pairs(unq_lon, unq_lat, lon_block, lat_block, ids)
 
-    # A corner absent from the unique table joins to null, which would become
-    # a garbage node id. Catch it rather than let the two halves of the dedup
-    # disagree silently.
-    if ids.shape[0] != lon_block.shape[0] or joined["unique_id"].null_count():
+    # A corner absent from the unique table has no valid id. Catch it rather
+    # than let the two halves of the dedup disagree silently.
+    if missing:
         raise GridInvalidError(
             "a SCRIP corner is absent from the unique-node table; the dedup "
             "and the lookup disagree."
@@ -205,7 +228,9 @@ def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
        client dask's default picks a wholly in-memory shuffle, which on a
        226M-face grid peaked at 17.9 GiB against 12.1 GiB for the disk
        shuffle -- the same answer for 32% less memory, which is the whole
-       point of taking this path.
+       point of taking this path. On small grids the disk shuffle costs a
+       little instead (+30% peak at 32M corners, +4% at 128M): the saving
+       only appears at the scale this path exists for.
     2. The inverse index -- which unique node each of the (many) original
        corners maps to -- is built by broadcasting that small table back
        across the corner array's own blocks with ``map_blocks`` (not
@@ -236,20 +261,22 @@ def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
     coords = dask_array.stack([corner_lon, corner_lat], axis=1)
     ddf = dd.from_dask_array(coords, columns=["lon", "lat"])
 
-    # Only set the shuffle method if the caller has not chosen one, and only
-    # when there is no distributed client -- with a cluster, dask's p2p
-    # shuffle is the better default and should not be overridden here.
-    shuffle_cfg = {}
-    if dask.config.get("dataframe.shuffle.method", None) is None:
-        if not _distributed_client_active():
-            shuffle_cfg["dataframe.shuffle.method"] = "disk"
+    # The method has to be passed as an argument: drop_duplicates prefers an
+    # order-preserving shuffle and swaps a "disk" default -- including one set
+    # through dask.config -- for "tasks". A method the caller configured is
+    # passed through as-is. Under a distributed client the choice is left to
+    # dask, whose p2p shuffle is the better default there.
+    shuffle_method = dask.config.get("dataframe.shuffle.method", None)
+    if shuffle_method is None and not _distributed_client_active():
+        shuffle_method = "disk"
 
-    with dask.config.set(shuffle_cfg):
-        unique_pairs = (
-            ddf.drop_duplicates(subset=["lon", "lat"], keep="first")
-            .compute()
-            .reset_index(drop=True)
+    unique_pairs = (
+        ddf.drop_duplicates(
+            subset=["lon", "lat"], keep="first", shuffle_method=shuffle_method
         )
+        .compute()
+        .reset_index(drop=True)
+    )
     # Drop the parent DataFrame as soon as the two columns are extracted.
     # "Small" is relative: on a 226M-face grid the unique-node table is
     # 3.4 GiB, so holding it past its last use is not free.
@@ -257,14 +284,29 @@ def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
     unq_lat = unique_pairs["lat"].to_numpy()
     del unique_pairs
 
-    # The two arrays are the lookup; the per-block join builds its own small
-    # frame from them. Previously a polars DataFrame was constructed here and
-    # captured by the closure -- a third full copy of the unique-node table,
-    # live for the whole graph, measured at ~47% of the dedup's peak.
-    lookup = (unq_lon, unq_lat)
+    # drop_duplicates returns the table in hash-partition order; the lookup
+    # binary-searches it, so sort it once here. Sorting by (lon, lat) also
+    # numbers the nodes exactly as the eager path does. Polars rather than
+    # np.lexsort because it sorts on every core: the same order (NaN last),
+    # 0.12 s against 2.5 s at 8M unique nodes, for no measurable extra peak.
+    order = (
+        pl.DataFrame({"lon": unq_lon, "lat": unq_lat})
+        .select(pl.arg_sort_by("lon", "lat"))
+        .to_series()
+        .to_numpy()
+    )
+    unq_lon = unq_lon[order]
+    unq_lat = unq_lat[order]
+    del order
 
+    # The same two arrays serve as node coordinates and as the lookup, so
+    # the graph holds no extra copy of the unique-node table.
     unq_inv = dask_array.map_blocks(
-        _lookup_node_ids, corner_lon, corner_lat, lookup=lookup, dtype=INT_DTYPE
+        _lookup_node_ids,
+        corner_lon,
+        corner_lat,
+        lookup=(unq_lon, unq_lat),
+        dtype=INT_DTYPE,
     )
 
     return unq_lon, unq_lat, unq_inv
