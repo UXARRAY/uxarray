@@ -327,32 +327,30 @@ def _construct_face_bounds(
             n1n2_lonlat[0, :] = n1_lonlat
             n1n2_lonlat[1, :] = n2_lonlat
 
+            # The node itself is always inside the box.
+            face_latlon_array = insert_pt_in_latlonbox(
+                face_latlon_array, np.array([node1_lat_rad, node1_lon_rad])
+            )
+
+            # A great circle arc can reach a latitude beyond both of its
+            # endpoints; that interior extreme widens the box.
             if is_GCA:
                 lat_max = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "max")
                 lat_min = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "min")
-            else:
-                lat_max = node1_lat_rad
-                lat_min = node1_lat_rad
-
-            # Insert extreme latitude points into the latlonbox
-            if (
-                abs(node1_lat_rad - lat_max) > ERROR_TOLERANCE
-                and abs(node2_lat_rad - lat_max) > ERROR_TOLERANCE
-            ):
-                face_latlon_array = insert_pt_in_latlonbox(
-                    face_latlon_array, np.array([lat_max, node1_lon_rad])
-                )
-            elif (
-                abs(node1_lat_rad - lat_min) > ERROR_TOLERANCE
-                and abs(node2_lat_rad - lat_min) > ERROR_TOLERANCE
-            ):
-                face_latlon_array = insert_pt_in_latlonbox(
-                    face_latlon_array, np.array([lat_min, node1_lon_rad])
-                )
-            else:
-                face_latlon_array = insert_pt_in_latlonbox(
-                    face_latlon_array, np.array([node1_lat_rad, node1_lon_rad])
-                )
+                if (
+                    abs(node1_lat_rad - lat_max) > ERROR_TOLERANCE
+                    and abs(node2_lat_rad - lat_max) > ERROR_TOLERANCE
+                ):
+                    face_latlon_array = insert_pt_in_latlonbox(
+                        face_latlon_array, np.array([lat_max, node1_lon_rad])
+                    )
+                if (
+                    abs(node1_lat_rad - lat_min) > ERROR_TOLERANCE
+                    and abs(node2_lat_rad - lat_min) > ERROR_TOLERANCE
+                ):
+                    face_latlon_array = insert_pt_in_latlonbox(
+                        face_latlon_array, np.array([lat_min, node1_lon_rad])
+                    )
 
     return face_latlon_array
 
