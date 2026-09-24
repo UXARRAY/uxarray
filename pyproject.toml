@@ -80,6 +80,11 @@ requires = [
 [tool.setuptools]
 packages = ["uxarray"]
 
+[tool.setuptools.package-data]
+# PEP 561 marker. Without this, setuptools ships only .py files and type
+# checkers ignore every annotation in the package.
+uxarray = ["py.typed"]
+
 [tool.setuptools_scm]
 fallback_version = "9999"
 
