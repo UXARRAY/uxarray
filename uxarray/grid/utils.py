@@ -499,7 +499,10 @@ def make_setter(key: str):
 
     def setter(self, value):
         if not isinstance(value, xr.DataArray):
-            raise TypeError(f"{key} must be an xr.DataArray")
+            raise TypeError(
+                f"Expected xr.DataArray value when setting Grid.{key}=value; "
+                f"got type(value)={type(value)}."
+            )
         self._ds[key] = value
 
     return setter

@@ -260,6 +260,7 @@ def _get_zonal_face_interval(
 
     except ValueError as e:
         default_print_options = np.get_printoptions()
+        # TODO: what is build_latlon_box?
         if str(e) == (
             "No intersections are found for the face, please make sure the "
             "build_latlon_box generates the correct results"
@@ -344,7 +345,7 @@ def _process_overlapped_intervals(intervals_df: pl.DataFrame):
                 active_faces.remove(face_idx)
             else:
                 raise ValueError(
-                    f"Error: Trying to remove face_idx {face_idx} not in active_faces"
+                    f"Cannot end interval for currently-inactive face_idx {face_idx}, at position {position}."
                 )
 
         last_position = position
@@ -433,7 +434,9 @@ def _get_faces_constLat_intersection_info(
         # If the unique intersections numbers is larger than n_edges * 2, then it means the face is concave
         if len(unique_intersections) > len(valid_edges) * 2:
             raise ValueError(
-                "UXarray doesn't support concave face with intersections points as currently, please modify your grids accordingly"
+                "Concave face found, but not supported by UXarray and would lead to incorrect results "
+                "during _get_faces_constLat_intersection_info."
+                f"\nFace edges cartesian coordinates: {face_edges_cart}"
             )
         else:
             # Now return all the intersections points and the pt_lon_min, pt_lon_max
@@ -451,7 +454,8 @@ def _get_faces_constLat_intersection_info(
             return unique_intersections, pt_lon_min, pt_lon_max
     elif len(unique_intersections) == 0:
         raise ValueError(
-            "No intersections are found for the face, please make sure the build_latlon_box generates the correct results"
+            "Found 0 intersections for this face, expected at least 1."
+            f"\nFace edges cartesian coordinates: {face_edges_cart}"
         )
 
 

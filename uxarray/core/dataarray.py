@@ -11,7 +11,6 @@ from xarray.core import dtypes
 from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
-import uxarray
 from uxarray.constants import GRID_DIMS
 from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.gradient import (
@@ -45,7 +44,12 @@ from uxarray.io._healpix import get_zoom_from_cells
 from uxarray.plot.accessor import UxDataArrayPlotAccessor
 from uxarray.remap.accessor import RemapAccessor
 from uxarray.subset import DataArraySubsetAccessor
-from uxarray.utils.coords import _preserve_valid_coords
+from uxarray.utils.coords import (
+    _assert_grid_dim_coord_consistent_if_in_both,
+    _assign_grid_dim_indexer_coords_if_appropriate,
+    _crash_if_1d_xarray_indexer_dim_in_uxarray_obj,
+    _preserve_valid_coords,
+)
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 if TYPE_CHECKING:
@@ -586,8 +590,10 @@ class UxDataArray(xr.DataArray):
         -------
         uxds: UxDataSet
         """
+        from uxarray.core.dataset import UxDataset
+
         xrds = super().to_dataset(dim=dim, name=name, promote_attrs=promote_attrs)
-        uxds = uxarray.core.dataset.UxDataset(xrds, uxgrid=self._uxgrid)
+        uxds = UxDataset(xrds, uxgrid=self._uxgrid)
 
         return uxds
 
@@ -1786,7 +1792,7 @@ class UxDataArray(xr.DataArray):
         # Spherical metric term, the companion of the one in curl(). Omitting
         # it is only valid on a plane.
         tan_lat = np.tan(np.deg2rad(self.uxgrid.face_lat.values))
-        metric = other.values * tan_lat
+        metric = other.data * tan_lat
         if scale_by_radius and "sphere_radius" in self.uxgrid._ds.attrs:
             metric = metric / self.uxgrid._ds.attrs["sphere_radius"]
         divergence = divergence - metric
@@ -1996,7 +2002,10 @@ class UxDataArray(xr.DataArray):
         using n_edge=7 selects just the two faces touching edge 7. For data on 'n_face',
         the result would have 'n_face' with just those two faces. For data on 'n_edge',
         the result would have 'n_edge' with all edges located on either of those two faces.
+
         Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
+        Grid dimensions are never renamed (even if indexed by 1D DataArray with different dim name).
+        Grid dimension indexer cannot have a non-grid dimension which exists in the original UxDataArray.
 
         Parameters
         ----------
@@ -2032,6 +2041,10 @@ class UxDataArray(xr.DataArray):
         -------
         UxDataArray
             A new UxDataArray indexed according to `indexers` and updated grid if applicable.
+            If indexer DataArrays have coordinates that do not conflict with
+            this object, then these coordinates will be attached,
+            except that 1D coordinates of indexers applied along a grid dimension will
+            only be included if it is 'n_face' and the data also has 'n_face' dimension.
 
         Raises
         ------
@@ -2061,22 +2074,27 @@ class UxDataArray(xr.DataArray):
             indexers = indexers.copy()  # don't modify the original dict
             grid_indexer = indexers.pop(grid_dim)
 
+            _crash_if_1d_xarray_indexer_dim_in_uxarray_obj(self, grid_dim, grid_indexer)
+
             sliced_grid = self.uxgrid.isel(
                 **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
             )
 
-            da = self._slice_from_grid(sliced_grid)
+            result = self._slice_from_grid(sliced_grid)
+
+            result = _assign_grid_dim_indexer_coords_if_appropriate(
+                result, grid_dim, grid_indexer
+            )
 
             # if there are any remaining indexers, apply them
             if indexers:
-                xarr = super(UxDataArray, da).isel(
+                result = super(UxDataArray, result).isel(
                     indexers=indexers, drop=drop, missing_dims=missing_dims
                 )
                 # re‐wrap so the grid sticks around
-                return type(self)(xarr, uxgrid=sliced_grid)
+                result = type(self)(result, uxgrid=sliced_grid)
 
-            # no other dims, return the grid‐sliced da
-            return da
+            return result
         else:  # len(grid_dims)>1; _validate_indexers should have crashed.
             raise AssertionError("internal implementation error if reached this line")
 
@@ -2096,7 +2114,10 @@ class UxDataArray(xr.DataArray):
         using n_edge=7 selects just the two faces touching edge 7. For data on 'n_face',
         the result would have 'n_face' with just those two faces. For data on 'n_edge',
         the result would have 'n_edge' with all edges located on either of those two faces.
+
         Grid dimension indexers cannot have more than 1 dimension (such as a 2D DataArray).
+        Grid dimensions are never renamed (even if indexed by 1D DataArray with different dim name).
+        Grid dimension indexer cannot have a non-grid dimension which exists in the original UxDataArray.
 
         By default, grid dims do not have coordinates assigned. But, if they have
         been assigned, `.sel()` respects them in the intuitive way. For example,
@@ -2157,7 +2178,8 @@ class UxDataArray(xr.DataArray):
             and the uxgrid indexed appropriately as well, if indexing any grid dim.
             If indexer DataArrays have coordinates that do not conflict with
             this object, then these coordinates will be attached,
-            except for indexers along a grid dimension (see issue #1712).
+            except that 1D coordinates of indexers applied along a grid dimension will
+            only be included if it is 'n_face' and the data also has 'n_face' dimension.
             In general, the result's data will be a view of the data in this array,
             unless indexing along a grid dimension or otherwise
             triggering vectorized indexing by using an array indexer,
@@ -2202,6 +2224,10 @@ class UxDataArray(xr.DataArray):
 
             # offload the grid-indexing work to isel():
             result = self.isel({grid_dim: grid_indices}, drop=drop)
+
+            # special case: if grid_dim in indexer and result.coords, ensure consistency.
+            # (all other coords' consistency checks already occurred in isel().)
+            _assert_grid_dim_coord_consistent_if_in_both(result, grid_dim, grid_indexer)
 
             # index by other dims if any remain:
             ds = result.to_xarray().sel(
@@ -2311,7 +2337,7 @@ class UxDataArray(xr.DataArray):
                 "Data variable must be either node, edge, or face centered."
             )
 
-        return UxDataArray(da_sliced, uxgrid=sliced_grid)
+        return type(self)(da_sliced, uxgrid=sliced_grid)
 
     def get_dual(self):
         """Compute the dual mesh for a data array, returns a new data array
@@ -2349,9 +2375,7 @@ class UxDataArray(xr.DataArray):
         dims = [dim_map.get(dim, dim) for dim in self.dims]
 
         # Construct the new data array
-        uxda = uxarray.UxDataArray(
-            uxgrid=dual, data=self.data, dims=dims, name=self.name
-        )
+        uxda = type(self)(uxgrid=dual, data=self.data, dims=dims, name=self.name)
 
         return uxda
 

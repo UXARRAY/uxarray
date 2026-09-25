@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import xarray as xr
 from xarray.core.utils import either_dict_or_kwargs
@@ -186,10 +188,7 @@ def _resolve_coordinate_labels_to_indices(
 ):
     """returns indices which would be selected by coord_array.sel({dim: labels_to_sel}, ...)
     coord_array.isel({dim: result}) should be equivalent to coord_array.sel({dim: labels_to_sel}, ...).
-
-    (Implementation here drops extra coordinates from any indexers,
-    but if it is being applied to grid dims for sel() then it will produce behavior
-    which is consistent with isel(), unless issue #1712 gets fixed.)
+    If labels_to_sel is an xr.DataArray, its coords/dims will also be attached to the result.
 
     dim: str
         dimension name to select along
@@ -203,10 +202,26 @@ def _resolve_coordinate_labels_to_indices(
     # (Maybe a more efficient implementation exists, but this is simple and gives correct results.)
     indices = xr.DataArray(np.arange(coord_array.sizes[dim]), dims=dim)
     _indices_coord_name = f"__{dim}_indices__"  # just needs to be any unused name.
+    if _indices_coord_name in coord_array.coords:
+        warnings.warn(
+            f"Coordinate {_indices_coord_name!r} already exists in coord_array.coords "
+            "and will be overwritten, which may cause errors or subtly incorrect results..."
+        )
     if hasattr(coord_array, "to_xarray"):  # convert to xarray to avoid recursive sel()
         coord_array = coord_array.to_xarray()
     coord_with_indices = coord_array.assign_coords({_indices_coord_name: indices})
     selected = coord_with_indices.sel(
         {dim: labels_to_sel}, method=method, tolerance=tolerance
     )
-    return selected[_indices_coord_name].values  # (return as np.ndarray, not DataArray)
+    result = selected[_indices_coord_name]
+    if isinstance(labels_to_sel, xr.DataArray):
+        # handle coords appropriately
+        result = result.drop_vars((dim, _indices_coord_name))
+        # (drop grid dim coords because the caller is expected to handle those directly;
+        # here the goal is just to properly propagate any other coords from labels_to_sel.)
+        result = result.rename(None)  # no reason to keep the _indices_coord_name
+        # (and keeping it for longer could maybe cause confusing error later?)
+    else:
+        # drop all coords/name info which was added internally during this method.
+        result = result.values
+    return result
