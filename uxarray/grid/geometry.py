@@ -1194,14 +1194,16 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
             )
 
             # Get the triangle in terms of its edges for the `point_in_face` check
-            face_edge = _get_cartesian_face_edge_nodes(
-                face_idx=0,
-                face_node_connectivity=np.array([[0, 1, 2]]),
-                n_edges_per_face=np.array([3]),
-                node_x=np.array([node_0[0], node_1[0], node_2[0]], dtype=np.float64),
-                node_y=np.array([node_0[1], node_1[1], node_2[1]], dtype=np.float64),
-                node_z=np.array([node_0[2], node_1[2], node_2[2]], dtype=np.float64),
-            )
+            # (could use _get_cartesian_face_edge_nodes but that requires rewriting
+            # to node_x, node_y, node_z format, which allocates more tiny numpy arrays
+            # than necessary. Also, it's overkill for just a single triangle!
+            # So, instead, just write the full answer here, explicitly)
+
+            face_edge = np.array([
+                [node_0[0], node_0[1], node_0[2]], [node_1[0], node_1[1], node_1[2]],
+                [node_1[0], node_1[1], node_1[2]], [node_2[0], node_2[1], node_2[2]],
+                [node_2[0], node_2[1], node_2[2]], [node_0[0], node_0[1], node_0[2]],
+            ], dtype=np.float64)
 
             # Check to see if the point lies within the current triangle
             contains_point = _face_contains_point(
