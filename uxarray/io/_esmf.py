@@ -93,12 +93,30 @@ def _read_esmf(in_ds):
         # assume start index is 1 if one is not provided
         start_index = 1
 
-    face_node_connectivity = in_ds["elementConn"].astype(INT_DTYPE)
-    face_node_connectivity = xr.where(
-        face_node_connectivity != INT_FILL_VALUE,
-        face_node_connectivity - start_index,
-        face_node_connectivity,
+    element_conn = in_ds["elementConn"]
+    face_dim, node_dim = element_conn.dims
+
+    # "numElementConn" gives the face size, so locate the padding positionally.
+    # Matching the sentinel means guessing: CF decoding turns it into NaN, and the
+    # cast below preserves neither NaN nor the raw value as INT_FILL_VALUE.
+    positions = xr.DataArray(
+        np.arange(element_conn.sizes[node_dim], dtype=INT_DTYPE), dims=node_dim
     )
+    fill_mask = (positions >= n_nodes_per_face).transpose(face_dim, node_dim)
+
+    # NaN is never a usable index, whatever "numElementConn" claims
+    # NaN is never a usable index, whatever "numElementConn" claims
+    fill_mask = fill_mask | element_conn.isnull()
+
+    # ...and neither is the declared sentinel, whatever "numElementConn" claims
+    sentinel = element_conn.attrs.get(
+        "_FillValue", element_conn.encoding.get("_FillValue")
+    )
+    if sentinel is not None:
+        fill_mask = fill_mask | (element_conn == sentinel)
+
+    face_node_connectivity = element_conn.fillna(0).astype(INT_DTYPE) - start_index
+    face_node_connectivity = xr.where(fill_mask, INT_FILL_VALUE, face_node_connectivity)
 
     out_ds["face_node_connectivity"] = xr.DataArray(
         data=face_node_connectivity,
