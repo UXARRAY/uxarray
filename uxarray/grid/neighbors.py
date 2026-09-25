@@ -1218,7 +1218,7 @@ def _get_element_coords(grid, data_mapping: str, coordinate_system: str):
 #     nor OpenMP is available -- aborts the process when dask worker threads
 #     launch it concurrently. Dask-backed blocks therefore run the serial
 #     kernel, dask having already parallelized over chunks, and only in-memory
-#     arrays run the ``prange`` kernel.
+#     arrays of more than one row run the ``prange`` kernel.
 #
 # ``njit`` compiles on first call, so ``import uxarray`` builds nothing
 # (``test_no_numba_kernels_built_on_import`` guards this), and the dispatcher
@@ -1428,6 +1428,26 @@ def _neighborhood_reduce(block, flat, starts, counts, func: Callable):
     return destination_data
 
 
+def _reduce_block(block, flat, starts, counts, op, param, parallel):
+    """Runs the compiled reduction ``op`` over a NumPy ``block`` with the grid
+    dimension last.
+
+    ``parallel`` permits the ``prange`` kernel, which is used only when there
+    is more than one row to spread across threads: starting numba's thread
+    pool costs more than a whole single-row reduction on a small grid.
+    """
+    # Floating-point input is gathered as it is; anything else (integer
+    # fields, say) is promoted, which the generic path does too by writing
+    # into a float64 output.
+    if block.dtype not in (np.float64, np.float32):
+        block = block.astype(np.float64)
+    rows = block.reshape(math.prod(block.shape[:-1]), block.shape[-1])
+    out = np.empty(rows.shape, dtype=np.float64)
+    kernel = _reduce_rows_parallel if parallel and rows.shape[0] > 1 else _reduce_rows
+    kernel(rows, flat, starts, counts, op, param, out)
+    return out.reshape(block.shape)
+
+
 def _rechunk_grid_dim(uxda, grid_dim: str):
     """Collapses the grid dimension to a single chunk, warning if that changes
     the user's chunking.
@@ -1631,37 +1651,32 @@ class Neighborhood:
         >>> nb.reduce(uxds["psi"], skew)  # doctest: +SKIP
         """
 
-        def run(block, arrays):
-            return _neighborhood_reduce(block, *arrays, func)
-
-        return self._apply(uxda, run)
+        return self._apply(uxda, _neighborhood_reduce, func=func)
 
     def _apply_kernel(self, uxda, op: _Reduction, param: float):
         """Runs the compiled reduction ``op`` over every neighborhood."""
         # A plain int: an enum member as a kernel argument costs ~170 ms of
-        # typing on every process's first call, even on a cache hit.
-        op = int(op)
-        # Dask already runs one task per chunk on its own threads, and numba's
+        # typing on every process's first call, even on a cache hit. Dask
+        # already runs one task per chunk on its own threads, and numba's
         # ``workqueue`` threading layer aborts if those threads launch parallel
-        # kernels concurrently, so only in-memory data takes the parallel path.
-        kernel = _reduce_rows_parallel if uxda.chunks is None else _reduce_rows
+        # kernels concurrently, so only in-memory data may take the parallel
+        # path.
+        return self._apply(
+            uxda,
+            _reduce_block,
+            op=int(op),
+            param=param,
+            parallel=uxda.chunks is None,
+        )
 
-        def run(block, arrays):
-            # Floating-point input is gathered as it is; anything else
-            # (integer fields, say) is promoted, which the generic path does
-            # too by writing into a float64 output.
-            if block.dtype not in (np.float64, np.float32):
-                block = block.astype(np.float64)
-            rows = block.reshape(math.prod(block.shape[:-1]), block.shape[-1])
-            out = np.empty(rows.shape, dtype=np.float64)
-            kernel(rows, *arrays, op, param, out)
-            return out.reshape(block.shape)
+    def _apply(self, uxda, block_func, **kwargs):
+        """Validates ``uxda`` against this neighborhood and maps ``func`` over
+        it, one NumPy block at a time with the grid dimension last.
 
-        return self._apply(uxda, run)
-
-    def _apply(self, uxda, run):
-        """Validates ``uxda`` against this neighborhood and maps ``run`` over
-        it, one NumPy block at a time with the grid dimension last."""
+        ``block_func`` is called as
+        ``block_func(block, flat, starts, counts, **kwargs)``.
+        It must be a module-level function taking only cheap arguments.
+        """
         # Local import: uxarray.core.dataarray imports this module.
         from uxarray.core.dataarray import UxDataArray
         from uxarray.errors import DataCenteringError
@@ -1679,20 +1694,18 @@ class Neighborhood:
                 f"probably mapped to a different grid."
             )
 
-        arrays = (self._flat, self._starts, self._counts)
-
-        def _apply(block):
-            return run(block, arrays)
-
         work = _rechunk_grid_dim(uxda, grid_dim)
 
         # ``apply_ufunc`` moves the grid dimension last before calling
-        # ``_apply`` and, for dask-backed input, hands each chunk over as a
+        # ``block_func`` and, for dask-backed input, hands each chunk over as a
         # materialized NumPy block. Indexing the array one destination element
         # at a time would instead trigger one graph execution per grid element.
         filtered = xr.apply_ufunc(
-            _apply,
+            block_func,
             work,
+            kwargs=dict(
+                flat=self._flat, starts=self._starts, counts=self._counts, **kwargs
+            ),
             input_core_dims=[[grid_dim]],
             output_core_dims=[[grid_dim]],
             dask="parallelized",
