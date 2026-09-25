@@ -320,30 +320,31 @@ def test_scrip_open_empty_grid(gridpath, chunks):
 
 
 def test_scrip_dask_dedup_passes_shuffle_method_explicitly(monkeypatch):
-    """dask's drop_duplicates swaps a "disk" *default* shuffle for "tasks",
-    including one set through dask.config, so the method only takes effect
-    when passed as an argument. Setting it through the config instead did
-    nothing, silently. Pin that "disk" is requested, and that a method the
-    caller configured is passed through rather than replaced.
+    """dask's drop_duplicates prefers an order-preserving shuffle and
+    overrides a method set through dask.config rather than honoring it, so a
+    caller's choice only takes effect when passed as an argument. Pin that a
+    configured method is forwarded, and that with nothing configured the
+    reader forwards nothing and leaves the choice to dask.
     """
     requested = []
+    sentinel = object()
     drop_duplicates = dd.DataFrame.drop_duplicates
 
     def spy(self, *args, **kwargs):
-        requested.append(kwargs.get("shuffle_method"))
+        requested.append(kwargs.get("shuffle_method", sentinel))
         return drop_duplicates(self, *args, **kwargs)
 
     monkeypatch.setattr(dd.DataFrame, "drop_duplicates", spy)
-    monkeypatch.setattr("uxarray.io._scrip._distributed_client_active", lambda: False)
 
     lon = da.from_array(np.array([0.0, 1.0, 0.0, 2.0]), chunks=2)
     lat = da.from_array(np.array([5.0, 6.0, 5.0, 7.0]), chunks=2)
 
-    _dedup_scrip_nodes_dask(lon, lat)
+    with dask.config.set({"dataframe.shuffle.method": None}):
+        _dedup_scrip_nodes_dask(lon, lat)
     with dask.config.set({"dataframe.shuffle.method": "tasks"}):
         _dedup_scrip_nodes_dask(lon, lat)
 
-    assert requested == ["disk", "tasks"]
+    assert requested == [sentinel, "tasks"]
 
 
 def test_scrip_dask_dedup_does_not_materialize_corner_arrays(gridpath):

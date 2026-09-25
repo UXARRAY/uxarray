@@ -131,24 +131,6 @@ def _dedup_scrip_nodes_eager(corner_lon, corner_lat):
     return unq_lon, unq_lat, unq_inv
 
 
-def _distributed_client_active():
-    """True when a ``distributed`` client is running in this process.
-
-    Kept separate so the import stays optional: ``distributed`` is not a
-    uxarray dependency, and its absence simply means no cluster is in play.
-    """
-    try:
-        from distributed import default_client
-    except ImportError:
-        return False
-
-    try:
-        default_client()
-    except (ValueError, RuntimeError):
-        return False
-    return True
-
-
 @njit(cache=True, inline="always")
 def _lt_nan_last(a, b):
     """``a < b`` in numpy's sort order, which places NaN after every number."""
@@ -213,6 +195,23 @@ def _lookup_node_ids(lon_block, lat_block, lookup):
     # A binary search per corner against the sorted table: O(block * log
     # n_unique), allocating nothing beyond the answer. A per-block hash join
     # looks like the O(block) choice, but it hashes the *table* side.
+    #
+    # Per lookup the search is the slower of the two -- 1.5x the hash join on
+    # a 24M-corner production slice -- and it leans on the corner table being
+    # spatially ordered, since consecutive searches then land in cache-warm
+    # neighborhoods. That holds widely rather than by luck: a SCRIP corner
+    # table is written in face order, and mesh generators number faces by
+    # locality (lat-lon row-major, cubed-sphere panel order, MPAS space
+    # filling curves), so consecutive faces share corners by construction.
+    # Measured as the mean jump between consecutive lookups over the sorted
+    # table, normalized by its length (1/3 is the random baseline): 0.0001 on
+    # the CONUS RRM grid at five offsets, 0.0003 on a 74M-corner ESMF mesh,
+    # 0.0007-0.0028 on regular lat-lon, 0.02-0.08 on MPAS SFC and FESOM.
+    # Nothing tested came close to random, and randomizing the corners costs
+    # the search 3x. Even then the join is only 2.1x ahead per lookup, which
+    # the whole-open numbers swamp: the join rebuilds a hash table of every
+    # unique node for each block, so the complete open is 2x slower and 5.2x
+    # larger with it.
     ids = np.empty(lon_block.shape[0], dtype=INT_DTYPE)
     missing = _search_sorted_pairs(unq_lon, unq_lat, lon_block, lat_block, ids)
 
@@ -241,13 +240,17 @@ def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
        partition-by-partition (spilling to disk as needed) rather than
        requiring it resident in memory all at once, as the Polars path
        does. Only this small unique-node table is computed eagerly here.
-       The shuffle is pinned to the disk method: without a ``distributed``
-       client dask's default picks a wholly in-memory shuffle, which on a
-       226M-face grid peaked at 17.9 GiB against 12.1 GiB for the disk
-       shuffle -- the same answer for 32% less memory, which is the whole
-       point of taking this path. On small grids the disk shuffle costs a
-       little instead (+30% peak at 32M corners, +4% at 128M): the saving
-       only appears at the scale this path exists for.
+       The shuffle method is left to dask. An earlier version pinned it to
+       "disk" on the strength of a 17.9 vs 12.1 GiB measurement, but that
+       comparison was between dask's default and an explicit method, not
+       between the two methods: the pin was set through ``dask.config``,
+       which ``drop_duplicates`` overrides, so the "disk" arm of it was
+       never actually a disk shuffle. Measured once the method is passed
+       as an argument and so takes effect, disk loses on both axes -- on
+       the full 300M-face/3.6B-corner CONUS RRM grid, disk ran 315.5 s at
+       86.8 GiB against tasks' 249.1 s at 85.4 GiB, for byte-identical
+       connectivity; at 12M faces locally, 2.71 s/7.01 GiB against
+       2.25 s/6.54 GiB. Dask's own default matches tasks to within noise.
     2. The inverse index -- which unique node each of the (many) original
        corners maps to -- is built by broadcasting that small table back
        across the corner array's own blocks with ``map_blocks`` (not
@@ -278,19 +281,16 @@ def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
     coords = dask_array.stack([corner_lon, corner_lat], axis=1)
     ddf = dd.from_dask_array(coords, columns=["lon", "lat"])
 
-    # The method has to be passed as an argument: drop_duplicates prefers an
-    # order-preserving shuffle and swaps a "disk" default -- including one set
-    # through dask.config -- for "tasks". A method the caller configured is
-    # passed through as-is. Under a distributed client the choice is left to
-    # dask, whose p2p shuffle is the better default there.
+    # A method the caller configured is passed through as an argument, since
+    # drop_duplicates prefers an order-preserving shuffle and otherwise
+    # overrides a dask.config setting rather than honoring it. With nothing
+    # configured, dask chooses: its default matched the best measured method
+    # at every scale tested, and it picks p2p under a distributed client.
     shuffle_method = dask.config.get("dataframe.shuffle.method", None)
-    if shuffle_method is None and not _distributed_client_active():
-        shuffle_method = "disk"
+    kwargs = {} if shuffle_method is None else {"shuffle_method": shuffle_method}
 
     unique_pairs = (
-        ddf.drop_duplicates(
-            subset=["lon", "lat"], keep="first", shuffle_method=shuffle_method
-        )
+        ddf.drop_duplicates(subset=["lon", "lat"], keep="first", **kwargs)
         .compute()
         .reset_index(drop=True)
     )
