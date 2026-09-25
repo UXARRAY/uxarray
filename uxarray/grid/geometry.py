@@ -15,6 +15,9 @@ from uxarray.grid.intersections import (
 )
 from uxarray.grid.point_in_face import _face_contains_point
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.utils.numba_math import (
+    _numba_allclose3,
+)
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 POLE_POINTS_XYZ = {
@@ -723,144 +726,81 @@ def _convert_shells_to_polygons(shells):
 def _pole_point_inside_polygon_cartesian(pole, face_edges_xyz):
     if isinstance(pole, str):
         pole = POLE_NAME_TO_INT[pole]
-
-    x = face_edges_xyz[:, :, 0]
-    y = face_edges_xyz[:, :, 1]
-    z = face_edges_xyz[:, :, 2]
-
-    lon, lat = _xyz_to_lonlat_rad(x, y, z)
-
-    face_edges_lonlat = np.stack((lon, lat), axis=2)
-
-    return pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat)
-
-    pass
+    return pole_point_inside_polygon(pole, face_edges_xyz)
 
 
 @njit(cache=True)
-def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
-    """Determines if a pole point is inside a polygon."""
+def pole_point_inside_polygon(pole, face_edges_xyz):
+    """Determines if a pole point is inside a polygon.
+
+    pole : int
+        1 for North pole, -1 for South pole
+    face_edges_xyz : np.ndarray
+        Edges to check for intersections. Shape: (n_edges, 2, 3)
+    """
+    # The idea is to pick a point outside the polygon, draw an edge from there to `pole`
+    # and count the number of intersections between that edge and the polygon's edges.
+    # The `pole` is inside the polygon if and only if the number of intersections is odd.
+    # For fully-north-hemisphere faces and fully-south-hemisphere faces it is easy to pick
+    # such a point; just pick the opposite pole.
+    # For faces crossing the equator, split the test into two pieces, picking the opposite
+    # pole for each piece. (This is a hand-waving explanation but the geometry works out!)
 
     if pole != 1 and pole != -1:
         raise ValueError("Pole must be 1 (North) or -1 (South)")
         # (numba complains about f-strings, so don't put `pole` value in message.)
 
-    # Define constants within the function
-    pole_point_xyz = np.empty(3, dtype=np.float64)
-    pole_point_xyz[0] = 0.0
-    pole_point_xyz[1] = 0.0
-    pole_point_xyz[2] = 1.0 * pole
+    pole_point_xyz = (0.0, 0.0, 1.0 * pole)
+    REFERENCE_POINT_EQUATOR_XYZ = (1.0, 0.0, 0.0)
 
-    pole_point_lonlat = np.empty(2, dtype=np.float64)
-    pole_point_lonlat[0] = 0.0
-    pole_point_lonlat[1] = (math.pi / 2) * pole
-
-    REFERENCE_POINT_EQUATOR_XYZ = np.empty(3, dtype=np.float64)
-    REFERENCE_POINT_EQUATOR_XYZ[0] = 1.0
-    REFERENCE_POINT_EQUATOR_XYZ[1] = 0.0
-    REFERENCE_POINT_EQUATOR_XYZ[2] = 0.0
-
-    REFERENCE_POINT_EQUATOR_LONLAT = np.empty(2, dtype=np.float64)
-    REFERENCE_POINT_EQUATOR_LONLAT[0] = 0.0
-    REFERENCE_POINT_EQUATOR_LONLAT[1] = 0.0
-
-    # Classify the polygon's location
+    # 1: fully in North hemisphere; -1: fully in South hemisphere; 0: polygon crosses equator
     location = _classify_polygon_location(face_edges_xyz)
 
     if (location == 1 and pole == -1) or (location == -1 and pole == 1):
         return False
 
     elif location == -1 or location == 1:
-        # Initialize ref_edge_xyz
-        ref_edge_xyz = np.empty((2, 3), dtype=np.float64)
-        ref_edge_xyz[0, 0] = pole_point_xyz[0]
-        ref_edge_xyz[0, 1] = pole_point_xyz[1]
-        ref_edge_xyz[0, 2] = pole_point_xyz[2]
-        ref_edge_xyz[1, :] = REFERENCE_POINT_EQUATOR_XYZ
-
-        # Initialize ref_edge_lonlat
-        ref_edge_lonlat = np.empty((2, 2), dtype=np.float64)
-        ref_edge_lonlat[0, 0] = pole_point_lonlat[0]
-        ref_edge_lonlat[0, 1] = pole_point_lonlat[1]
-        ref_edge_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
-
+        ref_edge_xyz = (pole_point_xyz, REFERENCE_POINT_EQUATOR_XYZ)
         intersection_count = _check_intersection(ref_edge_xyz, face_edges_xyz)
         return (intersection_count % 2) != 0
 
     elif location == 0:  # Equator
-        # Initialize ref_edge_north_xyz and ref_edge_north_lonlat
-        ref_edge_north_xyz = np.empty((2, 3), dtype=np.float64)
-        ref_edge_north_xyz[0, 0] = 0.0
-        ref_edge_north_xyz[0, 1] = 0.0
-        ref_edge_north_xyz[0, 2] = 1.0
-        ref_edge_north_xyz[1, :] = REFERENCE_POINT_EQUATOR_XYZ
-
-        ref_edge_north_lonlat = np.empty((2, 2), dtype=np.float64)
-        ref_edge_north_lonlat[0, 0] = 0.0
-        ref_edge_north_lonlat[0, 1] = math.pi / 2
-        ref_edge_north_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
-
-        # Initialize ref_edge_south_xyz and ref_edge_south_lonlat
-        ref_edge_south_xyz = np.empty((2, 3), dtype=np.float64)
-        ref_edge_south_xyz[0, 0] = 0.0
-        ref_edge_south_xyz[0, 1] = 0.0
-        ref_edge_south_xyz[0, 2] = -1.0
-        ref_edge_south_xyz[1, :] = REFERENCE_POINT_EQUATOR_XYZ
-
-        ref_edge_south_lonlat = np.empty((2, 2), dtype=np.float64)
-        ref_edge_south_lonlat[0, 0] = 0.0
-        ref_edge_south_lonlat[0, 1] = -math.pi / 2
-        ref_edge_south_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
-
         # Classify edges based on z-coordinate
-        n_edges = face_edges_xyz.shape[0]
+        n_edges = len(face_edges_xyz)
         north_edges_xyz = np.empty((n_edges, 2, 3), dtype=np.float64)
-        north_edges_lonlat = np.empty((n_edges, 2, 2), dtype=np.float64)
         south_edges_xyz = np.empty((n_edges, 2, 3), dtype=np.float64)
-        south_edges_lonlat = np.empty((n_edges, 2, 2), dtype=np.float64)
         north_count = 0
         south_count = 0
 
         for i in range(n_edges):
             edge_xyz = face_edges_xyz[i]
-            edge_lonlat = face_edges_lonlat[i]
             if edge_xyz[0, 2] > 0 or edge_xyz[1, 2] > 0:
                 north_edges_xyz[north_count] = edge_xyz
-                north_edges_lonlat[north_count] = edge_lonlat
                 north_count += 1
             elif edge_xyz[0, 2] < 0 or edge_xyz[1, 2] < 0:
                 south_edges_xyz[south_count] = edge_xyz
-                south_edges_lonlat[south_count] = edge_lonlat
                 south_count += 1
             else:
                 # skip edges exactly on the equator
                 continue
 
+        north_intersections = 0
         if north_count > 0:
+            ref_edge_north_xyz = ((0.0, 0.0, 1.0), REFERENCE_POINT_EQUATOR_XYZ)
             north_edges_xyz = north_edges_xyz[:north_count]
-            north_edges_lonlat = north_edges_lonlat[:north_count]
-        else:
-            north_edges_xyz = np.empty((0, 2, 3), dtype=np.float64)
-            north_edges_lonlat = np.empty((0, 2, 2), dtype=np.float64)
+            north_intersections = _check_intersection(
+                ref_edge_north_xyz,
+                north_edges_xyz,
+            )
 
+        south_intersections = 0
         if south_count > 0:
+            ref_edge_south_xyz = ((0.0, 0.0, -1.0), REFERENCE_POINT_EQUATOR_XYZ)
             south_edges_xyz = south_edges_xyz[:south_count]
-            south_edges_lonlat = south_edges_lonlat[:south_count]
-        else:
-            south_edges_xyz = np.empty((0, 2, 3), dtype=np.float64)
-            south_edges_lonlat = np.empty((0, 2, 2), dtype=np.float64)
-
-        # Count south intersections
-        north_intersections = _check_intersection(
-            ref_edge_north_xyz,
-            north_edges_xyz,
-        )
-
-        # Count south intersections
-        south_intersections = _check_intersection(
-            ref_edge_south_xyz,
-            south_edges_xyz,
-        )
+            south_intersections = _check_intersection(
+                ref_edge_south_xyz,
+                south_edges_xyz,
+            )
 
         return ((north_intersections + south_intersections) % 2) != 0
 
@@ -887,22 +827,20 @@ def _classify_polygon_location(face_edge_cart):
 @njit(cache=True)
 def _check_intersection(ref_edge_xyz, edges_xyz):
     """Check the number of intersections of the reference edge with the given edges.
+    The reference edge's first point MUST be the North or South pole.
 
     Parameters
     ----------
-    ref_edge_xyz : np.ndarray
-        Reference edge to check intersections against. Shape: (2, 3)
-    ref_edge_lonlat : np.ndarray
-        Reference edge longitude and latitude. Shape: (2, 2)
+    ref_edge_xyz : iterable of 2 length-3 iterables
+        Reference edge to check intersections against.
+        (If numpy array, has shape (2,3). If tuple, contains two length-3 tuples.)
     edges_xyz : np.ndarray
         Edges to check for intersections. Shape: (n_edges, 2, 3)
-    edges_lonlat : np.ndarray
-        Longitude and latitude of the edges. Shape: (n_edges, 2, 2)
 
     Returns
     -------
     int
-        Count of intersections.
+        Count of intersections, or 1 if the pole lies on an edge of the polygon.
     """
     pole_point_xyz = ref_edge_xyz[0]
     n_edges = edges_xyz.shape[0]
@@ -915,26 +853,22 @@ def _check_intersection(ref_edge_xyz, edges_xyz):
     for i in range(n_edges):
         edge_xyz = edges_xyz[i]
 
-        # compute intersection
         intersections_i = gca_gca_intersection(ref_edge_xyz, edge_xyz)
+        # (Always 2 length-3 tuples; NaNs represent "no intersection point")
 
-        if math.isfinite(intersections_i[0][0]):  # at least 1 intersection point
-            if not math.isfinite(intersections_i[1][0]):  # only 1 intersection point
-                # Only one point
-                point = intersections_i[0]
-                if np.allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
-                    return True
-                intersection_points[intersection_count] = point
+        if math.isfinite(intersections_i[0][0]):
+            pointA = intersections_i[0]
+            if _numba_allclose3(pointA, pole_point_xyz, atol=ERROR_TOLERANCE):
+                return 1  # the pole intersects with this edge! Exit early, for efficiency.
+            intersection_points[intersection_count] = pointA
+            intersection_count += 1
+
+            if math.isfinite(intersections_i[1][0]):  # There's a 2nd intersection point!
+                pointB = intersections_i[1]
+                if _numba_allclose3(pointB, pole_point_xyz, atol=ERROR_TOLERANCE):
+                    return 1  # the pole intersects with this edge! Exit early, for efficiency.
+                intersection_points[intersection_count] = pointB
                 intersection_count += 1
-            else:
-                # Exactly 2 points (gca_gca_intersection always gives 0, 1, or 2 intersections)
-                num_points = 2
-                for j in range(num_points):
-                    point = intersections_i[j]
-                    if np.allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
-                        return True
-                    intersection_points[intersection_count] = point
-                    intersection_count += 1
 
     if intersection_count == 0:
         return 0
