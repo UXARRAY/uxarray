@@ -9,13 +9,18 @@ from uxarray.constants import (
     INT_FILL_VALUE,
     MACHINE_EPSILON,
 )
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
 from uxarray.grid.point_in_face import _face_contains_point
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
+from uxarray.utils.numba_math import (
+    _numba_adjugate3,
+    _numba_allclose3,
+    _numba_div3_scalar,
+    _numba_dot3,
+    _numba_sub3,
+)
 
 POLE_POINTS_XYZ = {
     "North": np.array([0.0, 0.0, 1.0]),
@@ -723,144 +728,81 @@ def _convert_shells_to_polygons(shells):
 def _pole_point_inside_polygon_cartesian(pole, face_edges_xyz):
     if isinstance(pole, str):
         pole = POLE_NAME_TO_INT[pole]
-
-    x = face_edges_xyz[:, :, 0]
-    y = face_edges_xyz[:, :, 1]
-    z = face_edges_xyz[:, :, 2]
-
-    lon, lat = _xyz_to_lonlat_rad(x, y, z)
-
-    face_edges_lonlat = np.stack((lon, lat), axis=2)
-
-    return pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat)
-
-    pass
+    return pole_point_inside_polygon(pole, face_edges_xyz)
 
 
 @njit(cache=True)
-def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
-    """Determines if a pole point is inside a polygon."""
+def pole_point_inside_polygon(pole, face_edges_xyz):
+    """Determines if a pole point is inside a polygon.
+
+    pole : int
+        1 for North pole, -1 for South pole
+    face_edges_xyz : np.ndarray
+        Edges to check for intersections. Shape: (n_edges, 2, 3)
+    """
+    # The idea is to pick a point outside the polygon, draw an edge from there to `pole`
+    # and count the number of intersections between that edge and the polygon's edges.
+    # The `pole` is inside the polygon if and only if the number of intersections is odd.
+    # For fully-north-hemisphere faces and fully-south-hemisphere faces it is easy to pick
+    # such a point; just pick the opposite pole.
+    # For faces crossing the equator, split the test into two pieces, picking the opposite
+    # pole for each piece. (This is a hand-waving explanation but the geometry works out!)
 
     if pole != 1 and pole != -1:
         raise ValueError("Pole must be 1 (North) or -1 (South)")
         # (numba complains about f-strings, so don't put `pole` value in message.)
 
-    # Define constants within the function
-    pole_point_xyz = np.empty(3, dtype=np.float64)
-    pole_point_xyz[0] = 0.0
-    pole_point_xyz[1] = 0.0
-    pole_point_xyz[2] = 1.0 * pole
+    pole_point_xyz = (0.0, 0.0, 1.0 * pole)
+    REFERENCE_POINT_EQUATOR_XYZ = (1.0, 0.0, 0.0)
 
-    pole_point_lonlat = np.empty(2, dtype=np.float64)
-    pole_point_lonlat[0] = 0.0
-    pole_point_lonlat[1] = (math.pi / 2) * pole
-
-    REFERENCE_POINT_EQUATOR_XYZ = np.empty(3, dtype=np.float64)
-    REFERENCE_POINT_EQUATOR_XYZ[0] = 1.0
-    REFERENCE_POINT_EQUATOR_XYZ[1] = 0.0
-    REFERENCE_POINT_EQUATOR_XYZ[2] = 0.0
-
-    REFERENCE_POINT_EQUATOR_LONLAT = np.empty(2, dtype=np.float64)
-    REFERENCE_POINT_EQUATOR_LONLAT[0] = 0.0
-    REFERENCE_POINT_EQUATOR_LONLAT[1] = 0.0
-
-    # Classify the polygon's location
+    # 1: fully in North hemisphere; -1: fully in South hemisphere; 0: polygon crosses equator
     location = _classify_polygon_location(face_edges_xyz)
 
     if (location == 1 and pole == -1) or (location == -1 and pole == 1):
         return False
 
     elif location == -1 or location == 1:
-        # Initialize ref_edge_xyz
-        ref_edge_xyz = np.empty((2, 3), dtype=np.float64)
-        ref_edge_xyz[0, 0] = pole_point_xyz[0]
-        ref_edge_xyz[0, 1] = pole_point_xyz[1]
-        ref_edge_xyz[0, 2] = pole_point_xyz[2]
-        ref_edge_xyz[1, :] = REFERENCE_POINT_EQUATOR_XYZ
-
-        # Initialize ref_edge_lonlat
-        ref_edge_lonlat = np.empty((2, 2), dtype=np.float64)
-        ref_edge_lonlat[0, 0] = pole_point_lonlat[0]
-        ref_edge_lonlat[0, 1] = pole_point_lonlat[1]
-        ref_edge_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
-
+        ref_edge_xyz = (pole_point_xyz, REFERENCE_POINT_EQUATOR_XYZ)
         intersection_count = _check_intersection(ref_edge_xyz, face_edges_xyz)
         return (intersection_count % 2) != 0
 
     elif location == 0:  # Equator
-        # Initialize ref_edge_north_xyz and ref_edge_north_lonlat
-        ref_edge_north_xyz = np.empty((2, 3), dtype=np.float64)
-        ref_edge_north_xyz[0, 0] = 0.0
-        ref_edge_north_xyz[0, 1] = 0.0
-        ref_edge_north_xyz[0, 2] = 1.0
-        ref_edge_north_xyz[1, :] = REFERENCE_POINT_EQUATOR_XYZ
-
-        ref_edge_north_lonlat = np.empty((2, 2), dtype=np.float64)
-        ref_edge_north_lonlat[0, 0] = 0.0
-        ref_edge_north_lonlat[0, 1] = math.pi / 2
-        ref_edge_north_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
-
-        # Initialize ref_edge_south_xyz and ref_edge_south_lonlat
-        ref_edge_south_xyz = np.empty((2, 3), dtype=np.float64)
-        ref_edge_south_xyz[0, 0] = 0.0
-        ref_edge_south_xyz[0, 1] = 0.0
-        ref_edge_south_xyz[0, 2] = -1.0
-        ref_edge_south_xyz[1, :] = REFERENCE_POINT_EQUATOR_XYZ
-
-        ref_edge_south_lonlat = np.empty((2, 2), dtype=np.float64)
-        ref_edge_south_lonlat[0, 0] = 0.0
-        ref_edge_south_lonlat[0, 1] = -math.pi / 2
-        ref_edge_south_lonlat[1, :] = REFERENCE_POINT_EQUATOR_LONLAT
-
         # Classify edges based on z-coordinate
-        n_edges = face_edges_xyz.shape[0]
+        n_edges = len(face_edges_xyz)
         north_edges_xyz = np.empty((n_edges, 2, 3), dtype=np.float64)
-        north_edges_lonlat = np.empty((n_edges, 2, 2), dtype=np.float64)
         south_edges_xyz = np.empty((n_edges, 2, 3), dtype=np.float64)
-        south_edges_lonlat = np.empty((n_edges, 2, 2), dtype=np.float64)
         north_count = 0
         south_count = 0
 
         for i in range(n_edges):
             edge_xyz = face_edges_xyz[i]
-            edge_lonlat = face_edges_lonlat[i]
             if edge_xyz[0, 2] > 0 or edge_xyz[1, 2] > 0:
                 north_edges_xyz[north_count] = edge_xyz
-                north_edges_lonlat[north_count] = edge_lonlat
                 north_count += 1
             elif edge_xyz[0, 2] < 0 or edge_xyz[1, 2] < 0:
                 south_edges_xyz[south_count] = edge_xyz
-                south_edges_lonlat[south_count] = edge_lonlat
                 south_count += 1
             else:
                 # skip edges exactly on the equator
                 continue
 
+        north_intersections = 0
         if north_count > 0:
+            ref_edge_north_xyz = ((0.0, 0.0, 1.0), REFERENCE_POINT_EQUATOR_XYZ)
             north_edges_xyz = north_edges_xyz[:north_count]
-            north_edges_lonlat = north_edges_lonlat[:north_count]
-        else:
-            north_edges_xyz = np.empty((0, 2, 3), dtype=np.float64)
-            north_edges_lonlat = np.empty((0, 2, 2), dtype=np.float64)
+            north_intersections = _check_intersection(
+                ref_edge_north_xyz,
+                north_edges_xyz,
+            )
 
+        south_intersections = 0
         if south_count > 0:
+            ref_edge_south_xyz = ((0.0, 0.0, -1.0), REFERENCE_POINT_EQUATOR_XYZ)
             south_edges_xyz = south_edges_xyz[:south_count]
-            south_edges_lonlat = south_edges_lonlat[:south_count]
-        else:
-            south_edges_xyz = np.empty((0, 2, 3), dtype=np.float64)
-            south_edges_lonlat = np.empty((0, 2, 2), dtype=np.float64)
-
-        # Count south intersections
-        north_intersections = _check_intersection(
-            ref_edge_north_xyz,
-            north_edges_xyz,
-        )
-
-        # Count south intersections
-        south_intersections = _check_intersection(
-            ref_edge_south_xyz,
-            south_edges_xyz,
-        )
+            south_intersections = _check_intersection(
+                ref_edge_south_xyz,
+                south_edges_xyz,
+            )
 
         return ((north_intersections + south_intersections) % 2) != 0
 
@@ -887,22 +829,20 @@ def _classify_polygon_location(face_edge_cart):
 @njit(cache=True)
 def _check_intersection(ref_edge_xyz, edges_xyz):
     """Check the number of intersections of the reference edge with the given edges.
+    The reference edge's first point MUST be the North or South pole.
 
     Parameters
     ----------
-    ref_edge_xyz : np.ndarray
-        Reference edge to check intersections against. Shape: (2, 3)
-    ref_edge_lonlat : np.ndarray
-        Reference edge longitude and latitude. Shape: (2, 2)
+    ref_edge_xyz : iterable of 2 length-3 iterables
+        Reference edge to check intersections against.
+        (If numpy array, has shape (2,3). If tuple, contains two length-3 tuples.)
     edges_xyz : np.ndarray
         Edges to check for intersections. Shape: (n_edges, 2, 3)
-    edges_lonlat : np.ndarray
-        Longitude and latitude of the edges. Shape: (n_edges, 2, 2)
 
     Returns
     -------
     int
-        Count of intersections.
+        Count of intersections, or 1 if the pole lies on an edge of the polygon.
     """
     pole_point_xyz = ref_edge_xyz[0]
     n_edges = edges_xyz.shape[0]
@@ -915,26 +855,26 @@ def _check_intersection(ref_edge_xyz, edges_xyz):
     for i in range(n_edges):
         edge_xyz = edges_xyz[i]
 
-        # compute intersection
         intersections_i = gca_gca_intersection(ref_edge_xyz, edge_xyz)
+        # (Always 2 length-3 tuples; NaNs represent "no intersection point")
 
-        if math.isfinite(intersections_i[0][0]):  # at least 1 intersection point
-            if not math.isfinite(intersections_i[1][0]):  # only 1 intersection point
-                # Only one point
-                point = intersections_i[0]
-                if np.allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
-                    return True
-                intersection_points[intersection_count] = point
+        if math.isfinite(intersections_i[0][0]):
+            pointA = intersections_i[0]
+            if _numba_allclose3(pointA, pole_point_xyz, atol=ERROR_TOLERANCE):
+                return (
+                    1  # the pole intersects with this edge! Exit early, for efficiency.
+                )
+            intersection_points[intersection_count] = pointA
+            intersection_count += 1
+
+            if math.isfinite(
+                intersections_i[1][0]
+            ):  # There's a 2nd intersection point!
+                pointB = intersections_i[1]
+                if _numba_allclose3(pointB, pole_point_xyz, atol=ERROR_TOLERANCE):
+                    return 1  # the pole intersects with this edge! Exit early, for efficiency.
+                intersection_points[intersection_count] = pointB
                 intersection_count += 1
-            else:
-                # Exactly 2 points (gca_gca_intersection always gives 0, 1, or 2 intersections)
-                num_points = 2
-                for j in range(num_points):
-                    point = intersections_i[j]
-                    if np.allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
-                        return True
-                    intersection_points[intersection_count] = point
-                    intersection_count += 1
 
     if intersection_count == 0:
         return 0
@@ -1096,6 +1036,7 @@ def calculate_max_face_radius(
 ) -> float:
     n_faces, n_max_nodes = face_node_connectivity.shape
     # workspace to hold the max squared-distance for each face
+    # (this costs 1 array allocation but allows looping across faces in parallel)
     max2_per_face = np.empty(n_faces, dtype=np.float64)
 
     # parallel outer loop
@@ -1204,23 +1145,17 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
 
     # If the polygon is a triangle, we can use the `triangle_line_intersection` algorithm to calculate the weights
     if n == 3:
-        # Assign an empty array of size 3 to hold final weights
-        weights = np.zeros(3, dtype=np.float64)
-
-        # Calculate the weights
         triangle_weights = _triangle_line_intersection(
             triangle=polygon_xyz, point=point_xyz
         )
-
-        # Using the results, store the weights
-        weights[0] = 1 - triangle_weights[1] - triangle_weights[2]
-        weights[1] = triangle_weights[1]
-        weights[2] = triangle_weights[2]
+        w0 = 1 - triangle_weights[1] - triangle_weights[2]
+        w1 = triangle_weights[1]
+        w2 = triangle_weights[2]
 
         # Since all the nodes of the triangle were used, return all 3 nodes
         nodes = np.array([0, 1, 2])
 
-        return weights, nodes
+        return np.array((w0, w1, w2)), nodes
 
     # If the polygon is a quadrilateral, instead use the `newton_quadrilateral` algorithm to calculate the weights
     elif n == 4:
@@ -1261,13 +1196,21 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
             )
 
             # Get the triangle in terms of its edges for the `point_in_face` check
-            face_edge = _get_cartesian_face_edge_nodes(
-                face_idx=0,
-                face_node_connectivity=np.array([[0, 1, 2]]),
-                n_edges_per_face=np.array([3]),
-                node_x=np.array([node_0[0], node_1[0], node_2[0]], dtype=np.float64),
-                node_y=np.array([node_0[1], node_1[1], node_2[1]], dtype=np.float64),
-                node_z=np.array([node_0[2], node_1[2], node_2[2]], dtype=np.float64),
+            # (could use _get_cartesian_face_edge_nodes but that requires rewriting
+            # to node_x, node_y, node_z format, which allocates more tiny numpy arrays
+            # than necessary. Also, it's overkill for just a single triangle!
+            # So, instead, just write the full answer here, explicitly)
+
+            face_edge = np.array(
+                [
+                    [node_0[0], node_0[1], node_0[2]],
+                    [node_1[0], node_1[1], node_1[2]],
+                    [node_1[0], node_1[1], node_1[2]],
+                    [node_2[0], node_2[1], node_2[2]],
+                    [node_2[0], node_2[1], node_2[2]],
+                    [node_0[0], node_0[1], node_0[2]],
+                ],
+                dtype=np.float64,
             )
 
             # Check to see if the point lies within the current triangle
@@ -1278,30 +1221,16 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
 
             # If the point is in the current triangle, get the weights for that triangle
             if contains_point:
-                # Create an empty array of size 3 to hold weights
-                weights = np.zeros(3, dtype=np.float64)
-
-                # Create the triangle
-                triangle = np.zeros((3, 3), dtype=np.float64)
-                triangle[0] = node_0
-                triangle[1] = node_1
-                triangle[2] = node_2
-
-                # Calculate the weights
+                triangle = (node_0, node_1, node_2)
                 triangle_weights = _triangle_line_intersection(
                     triangle=triangle,
                     point=point_xyz,
                 )
-
-                # Assign the weights based off the results
-                weights[0] = 1 - triangle_weights[1] - triangle_weights[2]
-                weights[1] = triangle_weights[1]
-                weights[2] = triangle_weights[2]
-
-                # Assign the current nodes as the nodes to return
-                nodes = np.array([0, i + 1, i + 2])
-
-                return weights, nodes
+                w0 = 1 - triangle_weights[1] - triangle_weights[2]
+                w1 = triangle_weights[1]
+                w2 = triangle_weights[2]
+                nodes = np.array((0, i + 1, i + 2))
+                return np.array((w0, w1, w2)), nodes
 
         raise ValueError(
             "Point does not reside in polygon, during "
@@ -1316,12 +1245,13 @@ def _triangle_line_intersection(triangle, point, threshold=1e12):
 
     Parameters
     ----------
-    triangle: np.array
+    triangle: iterable of 3 length-3 iterables
         Cartesian coordinates for a triangle
-    point: np.array
+        (if numpy array, has shape (3,3). If tuple, contains three length-3 tuples.)
+    point: iterable of length 3
         Cartesian coordinates for a point within the triangle
-    threshold: np.array
-        Condition number threshold for warning
+    threshold: float
+        Condition number threshold for warning (currently unused)
 
     Examples
     --------
@@ -1335,43 +1265,48 @@ def _triangle_line_intersection(triangle, point, threshold=1e12):
 
     Returns
     -------
-    triangle_weights: np.array
+    triangle_weights: tuple
         The weights of each point in the triangle
     """
 
-    # triangle: shape (3, 3), point: shape (3,)
+    # triangle: 3-tuple of 3-tuples, point: 3-tuple
     node_0 = triangle[0]
     node_1 = triangle[1]
     node_2 = triangle[2]
 
     # Construct matrix for barycentric interpolation
-    v1 = node_1 - node_0
-    v2 = node_2 - node_0
-    v = point - node_0
+    v1 = _numba_sub3(node_1, node_0)
+    v2 = _numba_sub3(node_2, node_0)
+    v = _numba_sub3(point, node_0)
 
-    # Construct the matrix (columns: v1, v2, point - node_0)
-    matrix = np.column_stack((point, v1, v2))
+    # The matrix has columns (point, v1, v2); numpy equivalent would be:
+    #     matrix = np.column_stack((point, v1, v2))
+    # It is not built explicitly here; its columns are passed directly below.
 
-    # Estimate condition number (max column-sum norm)
-    conditional_number = np.sum(np.abs(matrix), axis=0)
+    # Compute rows of the adjugate of matrix (i.e., matrix_inv * det)
+    adj_0, adj_1, adj_2 = _numba_adjugate3(point, v1, v2)
 
-    # Compute inverse of matrix
-    det = np.linalg.det(matrix)
-    if np.abs(det) < 1e-12:
+    # Compute determinant of matrix
+    # numpy version: det = np.linalg.det(matrix)
+    # (point . (v1 x v2), reusing adj_0 = v1 x v2)
+    det = _numba_dot3(point, adj_0)
+    if abs(det) < 1e-12:
         # Singular matrix; return NaNs
-        return np.full(3, np.nan)
+        return (np.nan, np.nan, np.nan)
 
-    matrix_inv = np.linalg.inv(matrix)
-    matrix_inv_column_sum = np.sum(np.abs(matrix_inv), axis=0)
-    cond_est = np.max(conditional_number) * np.max(matrix_inv_column_sum)
-
-    # Check conditioning
-    if cond_est > threshold:
-        # Still continue, but you might choose to return NaNs
-        pass
+    # Compute inverse of matrix, as three rows
+    # numpy version: matrix_inv = np.linalg.inv(matrix)
+    matrix_inv_0 = _numba_div3_scalar(adj_0, det)
+    matrix_inv_1 = _numba_div3_scalar(adj_1, det)
+    matrix_inv_2 = _numba_div3_scalar(adj_2, det)
 
     # Compute triangle weights
-    triangle_weights = matrix_inv @ v
+    # numpy version: triangle_weights = matrix_inv @ v
+    triangle_weights = (
+        _numba_dot3(matrix_inv_0, v),
+        _numba_dot3(matrix_inv_1, v),
+        _numba_dot3(matrix_inv_2, v),
+    )
 
     return triangle_weights
 

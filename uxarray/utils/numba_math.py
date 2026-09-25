@@ -114,6 +114,22 @@ def _numba_cross3(u, v):
     return (cx, cy, cz)
 
 
+# ------- matrix arithmetic ------- #
+
+
+@njit(cache=True)
+def _numba_adjugate3(a, b, c):
+    """adjugate of the 3x3 matrix with columns a, b, c, returned as its three rows.
+
+    The inverse is adj / det, where det = _numba_dot3(a, rows[0]).
+
+    Returns
+    -------
+    (b x c, c x a, a x b)
+    """
+    return _numba_cross3(b, c), _numba_cross3(c, a), _numba_cross3(a, b)
+
+
 # ------- convenience functions / helpers ------- #
 
 
@@ -124,3 +140,13 @@ def _numba_allfinite3(u):
         int(math.isfinite(u[0])) * int(math.isfinite(u[1])) * int(math.isfinite(u[2]))
     )
     # (use `*` instead of `and` to avoid branching logic)
+
+
+@njit(cache=True)
+def _numba_allclose3(u, v, rtol=1e-05, atol=1e-08):
+    """Return (as 1 or 0) whether all components of two 3-vectors are close to each other."""
+    return (
+        int(np.isclose(u[0], v[0], rtol=rtol, atol=atol))
+        * int(np.isclose(u[1], v[1], rtol=rtol, atol=atol))
+        * int(np.isclose(u[2], v[2], rtol=rtol, atol=atol))
+    )
