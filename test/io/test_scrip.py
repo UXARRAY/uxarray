@@ -281,6 +281,44 @@ def test_scrip_dedup_merges_nan_corners():
         nt.assert_array_equal(unq_lat[inv], lat)
 
 
+def test_scrip_open_with_one_corner_variable_in_memory(gridpath):
+    """A chunked Dataset whose corner_lat is already in memory must open like the
+    eager path. map_blocks passes a non-dask argument whole to every block,
+    so without matching chunks each lon block was paired with the wrong
+    latitudes.
+    """
+    grid_file = gridpath("scrip", "outCSne8", "outCSne8.nc")
+    grid_eager = ux.open_grid(grid_file)
+
+    ds = xr.open_dataset(grid_file, chunks={"grid_size": 50})
+    # only corner_lat in memory; corner_lon stays dask-backed
+    ds["grid_corner_lat"].load()
+    grid_mixed = ux.open_grid(ds)
+
+    fnc_eager = grid_eager.face_node_connectivity.values
+    fnc_mixed = grid_mixed.face_node_connectivity.values
+    nt.assert_allclose(
+        grid_eager.node_lon.values[fnc_eager], grid_mixed.node_lon.values[fnc_mixed]
+    )
+    nt.assert_allclose(
+        grid_eager.node_lat.values[fnc_eager], grid_mixed.node_lat.values[fnc_mixed]
+    )
+
+
+@pytest.mark.parametrize("chunks", [None, {"grid_size": 10}], ids=["eager", "dask"])
+def test_scrip_open_empty_grid(gridpath, chunks):
+    """A SCRIP grid with no faces opens as an empty mesh on both paths."""
+    ds = xr.open_dataset(gridpath("scrip", "outCSne8", "outCSne8.nc"))
+    ds = ds.isel(grid_size=slice(0, 0))
+    if chunks is not None:
+        ds = ds.chunk(chunks)
+
+    grid = ux.open_grid(ds)
+
+    assert grid.n_face == 0
+    assert grid.n_node == 0
+
+
 def test_scrip_dask_dedup_passes_shuffle_method_explicitly(monkeypatch):
     """dask's drop_duplicates swaps a "disk" *default* shuffle for "tasks",
     including one set through dask.config, so the method only takes effect

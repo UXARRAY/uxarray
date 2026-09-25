@@ -83,6 +83,11 @@ def _dedup_scrip_nodes_eager(corner_lon, corner_lat):
     # avoids. Sorting there measured *worse* -- 191 GiB against 118 GiB on the
     # 3.6-billion-row table -- because lexsort must materialize what the
     # shuffle deliberately streams.
+    if corner_lon.shape[0] == 0:
+        # A grid with no faces (e.g. an empty sub-grid of a multi-grid file)
+        # has no nodes; the run detection below needs a first element.
+        return corner_lon[:0], corner_lat[:0], np.empty(0, dtype=INT_DTYPE)
+
     order = np.lexsort((corner_lat, corner_lon))
     sorted_lon = corner_lon[order]
     sorted_lat = corner_lat[order]
@@ -344,11 +349,23 @@ def _to_ugrid(in_ds, out_ds):
         # importing it at module load noticeably slows ``import uxarray``.
         import dask.array as dask_array
 
-        if isinstance(corner_lat_raw, dask_array.Array) or isinstance(
-            corner_lon_raw, dask_array.Array
-        ):
+        lat_lazy = isinstance(corner_lat_raw, dask_array.Array)
+        lon_lazy = isinstance(corner_lon_raw, dask_array.Array)
+        if lat_lazy or lon_lazy:
             # Lazily opened (chunks= was passed to open_grid): dedup without
-            # ever materializing the full corner table.
+            # ever materializing the full corner table. One variable can
+            # already be in memory (e.g. a Dataset whose corner_lat was
+            # .load()ed); give it the other's chunks, or map_blocks would pass
+            # it whole to every block and pair corners with the wrong
+            # latitudes.
+            if not lat_lazy:
+                corner_lat_raw = dask_array.from_array(
+                    corner_lat_raw, chunks=corner_lon_raw.chunks
+                )
+            if not lon_lazy:
+                corner_lon_raw = dask_array.from_array(
+                    corner_lon_raw, chunks=corner_lat_raw.chunks
+                )
             unq_lon, unq_lat, unq_inv = _dedup_scrip_nodes_dask(
                 corner_lon_raw, corner_lat_raw
             )
