@@ -1,10 +1,11 @@
-import threading
+import enum
+import math
 import warnings
 from typing import Callable
 
 import numpy as np
 import xarray as xr
-from numba import guvectorize, njit
+from numba import njit, prange
 from numpy import deg2rad
 
 from uxarray.constants import (
@@ -1194,59 +1195,35 @@ def _get_element_coords(grid, data_mapping: str, coordinate_system: str):
 
 # A neighborhood reduction is a segmented reduction over a ragged (CSR-like)
 # neighbor structure: elementwise in every dimension except the grid axis,
-# which it reduces over. That is exactly a generalized ufunc signature, so the
-# kernels below declare the grid axis as a core dimension. Two consequences
-# fall out of stating it that way:
+# which it reduces over. ``Neighborhood._apply`` hands the kernels below one
+# NumPy block at a time with the grid axis last, flattened to ``(rows, grid)``,
+# and declares the grid axis a *core* dimension to ``apply_ufunc``, so that
 #
 #   * dask can parallelize over the remaining (chunked) dimensions on its own,
 #     so the filter stays lazy instead of materializing the whole array, and
-#   * the grid axis is a *core* dimension, so dask refuses to split it rather
-#     than silently handing a kernel a block the neighbor indices overrun.
+#   * dask refuses to split the grid axis rather than silently handing a
+#     kernel a block the neighbor indices overrun.
 #
-# ``(n)`` is the source grid axis, ``(k)`` the flattened neighbor index array,
-# and ``(m)`` the destination axis. Output is float64 regardless of input
-# dtype, matching the behaviour of the generic path below.
-_GUFUNC_SIGNATURES = [
-    "void(float64[:], int64[:], int64[:], int64[:], float64, float64[:])",
-    "void(float32[:], int64[:], int64[:], int64[:], float64, float64[:])",
-]
-_GUFUNC_LAYOUT = "(n),(k),(m),(m),()->(m)"
-_GUFUNC_KWARGS = {"nopython": True, "cache": True, "target": "parallel"}
-
-
-class _LazyKernel:
-    """Compiles ``impl`` into a gufunc on first access, once per process.
-
-    ``impl`` must stay a module-level function, for two reasons: 1) ``guvectorize``
-    compiles at decoration, so building one at module scope would compile during
-    ``import uxarray``, spawning numba's thread pool and making forks unsafe
-    (``test_no_numba_kernels_built_on_import`` guards this); 2) numba keys its
-    cache on a hash of the closure, where a ``Dispatcher`` serializes with a
-    per-process ``uuid4``, so a body capturing its reducer hashes differently in
-    every process. Holding the gufunc on the descriptor
-     rather than the instance keeps the throwaway ``Neighborhood``
-    that ``Grid.neighborhood()`` returns from recompiling, and the explicit lock
-    is why this is not a ``functools.cached_property``, which holds none --
-    though in practice ``_apply_kernel`` resolves the attribute on the calling
-    thread, so the kernel is built before any dask task runs rather than raced
-    for inside of one.
-    """
-
-    def __init__(self, impl):
-        self._impl = impl
-        self._lock = threading.Lock()
-        self._kernel = None
-
-    def __get__(self, obj, objtype=None):
-        kernel = self._kernel
-        if kernel is None:
-            with self._lock:
-                if self._kernel is None:
-                    self._kernel = guvectorize(
-                        _GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS
-                    )(self._impl)
-                kernel = self._kernel
-        return kernel
+# The kernels are plain ``njit`` functions rather than ``guvectorize`` gufuncs,
+# for two reasons that both surfaced as hard crashes:
+#
+#   * numba caches a gufunc as two separate entries, the kernel and its
+#     ``guf-`` wrapper, each embedding the kernel's symbol name, which carries
+#     a per-process counter. Two processes compiling at once on a cold cache
+#     can leave one entry from each, after which every process that loads
+#     them aborts in LLVM with "Symbol not found". An ``njit`` cache entry is
+#     one self-contained library, so it has no second entry to disagree with.
+#   * a ``target="parallel"`` gufunc launches numba's threading layer on every
+#     call, and the ``workqueue`` layer -- numba's fallback when neither TBB
+#     nor OpenMP is available -- aborts the process when dask worker threads
+#     launch it concurrently. Dask-backed blocks therefore run the serial
+#     kernel, dask having already parallelized over chunks, and only in-memory
+#     arrays run the ``prange`` kernel.
+#
+# ``njit`` compiles on first call, so ``import uxarray`` builds nothing
+# (``test_no_numba_kernels_built_on_import`` guards this), and the dispatcher
+# compiles under numba's global compiler lock, so dask threads reaching an
+# uncompiled kernel together still compile it once.
 
 
 @njit(cache=True)
@@ -1266,39 +1243,6 @@ def _gather(data, flat, start, count, buffer):
         buffer[j] = data[flat[start + j]]
 
 
-# Reducers take ``(window, param)``; those without a parameter ignore the
-# second argument. Each is a module-level ``njit`` so the bodies below reach it
-# as a global rather than closing over it -- see ``_LazyKernel``.
-@njit(cache=True)
-def _mean(window, _):
-    return np.mean(window)
-
-
-@njit(cache=True)
-def _sum(window, _):
-    return np.sum(window)
-
-
-@njit(cache=True)
-def _min(window, _):
-    return np.min(window)
-
-
-@njit(cache=True)
-def _max(window, _):
-    return np.max(window)
-
-
-@njit(cache=True)
-def _ptp(window, _):
-    return np.max(window) - np.min(window)
-
-
-@njit(cache=True)
-def _quantile(window, q):
-    return np.quantile(window, q)
-
-
 @njit(cache=True)
 def _variance(window, ddof):
     """Variance with a delta degrees of freedom. Numba's ``np.var`` takes no
@@ -1314,12 +1258,7 @@ def _variance(window, ddof):
 
 
 @njit(cache=True)
-def _std(window, ddof):
-    return np.sqrt(_variance(window, ddof))
-
-
-@njit(cache=True)
-def _median(window, _):
+def _median(window):
     """numba's ``np.median`` selects by partitioning, and whether a NaN survives
     that depends on where it lands -- so unlike numpy's, it propagates NaN
     only sometimes. This spelling short-circuits and allocates nothing:
@@ -1331,111 +1270,77 @@ def _median(window, _):
             return np.nan
     return np.median(window)
 
+# Awkward, but needed to get around numba's caching mechanics.
+class _Reduction(enum.IntEnum):
+    """The compiled reductions, as the codes ``_reduce_window`` dispatches on.
 
-# One kernel body per reduction, spelled out because each must be a module-level
-# function with no closure (see ``_LazyKernel``). Deduplicating them into one
-# body taking the reducer as an argument makes it a dynamic global, which numba
-# refuses to cache at all, so only the gather is shared and the bodies differ
-# just in the reducer named on the last line.
+    A kernel cannot take its reducer as an argument instead: numba then treats
+    the reducer as a dynamic global and refuses to cache the kernel at all.
+    """
+
+    MEAN = enum.auto()
+    SUM = enum.auto()
+    MIN = enum.auto()
+    MAX = enum.auto()
+    PTP = enum.auto()
+    MEDIAN = enum.auto()
+    VAR = enum.auto()
+    STD = enum.auto()
+    QUANTILE = enum.auto()
 
 
-def _mean_impl(data, flat, starts, counts, param, out):
-    buffer = np.empty(_widest(counts), dtype=np.float64)
+@njit(cache=True)
+def _reduce_window(window, op, param):
+    """Reduces one gathered neighborhood. ``param`` is ``ddof`` for ``VAR`` and
+    ``STD``, the 0-1 fraction for ``QUANTILE``, and unused otherwise."""
+    if op == _Reduction.MEAN:
+        return np.mean(window)
+    if op == _Reduction.SUM:
+        return np.sum(window)
+    if op == _Reduction.MIN:
+        return np.min(window)
+    if op == _Reduction.MAX:
+        return np.max(window)
+    if op == _Reduction.PTP:
+        return np.max(window) - np.min(window)
+    if op == _Reduction.MEDIAN:
+        return _median(window)
+    if op == _Reduction.VAR:
+        return _variance(window, param)
+    if op == _Reduction.STD:
+        return np.sqrt(_variance(window, param))
+    if op == _Reduction.QUANTILE:
+        return np.quantile(window, param)
+    return np.nan
+
+
+@njit(cache=True)
+def _reduce_row(data, flat, starts, counts, op, param, out, buffer):
+    """Reduces every neighborhood of the 1-D ``data`` into ``out``."""
     for i in range(starts.shape[0]):
         count = counts[i]
         if count == 0:
             out[i] = np.nan
             continue
         _gather(data, flat, starts[i], count, buffer)
-        out[i] = _mean(buffer[:count], param)
+        out[i] = _reduce_window(buffer[:count], op, param)
 
 
-def _sum_impl(data, flat, starts, counts, param, out):
+@njit(cache=True, nogil=True)
+def _reduce_rows(data, flat, starts, counts, op, param, out):
+    """Reduces each row of the 2-D ``data`` in turn, for dask-backed blocks."""
     buffer = np.empty(_widest(counts), dtype=np.float64)
-    for i in range(starts.shape[0]):
-        count = counts[i]
-        if count == 0:
-            out[i] = np.nan
-            continue
-        _gather(data, flat, starts[i], count, buffer)
-        out[i] = _sum(buffer[:count], param)
+    for r in range(data.shape[0]):
+        _reduce_row(data[r], flat, starts, counts, op, param, out[r], buffer)
 
 
-def _min_impl(data, flat, starts, counts, param, out):
-    buffer = np.empty(_widest(counts), dtype=np.float64)
-    for i in range(starts.shape[0]):
-        count = counts[i]
-        if count == 0:
-            out[i] = np.nan
-            continue
-        _gather(data, flat, starts[i], count, buffer)
-        out[i] = _min(buffer[:count], param)
-
-
-def _max_impl(data, flat, starts, counts, param, out):
-    buffer = np.empty(_widest(counts), dtype=np.float64)
-    for i in range(starts.shape[0]):
-        count = counts[i]
-        if count == 0:
-            out[i] = np.nan
-            continue
-        _gather(data, flat, starts[i], count, buffer)
-        out[i] = _max(buffer[:count], param)
-
-
-def _ptp_impl(data, flat, starts, counts, param, out):
-    buffer = np.empty(_widest(counts), dtype=np.float64)
-    for i in range(starts.shape[0]):
-        count = counts[i]
-        if count == 0:
-            out[i] = np.nan
-            continue
-        _gather(data, flat, starts[i], count, buffer)
-        out[i] = _ptp(buffer[:count], param)
-
-
-def _median_impl(data, flat, starts, counts, param, out):
-    buffer = np.empty(_widest(counts), dtype=np.float64)
-    for i in range(starts.shape[0]):
-        count = counts[i]
-        if count == 0:
-            out[i] = np.nan
-            continue
-        _gather(data, flat, starts[i], count, buffer)
-        out[i] = _median(buffer[:count], param)
-
-
-def _variance_impl(data, flat, starts, counts, param, out):
-    buffer = np.empty(_widest(counts), dtype=np.float64)
-    for i in range(starts.shape[0]):
-        count = counts[i]
-        if count == 0:
-            out[i] = np.nan
-            continue
-        _gather(data, flat, starts[i], count, buffer)
-        out[i] = _variance(buffer[:count], param)
-
-
-def _std_impl(data, flat, starts, counts, param, out):
-    buffer = np.empty(_widest(counts), dtype=np.float64)
-    for i in range(starts.shape[0]):
-        count = counts[i]
-        if count == 0:
-            out[i] = np.nan
-            continue
-        _gather(data, flat, starts[i], count, buffer)
-        out[i] = _std(buffer[:count], param)
-
-
-def _quantile_impl(data, flat, starts, counts, param, out):
-    buffer = np.empty(_widest(counts), dtype=np.float64)
-    for i in range(starts.shape[0]):
-        count = counts[i]
-        if count == 0:
-            out[i] = np.nan
-            continue
-        _gather(data, flat, starts[i], count, buffer)
-        out[i] = _quantile(buffer[:count], param)
+@njit(cache=True, nogil=True, parallel=True)
+def _reduce_rows_parallel(data, flat, starts, counts, op, param, out):
+    """Reduces the rows of the 2-D ``data`` in parallel, for in-memory arrays."""
+    widest = _widest(counts)
+    for r in prange(data.shape[0]):
+        buffer = np.empty(widest, dtype=np.float64)
+        _reduce_row(data[r], flat, starts, counts, op, param, out[r], buffer)
 
 
 def _as_quantile(q, scale: float):
@@ -1648,70 +1553,53 @@ class Neighborhood:
             f"neighbors_per_element=[{self._counts.min()}, {self._counts.max()}]>"
         )
 
-    # One compiled kernel per reduction. The methods below call into these
-    # directly. Non-compiled functions are only provided hooks through
-    # ``reduce``. If new compiled reductions are desired, they should follow
-    # this pattern.
-    #
-    # Built on first access, so the import compiles nothing and an unused
-    # reduction is never compiled at all. No ``staticmethod`` is needed: a
-    # descriptor hands back the gufunc itself, so ``self`` is never bound as the
-    # kernel's first argument.
-
-    _mean_kernel = _LazyKernel(_mean_impl)
-    _sum_kernel = _LazyKernel(_sum_impl)
-    _min_kernel = _LazyKernel(_min_impl)
-    _max_kernel = _LazyKernel(_max_impl)
-    _ptp_kernel = _LazyKernel(_ptp_impl)
-    _median_kernel = _LazyKernel(_median_impl)
-    _var_kernel = _LazyKernel(_variance_impl)
-    _std_kernel = _LazyKernel(_std_impl)
-
-    # ``percentile`` is ``quantile`` on a 0-100 scale, so both methods
-    # rescale onto this one kernel rather than compiling a near-duplicate.
-    _quantile_kernel = _LazyKernel(_quantile_impl)
+    # Each compiled reduction is a ``_Reduction`` member, which the methods
+    # below pass to ``_apply_kernel``. Non-compiled functions are only provided
+    # hooks through ``reduce``. A new compiled reduction needs a member and a
+    # branch in ``_reduce_window``. ``percentile`` is ``quantile`` on a 0-100
+    # scale, so both rescale onto ``_Reduction.QUANTILE``.
 
     def mean(self, uxda):
         """Mean of each neighborhood."""
-        return self._apply_kernel(uxda, self._mean_kernel, 0.0)
+        return self._apply_kernel(uxda, _Reduction.MEAN, 0.0)
 
     def sum(self, uxda):
         """Sum of each neighborhood."""
-        return self._apply_kernel(uxda, self._sum_kernel, 0.0)
+        return self._apply_kernel(uxda, _Reduction.SUM, 0.0)
 
     def min(self, uxda):
         """Smallest value in each neighborhood."""
-        return self._apply_kernel(uxda, self._min_kernel, 0.0)
+        return self._apply_kernel(uxda, _Reduction.MIN, 0.0)
 
     def max(self, uxda):
         """Largest value in each neighborhood."""
-        return self._apply_kernel(uxda, self._max_kernel, 0.0)
+        return self._apply_kernel(uxda, _Reduction.MAX, 0.0)
 
     def ptp(self, uxda):
         """Peak-to-peak spread (``max - min``) of each neighborhood."""
-        return self._apply_kernel(uxda, self._ptp_kernel, 0.0)
+        return self._apply_kernel(uxda, _Reduction.PTP, 0.0)
 
     def median(self, uxda):
         """Median of each neighborhood."""
-        return self._apply_kernel(uxda, self._median_kernel, 0.0)
+        return self._apply_kernel(uxda, _Reduction.MEDIAN, 0.0)
 
     def var(self, uxda, ddof: int = 0):
         """Variance of each neighborhood, with ``ddof`` delta degrees of
         freedom."""
-        return self._apply_kernel(uxda, self._var_kernel, float(ddof))
+        return self._apply_kernel(uxda, _Reduction.VAR, float(ddof))
 
     def std(self, uxda, ddof: int = 0):
         """Standard deviation of each neighborhood, with ``ddof`` delta degrees
         of freedom."""
-        return self._apply_kernel(uxda, self._std_kernel, float(ddof))
+        return self._apply_kernel(uxda, _Reduction.STD, float(ddof))
 
     def quantile(self, uxda, q: float):
         """Quantile ``q`` (between 0 and 1) of each neighborhood."""
-        return self._apply_kernel(uxda, self._quantile_kernel, _as_quantile(q, 1.0))
+        return self._apply_kernel(uxda, _Reduction.QUANTILE, _as_quantile(q, 1.0))
 
     def percentile(self, uxda, q: float):
         """Percentile ``q`` (between 0 and 100) of each neighborhood."""
-        return self._apply_kernel(uxda, self._quantile_kernel, _as_quantile(q, 100.0))
+        return self._apply_kernel(uxda, _Reduction.QUANTILE, _as_quantile(q, 100.0))
 
     def reduce(self, uxda, func: Callable):
         """Reduces each neighborhood with an arbitrary callable.
@@ -1747,16 +1635,26 @@ class Neighborhood:
 
         return self._apply(uxda, run)
 
-    def _apply_kernel(self, uxda, kernel, param: float):
-        """Runs a compiled ``kernel`` over every neighborhood."""
+    def _apply_kernel(self, uxda, op: _Reduction, param: float):
+        """Runs the compiled reduction ``op`` over every neighborhood."""
+        # A plain int: an enum member as a kernel argument costs ~170 ms of
+        # typing on every process's first call, even on a cache hit.
+        op = int(op)
+        # Dask already runs one task per chunk on its own threads, and numba's
+        # ``workqueue`` threading layer aborts if those threads launch parallel
+        # kernels concurrently, so only in-memory data takes the parallel path.
+        kernel = _reduce_rows_parallel if uxda.chunks is None else _reduce_rows
 
         def run(block, arrays):
-            # The kernels are compiled for float32/float64 only; anything
-            # else (integer fields, say) is promoted, which the generic
-            # path does too by writing into a float64 output.
+            # Floating-point input is gathered as it is; anything else
+            # (integer fields, say) is promoted, which the generic path does
+            # too by writing into a float64 output.
             if block.dtype not in (np.float64, np.float32):
                 block = block.astype(np.float64)
-            return kernel(block, *arrays, param)
+            rows = block.reshape(math.prod(block.shape[:-1]), block.shape[-1])
+            out = np.empty(rows.shape, dtype=np.float64)
+            kernel(rows, *arrays, op, param, out)
+            return out.reshape(block.shape)
 
         return self._apply(uxda, run)
 
