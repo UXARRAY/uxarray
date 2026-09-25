@@ -114,6 +114,22 @@ def _numba_cross3(u, v):
     return (cx, cy, cz)
 
 
+# ------- matrix arithmetic ------- #
+
+
+@njit(cache=True)
+def _numba_adjugate3(a, b, c):
+    """adjugate of the 3x3 matrix with columns a, b, c, returned as its three rows.
+
+    The inverse is adj / det, where det = _numba_dot3(a, rows[0]).
+
+    Returns
+    -------
+    (b x c, c x a, a x b)
+    """
+    return _numba_cross3(b, c), _numba_cross3(c, a), _numba_cross3(a, b)
+
+
 # ------- convenience functions / helpers ------- #
 
 

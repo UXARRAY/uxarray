@@ -16,7 +16,11 @@ from uxarray.grid.intersections import (
 from uxarray.grid.point_in_face import _face_contains_point
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 from uxarray.utils.numba_math import (
+    _numba_adjugate3,
     _numba_allclose3,
+    _numba_div3_scalar,
+    _numba_dot3,
+    _numba_sub3,
 )
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
@@ -1030,6 +1034,7 @@ def calculate_max_face_radius(
 ) -> float:
     n_faces, n_max_nodes = face_node_connectivity.shape
     # workspace to hold the max squared-distance for each face
+    # (this costs 1 array allocation but allows looping across faces in parallel)
     max2_per_face = np.empty(n_faces, dtype=np.float64)
 
     # parallel outer loop
@@ -1138,23 +1143,17 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
 
     # If the polygon is a triangle, we can use the `triangle_line_intersection` algorithm to calculate the weights
     if n == 3:
-        # Assign an empty array of size 3 to hold final weights
-        weights = np.zeros(3, dtype=np.float64)
-
-        # Calculate the weights
         triangle_weights = _triangle_line_intersection(
             triangle=polygon_xyz, point=point_xyz
         )
-
-        # Using the results, store the weights
-        weights[0] = 1 - triangle_weights[1] - triangle_weights[2]
-        weights[1] = triangle_weights[1]
-        weights[2] = triangle_weights[2]
+        w0 = 1 - triangle_weights[1] - triangle_weights[2]
+        w1 = triangle_weights[1]
+        w2 = triangle_weights[2]
 
         # Since all the nodes of the triangle were used, return all 3 nodes
         nodes = np.array([0, 1, 2])
 
-        return weights, nodes
+        return np.array((w0, w1, w2)), nodes
 
     # If the polygon is a quadrilateral, instead use the `newton_quadrilateral` algorithm to calculate the weights
     elif n == 4:
@@ -1212,30 +1211,16 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
 
             # If the point is in the current triangle, get the weights for that triangle
             if contains_point:
-                # Create an empty array of size 3 to hold weights
-                weights = np.zeros(3, dtype=np.float64)
-
-                # Create the triangle
-                triangle = np.zeros((3, 3), dtype=np.float64)
-                triangle[0] = node_0
-                triangle[1] = node_1
-                triangle[2] = node_2
-
-                # Calculate the weights
+                triangle = (node_0, node_1, node_2)
                 triangle_weights = _triangle_line_intersection(
                     triangle=triangle,
                     point=point_xyz,
                 )
-
-                # Assign the weights based off the results
-                weights[0] = 1 - triangle_weights[1] - triangle_weights[2]
-                weights[1] = triangle_weights[1]
-                weights[2] = triangle_weights[2]
-
-                # Assign the current nodes as the nodes to return
-                nodes = np.array([0, i + 1, i + 2])
-
-                return weights, nodes
+                w0 = 1 - triangle_weights[1] - triangle_weights[2]
+                w1 = triangle_weights[1]
+                w2 = triangle_weights[2]
+                nodes = np.array((0, i + 1, i + 2))
+                return np.array((w0, w1, w2)), nodes
 
         raise ValueError(
             "Point does not reside in polygon, during "
@@ -1250,12 +1235,13 @@ def _triangle_line_intersection(triangle, point, threshold=1e12):
 
     Parameters
     ----------
-    triangle: np.array
+    triangle: iterable of 3 length-3 iterables
         Cartesian coordinates for a triangle
-    point: np.array
+        (if numpy array, has shape (3,3). If tuple, contains three length-3 tuples.)
+    point: iterable of length 3
         Cartesian coordinates for a point within the triangle
-    threshold: np.array
-        Condition number threshold for warning
+    threshold: float
+        Condition number threshold for warning (currently unused)
 
     Examples
     --------
@@ -1269,43 +1255,48 @@ def _triangle_line_intersection(triangle, point, threshold=1e12):
 
     Returns
     -------
-    triangle_weights: np.array
+    triangle_weights: tuple
         The weights of each point in the triangle
     """
 
-    # triangle: shape (3, 3), point: shape (3,)
+    # triangle: 3-tuple of 3-tuples, point: 3-tuple
     node_0 = triangle[0]
     node_1 = triangle[1]
     node_2 = triangle[2]
 
     # Construct matrix for barycentric interpolation
-    v1 = node_1 - node_0
-    v2 = node_2 - node_0
-    v = point - node_0
+    v1 = _numba_sub3(node_1, node_0)
+    v2 = _numba_sub3(node_2, node_0)
+    v = _numba_sub3(point, node_0)
 
-    # Construct the matrix (columns: v1, v2, point - node_0)
-    matrix = np.column_stack((point, v1, v2))
+    # The matrix has columns (point, v1, v2); numpy equivalent would be:
+    #     matrix = np.column_stack((point, v1, v2))
+    # It is not built explicitly here; its columns are passed directly below.
 
-    # Estimate condition number (max column-sum norm)
-    conditional_number = np.sum(np.abs(matrix), axis=0)
+    # Compute rows of the adjugate of matrix (i.e., matrix_inv * det)
+    adj_0, adj_1, adj_2 = _numba_adjugate3(point, v1, v2)
 
-    # Compute inverse of matrix
-    det = np.linalg.det(matrix)
-    if np.abs(det) < 1e-12:
+    # Compute determinant of matrix
+    # numpy version: det = np.linalg.det(matrix)
+    # (point . (v1 x v2), reusing adj_0 = v1 x v2)
+    det = _numba_dot3(point, adj_0)
+    if abs(det) < 1e-12:
         # Singular matrix; return NaNs
-        return np.full(3, np.nan)
+        return (np.nan, np.nan, np.nan)
 
-    matrix_inv = np.linalg.inv(matrix)
-    matrix_inv_column_sum = np.sum(np.abs(matrix_inv), axis=0)
-    cond_est = np.max(conditional_number) * np.max(matrix_inv_column_sum)
-
-    # Check conditioning
-    if cond_est > threshold:
-        # Still continue, but you might choose to return NaNs
-        pass
+    # Compute inverse of matrix, as three rows
+    # numpy version: matrix_inv = np.linalg.inv(matrix)
+    matrix_inv_0 = _numba_div3_scalar(adj_0, det)
+    matrix_inv_1 = _numba_div3_scalar(adj_1, det)
+    matrix_inv_2 = _numba_div3_scalar(adj_2, det)
 
     # Compute triangle weights
-    triangle_weights = matrix_inv @ v
+    # numpy version: triangle_weights = matrix_inv @ v
+    triangle_weights = (
+        _numba_dot3(matrix_inv_0, v),
+        _numba_dot3(matrix_inv_1, v),
+        _numba_dot3(matrix_inv_2, v),
+    )
 
     return triangle_weights
 
