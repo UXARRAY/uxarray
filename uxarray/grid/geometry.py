@@ -9,12 +9,11 @@ from uxarray.constants import (
     INT_FILL_VALUE,
     MACHINE_EPSILON,
 )
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
 from uxarray.grid.point_in_face import _face_contains_point
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 from uxarray.utils.numba_math import (
     _numba_adjugate3,
     _numba_allclose3,
@@ -22,7 +21,6 @@ from uxarray.utils.numba_math import (
     _numba_dot3,
     _numba_sub3,
 )
-from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 POLE_POINTS_XYZ = {
     "North": np.array([0.0, 0.0, 1.0]),
@@ -863,11 +861,15 @@ def _check_intersection(ref_edge_xyz, edges_xyz):
         if math.isfinite(intersections_i[0][0]):
             pointA = intersections_i[0]
             if _numba_allclose3(pointA, pole_point_xyz, atol=ERROR_TOLERANCE):
-                return 1  # the pole intersects with this edge! Exit early, for efficiency.
+                return (
+                    1  # the pole intersects with this edge! Exit early, for efficiency.
+                )
             intersection_points[intersection_count] = pointA
             intersection_count += 1
 
-            if math.isfinite(intersections_i[1][0]):  # There's a 2nd intersection point!
+            if math.isfinite(
+                intersections_i[1][0]
+            ):  # There's a 2nd intersection point!
                 pointB = intersections_i[1]
                 if _numba_allclose3(pointB, pole_point_xyz, atol=ERROR_TOLERANCE):
                     return 1  # the pole intersects with this edge! Exit early, for efficiency.
@@ -1199,11 +1201,17 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
             # than necessary. Also, it's overkill for just a single triangle!
             # So, instead, just write the full answer here, explicitly)
 
-            face_edge = np.array([
-                [node_0[0], node_0[1], node_0[2]], [node_1[0], node_1[1], node_1[2]],
-                [node_1[0], node_1[1], node_1[2]], [node_2[0], node_2[1], node_2[2]],
-                [node_2[0], node_2[1], node_2[2]], [node_0[0], node_0[1], node_0[2]],
-            ], dtype=np.float64)
+            face_edge = np.array(
+                [
+                    [node_0[0], node_0[1], node_0[2]],
+                    [node_1[0], node_1[1], node_1[2]],
+                    [node_1[0], node_1[1], node_1[2]],
+                    [node_2[0], node_2[1], node_2[2]],
+                    [node_2[0], node_2[1], node_2[2]],
+                    [node_0[0], node_0[1], node_0[2]],
+                ],
+                dtype=np.float64,
+            )
 
             # Check to see if the point lies within the current triangle
             contains_point = _face_contains_point(
