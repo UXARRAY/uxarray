@@ -95,6 +95,18 @@ def _dedup_scrip_nodes_eager(corner_lon, corner_lat):
         sorted_lat[1:] != sorted_lat[:-1],
         out=is_new[1:],
     )
+    # NaN != NaN, so the comparison above makes every NaN corner (a decoded
+    # _FillValue) its own node. Treat NaN as equal to NaN, as the dask path
+    # does.
+    if np.isnan(sorted_lon[-1]) or np.isnan(np.min(sorted_lat)):
+        same_lon = (sorted_lon[1:] == sorted_lon[:-1]) | (
+            np.isnan(sorted_lon[1:]) & np.isnan(sorted_lon[:-1])
+        )
+        same_lat = (sorted_lat[1:] == sorted_lat[:-1]) | (
+            np.isnan(sorted_lat[1:]) & np.isnan(sorted_lat[:-1])
+        )
+        np.logical_not(same_lon & same_lat, out=is_new[1:])
+        del same_lon, same_lat
 
     unq_lon = sorted_lon[is_new]
     unq_lat = sorted_lat[is_new]

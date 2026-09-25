@@ -13,6 +13,7 @@ from uxarray.constants import INT_DTYPE
 from uxarray.errors import GridInvalidError
 from uxarray.io._scrip import (
     _dedup_scrip_nodes_dask,
+    _dedup_scrip_nodes_eager,
     _detect_multigrid,
     _lookup_node_ids,
 )
@@ -255,6 +256,29 @@ def test_lookup_node_ids_rejects_a_corner_it_cannot_find():
 
     with pytest.raises(GridInvalidError, match="absent from the unique-node table"):
         _lookup_node_ids(np.array([15.0]), np.array([1.5]), (unq_lon, unq_lat))
+
+
+def test_scrip_dedup_merges_nan_corners():
+    """Corners decoded from a ``_FillValue`` are NaN, and NaN != NaN, so a
+    naive comparison would make every one its own node. Both paths must merge
+    equal pairs into one node, or the same file gets a different mesh
+    depending on whether chunks= was passed.
+    """
+    lon = np.array([0.0, 10.0, np.nan, np.nan, 10.0, np.nan, np.nan, np.nan])
+    lat = np.array([0.0, 5.0, np.nan, np.nan, 5.0, np.nan, 1.0, 1.0])
+    # unique pairs: (0, 0), (10, 5), (nan, nan), (nan, 1)
+
+    eager = _dedup_scrip_nodes_eager(lon, lat)
+    lazy = _dedup_scrip_nodes_dask(
+        da.from_array(lon, chunks=3), da.from_array(lat, chunks=3)
+    )
+
+    for unq_lon, unq_lat, inv in (eager, lazy):
+        inv = np.asarray(inv)
+        assert len(unq_lon) == 4
+        # every corner maps back to its own coordinates (NaN == NaN here)
+        nt.assert_array_equal(unq_lon[inv], lon)
+        nt.assert_array_equal(unq_lat[inv], lat)
 
 
 def test_scrip_dask_dedup_passes_shuffle_method_explicitly(monkeypatch):
