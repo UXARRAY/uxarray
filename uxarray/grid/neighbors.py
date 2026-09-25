@@ -1270,6 +1270,7 @@ def _median(window):
             return np.nan
     return np.median(window)
 
+
 # Awkward, but needed to get around numba's caching mechanics.
 class _Reduction(enum.IntEnum):
     """The compiled reductions, as the codes ``_reduce_window`` dispatches on.
