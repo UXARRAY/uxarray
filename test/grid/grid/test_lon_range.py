@@ -1,13 +1,7 @@
-"""Guards on the [-180, 180] longitude wrap.
+"""Tests for the elementwise longitude wrap in ``_set_desired_longitude_range``.
 
-``_set_desired_longitude_range`` used to decide whether to wrap by asking
-``lon.max() > 180``. On a dask-backed grid that reduction is a compute, and
-``Grid.__init__`` calls it, so opening a grid pulled its longitude
-coordinates into memory. The wrap is now elementwise.
-
-Two things have to hold for that to be an improvement rather than a trade:
-the construction must stay lazy, and repeated calls must not pile ``where``
-layers onto the graph -- ``edge_lat`` invokes it on every property access.
+It must stay lazy on dask-backed grids and must not grow the graph when called
+repeatedly.
 """
 
 import numpy as np
@@ -45,12 +39,7 @@ def _shim(values, name="node_lon", **attrs):
 
 
 def test_wrap_is_elementwise_and_leaves_in_range_values_exact():
-    """Outside [-180, 180] wraps; inside is passed through bit-for-bit.
-
-    The old whole-array form perturbed in-range longitudes by up to ~3e-14
-    degrees, because ``(lon + 180) - 180`` does not round-trip exactly. The
-    assertion here is ``assert_array_equal``, not ``allclose``, on purpose.
-    """
+    """Outside [-180, 180] wraps; inside passes through bit-for-bit."""
     rng = np.random.default_rng(0)
     values = np.concatenate(
         [rng.uniform(0.0, 180.0, 500), rng.uniform(180.0, 360.0, 500)]
@@ -69,14 +58,10 @@ def test_wrap_is_elementwise_and_leaves_in_range_values_exact():
 
 
 def test_both_endpoints_of_the_antimeridian_are_left_alone():
-    """180.0 stays 180.0 and -180.0 stays -180.0, however the array looks.
+    """180.0 and -180.0 are both kept, whatever else the array holds.
 
-    Not a detail. ``antimeridian_face_indices`` reads a face as crossing from
-    the span of its longitudes, so a face with one vertex at exactly 180 and
-    the rest near -170 is only visible while that vertex reads as 180 -- fold
-    it to -180 and the span drops from 350 to 10. Under the old reduction the
-    endpoint survived only by accident: an array whose maximum was exactly
-    180 was not wrapped at all, so nothing touched it.
+    ``antimeridian_face_indices`` detects a crossing from a face's longitude span,
+    which folding 180 to -180 would collapse.
     """
     for companion in (10.0, 270.0, -170.0):
         grid = _shim(np.array([180.0, companion]))
@@ -89,12 +74,7 @@ def test_both_endpoints_of_the_antimeridian_are_left_alone():
 
 
 def test_wrap_normalizes_both_tails_and_is_idempotent():
-    """One pass lands everything in [-180, 180); a second pass changes nothing.
-
-    Both tails matter. The reduction tested ``lon.max() > 180``, so it reached
-    longitudes below -180 only when the same array happened to hold one above
-    180, and left them alone otherwise.
-    """
+    """One pass lands everything in [-180, 180], below -180 too; a second is a no-op."""
     rng = np.random.default_rng(1)
     grid = _shim(rng.uniform(-720.0, 720.0, 1000))
 
@@ -127,12 +107,7 @@ def test_nan_longitudes_survive_the_wrap():
 
 
 def test_open_grid_does_not_compute_longitudes(gridpath):
-    """The regression this change exists to fix.
-
-    Counts every dask execution during ``open_grid``, then asserts the wrap
-    contributed none of them by re-running the wrap on the constructed grid
-    under its own counter.
-    """
+    """The wrap runs no dask compute on a chunked grid, the regression fixed here."""
     path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
 
     grid = ux.open_grid(path, chunks={"n_node": 1000})
@@ -145,12 +120,7 @@ def test_open_grid_does_not_compute_longitudes(gridpath):
 
 
 def test_repeated_calls_do_not_grow_the_graph(gridpath):
-    """``edge_lat`` calls the wrap on every access, outside its populate guard.
-
-    Without the memo, an unconditional elementwise wrap would add a ``where``
-    layer per call -- lazy, so nothing would fail, just an ever-deepening
-    graph.
-    """
+    """Repeated calls, as ``edge_lat`` makes, add no ``where`` layers to the graph."""
     path = gridpath("ugrid", "outCSne30", "outCSne30.ug")
     grid = ux.open_grid(path, chunks={"n_node": 1000})
 
@@ -173,12 +143,7 @@ def test_memo_reopens_when_the_variable_is_replaced(gridpath):
 
 
 def test_eager_fast_path_agrees_with_the_where_element_for_element():
-    """The in-memory guard must be a pure optimization.
-
-    ``_lon_within_range`` lets the eager path skip the wrap entirely. That is
-    only sound if the wrap would have been the identity, so the two are
-    compared directly rather than the skip being assumed correct.
-    """
+    """The in-memory guard must give exactly what the unguarded ``where`` gives."""
     rng = np.random.default_rng(2)
     cases = {
         "strictly inside": rng.uniform(-179.0, 179.0, 500),
@@ -201,11 +166,7 @@ def test_eager_fast_path_agrees_with_the_where_element_for_element():
 
 
 def test_guard_is_skipped_for_dask_backed_arrays(gridpath):
-    """The guard is two reductions, which is exactly what must not run lazily.
-
-    ``test_open_grid_does_not_compute_longitudes`` would catch this too, but
-    only as a compute count; this names the reason.
-    """
+    """``_lon_within_range`` computes on dask, so the wrap only runs it eagerly."""
     grid = ux.open_grid(
         gridpath("ugrid", "outCSne30", "outCSne30.ug"), chunks={"n_node": 1000}
     )

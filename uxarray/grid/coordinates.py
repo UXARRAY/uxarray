@@ -725,24 +725,11 @@ def _is_projected_grid(uxgrid) -> bool:
 
 
 def _lon_within_range(da) -> bool:
-    """Whether every element of ``da`` already lies in [-180, 180].
+    """Whether all of ``da`` lies in [-180, 180], making the wrap the identity.
 
-    A guard, not a decision. When this is true the wrap below is the identity
-    on every element, so skipping it cannot change a value.
-
-    It exists to keep the eager path off the ``where``. The wrap has to be
-    elementwise to stay out of a dask compute, but elementwise costs a pass
-    plus ~18 bytes per node of temporaries -- two bool masks, the arithmetic,
-    the result -- where a reduction costs a pass and allocates nothing. On an
-    array that is already in range, measured at 4M nodes, that is 20.9ms and
-    72 MB to hand back the input unchanged, against 4.6ms and nothing.
-    Reductions are what made the old code compute, so this one is allowed
-    only where there is nothing to defer: ``da.chunks is None``. A
-    dask-backed array skips it and goes straight to the ``where``.
-
-    ``and`` short-circuits, so an array that does need wrapping usually pays
-    a single ``max`` -- the same reduction the old code paid -- before
-    falling through.
+    Lets in-memory arrays skip the elementwise wrap, which costs ~5x a reduction
+    plus ~18 bytes per node of temporaries. Only call it when ``da.chunks is
+    None``: on a dask array these reductions are the compute being avoided.
     """
     return bool(da.max() <= 180 and da.min() >= -180)
 
@@ -750,45 +737,11 @@ def _lon_within_range(da) -> bool:
 def _set_desired_longitude_range(uxgrid):
     """Sets the longitude range to [-180, 180] for all longitude variables.
 
-    The wrap is elementwise rather than guarded by ``lon.max() > 180``. The
-    guard was a reduction, and a reduction on a dask-backed coordinate is a
-    compute -- so ``Grid.__init__``, which calls this, pulled every longitude
-    array into memory before the caller had asked for anything. The
-    elementwise form stays in the graph and splits over chunks.
-
-    On the elements that need wrapping the two are bit-identical -- same
-    expression, same order. They differ on the elements that do not: the
-    reduction ran ``(lon + 180) % 360 - 180`` over the whole array once any
-    value exceeded 180, and that round-trip is not exact, so it perturbed
-    in-range longitudes by up to ~3e-14 degrees. ``xr.where`` passes those
-    through untouched.
-
-    An element is wrapped when it falls outside [-180, 180] on *either* side.
-    The negative half of that predicate is what the reduction was missing: it
-    tested the maximum alone, so a longitude below -180 was normalized only
-    when the same array happened to also hold one above 180, and was left
-    where it was otherwise.
-
-    Both endpoints are kept, rather than folding 180.0 onto -180.0 for a
-    half-open [-180, 180). ``_xyz_to_lonlat_deg`` does produce the half-open
-    interval, so a grid reloaded through Cartesian coordinates disagrees with
-    its original at a node sitting exactly on the antimeridian -- but that
-    node is the *point* of ``antimeridian_face_indices``, which reads a face
-    as crossing from the span of its longitudes. Folding 180.0 to -180.0
-    collapses the span of a face that touches the antimeridian from the west
-    and hides it. The round-trip comparison is the cheaper of the two to make
-    periodic, and the Exodus tests do that.
-
-    None of that applies to a grid whose coordinates are already in memory --
-    there was never a compute to defer there, only a scan -- and elementwise
-    is the slower shape for it. ``_lon_within_range`` keeps the eager path off
-    the ``where`` when the wrap would be the identity anyway.
-
-    Each variable is wrapped at most once. ``edge_lat`` calls this on every
-    access, outside its populate guard, so without the memo an unconditional
-    wrap would stack a ``where`` layer onto the graph per property access. Keying on the ``xr.Variable`` object makes the memo
-    self-invalidating: assigning into ``_ds`` replaces that object, so a
-    repopulated or user-assigned coordinate is wrapped again.
+    Wraps elementwise with ``xr.where``, so dask-backed coordinates stay lazy and
+    in-range values pass through bit-for-bit; both endpoints are kept because
+    ``antimeridian_face_indices`` relies on a vertex at 180. Each variable is
+    wrapped once, memoized on its ``xr.Variable``, since ``edge_lat`` calls this
+    on every access.
 
     Skipped entirely for projected grids: wrapping meter-scale coordinates
     as if they were degrees silently corrupts the geometry. A ``UserWarning``

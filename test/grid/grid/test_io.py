@@ -7,27 +7,11 @@ from uxarray.constants import ERROR_TOLERANCE
 
 
 def _assert_lon_close(actual, desired, err_msg, atol=ERROR_TOLERANCE):
-    """Compare longitudes as directions on a circle, to an absolute tolerance.
+    """Compare longitudes modulo 360, to an absolute tolerance.
 
-    Used for the Exodus round-trips, which are the ones that go
-    lon/lat -> xyz -> lon/lat and so come back through ``_xyz_to_lonlat_deg``.
-    ``assert_allclose(..., rtol=...)`` is the wrong instrument for that on two
-    counts. A longitude near zero has no magnitude for a relative tolerance to
-    be measured against -- 2.1e-14 vs 2.8e-14 is 7e-15 degrees apart and fails
-    at rtol=1e-8 (``outCSne30`` nodes 4372 and 4749). And longitude is
-    periodic: ``_xyz_to_lonlat_deg`` wraps into the half-open [-180, 180),
-    while ``_set_desired_longitude_range`` keeps both endpoints, so a node on
-    the antimeridian reads 180.0 on the original and -180.0 on the reload --
-    the same meridian, scored as a 360-degree error (179 nodes of
-    ``outRLL1deg``, and ``outCSne30`` nodes 3966 and 5155, which sit one ulp
-    short of 180 and land on -180.0 once rounded through Cartesian).
-
-    All of it was masked before. The old ``_set_desired_longitude_range``
-    wrapped the whole array whenever any element exceeded 180, applying to the
-    original grid the identical ``(lon + 180) % 360 - 180`` that the reload
-    applies -- so both sides carried the same perturbation and the same
-    endpoint fold. The wrap is elementwise now and leaves in-range longitudes
-    alone, which leaves the round-trip's own error exposed.
+    Exodus round-trips pass through ``_xyz_to_lonlat_deg``, which returns -180.0
+    where the original keeps 180.0, and near-zero longitudes come back ~1e-14 off,
+    which a relative tolerance alone rejects.
     """
     diff = (np.asarray(actual) - np.asarray(desired) + 180.0) % 360.0 - 180.0
     np.testing.assert_allclose(diff, 0.0, atol=atol, err_msg=err_msg)

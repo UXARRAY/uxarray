@@ -1,16 +1,8 @@
-"""What ``Grid`` construction pulls off disk before the caller asks for it.
+"""Cost of constructing a ``Grid`` from a chunked open.
 
-A chunked ``open_grid`` is supposed to cost metadata and nothing else. It did
-not: ``_set_desired_longitude_range`` decided whether to wrap by asking
-``lon.max() > 180``, and on a dask-backed coordinate that reduction is a
-compute -- one whole longitude array read and reduced per constructor call,
-and the constructor runs again on every ``isel`` and every ``copy()``.
-
-Two instruments. ``LazyGridConstruction`` counts dask graph executions on a
-test-sized mesh: exact, no variance, and it moves by one the moment a
-reduction comes back. ``OpenGridChunked`` is the wall-time and peak-memory
-view of the same thing across two resolutions, which is what the rest of the
-suite -- every other ``open_grid`` in it is eager -- cannot see.
+``LazyGridConstruction`` counts dask graph executions; ``OpenGridChunked`` times
+and peak-measures a chunked ``open_grid`` at two resolutions, which the rest of
+the suite, all eager, does not cover.
 """
 
 import math
@@ -51,11 +43,8 @@ class LazyGridConstruction:
     def track_computes_open_grid_chunked(self):
         """Dask graph executions during a chunked ``open_grid``.
 
-        Three before the longitude wrap went elementwise, two after. The two
-        that remain are ``_standardize_connectivity``'s ``conn.isnull().any()``
-        in ``io/_ugrid.py``, reached once from ``match_chunks_to_ugrid`` and
-        once from ``Grid.from_dataset`` -- a separate site, on connectivity
-        rather than coordinates, and not addressed here.
+        Two remain after the lazy wrap, both from ``_standardize_connectivity``
+        checking connectivity for nulls.
         """
         counter = _CountComputes()
         with counter:
@@ -63,13 +52,9 @@ class LazyGridConstruction:
         return counter.n
 
     def track_computes_isel(self):
-        """Dask graph executions during a subset of an already-open grid.
+        """Dask graph executions during ``isel`` on a chunked grid.
 
-        ``isel`` builds a new ``Grid``, so it paid the constructor's reduction
-        on every call. Two before, one after. What remains is
-        ``_slice_face_indices`` (``grid/slice.py``) materializing the
-        face-node connectivity it slices by -- again connectivity, not
-        coordinates.
+        One remains, from ``_slice_face_indices`` loading the connectivity it slices by.
         """
         uxgrid = ux.open_grid(grid_path, chunks=CHUNKS)
         counter = _CountComputes()
@@ -84,16 +69,10 @@ N_CHUNKS = 4
 
 
 class OpenGridChunked:
-    """``open_grid`` with ``chunks=``, across both oQU resolutions.
+    """``open_grid`` with ``chunks=`` across both oQU resolutions.
 
-    Reads the file directly rather than through ``CachedFixtures``, because
-    reading the file is the subject here. The 120km mesh is ~16x the 480km one
-    (59,329 nodes against 3,947).
-
-    Track each resolution against its own history, not against the other. The
-    two files are different formats -- oQU480.grid.nc is netCDF4/HDF5,
-    oQU120.grid.nc is netCDF3 -- and the HDF5 open costs more, so 480km reads
-    *slower* than 120km despite a sixteenth of the data.
+    Compare each resolution to its own history: oQU480 is netCDF4/HDF5 and oQU120
+    is netCDF3, so 480km opens slower despite a sixteenth of the data.
     """
 
     param_names = ["resolution"]
