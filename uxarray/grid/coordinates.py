@@ -724,8 +724,24 @@ def _is_projected_grid(uxgrid) -> bool:
     return False
 
 
+def _lon_within_range(da) -> bool:
+    """Whether all of ``da`` lies in [-180, 180], making the wrap the identity.
+
+    Lets in-memory arrays skip the elementwise wrap, which costs ~5x a reduction
+    plus ~18 bytes per node of temporaries. Only call it when ``da.chunks is
+    None``: on a dask array these reductions are the compute being avoided.
+    """
+    return bool(da.max() <= 180 and da.min() >= -180)
+
+
 def _set_desired_longitude_range(uxgrid):
     """Sets the longitude range to [-180, 180] for all longitude variables.
+
+    Wraps elementwise with ``xr.where``, so dask-backed coordinates stay lazy and
+    in-range values pass through bit-for-bit; both endpoints are kept because
+    ``antimeridian_face_indices`` relies on a vertex at 180. Each variable is
+    wrapped once, memoized on its ``xr.Variable``, since ``edge_lat`` calls this
+    on every access.
 
     Skipped entirely for projected grids: wrapping meter-scale coordinates
     as if they were degrees silently corrupts the geometry. A ``UserWarning``
@@ -747,16 +763,26 @@ def _set_desired_longitude_range(uxgrid):
             uxgrid._projected_warning_issued = True
         return
 
+    memo = getattr(uxgrid, "_wrapped_lon_vars", None)
+    if memo is None:
+        memo = uxgrid._wrapped_lon_vars = {}
+
     with xr.set_options(keep_attrs=True):
         for lon_name in ["node_lon", "edge_lon", "face_lon"]:
             if lon_name in uxgrid._ds:
                 da = uxgrid._ds[lon_name]
                 if da.size == 0:
                     continue
-                if da.max() > 180:
-                    wrapped = (uxgrid._ds[lon_name] + 180) % 360 - 180
-                    wrapped.name = da.name
-                    uxgrid._ds[lon_name] = wrapped
+                if memo.get(lon_name) is da.variable:
+                    continue
+                if da.chunks is None and _lon_within_range(da):
+                    memo[lon_name] = da.variable
+                    continue
+                out_of_range = (da > 180) | (da < -180)
+                wrapped = xr.where(out_of_range, (da + 180) % 360 - 180, da)
+                wrapped.name = da.name
+                uxgrid._ds[lon_name] = wrapped
+                memo[lon_name] = uxgrid._ds[lon_name].variable
 
 
 def prepare_points(points, normalize):
