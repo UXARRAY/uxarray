@@ -350,7 +350,7 @@ def _dual_cell_area(sx, sy, sz, angles, n):
     return np.abs(area)
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _compute_gradients_on_faces(
     data,
     n_face,

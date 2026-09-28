@@ -302,7 +302,7 @@ def _emit_bucket_edges(
         face_edge_flat[half_edge_slot[i]] = edge_idx
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face, n_node):
     """Constructs the ``edge_node_connectivity`` variable, which represents the indices of the two nodes that make up
     each edge. Additionally, the ``face_edge_connectivity`` is derived during construction,  which represents the
@@ -403,7 +403,7 @@ def _populate_edge_face_connectivity(grid):
     )
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def _build_edge_face_connectivity(face_edges, n_nodes_per_face, n_edge):
     """Helper for (``edge_faces``) construction."""
     edge_faces = np.full((n_edge, 2), INT_FILL_VALUE, dtype=INT_DTYPE)
@@ -456,7 +456,7 @@ def _populate_face_edge_connectivity(grid):
     )
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _build_face_edge_connectivity(
     face_node_connectivity, n_nodes_per_face, edge_node_connectivity, n_node
 ):
@@ -641,7 +641,7 @@ def _populate_face_face_connectivity(grid):
     )
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def _build_face_face_connectivity(edge_face_connectivity, n_face, n_max_face_nodes):
     face_face_connectivity = np.full(
         (n_face, n_max_face_nodes), INT_FILL_VALUE, INT_DTYPE
@@ -675,7 +675,7 @@ def _populate_node_edge_connectivity(grid):
     )
 
 
-@njit
+@njit(cache=True, nogil=True)
 def _build_node_edge_connectivity(edge_nodes, n_node):
     """Constructs the Node Edge Connectivity, which stores the indices of the edges that are shared by each node."""
     n_edge, nodes_per_edge = edge_nodes.shape
