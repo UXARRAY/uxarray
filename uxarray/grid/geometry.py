@@ -1203,12 +1203,18 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
 
             face_edge = np.array(
                 [
-                    [node_0[0], node_0[1], node_0[2]],
-                    [node_1[0], node_1[1], node_1[2]],
-                    [node_1[0], node_1[1], node_1[2]],
-                    [node_2[0], node_2[1], node_2[2]],
-                    [node_2[0], node_2[1], node_2[2]],
-                    [node_0[0], node_0[1], node_0[2]],
+                    [
+                        [node_0[0], node_0[1], node_0[2]],
+                        [node_1[0], node_1[1], node_1[2]],
+                    ],
+                    [
+                        [node_1[0], node_1[1], node_1[2]],
+                        [node_2[0], node_2[1], node_2[2]],
+                    ],
+                    [
+                        [node_2[0], node_2[1], node_2[2]],
+                        [node_0[0], node_0[1], node_0[2]],
+                    ],
                 ],
                 dtype=np.float64,
             )
