@@ -141,13 +141,14 @@ def _xyz_to_lonlat_deg(
     lat: np.ndarray | float
         Latitude in degrees
     """
-    lon_rad, lat_rad = _xyz_to_lonlat_rad(x, y, z, normalize=normalize)
+    if normalize:
+        x, y, z = _normalize_xyz(x, y, z)
 
-    lon = np.rad2deg(lon_rad)
-    lat = np.rad2deg(lat_rad)
-
-    lon = (lon + 180) % 360 - 180
-    return lon, lat
+    _, lat_rad = _xyz_to_lonlat_rad(x, y, z, normalize=False)
+    # arctan2 is already in [-180, 180]; shifting through [0, 360) loses precision
+    lon = np.rad2deg(np.arctan2(y, x))
+    lon = np.where(np.abs(z) > 1.0 - ERROR_TOLERANCE, 0.0, lon)
+    return lon, np.rad2deg(lat_rad)
 
 
 def _normalize_xyz(
@@ -726,10 +727,7 @@ def _is_projected_grid(uxgrid) -> bool:
 
 def _lon_within_range(da) -> bool:
     """Whether all of ``da`` lies in [-180, 180], making the wrap the identity.
-
-    Lets in-memory arrays skip the elementwise wrap, which costs ~5x a reduction
-    plus ~18 bytes per node of temporaries. Only call it when ``da.chunks is
-    None``: on a dask array these reductions are the compute being avoided.
+    Only call it when ``da.chunks is None``.
     """
     return bool(da.max() <= 180 and da.min() >= -180)
 
@@ -738,10 +736,7 @@ def _set_desired_longitude_range(uxgrid):
     """Sets the longitude range to [-180, 180] for all longitude variables.
 
     Wraps elementwise with ``xr.where``, so dask-backed coordinates stay lazy and
-    in-range values pass through bit-for-bit; both endpoints are kept because
-    ``antimeridian_face_indices`` relies on a vertex at 180. Each variable is
-    wrapped once, memoized on its ``xr.Variable``, since ``edge_lat`` calls this
-    on every access.
+    in-range values pass through bit-for-bit.
 
     Skipped entirely for projected grids: wrapping meter-scale coordinates
     as if they were degrees silently corrupts the geometry. A ``UserWarning``
