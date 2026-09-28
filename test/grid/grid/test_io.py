@@ -6,7 +6,7 @@ import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE
 
 
-def _assert_lon_close(actual, desired, err_msg, atol=ERROR_TOLERANCE):
+def _assert_lon_close(actual, desired, err_msg):
     """Compare longitudes modulo 360, to an absolute tolerance.
 
     Exodus round-trips pass through ``_xyz_to_lonlat_deg``, which returns -180.0
@@ -14,7 +14,7 @@ def _assert_lon_close(actual, desired, err_msg, atol=ERROR_TOLERANCE):
     which a relative tolerance alone rejects.
     """
     diff = (np.asarray(actual) - np.asarray(desired) + 180.0) % 360.0 - 180.0
-    np.testing.assert_allclose(diff, 0.0, atol=atol, err_msg=err_msg)
+    np.testing.assert_allclose(diff, 0.0, atol=ERROR_TOLERANCE, err_msg=err_msg)
 
 
 def test_normalize_existing_coordinates_non_norm_initial(gridpath):
