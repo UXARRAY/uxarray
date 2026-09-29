@@ -8,11 +8,13 @@ conda remove -y --force \
     dask \
     datashader \
     distributed \
-    matplotlib \
+    matplotlib-base \
+    matplotlib-inline \
     holoviews \
     hvplot \
     geoviews \
     pandas \
+    pooch \
     pyarrow \
     requests \
     scikit-learn \
@@ -21,10 +23,12 @@ conda remove -y --force \
     spatialpandas \
     xarray
 
-# any packages whose latest versions are being tested here but
-# which do not appear during `conda list` from running upstream-dev-ci.yml:
-pip uninstall -y \
-    pooch
+# solution for any packages whose latest versions are being tested here but
+# which do not appear during (the first!) `conda list` from upstream-dev-ci.yml
+# (currently there are none; just keeping this comment for future reference.)
+# pip uninstall -y \
+    # package1_not_in_conda_list
+    # package2_not_in_conda_list
 
 # conda list
 conda list
