@@ -230,52 +230,6 @@ class ConnectivityTracemalloc(MinimalGridBenchmark):
         return self._peak_building("node_face_connectivity")
 
 
-class ConnectivityChainTracemalloc(MinimalGridBenchmark):
-    """Peak memory of the whole chain rooted at each connectivity variable.
-
-    Same instrument as :class:`ConnectivityTracemalloc` -- what the build
-    allocates, with what the process already holds excluded -- but wider
-    in scope: no prerequisites are put in place beforehand, so a sample covers
-    everything the variable pulls in, not just the routine that produces it.
-
-    The two series coincide for ``n_nodes_per_face``, ``face_node_connectivity``
-    and ``node_face_connectivity``, which build straight off the minimal
-    topology; elsewhere the gap between them is what the prerequisites cost.
-    """
-
-    unit = "bytes"
-
-    def _peak_chain(self, name):
-        """Peak allocation of building ``name`` and everything it rests on."""
-        uxgrid = self.minimal_grid()
-        with numba_threads(1):
-            return peak_allocated(lambda: getattr(uxgrid, name).compute())
-
-    def track_peakmem_n_nodes_per_face(self, resolution):
-        return self._peak_chain("n_nodes_per_face")
-
-    def track_peakmem_face_node(self, resolution):
-        return self._peak_chain("face_node_connectivity")
-
-    def track_peakmem_edge_node(self, resolution):
-        return self._peak_chain("edge_node_connectivity")
-
-    def track_peakmem_face_edge(self, resolution):
-        return self._peak_chain("face_edge_connectivity")
-
-    def track_peakmem_node_edge(self, resolution):
-        return self._peak_chain("node_edge_connectivity")
-
-    def track_peakmem_face_face(self, resolution):
-        return self._peak_chain("face_face_connectivity")
-
-    def track_peakmem_edge_face(self, resolution):
-        return self._peak_chain("edge_face_connectivity")
-
-    def track_peakmem_node_face(self, resolution):
-        return self._peak_chain("node_face_connectivity")
-
-
 # Compiled at import rather than in ``setup``. ASV imports the suite once and forks
 # every benchmark from that parent, so kernels compiled here are inherited by all
 # of them. Only safe while the connectivity kernels are serial
