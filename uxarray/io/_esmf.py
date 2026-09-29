@@ -105,7 +105,6 @@ def _read_esmf(in_ds):
     fill_mask = (positions >= n_nodes_per_face).transpose(face_dim, node_dim)
 
     # NaN is never a usable index, whatever "numElementConn" claims
-    # NaN is never a usable index, whatever "numElementConn" claims
     fill_mask = fill_mask | element_conn.isnull()
 
     # ...and neither is the declared sentinel, whatever "numElementConn" claims
