@@ -2,6 +2,7 @@ import warnings
 import numpy as np
 import uxarray as ux
 from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
+from uxarray.grid import neighbors
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
 from uxarray.core.dataset import UxDataset, UxDataArray
 import pytest
@@ -487,6 +488,27 @@ class TestNeighborhood:
             filtered.compute().values, np.tile(eager.values, (6, 1))
         )
 
+    def test_dask_input_runs_serial_kernel(self, vortex, monkeypatch):
+        """Dask-backed chunks must not launch numba's parallel runtime: the
+        ``workqueue`` threading layer aborts the process when dask's worker
+        threads launch it concurrently."""
+
+        def refuse(*args):
+            raise AssertionError("a dask task launched the parallel kernel")
+
+        eager = vortex.neighborhood(r=2.0).mean()
+        monkeypatch.setattr(neighbors, "_reduce_rows_parallel", refuse)
+
+        stacked = UxDataArray(
+            np.tile(vortex.values, (6, 1)),
+            dims=["time", "n_face"],
+            uxgrid=vortex.uxgrid,
+            name="psi",
+        ).chunk({"time": 2, "n_face": -1})
+        filtered = stacked.neighborhood(r=2.0).mean().compute()
+
+        np.testing.assert_allclose(filtered.values, np.tile(eager.values, (6, 1)))
+
     def test_grid_dim_chunks_are_collapsed_with_warning(self, vortex):
         """A neighborhood may span the whole grid, so the grid dimension cannot
         stay chunked. Collapsing it undoes a memory decision the user made, so
@@ -503,9 +525,9 @@ class TestNeighborhood:
         np.testing.assert_allclose(filtered.compute().values, expected)
 
     def test_output_is_always_float64(self, vortex):
-        """float32 hits the kernel's float32 signature and integers have no
-        signature at all; both must come back as float64, as the generic path
-        does by writing into a float64 output."""
+        """float32 is gathered as it is and integers are promoted first; both
+        must come back as float64, as the generic path does by writing into a
+        float64 output."""
         uxgrid = ux.Grid.from_healpix(zoom=1)
         integers = UxDataArray(
             np.arange(uxgrid.n_face), dims=["n_face"], uxgrid=uxgrid, name="int_var"
