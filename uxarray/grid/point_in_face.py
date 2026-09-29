@@ -8,6 +8,7 @@ from numba import njit, prange
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.arcs import point_within_gca
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _small_angle_of_2_vectors
+from uxarray.utils.parallel import parallel_njit
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike
@@ -120,7 +121,7 @@ def _get_faces_containing_point(
     return hit_buf[:count]
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _batch_point_in_face(
     points: np.ndarray,
     flat_candidate_indices: np.ndarray,

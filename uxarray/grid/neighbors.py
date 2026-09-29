@@ -14,6 +14,7 @@ from uxarray.constants import (
     INT_FILL_VALUE,
 )
 from uxarray.errors import DimensionError
+from uxarray.utils.parallel import numba_pool
 
 
 class KDTree:
@@ -1243,7 +1244,8 @@ def _make_kernel(reduce_fn):
         return kernel
 
     def kernel(*args):
-        return build()(*args)
+        with numba_pool():
+            return build()(*args)
 
     return kernel
 
