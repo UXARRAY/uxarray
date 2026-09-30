@@ -361,9 +361,18 @@ def test_central_longitude_of_handles_cartopy_026_platecarree():
 
 def test_plot_topology_with_explicit_projection(gridpath):
     """`plot.edges` with an explicit projection exercises the central-longitude
-    lookup that regressed under cartopy 0.26."""
-    import cartopy.crs as ccrs
-
+    lookup that regressed under cartopy 0.26.
+    Regression test for issue #1780.
+    """
     uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
-    uxgrid.plot.edges(backend="matplotlib", projection=ccrs.PlateCarree())
-    uxgrid.plot.edges(backend="matplotlib", projection=ccrs.Robinson())
+    plot0 = uxgrid.plot.edges(backend="matplotlib", projection=ccrs.PlateCarree())
+    plot1 = uxgrid.plot.edges(backend="matplotlib", projection=ccrs.Robinson())
+    plot2 = uxgrid.plot.edges(backend="matplotlib", projection=ccrs.Orthographic())
+
+    # the crash associated with issue #1780 only occurs when actually trying to render,
+    # and only for some projections, but definitely for at least one of the above,
+    # so, try to render all three of them.
+    renderer = hv.renderer("matplotlib")
+    renderer.get_plot(plot0)
+    renderer.get_plot(plot1)
+    renderer.get_plot(plot2)
