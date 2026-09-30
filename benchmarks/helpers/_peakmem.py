@@ -1,7 +1,9 @@
 
 import contextlib
+import os
 import subprocess
 import sys
+import tempfile
 
 import numba
 
@@ -66,15 +68,22 @@ def subprocess_peak_rss(statement):
     ``RUSAGE_CHILDREN``, which is a maximum over every child that has exited and
     so would not isolate this one.
     """
-    reporter = (
-        "import resource, sys\n"
-        f"exec({statement!r})\n"
-        "sys.stdout.write(str(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss))\n"
-    )
-    completed = subprocess.run(
-        [sys.executable, "-c", reporter],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return int(completed.stdout) * _MAXRSS_TO_BYTES
+    with tempfile.TemporaryDirectory() as scratch:
+        report_path = os.path.join(scratch, "peak_rss")
+        reporter = (
+            "import resource\n"
+            f"exec({statement!r})\n"
+            "peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss\n"
+            # Reported through a file rather than stdout, which is not ours
+            # alone: uxarray prints coordinate warnings there for some grids,
+            # and the number would arrive with prose in front of it.
+            f"open({report_path!r}, 'w').write(str(peak))\n"
+        )
+        subprocess.run(
+            [sys.executable, "-c", reporter],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        with open(report_path) as report:
+            return int(report.read()) * _MAXRSS_TO_BYTES

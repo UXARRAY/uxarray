@@ -15,6 +15,7 @@ from uxarray.grid.intersections import (
 )
 from uxarray.grid.point_in_face import _face_contains_point
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 POLE_POINTS_XYZ = {
     "North": np.array([0.0, 0.0, 1.0]),
@@ -83,7 +84,7 @@ def _unique_points(points, tolerance=ERROR_TOLERANCE):
     return unique_points[:unique_count]
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def _pad_closed_face_nodes(
     face_node_connectivity, n_face, n_max_face_nodes, n_nodes_per_face
 ):
@@ -116,6 +117,7 @@ def _build_polygon_shells(
 ):
     """Builds an array of polygon shells, which can be used with Shapely to
     construct polygons."""
+    _raise_hint_if_optional_deps_missing("cartopy")
     import cartopy.crs as ccrs
 
     closed_face_nodes = _pad_closed_face_nodes(
@@ -141,18 +143,35 @@ def _build_polygon_shells(
     return polygon_shells
 
 
+def _central_longitude_of(projection):
+    """Central longitude of a cartopy projection, in degrees.
+
+    Most projections record it as ``lon_0``, but Cartopy 0.26 changed
+    ``PlateCarree`` from ``proj=eqc`` to ``proj=latlong``, which carries the
+    prime meridian as ``pm`` and has no ``lon_0`` at all. Reading ``lon_0``
+    directly raises ``KeyError`` on that projection, so check both and fall back
+    to 0.0 for any projection that declares neither.
+    """
+    params = projection.proj4_params
+    for key in ("lon_0", "pm"):
+        if key in params:
+            return float(params[key])
+    return 0.0
+
+
 def _correct_central_longitude(node_lon, node_lat, projection):
     """Shifts the central longitude of an unstructured grid, which moves the
     antimeridian when visualizing, which is used when projections have a
     central longitude other than 0.0."""
+    _raise_hint_if_optional_deps_missing("cartopy")
     import cartopy.crs as ccrs
 
     if projection:
-        central_longitude = projection.proj4_params["lon_0"]
+        central_longitude = _central_longitude_of(projection)
         if central_longitude != 0.0:
             _source_projection = ccrs.PlateCarree(central_longitude=0.0)
             _destination_projection = ccrs.PlateCarree(
-                central_longitude=projection.proj4_params["lon_0"]
+                central_longitude=central_longitude
             )
 
             lonlat_proj = _destination_projection.transform_points(
@@ -169,6 +188,7 @@ def _correct_central_longitude(node_lon, node_lat, projection):
 def _grid_to_polygon_geodataframe(grid, periodic_elements, projection, project, engine):
     """Converts the faces of a ``Grid`` into a ``spatialpandas.GeoDataFrame``
     or ``geopandas.GeoDataFrame`` with a geometry column of polygons."""
+    _raise_hint_if_optional_deps_missing("geopandas", "spatialpandas")
     import geopandas
     import shapely
     import spatialpandas
@@ -260,6 +280,7 @@ def _build_geodataframe_without_antimeridian(
     """Builds a ``spatialpandas.GeoDataFrame`` or
     ``geopandas.GeoDataFrame``excluding any faces that cross the
     antimeridian."""
+    _raise_hint_if_optional_deps_missing("geopandas", "spatialpandas")
     import geopandas
     import shapely
     import spatialpandas
@@ -296,6 +317,7 @@ def _build_geodataframe_with_antimeridian(
 ):
     """Builds a ``spatialpandas.GeoDataFrame`` or ``geopandas.GeoDataFrame``
     including any faces that cross the antimeridian."""
+    _raise_hint_if_optional_deps_missing("geopandas", "spatialpandas")
     import geopandas
     import spatialpandas
     from spatialpandas.geometry import MultiPolygonArray
@@ -441,14 +463,17 @@ def _grid_to_matplotlib_polycollection(
     grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.PolyCollection``"""
+    _raise_hint_if_optional_deps_missing("cartopy", "matplotlib")
     import cartopy.crs as ccrs
     from matplotlib.collections import PolyCollection
 
     # Handle unsupported configuration: splitting periodic elements with projection
     if periodic_elements == "split" and projection is not None:
         raise ValueError(
-            "Explicitly projecting lines is not supported. Please pass in your projection "
-            "using the 'transform' parameter"
+            'Must not provide `projection` when periodic_elements=="split", '
+            "while attempting to create matplotlib polycollection. "
+            "Consider using the 'transform' kwarg instead.\n"
+            f"(Got projection={projection})"
         )
 
     # Correct the central longitude and build polygon shells
@@ -647,6 +672,7 @@ def _grid_to_matplotlib_linecollection(
     grid, periodic_elements, projection=None, **kwargs
 ):
     """Constructs and returns a ``matplotlib.collections.LineCollection``"""
+    _raise_hint_if_optional_deps_missing("cartopy", "matplotlib")
     import cartopy.crs as ccrs
     from matplotlib.collections import LineCollection
 
@@ -717,6 +743,7 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
 
     if pole != 1 and pole != -1:
         raise ValueError("Pole must be 1 (North) or -1 (South)")
+        # (numba complains about f-strings, so don't put `pole` value in message.)
 
     # Define constants within the function
     pole_point_xyz = np.empty(3, dtype=np.float64)
@@ -838,7 +865,11 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
         return ((north_intersections + south_intersections) % 2) != 0
 
     else:
-        raise ValueError("Invalid pole point query.")
+        # (location will always be 1, -1, or 0 from _classify_polygon_location,
+        #  so it should always be handled by cases above.)
+        raise AssertionError(
+            "Internal coding/implementation error: invalid `location`."
+        )
 
 
 @njit(cache=True)
@@ -885,21 +916,21 @@ def _check_intersection(ref_edge_xyz, edges_xyz):
         edge_xyz = edges_xyz[i]
 
         # compute intersection
-        intersection_point = gca_gca_intersection(ref_edge_xyz, edge_xyz)
+        intersections_i = gca_gca_intersection(ref_edge_xyz, edge_xyz)
 
-        if intersection_point.size != 0:
-            if intersection_point.ndim == 1:
+        if math.isfinite(intersections_i[0][0]):  # at least 1 intersection point
+            if not math.isfinite(intersections_i[1][0]):  # only 1 intersection point
                 # Only one point
-                point = intersection_point
+                point = intersections_i[0]
                 if np.allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
                     return True
                 intersection_points[intersection_count] = point
                 intersection_count += 1
             else:
-                # Multiple points
-                num_points = intersection_point.shape[0]
+                # Exactly 2 points (gca_gca_intersection always gives 0, 1, or 2 intersections)
+                num_points = 2
                 for j in range(num_points):
-                    point = intersection_point[j]
+                    point = intersections_i[j]
                     if np.allclose(point, pole_point_xyz, atol=ERROR_TOLERANCE):
                         return True
                     intersection_points[intersection_count] = point
@@ -1053,7 +1084,7 @@ def _populate_max_face_radius(grid):
     return max_distance
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def calculate_max_face_radius(
     face_node_connectivity: np.ndarray,
     node_x: np.ndarray,
@@ -1272,8 +1303,10 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
 
                 return weights, nodes
 
-        # If the point doesn't reside in the polygon, raise an error
-        raise ValueError("Point does not reside in polygon")
+        raise ValueError(
+            "Point does not reside in polygon, during "
+            "barycentric_coordinates_cartesian(polygon_xyz, point_xyz)"
+        )  # (can't do str(float) in numba --> can't include numbers here.)
 
 
 @njit(cache=True)

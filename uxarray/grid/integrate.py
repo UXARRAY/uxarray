@@ -227,6 +227,7 @@ def _get_zonal_face_interval(
 
     except ValueError as e:
         default_print_options = np.get_printoptions()
+        # TODO: what is build_latlon_box?
         if str(e) == (
             "No intersections are found for the face, please make sure the "
             "build_latlon_box generates the correct results"
@@ -311,7 +312,7 @@ def _process_overlapped_intervals(intervals_df: pl.DataFrame):
                 active_faces.remove(face_idx)
             else:
                 raise ValueError(
-                    f"Error: Trying to remove face_idx {face_idx} not in active_faces"
+                    f"Cannot end interval for currently-inactive face_idx {face_idx}, at position {position}."
                 )
 
         last_position = position
@@ -430,10 +431,9 @@ def _get_faces_constLat_intersection_info_numba(
 ):
     """Numba kernel behind `_get_faces_constLat_intersection_info`.
 
-    Returns the unique intersection points along with the minimum and maximum
-    longitude across them. When the face is only touched by the latitude there
-    is a single point and the longitudes are meaningless; the Python wrapper
-    replaces them with None.
+    Returns the unique intersection points, the minimum and maximum longitude
+    across them, and the number of non-dummy edges. The Python wrapper validates
+    the result, since its error messages format the face array.
     """
     n_edges = face_edges_cart.shape[0]
 
@@ -467,24 +467,14 @@ def _get_faces_constLat_intersection_info_numba(
         intersections = gca_const_lat_intersection(face_edges_cart[e], latitude_cart)
         n_intersections = get_number_of_intersections(intersections)
         for r in range(n_intersections):
-            points[n_points, 0] = intersections[r, 0]
-            points[n_points, 1] = intersections[r, 1]
-            points[n_points, 2] = intersections[r, 2]
+            point = intersections[r]
+            points[n_points, 0] = point[0]
+            points[n_points, 1] = point[1]
+            points[n_points, 2] = point[2]
             n_points += 1
 
     n_unique = _unique_rows(points, n_points)
     unique_intersections = points[:n_unique]
-
-    if n_unique == 0:
-        raise ValueError(
-            "No intersections are found for the face, please make sure the "
-            "build_latlon_box generates the correct results"
-        )
-    # More than two intersections per edge means the face is concave
-    if n_unique > 2 and n_unique > 2 * n_valid:
-        raise ValueError(
-            "UXarray doesn't support concave face with intersections points as currently, please modify your grids accordingly"
-        )
 
     pt_lon_min = np.inf
     pt_lon_max = -np.inf
@@ -499,7 +489,7 @@ def _get_faces_constLat_intersection_info_numba(
         if lon > pt_lon_max:
             pt_lon_max = lon
 
-    return unique_intersections, pt_lon_min, pt_lon_max
+    return unique_intersections, pt_lon_min, pt_lon_max, n_valid
 
 
 def _get_faces_constLat_intersection_info(
@@ -530,15 +520,28 @@ def _get_faces_constLat_intersection_info(
         - pt_lon_min (float): The min longnitude of the interseted intercal in radian if any; otherwise, None..
         - pt_lon_max (float): The max longnitude of the interseted intercal in radian, if any; otherwise, None.
     """
-    unique_intersections, pt_lon_min, pt_lon_max = (
+    unique_intersections, pt_lon_min, pt_lon_max, n_valid_edges = (
         _get_faces_constLat_intersection_info_numba(
             face_edges_cart, latitude_cart, is_GCA_list, is_latlonface
         )
     )
+    n_unique = len(unique_intersections)
 
-    if len(unique_intersections) == 1:
+    if n_unique == 0:
+        raise ValueError(
+            "Found 0 intersections for this face, expected at least 1."
+            f"\nFace edges cartesian coordinates: {face_edges_cart}"
+        )
+    if n_unique == 1:
         # The face is only touched by the latitude, so there is no interval
         return unique_intersections, None, None
+    # If the unique intersections numbers is larger than n_edges * 2, then it means the face is concave
+    if n_unique > 2 * n_valid_edges:
+        raise ValueError(
+            "Concave face found, but not supported by UXarray and would lead to incorrect results "
+            "during _get_faces_constLat_intersection_info."
+            f"\nFace edges cartesian coordinates: {face_edges_cart}"
+        )
 
     return unique_intersections, pt_lon_min, pt_lon_max
 
@@ -682,7 +685,7 @@ def _compute_face_arc_length(face_edges_xyz, z):
     return total_length
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _zonal_face_weights_util_numba(
     face_edges_xyz: np.ndarray,
     n_edges_per_face: np.ndarray,

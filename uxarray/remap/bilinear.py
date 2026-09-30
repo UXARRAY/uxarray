@@ -158,7 +158,7 @@ def _barycentric_weights(point_xyz, dual, data_size, source_grid):
     return all_weights, all_indices
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _calculate_weights(
     valid_idxs,
     point_xyz,

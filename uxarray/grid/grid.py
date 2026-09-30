@@ -17,7 +17,7 @@ from uxarray.conventions import ugrid
 # Import the utility function for opening datasets with fallback
 from uxarray.core.utils import _open_dataset_with_fallback
 from uxarray.cross_sections import GridCrossSectionAccessor
-from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
+from uxarray.errors import DimensionError, GridInvalidError
 from uxarray.formatting_html import grid_repr
 from uxarray.grid.angles import (
     _compute_equiangle_skewness,
@@ -105,6 +105,7 @@ from uxarray.io._voronoi import _spherical_voronoi_from_points
 from uxarray.io.utils import _parse_grid_type
 from uxarray.plot.accessor import GridPlotAccessor
 from uxarray.subset import GridSubsetAccessor
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 if TYPE_CHECKING:
     import cartopy.crs as ccrs
@@ -175,18 +176,9 @@ class Grid:
             if not _validate_minimum_ugrid(grid_ds):
                 raise GridInvalidError(
                     "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
-                    "at least the following variables: ['node_lon',"
-                    "'node_lat', and 'face_node_connectivity']"
+                    "at least the following variables: ['node_lon', 'node_lat', 'face_node_connectivity'],"
+                    f"\nbut got grid_ds with data_vars: {list(grid_ds.data_vars)}"
                 )
-
-        # grid spec not provided, check if grid_ds is a minimum representable UGRID dataset
-        if source_grid_spec is None:
-            warnings.warn(
-                "Attempting to construct a Grid without passing in source_grid_spec. Direct use of Grid constructor"
-                "is only advised if grid_ds is following the internal unstructured grid definition, including"
-                "variable and dimension names. Using ux.open_grid() or ux.from_dataset() is suggested.",
-                Warning,
-            )
             # TODO: more checks for validate grid (lat/lon coords, etc)
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
@@ -306,10 +298,14 @@ class Grid:
                     grid_ds, source_dims_dict = _read_fesom2_netcdf(dataset)
                 elif source_grid_spec == "Shapefile":
                     raise ValueError(
-                        "Use ux.Grid.from_geodataframe(<shapefile_name) instead"
+                        f'Unsupported source_grid_spec="Shapefile", in {cls.__name__}.from_dataset(); '
+                        "use ux.Grid.from_file() instead."
                     )
+                    # TODO: why not just call ux.Grid.from_file() here, in this case?
                 else:
-                    raise GridInvalidError("Unsupported Grid Format")
+                    raise GridInvalidError(
+                        f"Unsupported source_grid_spec={source_grid_spec!r}, in {cls.__name__}.from_dataset()"
+                    )
             else:
                 # custom source grid spec is provided
                 source_grid_spec = kwargs.get("source_grid_spec", None)
@@ -317,13 +313,32 @@ class Grid:
                 source_dims_dict = kwargs.get("source_dims_dict") or {}
         else:
             try:
-                if os.path.isdir(dataset):
+                is_dir = os.path.isdir(dataset)
+            except TypeError as err:
+                raise TypeError(
+                    f"Expected xarray.Dataset or path-like object, but got {type(dataset)}, "
+                    f"in {cls.__name__}.from_dataset()"
+                ) from err
+            if is_dir:
+                try:
                     # FESOM2 ASCII directory.
                     grid_ds, source_dims_dict = _read_fesom2_asci(dataset)
                     source_grid_spec = "FESOM2"
                     return cls(grid_ds, source_grid_spec, source_dims_dict)
-            except TypeError:
-                raise GridInvalidError("Unsupported Grid Format")
+                except TypeError as err:
+                    raise GridInvalidError(
+                        f"Expected FESOM2 ASCII directory format but could not parse directory "
+                        f"contents into a valid grid, in {cls.__name__}.from_dataset(directory), "
+                        f"for directory={os.path.abspath(dataset)!r}"
+                    ) from err
+            elif os.path.exists(dataset):  # and isn't a directory
+                raise GridInvalidError(
+                    f"Expected a directory in {cls.__name__}.from_dataset(filepath), "
+                    f"but got a single file ({os.path.abspath(dataset)!r}). "
+                    "Consider uxarray.open_grid() or uxarray.Grid.from_file() instead."
+                )
+            else:  # path-like but does not exist
+                raise FileNotFoundError(os.path.abspath(dataset))
 
         return cls(
             grid_ds,
@@ -377,7 +392,10 @@ class Grid:
             return cls.from_dataset(dataset)
 
         else:
-            raise ValueError("Backend not supported")
+            raise ValueError(
+                'Invalid backend. Expected "geopandas" or "xarray", '
+                f"got {backend!r}, in {cls.__name__}.from_file()"
+            )
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
@@ -441,7 +459,8 @@ class Grid:
             ds = _regional_delaunay_from_points(_points, boundary_points)
         else:
             raise ValueError(
-                f"Unsupported method '{method}'. Expected one of ['spherical_voronoi', 'spherical_delaunay', 'regional_delaunay']."
+                "Invalid method. Expected one of ['spherical_voronoi', 'spherical_delaunay', 'regional_delaunay']; "
+                f"got {method!r}, in {cls.__name__}.from_points()"
             )
 
         return cls.from_dataset(dataset=ds, source_grid_spec=method)
@@ -559,8 +578,11 @@ class Grid:
                 source_grid_spec="Structured",
             )
         else:
+            _lon_None_str = "lon=None" if lon is None else "lon != None"
+            _lat_None_str = "lat=None" if lat is None else "lat != None"
             raise ValueError(
-                "No input dataset or latitude and longitude values specified."
+                "Must provide `ds` or `lon` and `lat` during Grid.from_structured(); "
+                f"got ds=None, {_lon_None_str}, {_lat_None_str}."
             )
 
     @classmethod
@@ -574,12 +596,18 @@ class Grid:
         Parameters
         ----------
         face_vertices : list, tuple, np.ndarray
-            array-like input containing the face vertices to construct the grid from
+            array-like input containing the face vertices to construct the grid from.
+            After being converted to np.ndarray, must have shape (n_face, n_max_face_nodes, 2 or 3)
+            or (n_max_face_nodes, 2 or 3) to imply n_face=1. (2 if latlon; 3 to indicate x, y, z)
         latlon : bool, default=True
             Indicates whether the inputted vertices are in lat/lon, with units in degrees
+            if False, the inputs are assumed to be in Cartesian coordinates (x, y, z)
         """
         if not isinstance(face_vertices, (list, tuple, np.ndarray)):
-            raise TypeError("Input must be either a list, tuple, or np.ndarray")
+            raise TypeError(
+                f"Grid.from_face_vertices expected list, tuple, or np.ndarray; "
+                f"got object of type: {type(face_vertices)}"
+            )
 
         face_vertices = np.asarray(face_vertices)
 
@@ -591,9 +619,10 @@ class Grid:
 
         else:
             raise DimensionError(
-                f"Invalid Input Dimension: {face_vertices.ndim}. Expected dimension should be "
-                f"3: [n_face, n_node, two/three] or 2 when only "
-                f"one face is passed in."
+                "Grid.from_face_vertices expected face_vertices with "
+                "ndim=3 (shape=(n_face, n_max_face_nodes, 2 or 3)) "
+                "or ndim=2 (shape=(n_max_face_nodes, 2 or 3)); "
+                f"got ndim={face_vertices.ndim} (shape={face_vertices.shape})."
             )
 
         return cls(grid_ds, source_grid_spec="Face Vertices")
@@ -633,6 +662,7 @@ class Grid:
         # If the mesh file is loaded correctly, we have the underlying file format as UGRID
         # Test if the file is a valid ugrid file format or not
         print("Validating the mesh...")
+        # TODO: provide verbose=False option to suppress printouts?
 
         # call the check_connectivity and check_duplicate_nodes functions from validation.py
         checkDN = _check_duplicate_nodes(self) if check_duplicates else True
@@ -643,7 +673,16 @@ class Grid:
             print("Mesh validation successful.")
             return True
         else:
-            raise GridInvalidError("Mesh validation failed.")
+            _failed = []
+            if not checkDN:
+                _failed.append("_check_duplicate_nodes()")
+            if not check_C:
+                _failed.append("_check_connectivity()")
+            if not check_A:
+                _failed.append("_check_area()")
+            raise GridInvalidError(
+                f"Grid validation checks failed: {', '.join(_failed)}"
+            )
 
     def construct_face_centers(self, method="cartesian average"):
         """Constructs face centers, this method provides users direct control
@@ -675,7 +714,8 @@ class Grid:
             _populate_face_centerpoints(self, repopulate=True)
         else:
             raise ValueError(
-                f"Unknown method for face center calculation. Expected one of ['cartesian average', 'welzl'] but received {method}"
+                "Invalid method. Expected one of ['cartesian average', 'welzl']; "
+                f"got {method!r}, in {type(self).__name__}.construct_face_centers()"
             )
 
     def __repr__(self):
@@ -1658,7 +1698,9 @@ class Grid:
         """Indices of nodes that border regions not covered by any geometry
         (holes) in a partial grid."""
         if "boundary_node_indices" not in self._ds:
-            raise NotImplementedError
+            raise NotImplementedError(
+                "Construction of `boundary_node_indices` not yet supported."
+            )
 
         return self._ds["boundary_node_indices"]
 
@@ -2337,13 +2379,16 @@ class Grid:
         )
 
         min_jacobian = np.min(self._face_jacobian)
-        max_jacobian = np.max(self._face_jacobian)
 
-        if np.any(self._face_jacobian < 0):
+        if min_jacobian < 0:
+            _where_neg = np.where(self._face_jacobian < 0)[0]
+            _where_neg_str = (
+                f"faces: {_where_neg}"
+                if len(_where_neg) <= 10
+                else f"{len(_where_neg)} faces"
+            )
             raise ValueError(
-                "Negative jacobian found. Min jacobian: {}, Max jacobian: {}".format(
-                    min_jacobian, max_jacobian
-                )
+                f"Negative jacobian found in {_where_neg_str}. Got np.min(jacobian)={min_jacobian}"
             )
 
         return self._face_areas, self._face_jacobian
@@ -2399,7 +2444,9 @@ class Grid:
             If radius is not positive.
         """
         if radius <= 0:
-            raise ValueError(f"Sphere radius must be positive, got {radius}")
+            raise ValueError(
+                f"{type(self).__name__}.sphere_radius must be positive; cannot set it to {radius}"
+            )
 
         self._ds.attrs["sphere_radius"] = radius
 
@@ -2442,7 +2489,8 @@ class Grid:
 
         else:
             raise ValueError(
-                f"Invalid grid_format encountered. Expected one of ['ugrid', 'exodus', 'scrip', 'esmf'] but received: {grid_format}"
+                "Invalid grid_format. Expected one of ['ugrid', 'exodus', 'scrip', 'esmf'], "
+                f"but got {grid_format!r}, in {type(self).__name__}.to_xarray()"
             )
 
         return out_ds
@@ -2499,12 +2547,13 @@ class Grid:
         gdf : spatialpandas.GeoDataFrame or geopandas.GeoDataFrame
             The output ``GeoDataFrame`` with a filled out "geometry" column of polygons.
         """
-
+        _raise_hint_if_optional_deps_missing("spatialpandas")
         from spatialpandas import GeoDataFrame
 
         if engine not in ["spatialpandas", "geopandas"]:
             raise ValueError(
-                f"Invalid engine. Expected one of ['spatialpandas', 'geopandas'] but received {engine}"
+                "Invalid engine. Expected one of ['spatialpandas', 'geopandas'], "
+                f"but got {engine!r}, in {type(self).__name__}.to_geodataframe()"
             )
 
         # if project is false, projection is only used for determining central coordinates
@@ -2514,7 +2563,8 @@ class Grid:
             if periodic_elements == "split":
                 raise ValueError(
                     "Setting ``periodic_elements='split'`` is not supported when a "
-                    "projection is provided."
+                    f"projection is provided; got projection={projection!r} "
+                    f"in {type(self).__name__}.to_geodataframe()."
                 )
 
         if exclude_antimeridian is not None:
@@ -2532,7 +2582,8 @@ class Grid:
 
         if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
-                f"Invalid value for 'periodic_elements'. Expected one of ['exclude', 'split', 'ignore'] but received: {periodic_elements}"
+                "Invalid periodic_elements. Expected one of ['exclude', 'split', 'ignore'], "
+                f"but got {periodic_elements!r}, in {type(self).__name__}.to_geodataframe()"
             )
 
         if self._gdf_cached_parameters["gdf"] is not None:
@@ -2610,7 +2661,8 @@ class Grid:
 
         if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
-                f"Invalid value for 'periodic_elements'. Expected one of ['include', 'exclude', 'split'] but received: {periodic_elements}"
+                "Invalid periodic_elements. Expected one of ['ignore', 'exclude', 'split'], "
+                f"but got {periodic_elements!r}, in {type(self).__name__}.to_polycollection()"
             )
 
         if self._poly_collection_cached_parameters["poly_collection"] is not None:
@@ -2690,7 +2742,8 @@ class Grid:
         """
         if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
-                f"Invalid value for 'periodic_elements'. Expected one of ['ignore', 'exclude', 'split'] but received: {periodic_elements}"
+                "Invalid periodic_elements. Expected one of ['ignore', 'exclude', 'split'], "
+                f"but got {periodic_elements!r}, in {type(self).__name__}.to_linecollection()"
             )
 
         if self._line_collection_cached_parameters["line_collection"] is not None:
@@ -2774,19 +2827,24 @@ class Grid:
         from .slice import _slice_edge_indices, _slice_face_indices, _slice_node_indices
 
         if len(dim_kwargs) != 1:
-            raise ValueError("Indexing must be along a single dimension.")
+            raise ValueError(
+                f"{type(self).__name__}.isel() expected indexing along a single dimension, "
+                f"but kwargs imply indexers for: {list(dim_kwargs.keys())}."
+            )
 
         if "n_node" in dim_kwargs:
             if inverse_indices:
-                raise DataCenteringError(
-                    "Inverse indices are not yet supported for node selection, please use face centers"
+                raise NotImplementedError(
+                    "Grid.isel(n_node=..., inverse_indices=True). "
+                    "Consider selecting along n_face instead, or using inverse_indices=False."
                 )
             return _slice_node_indices(self, dim_kwargs["n_node"])
 
         elif "n_edge" in dim_kwargs:
             if inverse_indices:
-                raise DataCenteringError(
-                    "Inverse indices are not yet supported for edge selection, please use face centers"
+                raise NotImplementedError(
+                    "Grid.isel(n_edge=..., inverse_indices=True). "
+                    "Consider selecting along n_face instead, or using inverse_indices=False."
                 )
             return _slice_edge_indices(self, dim_kwargs["n_edge"])
 
@@ -2797,7 +2855,8 @@ class Grid:
 
         else:
             raise ValueError(  # intentionally not DataCenteringError; issue is with kwargs, not data.
-                "Indexing must be along a grid dimension: ('n_node', 'n_edge', 'n_face')"
+                "Indexing must be along a grid dimension, one of ['n_node', 'n_edge', 'n_face'], "
+                f"but provided indexers along: {list(dim_kwargs.keys())}."
             )
 
     def get_edges_at_constant_latitude(self, lat: float, use_face_bounds: bool = False):
@@ -2825,7 +2884,7 @@ class Grid:
         if use_face_bounds:
             raise NotImplementedError(
                 "Computing the intersection using the spherical bounding box"
-                "is not yet supported."
+                "(i.e., use_face_bounds=True) is not yet supported."
             )
         else:
             # Gather per-edge z-coords positionally, mirroring the longitude
@@ -2897,7 +2956,7 @@ class Grid:
         if use_face_bounds:
             raise NotImplementedError(
                 "Computing the intersection using the spherical bounding box"
-                "is not yet supported."
+                "(i.e. use_face_bounds=True) is not yet supported."
             )
         else:
             # Positional gather of edge endpoint coords: a concrete connectivity
