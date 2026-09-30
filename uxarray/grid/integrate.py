@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import polars as pl
 from numba import njit, prange, types
@@ -11,43 +13,8 @@ from uxarray.grid.intersections import (
     get_number_of_intersections,
 )
 
-DUMMY_EDGE_VALUE = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
-
 point_type = types.UniTuple(types.float64, 3)
 edge_type = types.UniTuple(types.int64, 2)
-
-
-def _is_edge_gca(is_GCA_list, is_latlonface, edges_z):
-    """Determine if each edge is a Great Circle Arc (GCA) or a constant
-    latitude line in a vectorized manner.
-
-    Parameters:
-    ----------
-    is_GCA_list : np.ndarray or None
-        An array indicating whether each edge is a GCA (True) or a constant latitude line (False).
-        Shape: (n_edges). If None, edge types are determined based on `is_latlonface` and the z-coordinates.
-    is_latlonface : bool
-        Flag indicating if all edges should be considered as lat-lon faces, which implies all edges
-        are either constant latitude or longitude lines.
-    edges_z : np.ndarray
-        Array containing the z-coordinates for each vertex of the edges. This is used to determine
-        whether edges are on the equator or if they are aligned in latitude when `is_GCA_list` is None.
-        Shape should be (n_edges, 2).
-
-    Returns:
-    -------
-    np.ndarray
-        A boolean array where each element indicates whether the corresponding edge is considered a GCA.
-        True for GCA, False for constant latitude line.
-    """
-    if is_GCA_list is not None:
-        return is_GCA_list
-    if is_latlonface:
-        return ~np.isclose(edges_z[:, 0], edges_z[:, 1], atol=ERROR_TOLERANCE)
-    return ~(
-        np.isclose(edges_z[:, 0], 0, atol=ERROR_TOLERANCE)
-        & np.isclose(edges_z[:, 1], 0, atol=ERROR_TOLERANCE)
-    )
 
 
 def _zonal_face_weights_robust(
@@ -352,12 +319,194 @@ def _process_overlapped_intervals(intervals_df: pl.DataFrame):
     return overlap_contributions, total_length
 
 
+@njit(cache=True, inline="always")
+def _isclose_scalar(a, b, atol):
+    """Scalar form of ``np.isclose``, including its default relative tolerance."""
+    return abs(a - b) <= atol + 1.0e-5 * abs(b)
+
+
+@njit(cache=True, inline="always")
+def _edge_is_valid(face_edges_cart, e):
+    """Determine whether edge ``e`` is a real edge rather than a dummy one."""
+    for i in range(2):
+        for j in range(3):
+            if face_edges_cart[e, i, j] == INT_FILL_VALUE:
+                return False
+    return True
+
+
+@njit(cache=True, inline="always")
+def _edge_is_gca(z0, z1, is_GCA_list, is_latlonface, edge_index):
+    """Determine if an edge is a Great Circle Arc (GCA) or a constant latitude
+    line, from the z-coordinates of its two vertices.
+
+    An explicit `is_GCA_list` entry wins; lat-lon faces treat edges of equal
+    latitude as constant latitude lines; otherwise only edges lying on the
+    equator are constant latitude lines.
+    """
+    if is_GCA_list is not None:
+        return is_GCA_list[edge_index]
+    if is_latlonface:
+        return not _isclose_scalar(z0, z1, ERROR_TOLERANCE)
+    return not (
+        _isclose_scalar(z0, 0.0, ERROR_TOLERANCE)
+        and _isclose_scalar(z1, 0.0, ERROR_TOLERANCE)
+    )
+
+
+@njit(cache=True, inline="always")
+def _lon_rad_from_xyz(x, y, z):
+    """Longitude of a Cartesian point in radians, in the range [0, 2*pi].
+
+    Scalar counterpart of `_xyz_to_lonlat_rad`, keeping only the longitude.
+    """
+    denom = (x**2 + y**2 + z**2) ** 0.5
+    x_norm = x / denom
+    y_norm = y / denom
+    z_norm = z / denom
+
+    # Longitude is undefined at the poles, matching `_xyz_to_lonlat_rad`
+    if abs(z_norm) > 1.0 - ERROR_TOLERANCE:
+        return 0.0
+
+    lon = math.atan2(y_norm, x_norm)
+    if lon < 0.0:
+        lon += 2.0 * np.pi
+    return lon
+
+
+@njit(cache=True)
+def _unique_rows(points, n_points):
+    """In-place equivalent of ``np.unique(points[:n_points], axis=0)``.
+
+    Sorts the first `n_points` rows lexicographically and compacts duplicates to
+    the front, returning how many unique rows there are. An insertion sort is
+    used because a face only ever contributes a handful of points.
+    """
+    for i in range(1, n_points):
+        x = points[i, 0]
+        y = points[i, 1]
+        z = points[i, 2]
+        j = i - 1
+        while j >= 0:
+            prev_x = points[j, 0]
+            prev_y = points[j, 1]
+            prev_z = points[j, 2]
+            if prev_x != x:
+                if prev_x < x:
+                    break
+            elif prev_y != y:
+                if prev_y < y:
+                    break
+            elif not prev_z > z:
+                break
+            points[j + 1, 0] = prev_x
+            points[j + 1, 1] = prev_y
+            points[j + 1, 2] = prev_z
+            j -= 1
+        points[j + 1, 0] = x
+        points[j + 1, 1] = y
+        points[j + 1, 2] = z
+
+    # Duplicates are adjacent now that the rows are sorted
+    n_unique = 0
+    for i in range(n_points):
+        if n_unique > 0 and (
+            points[n_unique - 1, 0] == points[i, 0]
+            and points[n_unique - 1, 1] == points[i, 1]
+            and points[n_unique - 1, 2] == points[i, 2]
+        ):
+            continue
+        points[n_unique, 0] = points[i, 0]
+        points[n_unique, 1] = points[i, 1]
+        points[n_unique, 2] = points[i, 2]
+        n_unique += 1
+    return n_unique
+
+
+@njit(cache=True)
+def _get_faces_constLat_intersection_info_numba(
+    face_edges_cart, latitude_cart, is_GCA_list, is_latlonface
+):
+    """Numba kernel behind `_get_faces_constLat_intersection_info`.
+
+    Returns the unique intersection points along with the minimum and maximum
+    longitude across them. When the face is only touched by the latitude there
+    is a single point and the longitudes are meaningless; the Python wrapper
+    replaces them with None.
+    """
+    n_edges = face_edges_cart.shape[0]
+
+    # Each edge contributes at most two intersection points
+    points = np.empty((2 * n_edges + 2, 3), dtype=np.float64)
+    n_points = 0
+    n_valid = 0
+
+    for e in range(n_edges):
+        if not _edge_is_valid(face_edges_cart, e):
+            continue
+
+        z0 = face_edges_cart[e, 0, 2]
+        z1 = face_edges_cart[e, 1, 2]
+        is_gca = _edge_is_gca(z0, z1, is_GCA_list, is_latlonface, n_valid)
+        n_valid += 1
+
+        if not is_gca:
+            # A constant latitude edge lying on the latitude is itself the whole
+            # intersection, so it replaces anything the other edges contribute
+            if _isclose_scalar(z0, latitude_cart, ERROR_TOLERANCE) and _isclose_scalar(
+                z1, latitude_cart, ERROR_TOLERANCE
+            ):
+                for i in range(2):
+                    for j in range(3):
+                        points[i, j] = face_edges_cart[e, i, j]
+                n_points = 2
+                break
+            continue
+
+        intersections = gca_const_lat_intersection(face_edges_cart[e], latitude_cart)
+        n_intersections = get_number_of_intersections(intersections)
+        for r in range(n_intersections):
+            points[n_points, 0] = intersections[r, 0]
+            points[n_points, 1] = intersections[r, 1]
+            points[n_points, 2] = intersections[r, 2]
+            n_points += 1
+
+    n_unique = _unique_rows(points, n_points)
+    unique_intersections = points[:n_unique]
+
+    if n_unique == 0:
+        raise ValueError(
+            "No intersections are found for the face, please make sure the "
+            "build_latlon_box generates the correct results"
+        )
+    # More than two intersections per edge means the face is concave
+    if n_unique > 2 and n_unique > 2 * n_valid:
+        raise ValueError(
+            "UXarray doesn't support concave face with intersections points as currently, please modify your grids accordingly"
+        )
+
+    pt_lon_min = np.inf
+    pt_lon_max = -np.inf
+    for i in range(n_unique):
+        lon = _lon_rad_from_xyz(
+            unique_intersections[i, 0],
+            unique_intersections[i, 1],
+            unique_intersections[i, 2],
+        )
+        if lon < pt_lon_min:
+            pt_lon_min = lon
+        if lon > pt_lon_max:
+            pt_lon_max = lon
+
+    return unique_intersections, pt_lon_min, pt_lon_max
+
+
 def _get_faces_constLat_intersection_info(
     face_edges_cart, latitude_cart, is_GCA_list, is_latlonface
 ):
-    """Processes each edge of a face polygon in a vectorized manner to
-    determine overlaps and calculate the intersections for a given latitude and
-    the faces.
+    """Processes each edge of a face polygon to determine overlaps and
+    calculate the intersections for a given latitude and the faces.
 
     Parameters:
     ----------
@@ -381,78 +530,17 @@ def _get_faces_constLat_intersection_info(
         - pt_lon_min (float): The min longnitude of the interseted intercal in radian if any; otherwise, None..
         - pt_lon_max (float): The max longnitude of the interseted intercal in radian, if any; otherwise, None.
     """
-    valid_edges_mask = ~(np.any(face_edges_cart == DUMMY_EDGE_VALUE, axis=(1, 2)))
-
-    # Apply mask to filter out dummy edges
-    valid_edges = face_edges_cart[valid_edges_mask]
-
-    # Extract Z coordinates for edge determination
-    edges_z = valid_edges[:, :, 2]
-
-    # Determine if each edge is GCA or constant latitude
-    is_GCA = _is_edge_gca(is_GCA_list, is_latlonface, edges_z)
-
-    # Check overlap with latitude
-    overlaps_with_latitude = np.all(
-        np.isclose(edges_z, latitude_cart, atol=ERROR_TOLERANCE), axis=1
+    unique_intersections, pt_lon_min, pt_lon_max = (
+        _get_faces_constLat_intersection_info_numba(
+            face_edges_cart, latitude_cart, is_GCA_list, is_latlonface
+        )
     )
-    overlap_flag = np.any(overlaps_with_latitude & ~is_GCA)
 
-    # Identify overlap edges if needed
-    intersections_pts_list_cart = []
-    if overlap_flag:
-        overlap_index = np.where(overlaps_with_latitude & ~is_GCA)[0][0]
-        intersections_pts_list_cart.extend(valid_edges[overlap_index])
-    else:
-        # Calculate intersections (assuming a batch-capable intersection function)
-        for idx, edge in enumerate(valid_edges):
-            if is_GCA[idx]:
-                intersections = gca_const_lat_intersection(edge, latitude_cart)
-                n_intersections = get_number_of_intersections(intersections)
-                if n_intersections == 0:
-                    continue
-                elif n_intersections == 2:
-                    intersections_pts_list_cart.extend(intersections)
-                else:
-                    intersections_pts_list_cart.append(intersections[0])
-
-    # Find the unique intersection points
-    unique_intersections = np.unique(intersections_pts_list_cart, axis=0)
-
-    if len(unique_intersections) == 2:
-        unique_intersection_lonlat = np.array(
-            [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
-        )
-
-        sorted_lonlat = np.sort(unique_intersection_lonlat, axis=0)
-        pt_lon_min, pt_lon_max = sorted_lonlat[:, 0]
-        return unique_intersections, pt_lon_min, pt_lon_max
-    elif len(unique_intersections) == 1:
+    if len(unique_intersections) == 1:
+        # The face is only touched by the latitude, so there is no interval
         return unique_intersections, None, None
-    elif len(unique_intersections) != 0 and len(unique_intersections) != 1:
-        # If the unique intersections numbers is larger than n_edges * 2, then it means the face is concave
-        if len(unique_intersections) > len(valid_edges) * 2:
-            raise ValueError(
-                "UXarray doesn't support concave face with intersections points as currently, please modify your grids accordingly"
-            )
-        else:
-            # Now return all the intersections points and the pt_lon_min, pt_lon_max
-            unique_intersection_lonlat = np.array(
-                [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
-            )
 
-            sorted_lonlat = np.sort(unique_intersection_lonlat, axis=0)
-            # Extract the minimum and maximum longitudes
-            pt_lon_min, pt_lon_max = (
-                np.min(sorted_lonlat[:, 0]),
-                np.max(sorted_lonlat[:, 0]),
-            )
-
-            return unique_intersections, pt_lon_min, pt_lon_max
-    elif len(unique_intersections) == 0:
-        raise ValueError(
-            "No intersections are found for the face, please make sure the build_latlon_box generates the correct results"
-        )
+    return unique_intersections, pt_lon_min, pt_lon_max
 
 
 @njit(cache=True)
