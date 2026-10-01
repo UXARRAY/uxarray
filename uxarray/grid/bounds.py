@@ -15,6 +15,7 @@ from uxarray.grid.utils import (
     all_elements_nan,
     any_close_lat,
 )
+from uxarray.utils.parallel import parallel_njit
 
 
 def _populate_face_bounds(
@@ -134,7 +135,7 @@ def _populate_face_bounds(
         grid._ds["bounds"] = bounds_da
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _construct_face_bounds_array(
     face_node_connectivity,
     n_nodes_per_face,
