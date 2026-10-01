@@ -9,17 +9,10 @@ from .helpers._fixtures import (
 )
 from .helpers._peakmem import numba_threads, peak_allocated
 from .helpers._warmup import warm_in_parent
+from uxarray.conventions import ugrid
 
-CONNECTIVITY_NAMES = [
-    "n_nodes_per_face",
-    "face_node_connectivity",
-    "edge_node_connectivity",
-    "face_edge_connectivity",
-    "node_edge_connectivity",
-    "face_face_connectivity",
-    "edge_face_connectivity",
-    "node_face_connectivity",
-]
+CONNECTIVITY_NAMES = list(ugrid.CONNECTIVITY_NAMES)
+CONNECTIVITY_NAMES.append("n_nodes_per_face")
 
 # Direct prerequisites only, read off the ``_populate_*`` functions in
 # ``uxarray/grid/connectivity.py``; accessing one builds its own in turn.
