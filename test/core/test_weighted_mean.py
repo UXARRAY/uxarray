@@ -23,6 +23,10 @@ def test_quad_hex_face_centered(gridpath, datasetpath):
     # ensure values are within 3 decimal points of each other
     nt.assert_almost_equal(result.values, expected_weighted_mean, decimal=3)
 
+    # check can compute weighted mean from UxDataset too:
+    result_ds = uxds.weighted_mean()
+    assert result_ds['t2m'].equals(result)
+
 def test_quad_hex_face_centered_dask(gridpath, datasetpath):
     """Compares the weighted average computation for the quad hexagon grid
     using a face centered data variable on a dask-backed UxDataset & Grid to the expected value computed by
@@ -50,6 +54,10 @@ def test_quad_hex_face_centered_dask(gridpath, datasetpath):
     # ensure values are within 3 decimal points of each other
     nt.assert_almost_equal(computed_result.values, expected_weighted_mean, decimal=3)
 
+    # check can compute weighted mean from UxDataset too:
+    result_ds = uxds.weighted_mean().compute()
+    assert result_ds['t2m'].equals(computed_result)
+
 def test_quad_hex_edge_centered(gridpath, test_data_dir):
     """Compares the weighted average computation for the quad hexagon grid
     using an edge centered data variable to the expected value computed by
@@ -64,6 +72,10 @@ def test_quad_hex_edge_centered(gridpath, test_data_dir):
     result = uxds['random_data_edge'].weighted_mean()
 
     nt.assert_equal(result, expected_weighted_mean)
+
+    # check can compute weighted mean from UxDataset too:
+    result_ds = uxds.weighted_mean()
+    assert result_ds['random_data_edge'].equals(result)
 
 def test_quad_hex_edge_centered_dask(gridpath, test_data_dir):
     """Compares the weighted average computation for the quad hexagon grid
@@ -89,11 +101,14 @@ def test_quad_hex_edge_centered_dask(gridpath, test_data_dir):
     assert isinstance(computed_result.data, np.ndarray)
 
     # expected weighted average computed by hand
-    expected_weighted_mean = (uxds[
-                                  'random_data_edge'].values * uxds.uxgrid.edge_node_distances).sum() / uxds.uxgrid.edge_node_distances.sum()
+    expected_weighted_mean = (uxds['random_data_edge'].values * uxds.uxgrid.edge_node_distances).sum() / uxds.uxgrid.edge_node_distances.sum()
 
     # ensure values are within 3 decimal points of each other
     nt.assert_almost_equal(computed_result.values, expected_weighted_mean, decimal=3)
+
+    # check can compute weighted mean from UxDataset too:
+    result_ds = uxds.weighted_mean().compute()
+    assert result_ds['random_data_edge'].equals(computed_result)
 
 def test_weighted_mean_crash_if_node_centered_and_no_weights():
     """Ensure weighted_mean crashes if the data is node-centered and no weights are provided.
