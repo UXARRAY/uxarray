@@ -243,3 +243,44 @@ def test_face_bounds_latlon_bounds_files(gridpath):
         # Check that min <= max for each bound
         assert np.all(bounds[:, 0, 0] <= bounds[:, 0, 1])  # lat_min <= lat_max
         # Note: longitude bounds can wrap around antimeridian, so we don't check lon_min <= lon_max
+
+
+def _node_lat_range(uxgrid):
+    """Per-face ``(min, max)`` latitude over the face's own nodes, in degrees."""
+    conn = uxgrid.face_node_connectivity.values
+    valid = conn != INT_FILL_VALUE
+    lat = uxgrid.node_lat.values[np.where(valid, conn, 0)]
+    return (
+        np.where(valid, lat, np.inf).min(axis=1),
+        np.where(valid, lat, -np.inf).max(axis=1),
+    )
+
+
+def test_face_bounds_contain_every_node(gridpath):
+    """A face's latitude bounds must not be narrower than its own nodes.
+
+    Each edge used to contribute either its interior latitude extreme or its
+    first node, never both, so a face whose edges all bulge poleward lost its
+    lowest node. ``geoflow-small`` has 70 such faces.
+    """
+    # Triangles near the pole whose every edge reaches a higher latitude than
+    # both of its endpoints.
+    vertices = [
+        [[-60, 80], [0, 75], [60, 80]],
+        [[-80, 70], [0, 50], [80, 70]],
+        [[-30, 60], [0, 58], [30, 60]],
+    ]
+    grids = [
+        ux.Grid.from_face_vertices(vertices, latlon=True),
+        ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc")),
+        ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc")),
+        ux.Grid.from_healpix(3),
+    ]
+    for uxgrid in grids:
+        node_min, node_max = _node_lat_range(uxgrid)
+        bounds_lat = uxgrid.face_bounds_lat.values
+        nt.assert_array_less(bounds_lat[:, 0] - node_min, ERROR_TOLERANCE)
+        nt.assert_array_less(node_max - bounds_lat[:, 1], ERROR_TOLERANCE)
+
+    triangles = grids[0].face_bounds_lat.values
+    nt.assert_allclose(triangles[:, 0], [75, 50, 58])

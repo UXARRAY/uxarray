@@ -57,10 +57,7 @@ class GridSubsetAccessor:
             - False: No index storage (default)
         """
 
-        faces_between_lons = self.uxgrid.get_faces_between_longitudes(lon_bounds)
-        face_between_lats = self.uxgrid.get_faces_between_latitudes(lat_bounds)
-
-        faces = np.intersect1d(faces_between_lons, face_between_lats)
+        faces = _faces_in_bounding_box(self.uxgrid, lon_bounds, lat_bounds)
 
         return self.uxgrid.isel(n_face=faces, inverse_indices=inverse_indices)
 
@@ -418,3 +415,100 @@ class GridSubsetAccessor:
             return self.uxgrid.isel(inverse_indices, n_edge=ind)
         else:
             return self.uxgrid.isel(inverse_indices, n_face=ind)
+
+
+def _faces_in_bounding_box(uxgrid, lon_bounds, lat_bounds):
+    """Indices of the faces whose bounds lie inside a longitude/latitude box.
+
+    Returns the same faces as intersecting ``Grid.get_faces_between_longitudes``
+    with ``Grid.get_faces_between_latitudes``, which need ``Grid.bounds`` for
+    every face in the mesh. Here bounds are computed only for the faces whose
+    nodes all lie inside the box, so the cost scales with the region rather
+    than with the mesh (UXARRAY/uxarray#1778). A face's bounds contain each of
+    its nodes, so that screen cannot drop a face the exact test keeps, and it
+    needs no margin or assumption about face size or shape. Bounds that are
+    already cached on the grid are used as they are.
+    """
+    from uxarray.grid.bounds import (
+        _face_bounds_lat_degrees,
+        _face_bounds_lon_degrees,
+        _faces_with_nodes_within_box,
+    )
+    from uxarray.grid.intersections import (
+        faces_within_lat_bounds,
+        faces_within_lon_bounds,
+    )
+
+    if "bounds" in uxgrid._ds:
+        return np.intersect1d(
+            uxgrid.get_faces_between_longitudes(lon_bounds),
+            uxgrid.get_faces_between_latitudes(lat_bounds),
+        )
+
+    face_node_connectivity = uxgrid.face_node_connectivity.values
+    n_nodes_per_face = uxgrid.n_nodes_per_face.values
+    node_lon = uxgrid.node_lon.values
+    node_lat = uxgrid.node_lat.values
+
+    candidates = np.flatnonzero(
+        _faces_with_nodes_within_box(
+            face_node_connectivity,
+            n_nodes_per_face,
+            node_lon,
+            node_lat,
+            float(lon_bounds[0]),
+            float(lon_bounds[1]),
+            float(lat_bounds[0]),
+            float(lat_bounds[1]),
+        )
+    )
+    if candidates.size == 0:
+        return candidates
+
+    bounds = _candidate_face_bounds(
+        uxgrid,
+        face_node_connectivity[candidates],
+        n_nodes_per_face[candidates],
+        node_lon,
+        node_lat,
+    )
+    keep = np.intersect1d(
+        faces_within_lon_bounds(lon_bounds, _face_bounds_lon_degrees(bounds)),
+        faces_within_lat_bounds(lat_bounds, _face_bounds_lat_degrees(bounds)),
+    )
+    return candidates[keep]
+
+
+def _candidate_face_bounds(
+    uxgrid, face_node_connectivity, n_nodes_per_face, node_lon, node_lat
+):
+    """Bounds (radians) of the given faces, computed on the nodes they use.
+
+    The node coordinates are gathered for those faces only, so nothing here is
+    sized by the whole mesh. Cartesian coordinates already on the grid are
+    reused, as ``Grid.bounds`` would; otherwise they are derived from the
+    gathered longitudes and latitudes instead of being populated for every
+    node.
+    """
+    from uxarray.constants import INT_FILL_VALUE
+    from uxarray.grid.bounds import _construct_face_bounds_array
+    from uxarray.grid.coordinates import _lonlat_rad_to_xyz
+
+    valid = face_node_connectivity != INT_FILL_VALUE
+    nodes, local_index = np.unique(face_node_connectivity[valid], return_inverse=True)
+    local_connectivity = np.full_like(face_node_connectivity, INT_FILL_VALUE)
+    local_connectivity[valid] = local_index
+
+    lon = node_lon[nodes]
+    lat = node_lat[nodes]
+    if "node_x" in uxgrid._ds:
+        uxgrid.normalize_cartesian_coordinates()
+        x = uxgrid.node_x.values[nodes]
+        y = uxgrid.node_y.values[nodes]
+        z = uxgrid.node_z.values[nodes]
+    else:
+        x, y, z = _lonlat_rad_to_xyz(np.deg2rad(lon), np.deg2rad(lat))
+
+    return _construct_face_bounds_array(
+        local_connectivity, n_nodes_per_face, x, y, z, lon, lat, False, None
+    )
