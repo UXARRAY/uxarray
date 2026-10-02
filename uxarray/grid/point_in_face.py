@@ -77,7 +77,9 @@ def _face_contains_point(face_edges: np.ndarray, point: np.ndarray) -> bool:
 
 
 @njit(cache=True)
-def _get_faces_containing_point(
+def _set_faces_containing_point(
+    result: np.ndarray,
+    i: int,
     point: np.ndarray,
     candidate_indices: np.ndarray,
     face_node_connectivity: np.ndarray,
@@ -85,12 +87,17 @@ def _get_faces_containing_point(
     node_x: np.ndarray,
     node_y: np.ndarray,
     node_z: np.ndarray,
-) -> np.ndarray:
+) -> int:
     """
-    Test each candidate face to see if it contains the query point.
+    Test each candidate face to see if it contains the query point,
+    setting result[i, j] = candidate_indices[k] for all k where the
+    point is inside the face. j starts at 0 and increments by 1 for
+    each hit. Returns the total number of hits.
 
     Parameters
     ----------
+    result : np.ndarray, shape (n_points, max_candidates)
+        Preallocated array to store face indices for each point.
     point : np.ndarray, shape (3,)
         Cartesian unit-vector of the query point.
     candidate_indices : np.ndarray, shape (k,)
@@ -104,10 +111,9 @@ def _get_faces_containing_point(
 
     Returns
     -------
-    hits : np.ndarray, shape (h,)
-        Subset of `candidate_indices` for which the point is inside the face.
+    n_hits : int
+        Number of candidate faces that contain the point.
     """
-    hit_buf = np.empty(candidate_indices.shape[0], dtype=INT_DTYPE)
     count = 0
     for k in range(candidate_indices.shape[0]):
         fidx = candidate_indices[k]
@@ -115,9 +121,9 @@ def _get_faces_containing_point(
             fidx, face_node_connectivity, n_nodes_per_face, node_x, node_y, node_z
         )
         if _face_contains_point(face_edges, point):
-            hit_buf[count] = fidx
+            result[i, count] = fidx
             count += 1
-    return hit_buf[:count]
+    return count
 
 
 @njit(cache=True, parallel=True, nogil=True)
@@ -165,12 +171,10 @@ def _batch_point_in_face(
         p = points[i]
         cands = flat_candidate_indices[start:end]
 
-        hits = _get_faces_containing_point(
-            p, cands, face_node_connectivity, n_nodes_per_face, node_x, node_y, node_z
+        n_hits = _set_faces_containing_point(
+            results, i, p, cands, face_node_connectivity, n_nodes_per_face, node_x, node_y, node_z
         )
-        for j, fi in enumerate(hits):
-            results[i, j] = fi
-        counts[i] = hits.shape[0]
+        counts[i] = n_hits
 
     return results, counts
 
