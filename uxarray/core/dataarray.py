@@ -1912,7 +1912,7 @@ class UxDataArray(xr.DataArray):
 
         if self.dims != v.dims or self.dims != q.dims:
             raise DimensionError(
-                "All UxDataArrays must have the same dimensions during during u.scalardotgradient(v, q), "
+                "All UxDataArrays must have the same dimensions during u.scalardotgradient(v, q), "
                 f"but got u.dims={self.dims}, v.dims={v.dims}, q.dims={q.dims}."
             )
 

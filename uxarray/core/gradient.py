@@ -97,7 +97,7 @@ def _compute_gradient(data, scale_by_radius=True):
 
     if data.ndim > 1:
         raise DimensionError(
-            "divergence() computation currently only supports 1-dimensional data; "
+            "gradient() computation currently only supports 1-dimensional data; "
             f"got data.dims={data.dims}. Consider reducing dimensionality along non-grid dimensions, "
             "e.g. by applying something like .isel(time=0), .sel(lev=500), or .mean('Time')."
         )
