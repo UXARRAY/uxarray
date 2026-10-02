@@ -83,6 +83,19 @@ def _face_contains_point_from_edges(face_edges: np.ndarray, point: np.ndarray) -
     return np.abs(total) > np.pi
 
 
+def _point_in_face_from_grid(point: np.ndarray, grid: Grid, fidx: int):
+    """Returns whether this point lies within the indicated face of this grid.
+    Helper function providing convenient entry point into `_point_in_face`;
+    see `_point_in_face` for full docstring.
+    """
+    n_nodes_in_face = grid.n_nodes_per_face[fidx].item()
+    nodes_idx = grid.face_node_connectivity[fidx][:n_nodes_in_face].values
+    nodes_x = grid.node_x.values
+    nodes_y = grid.node_y.values
+    nodes_z = grid.node_z.values
+    return _point_in_face(point, nodes_idx, nodes_x, nodes_y, nodes_z)
+
+
 @njit(cache=True)
 def _point_in_face(
     point: np.ndarray,

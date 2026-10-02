@@ -13,7 +13,7 @@ from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
-from uxarray.grid.point_in_face import _face_contains_point_from_edges
+from uxarray.grid.point_in_face import _point_in_face
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
@@ -1260,21 +1260,13 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
                 polygon_xyz[i + 2],
             )
 
-            # Get the triangle in terms of its edges for the `point_in_face` check
-            face_edge = _get_cartesian_face_edge_nodes(
-                face_idx=0,
-                face_node_connectivity=np.array([[0, 1, 2]]),
-                n_edges_per_face=np.array([3]),
-                node_x=np.array([node_0[0], node_1[0], node_2[0]], dtype=np.float64),
-                node_y=np.array([node_0[1], node_1[1], node_2[1]], dtype=np.float64),
-                node_z=np.array([node_0[2], node_1[2], node_2[2]], dtype=np.float64),
-            )
+            node_x = np.array([node_0[0], node_1[0], node_2[0]], dtype=np.float64)
+            node_y = np.array([node_0[1], node_1[1], node_2[1]], dtype=np.float64)
+            node_z = np.array([node_0[2], node_1[2], node_2[2]], dtype=np.float64)
+            nodes_idx = np.array([0, 1, 2])
 
             # Check to see if the point lies within the current triangle
-            contains_point = _face_contains_point_from_edges(
-                face_edge,
-                point_xyz,
-            )
+            contains_point = _point_in_face(point_xyz, nodes_idx, node_x, node_y, node_z)
 
             # If the point is in the current triangle, get the weights for that triangle
             if contains_point:
