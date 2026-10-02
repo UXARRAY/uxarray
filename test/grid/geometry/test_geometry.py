@@ -6,7 +6,7 @@ import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _normalize_xyz
 from uxarray.grid.geometry import haversine_distance, _pole_point_inside_polygon_cartesian
-from uxarray.grid.point_in_face import _face_contains_point
+from uxarray.grid.point_in_face import _face_contains_point_from_edges
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array
 
 
@@ -132,7 +132,7 @@ def test_face_at_antimeridian():
         grid.node_z.values,
     )
 
-    assert _face_contains_point(faces_edges_cartesian[0], point)
+    assert _face_contains_point_from_edges(faces_edges_cartesian[0], point)
 
 
 def test_face_at_pole():
@@ -155,7 +155,7 @@ def test_face_at_pole():
         grid.node_z.values,
     )
 
-    assert _face_contains_point(faces_edges_cartesian[0], point)
+    assert _face_contains_point_from_edges(faces_edges_cartesian[0], point)
 
 
 def test_face_normal_face():
@@ -178,7 +178,7 @@ def test_face_normal_face():
         grid.node_z.values,
     )
 
-    assert _face_contains_point(faces_edges_cartesian[0], point)
+    assert _face_contains_point_from_edges(faces_edges_cartesian[0], point)
 
 
 def test_haversine_distance_creation():

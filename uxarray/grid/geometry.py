@@ -13,7 +13,7 @@ from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
-from uxarray.grid.point_in_face import _face_contains_point
+from uxarray.grid.point_in_face import _face_contains_point_from_edges
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
@@ -1271,7 +1271,7 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
             )
 
             # Check to see if the point lies within the current triangle
-            contains_point = _face_contains_point(
+            contains_point = _face_contains_point_from_edges(
                 face_edge,
                 point_xyz,
             )

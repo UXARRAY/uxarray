@@ -8,6 +8,13 @@ from numba import njit, prange
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.arcs import point_within_gca
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _small_angle_of_2_vectors
+from uxarray.utils.numba_math import (
+    _numba_allclose3,
+    _numba_cross3,
+    _numba_dot3,
+    _numba_norm3,
+    _numba_sub3,
+)
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike
@@ -16,7 +23,7 @@ if TYPE_CHECKING:
 
 
 @njit(cache=True)
-def _face_contains_point(face_edges: np.ndarray, point: np.ndarray) -> bool:
+def _face_contains_point_from_edges(face_edges: np.ndarray, point: np.ndarray) -> bool:
     """
     Determine whether a point lies within a face using the spherical winding-number method.
 
@@ -77,6 +84,95 @@ def _face_contains_point(face_edges: np.ndarray, point: np.ndarray) -> bool:
 
 
 @njit(cache=True)
+def _point_in_face(
+    point: np.ndarray,
+    nodes_idx: np.ndarray,
+    node_x: np.ndarray,
+    node_y: np.ndarray,
+    node_z: np.ndarray,
+) -> bool:
+    """Returns whether this point lies within the face formed by these nodes.
+
+    Uses the spherical winding-number method, which
+    sums the signed central angles between successive vertices of the face
+    as seen from `point`.  If the total absolute winding exceeds π, the point is inside.
+    Points exactly on a node or edge also count as inside.
+
+    Parameters
+    ----------
+    point : np.ndarray, shape (3,)
+        3D unit-vector of the query point on the unit sphere.
+    nodes_idx : np.ndarray, shape (n_nodes,)
+        Node indices (within node_x, node_y, node_z) for precisely all nodes in this face.
+        Likely from `face_node_connectivity[fidx][:n_nodes_per_face[fidx]]`.
+    node_x, node_y, node_z : np.ndarray, shape (n_nodes,)
+        Cartesian coordinates of all nodes.
+        (This method uses the values at indices indicated by nodes_idx.)
+
+    Returns
+    -------
+    inside : bool
+        True if the point is inside the face or lies exactly on a node/edge; False otherwise.
+    """
+    # Rewritten from _face_contains_point_from_edges to avoids creating tiny numpy arrays.
+    # Creating tiny numpy arrays from scratch inside numba is very inefficient.
+    # (Creating tiny numpy arrays from indexing larger arrays is fine, though.)
+    # This is the main reason to provide inputs as nodes_idx and node_x, ..., instead of
+    # simply asking to provide a single array of x, y, z coordinates for all nodes;
+    # the former avoids any need to create a tiny numpy array to store the coordinates.
+
+    n_nodes = len(nodes_idx)
+    max_i_node = n_nodes - 1
+
+    # Check for an exact hit with any of the corner nodes
+    for i in range(n_nodes):
+        node_idx = nodes_idx[i]
+        node_xyz = (node_x[node_idx], node_y[node_idx], node_z[node_idx])
+        if _numba_allclose3(node_xyz, point, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+            return True
+
+    # Check whether point lies on any edge of the face
+    # (edges are great-circle arcs between successive nodes)
+    for i in range(n_nodes):
+        # edge is formed by nodes (a, b)
+        ai = nodes_idx[i]
+        bi = nodes_idx[i + 1] if i < max_i_node else nodes_idx[0]
+
+        # TODO: avoid tiny numpy arrays, after rewriting point_within_gca to accept tuples
+        a = np.array([node_x[ai], node_y[ai], node_z[ai]])
+        b = np.array([node_x[bi], node_y[bi], node_z[bi]])
+        if point_within_gca(point, a, b):
+            return True
+
+    # Apply spherical winding-number method:
+    total = 0.0
+    for i in range(n_nodes):
+        # edge is formed by nodes (a, b).
+        ai = nodes_idx[i]
+        bi = nodes_idx[i + 1] if i < max_i_node else nodes_idx[0]
+
+        a = (node_x[ai], node_y[ai], node_z[ai])
+        b = (node_x[bi], node_y[bi], node_z[bi])
+
+        vi = _numba_sub3(a, point)
+        vj = _numba_sub3(b, point)
+
+        # check if you’re right on a vertex
+        if _numba_norm3(vi) < ERROR_TOLERANCE or _numba_norm3(vj) < ERROR_TOLERANCE:
+            return True
+
+        ang = _small_angle_of_2_vectors(vi, vj)
+
+        # determine sign from cross
+        c = _numba_cross3(vi, vj)
+        sign = 1.0 if _numba_dot3(c, point) >= 0.0 else -1.0
+
+        total += sign * ang
+
+    return np.abs(total) > np.pi
+
+
+@njit(cache=True)
 def _set_faces_containing_point(
     result: np.ndarray,
     i: int,
@@ -96,8 +192,12 @@ def _set_faces_containing_point(
 
     Parameters
     ----------
-    result : np.ndarray, shape (n_points, max_candidates)
+    result : np.ndarray, shape (n_points, max_possible_hits)
         Preallocated array to store face indices for each point.
+        max_possible_hits can be much less than max_candidates;
+        the maximum number of hits is n_max_face_nodes, because
+        the "worst case" of point being a node would lead to hits
+        of all faces it is a part of, but nothing else.
     point : np.ndarray, shape (3,)
         Cartesian unit-vector of the query point.
     candidate_indices : np.ndarray, shape (k,)
@@ -117,10 +217,8 @@ def _set_faces_containing_point(
     count = 0
     for k in range(candidate_indices.shape[0]):
         fidx = candidate_indices[k]
-        face_edges = _get_cartesian_face_edge_nodes(
-            fidx, face_node_connectivity, n_nodes_per_face, node_x, node_y, node_z
-        )
-        if _face_contains_point(face_edges, point):
+        nodes_idx = face_node_connectivity[fidx][:n_nodes_per_face[fidx]]
+        if _point_in_face(point, nodes_idx, node_x, node_y, node_z):
             result[i, count] = fidx
             count += 1
     return count

@@ -6,7 +6,7 @@ import uxarray as ux
 from uxarray.constants import INT_FILL_VALUE
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array, _get_cartesian_face_edge_nodes
-from uxarray.grid.point_in_face import _face_contains_point
+from uxarray.grid.point_in_face import _face_contains_point_from_edges
 
 
 def test_point_inside(gridpath):
@@ -25,7 +25,7 @@ def test_point_inside(gridpath):
         # Set the point as the face center of the polygon
         point_xyz = np.array([grid.face_x[i].values, grid.face_y[i].values, grid.face_z[i].values])
         # Assert that the point is in the polygon
-        assert _face_contains_point(face_edges, point_xyz)
+        assert _face_contains_point_from_edges(face_edges, point_xyz)
 
 
 def test_point_outside(gridpath):
@@ -48,7 +48,7 @@ def test_point_outside(gridpath):
     point_xyz = np.array([grid.face_x[1].values, grid.face_y[1].values, grid.face_z[1].values])
 
     # Assert that the point is not in the face tested
-    assert not _face_contains_point(faces_edges_cartesian[0], point_xyz)
+    assert not _face_contains_point_from_edges(faces_edges_cartesian[0], point_xyz)
 
 
 def test_point_on_node(gridpath):
@@ -71,7 +71,7 @@ def test_point_on_node(gridpath):
     point_xyz = np.array([*faces_edges_cartesian[0][0][0]])
 
     # Assert that the point is in the face when inclusive is true
-    assert _face_contains_point(faces_edges_cartesian[0], point_xyz)
+    assert _face_contains_point_from_edges(faces_edges_cartesian[0], point_xyz)
 
 
 def test_point_inside_close():
@@ -96,7 +96,7 @@ def test_point_inside_close():
     )
 
     # Use point in face to determine if the point is inside or out of the face
-    assert _face_contains_point(faces_edges_cartesian[0], point)
+    assert _face_contains_point_from_edges(faces_edges_cartesian[0], point)
 
 
 def test_point_outside_close():
@@ -121,4 +121,4 @@ def test_point_outside_close():
     )
 
     # Use point in face to determine if the point is inside or out of the face
-    assert not _face_contains_point(faces_edges_cartesian[0], point)
+    assert not _face_contains_point_from_edges(faces_edges_cartesian[0], point)
