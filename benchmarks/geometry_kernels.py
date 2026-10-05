@@ -15,6 +15,8 @@ benchmark in this directory.
 
 import numpy as np
 
+from .helpers._warmup import warm_in_parent
+
 
 def _unit(v):
     return v / np.linalg.norm(v)
@@ -205,3 +207,25 @@ class GCAConstLatIntersection:
     def time_gca_const_lat_intersection(self):
         """Layer 3: dispatcher (full public API)."""
         self.gca_const_lat_intersection(self.gca_cart, _CONST_Z)
+
+
+def _warm_classes():
+    """Compiles what each class's ``setup`` compiles, once per process.
+
+    Runs the setups themselves rather than a copy of their warm calls, so this
+    cannot drift out of step with them.
+    """
+    for cls in (
+        EFTPrimitives,
+        AccucrossKernels,
+        OrientPredicates,
+        GCAGCAIntersection,
+        GCAConstLatIntersection,
+    ):
+        try:
+            cls().setup()
+        except Exception:
+            pass
+
+
+warm_in_parent(_warm_classes, "the geometry kernels")

@@ -39,17 +39,17 @@ def test_sel_indexes_grid():
 def test_sel_uses_grid_dim_labels():
     """ensure obj.sel({grid_dim: ...}) actually utilizes coordinate labels on that grid dim,
     for UxDataArrays and UxDatasets. Regression test for #1641.
-    TODO: fix #1714 then uncomment the UxDataset tests below
+    Also contains regression test for #1714.
     """
     # test corresponding to the workflow described in #1641, but for UxDataset
     uxds = ux.tutorial.open_dataset("outCSne30-vortex")
-    # (uncomment the next few lines after fixing #1714)
-    # uxds1 = uxds.assign_coords(n_face=np.arange(uxds.n_face.size))
-    # uxds2 = uxds1.isel(n_face=range(0, 100, 5))
-    # uxds3 = uxds2 + 7
-    # # "check what the results look like on what were originally faces 20, 30, and 40"
-    # uxds4 = uxds3.sel(n_face=[20,30,40])
-    # assert uxds4.sizes['n_face'] == uxds4.uxgrid.n_face == 3
+    # (the next few lines, through the `assert`, also serve as a regression test for #1714)
+    uxds1 = uxds.assign_coords(n_face=np.arange(uxds.n_face.size))
+    uxds2 = uxds1.isel(n_face=range(0, 100, 5))
+    uxds3 = uxds2 + 7
+    # "check what the results look like on what were originally faces 20, 30, and 40"
+    uxds4 = uxds3.sel(n_face=[20,30,40])
+    assert uxds4.sizes['n_face'] == uxds4.uxgrid.n_face == 3
 
     # test corresponding to the workflow described in #1641, for UxDataArray
     uxarr = uxds['psi']
@@ -70,15 +70,14 @@ def test_sel_uses_grid_dim_labels():
 
 def test_can_index_grid_dim_not_in_data():
     """ensure isel() and sel() can both index a grid dim even if that dim is not present in the data itself;
-    for UxDataArrays and UxDatasets. TODO: fix #1713 then uncomment the UxDataset tests below.
+    for UxDataArrays and UxDatasets. The UxDataset checks serve as a regression test for #1713.
     """
     ds = ux.tutorial.open_dataset("outCSne30-vortex")
-    # (uncomment the next few lines after fixing #1713)
-    # assert "n_face" in ds.dims
-    # result = ds.isel(n_edge=7)
-    # assert result.sizes["n_face"] == result.uxgrid.n_face == 2
-    # result = ds.sel(n_edge=7)
-    # assert result.sizes["n_face"] == result.uxgrid.n_face == 2
+    assert "n_face" in ds.dims
+    result = ds.isel(n_edge=7)
+    assert result.sizes["n_face"] == result.uxgrid.n_face == 2
+    result = ds.sel(n_edge=7)
+    assert result.sizes["n_face"] == result.uxgrid.n_face == 2
 
     arr = ds["psi"]
     result = arr.isel(n_edge=7)
@@ -110,7 +109,7 @@ def test_sel_can_use_slice():
     """ensure sel() can use slice() objects as indexers, and provides expected results,
     with expected sizes, for UxDataArrays and UxDatasets.
     Regression test inspired by reviewer comment in #1641, also related to #1639.
-    TODO: fix #1714 then uncomment the relevant UxDataset tests below
+    Also contains regression test for #1714.
     """
     grid = ux.Grid.from_healpix(zoom=0)  # 12 faces
     arr = ux.UxDataArray(
@@ -129,10 +128,10 @@ def test_sel_can_use_slice():
     uxds = ux.UxDataset({'data': arr.to_xarray()}, uxgrid=grid)
     result = uxds.sel(n_face=slice(0, 2))
     assert result.n_face.size == result.uxgrid.n_face == 2
-    # (uncomment the next few lines after fixing #1714)
-    # labeled_ds = uxds.assign_coords(n_face=np.arange(grid.n_face))
-    # result = labeled_ds.sel(n_face=slice(0, 2))
-    # assert result.n_face.size == result.uxgrid.n_face == 3
+    # (the remaining lines also serve as a regression test for #1714)
+    labeled_ds = uxds.assign_coords(n_face=np.arange(grid.n_face))
+    result = labeled_ds.sel(n_face=slice(0, 2))
+    assert result.n_face.size == result.uxgrid.n_face == 3
 
 def test_isel_can_use_bool():
     """ensure isel() supports indexing by a boolean indexer array.
@@ -151,54 +150,322 @@ def test_isel_can_use_bool():
     result = arr.isel(n_face=[False, False, False, False])
     assert result.sizes['n_face'] == result.uxgrid.n_face == 0
 
+
+def test_isel_can_use_bool_with_coords():
+    """ensure isel() supports indexing by a boolean indexer array with coords.
+    Regression test for bug (1) discovered during review of PR #1759.
+    """
+    ds = ux.tutorial.open_dataset("quad-hexagon")
+    arr = ds['t2m']
+
+    # simplest case: boolean xr.DataArray mask with coords.
+    tokeep0 = xr.DataArray([True, False, True, False], coords={'tokeep': [2,4,6,8]})
+    # (also want to test UxDataArray boolean mask (ensure no infinite recursion))
+    tokeep1 = arr * xr.DataArray([True, False, True, True], dims={'n_face'}) > 0
+    assert isinstance(tokeep1, ux.UxDataArray)
+    # (also want to test UxDataArray boolean mask with coords
+    tokeep2 = tokeep1.assign_coords(tokeep=('n_face', [1,3,5,7]))
+    assert isinstance(tokeep2, ux.UxDataArray)
+    assert np.all(tokeep2.coords['tokeep'] == [1,3,5,7])
+
+    # test on UxDataArray
+    result0 = arr.isel(n_face=tokeep0)
+    assert result0.sizes['n_face'] == result0.uxgrid.n_face == 2
+    assert np.all(result0.coords['tokeep'] == [2,6])
+    result1 = arr.isel(n_face=tokeep1)
+    assert result1.sizes['n_face'] == result1.uxgrid.n_face == 3
+    result2 = arr.isel(n_face=tokeep2)
+    assert result2.sizes['n_face'] == result2.uxgrid.n_face == 3
+    assert np.all(result2.coords['tokeep'] == [1,5,7])
+    # (reviewer found bug on arr.where(), so doing a spot check for that here too)
+    result_where2 = arr.where(tokeep2, drop=True)
+    assert result2.equals(result_where2)
+
+    # repeat tests for UxDataset
+    result0 = ds.isel(n_face=tokeep0)
+    assert result0.sizes['n_face'] == result0.uxgrid.n_face == 2
+    assert np.all(result0.coords['tokeep'] == [2,6])
+    result1 = ds.isel(n_face=tokeep1)
+    assert result1.sizes['n_face'] == result1.uxgrid.n_face == 3
+    result2 = ds.isel(n_face=tokeep2)
+    assert result2.sizes['n_face'] == result2.uxgrid.n_face == 3
+    assert np.all(result2.coords['tokeep'] == [1,5,7])
+    result_where2 = ds.where(tokeep2, drop=True)
+    assert result2.equals(result_where2)
+
+    # also test second reviewer's example (2) from PR #1759:
+    uxds = ux.tutorial.open_dataset("quad-hexagon")
+    uxds = uxds.assign_coords(node_id=("n_node", np.arange(uxds.uxgrid.n_node)))
+    mask = xr.DataArray([True, False, True, False], dims="n_face",
+                        coords={"lab": ("n_face", [10, 20, 30, 40])})
+    uxds.isel(n_face=mask)    # (just ensuring it doesn't crash)
+
+    # also test what happens if uxarray object has grid dim coords:
+    ds1 = ux.tutorial.open_dataset("quad-hexagon").assign_coords(n_face=[0, 10, 20, 30])
+    arr1 = ds1['t2m']
+    wherebig = arr1 > 297.6  # hard-coding just to make the example easily.
+    # (if quad-hexagon file changes, rework this example)
+    assert np.all(wherebig.values == [False, True, True, False])
+    resultA = arr1.isel(n_face=wherebig)   # shouldn't crash!
+    assert np.all(resultA.coords['n_face'] == [10, 20])
+    resultB = ds1.isel(n_face=wherebig)   # shouldn't crash!
+    assert np.all(resultB.coords['n_face'] == [10, 20])
+
+
 def test_indexing_by_dataarray():
     """ensure isel() and sel() with indexer=xr.DataArray(...) both work as expected.
     The dims/coords of the Grid object should never incorporate indexer's dims/coords.
-    The dims/coords of the data object (UxDataArray or UxDataset) should not incorporate
+
+    The dims of the data object (UxDataArray or UxDataset) should not incorporate
     the indexer's dims when indexing along a grid dim (e.g. 'n_face') (this is already true),
-    but should probably incorporate its coords (this isn't true yet; see issue #1712).
+    (e.g. don't rename 'n_face' to match the indexer's dim name!) see issue #1712 for details.
+
+    Though, the coords of the data object *should* incorporate the indexer's coords when possible:
+        - Always incorporate the indexer's scalar coords.
+        - For 1D coords, it is more complicated:
+            only incorporate 1D coords if grid dim is 'n_face'
+                (because 'n_edge' and 'n_node' indexing don't necessarily lead to same
+                size indexer as result)
+            and when data is located along 'n_face'
+                (because otherwise the inder's dim doesn't align with the result's grid dim).
+            I.e., only incorporate 1D coords when indexing face-centered data along 'n_face'.
+    See #1712 for more details.
 
     Regression test for bug in branch (fixed before merging to main) for PR 1729.
+
+    TODO: update accordingly after fixing #1758.
     """
+    # --- n_face indexing of n_face data --- #
     # ensure grid's dims/coords do not incorporate indexer's dims/coords:
     indexer0 = xr.DataArray(0, coords={"newcoord": 7})
     indexer1 = xr.DataArray([1,2], dims="newdim", coords={"newdim": [7,8]})
+    indexer2 = indexer1.assign_coords({"other1dcoord": ("newdim", [9,10]), "scalarcoord": 100})
     ds = ux.tutorial.open_dataset("quad-hexagon")
+    assert "n_face" in ds.dims  # behavior for #1712 depends on data location.
     result0_isel = ds.isel(n_face=indexer0)
     assert "newcoord" not in result0_isel.uxgrid._ds.coords
-    # assert "newcoord" in result0_isel.coords   # uncomment after fixing #1712
+    assert "newcoord" in result0_isel.coords   # regression test for #1712
     result0_sel = ds.sel(n_face=indexer0)
     assert "newcoord" not in result0_sel.uxgrid._ds.coords
-    # assert "newcoord" in result0_sel.coords   # uncomment after fixing #1712
+    assert "newcoord" in result0_sel.coords   # regression test for #1712
     result1_isel = ds.isel(n_face=indexer1)
     assert "newdim" not in result1_isel.uxgrid._ds.dims
     assert "newdim" not in result1_isel.uxgrid._ds.coords
     assert "newdim" not in result1_isel.dims and "n_face" in result1_isel.dims  # didn't rename 'n_face'.
-    # assert "newdim" in result1_isel.coords   # uncomment after fixing #1712
+    assert "newdim" in result1_isel.coords   # regression test for #1712
     result1_sel = ds.sel(n_face=indexer1)
     assert "newdim" not in result1_sel.uxgrid._ds.dims
     assert "newdim" not in result1_sel.uxgrid._ds.coords
     assert "newdim" not in result1_sel.dims and "n_face" in result1_sel.dims
-    # assert "newdim" in result1_sel.coords   # uncomment after fixing #1712
+    assert "newdim" in result1_sel.coords   # regression test for #1712
+    result2_isel = ds.isel(n_face=indexer2)
+    assert np.all(result2_isel.coords["other1dcoord"] == [9,10])
+    assert result2_isel.coords["scalarcoord"] == 100
+    result2_sel = ds.sel(n_face=indexer2)
+    assert np.all(result2_sel.coords["other1dcoord"] == [9,10])
+    assert result2_sel.coords["scalarcoord"] == 100
 
     # repeat tests but with UxDataArray:
     arr = ds['t2m']
     result0_isel = arr.isel(n_face=indexer0)
     assert "newcoord" not in result0_isel.uxgrid._ds.coords
-    # assert "newcoord" in result0_isel.coords
+    assert "newcoord" in result0_isel.coords
     result0_sel = arr.sel(n_face=indexer0)
     assert "newcoord" not in result0_sel.uxgrid._ds.coords
-    # assert "newcoord" in result0_sel.coords
+    assert "newcoord" in result0_sel.coords
     result1_isel = arr.isel(n_face=indexer1)
     assert "newdim" not in result1_isel.uxgrid._ds.dims
     assert "newdim" not in result1_isel.uxgrid._ds.coords
     assert "newdim" not in result1_isel.dims and "n_face" in result1_isel.dims
-    # assert "newdim" in result1_isel.coords
+    assert "newdim" in result1_isel.coords
     result1_sel = arr.sel(n_face=indexer1)
     assert "newdim" not in result1_sel.uxgrid._ds.dims
     assert "newdim" not in result1_sel.uxgrid._ds.coords
     assert "newdim" not in result1_sel.dims and "n_face" in result1_sel.dims
-    # assert "newdim" in result1_sel.coords
+    assert "newdim" in result1_sel.coords
+    result2_isel = arr.isel(n_face=indexer2)
+    assert np.all(result2_isel.coords["other1dcoord"] == [9,10])
+    assert result2_isel.coords["scalarcoord"] == 100
+    result2_sel = arr.sel(n_face=indexer2)
+    assert np.all(result2_sel.coords["other1dcoord"] == [9,10])
+    assert result2_sel.coords["scalarcoord"] == 100
+
+    # --- non-n_face indexing and/or non-n_face data --- #
+    # using loops to avoid writing extremely long test;
+    # loops are slightly harder to debug but worthwhile to include in at least one test,
+    # to cover more combinations of cases (e.g., discovered #1758 while making this test).
+    ds_face = ds
+    ds_node = ux.tutorial.open_dataset("quad-hexagon-random-node")
+    #ds_edge = ux.tutorial.open_dataset("quad-hexagon-random-edge")  # uncomment after fixing #1758
+    assert "n_face" in ds_face.dims
+    assert "n_node" in ds_node.dims
+    #assert "n_edge" in ds_edge.dims   # uncomment after fixing #1758
+    counter = 0  # (count up during loop to make sure nothing is skipped unexpectedly)
+    for method in "isel", "sel":
+        for dataset in [ds_face, ds_node]:  # include ds_edge after fixing #1758
+            for grid_dim in ("n_face", "n_edge", "n_node"):
+                for to_array in [False, True]:
+                    if grid_dim == "n_face" and "n_face" in dataset.dims:
+                        continue  # already tested this above!
+                    counter += 1
+                    obj = dataset[list(dataset.data_vars)[0]] if to_array else dataset
+                    result0 = getattr(obj, method)({grid_dim: indexer0})
+                    assert "newcoord" not in result0.uxgrid._ds.coords
+                    assert "newcoord" in result0.coords  # 0D coord should always show up!
+                    result1 = getattr(obj, method)({grid_dim: indexer1})
+                    assert "newdim" not in result1.uxgrid._ds.dims
+                    assert "newdim" not in result1.uxgrid._ds.coords
+                    assert "newdim" not in result1.dims
+                    assert "newdim" not in result1.coords
+                    result2 = getattr(obj, method)({grid_dim: indexer2})
+                    assert "other1dcoord" not in result2.uxgrid._ds.coords
+                    assert "other1dcoord" not in result2.coords
+                    assert result2.coords["scalarcoord"] == 100
+    n_data_grid_dim_combos = 2 * 3 - 1  # after fixing #1758, update to: 3 * 3 - 1.
+    # the -1 accounts for skipping when both are "n_face" above.
+    assert counter == 2 * n_data_grid_dim_combos * 2
+
+
+def test_indexing_of_uxarray_obj_with_grid_dim_coords():
+    """ensure obj.isel() and obj.sel() work properly when obj has coords along grid dim.
+    Regression test for second reviewer's example (4) from PR 1759.
+    """
+    # example (4) from PR 1759
+    uxds = ux.tutorial.open_dataset("quad-hexagon").assign_coords(n_face=[0, 10, 20, 30])
+    pick_by_label = xr.DataArray([0, 20], dims="station", coords={"station": ["A", "B"]})
+    pick_by_index = xr.DataArray([0, 2], dims="station", coords={"station": ["A", "B"]})
+
+    by_index = uxds.isel(n_face=pick_by_index)
+    assert set(by_index.coords) == {'n_face', 'station'}
+    assert np.all(by_index.coords['n_face'] == [0, 20])
+    assert np.all(by_index.coords['station'] == ['A', 'B'])
+    by_label = uxds.sel(n_face=pick_by_label)
+    assert by_label.identical(by_index)
+
+    # repeat above, for UxDataArray:
+    uxarr = uxds['t2m']
+    by_index = uxarr.isel(n_face=pick_by_index)
+    assert set(by_index.coords) == {'n_face', 'station'}
+    assert np.all(by_index.coords['n_face'] == [0, 20])
+    assert np.all(by_index.coords['station'] == ['A', 'B'])
+    by_label = uxarr.sel(n_face=pick_by_label)
+    assert by_label.identical(by_index)
+
+    # sanity check / spot tests: indexer with grid dim and coords:
+    # (A) should be allowed if coords don't conflict with obj
+    # (B) should crash if coords conflict with obj
+    indexerA_sel = xr.DataArray([0, 20], dims="n_face", coords={"n_face": [0, 20]})
+    indexerB_sel = xr.DataArray([0, 20], dims="n_face", coords={"n_face": [7, 99]})
+    indexerA_isel = xr.DataArray([0, 2], dims="n_face", coords={"n_face": [0, 20]})
+    indexerB_isel = xr.DataArray([0, 2], dims="n_face", coords={"n_face": [0, 2]})
+    resultA_sel = uxds.sel(n_face=indexerA_sel)
+    assert np.all(resultA_sel.coords['n_face'] == [0, 20])
+    with pytest.raises(IndexError, match="dimension coordinate 'n_face' conflicts"):
+        _resultB_sel = uxds.sel(n_face=indexerB_sel)
+    resultA_isel = uxds.isel(n_face=indexerA_isel)
+    assert np.all(resultA_isel.coords['n_face'] == [0, 20])
+    with pytest.raises(IndexError, match="dimension coordinate 'n_face' conflicts"):
+        _resultA_sel = uxds.isel(n_face=indexerB_isel)
+
+    # repeat sanity checks, for UxDataArray:
+    resultA_sel = uxarr.sel(n_face=indexerA_sel)
+    assert np.all(resultA_sel.coords['n_face'] == [0, 20])
+    with pytest.raises(IndexError, match="dimension coordinate 'n_face' conflicts"):
+        _resultB_sel = uxarr.sel(n_face=indexerB_sel)
+    resultA_isel = uxarr.isel(n_face=indexerA_isel)
+    assert np.all(resultA_isel.coords['n_face'] == [0, 20])
+    with pytest.raises(IndexError, match="dimension coordinate 'n_face' conflicts"):
+        _resultA_sel = uxarr.isel(n_face=indexerB_isel)
+
+
+def test_dataset_isel_keeps_bonus_coords():
+    """ensure UxDataset.isel() keeps "bonus" coords,
+    i.e. coords in the dataset which do not actually appear in any data var.
+    Regression test for bug (3) discovered during review of PR #1759.
+    """
+    ds = ux.tutorial.open_dataset('quad-hexagon')
+    ds = ds.assign_coords({'bonus_coord': xr.DataArray(['a', 'b'], dims=['bonus_dim'])})
+    assert 'bonus_coord' in ds.coords
+    assert all('bonus_coord' not in arr for arr in ds.data_vars.values())
+    result = ds.isel(n_face=0)
+    assert 'bonus_coord' in result.coords and 'bonus_dim' in result.dims
+
+    # also test using second reviewer's example (1) from PR #1759:
+    uxds = ux.tutorial.open_dataset("quad-hexagon")
+    uxds = uxds.assign_coords(node_id=("n_node", np.arange(uxds.uxgrid.n_node)))
+    sub = uxds.isel(n_face=[0, 1])
+    assert 'node_id' in sub.coords
+
+
+def test_indexing_by_size_0_array():
+    """ensure indexing by size 0 indexer works as expected (size 0 result).
+    Regression test for second reviewer's example (3) from PR 1759.
+    """
+    def _as_array(obj):  # return UxDataArray from UxDataArray, or UxDataset's data_vars[0].
+        return obj[list(obj.data_vars)[0]] if isinstance(obj, ux.UxDataset) else obj
+
+    # example (3) from PR 1759
+    uxds = ux.tutorial.open_dataset("quad-hexagon")
+    assert set(uxds.dims) == {'n_face'}
+    uxds = uxds.assign_coords(node_id=("n_node", np.arange(uxds.uxgrid.n_node)))
+    assert set(uxds.dims) == {'n_face', 'n_node'}
+    hits = np.where(uxds.uxgrid.edge_lon > 1e9)[0]   # empty
+    assert hits.size == 0
+    result = uxds.isel(n_edge=xr.DataArray(hits, dims="selected"))
+    assert _as_array(result).size == 0
+    assert 'node_id' in result.coords
+    assert set(result.dims) == {'n_face', 'n_node'}
+    assert result.sizes['n_face'] == result.sizes['n_node'] == 0
+    assert result.uxgrid.n_face == result.uxgrid.n_node == result.uxgrid.n_edge == 0
+
+    # followup to example (3): fancy empty array (with dim that has coords (which are empty))
+    uxds = ux.tutorial.open_dataset("quad-hexagon")
+    fancy_empty = xr.DataArray(np.array([]), dims="selected",
+                            coords={"selected": np.array([], dtype=int)})
+    for grid_dim in ("n_face", "n_edge", "n_node"):
+        resultA = uxds.isel({grid_dim: fancy_empty})
+        assert resultA.sizes == {'n_face': 0}  # and, must not pick up "selected" dim from indexer.
+        resultB = uxds.sel({grid_dim: fancy_empty})
+        assert resultB.sizes == {'n_face': 0}
+        # repeat for UxDataArray:
+        resultC = uxds['t2m'].isel({grid_dim: fancy_empty})
+        assert resultC.sizes == {'n_face': 0}
+        resultD = uxds['t2m'].sel({grid_dim: fancy_empty})
+        assert resultD.sizes == {'n_face': 0}
+
+    # simpler tests, but applied across isel, sel, UxDataArray, UxDataset, n_edge, n_node, and n_face:
+    ds_face = ux.tutorial.open_dataset("quad-hexagon-random-face")
+    ds_node = ux.tutorial.open_dataset("quad-hexagon-random-node")
+    #ds_edge = ux.tutorial.open_dataset("quad-hexagon-random-edge")  # uncomment after fixing #1758
+    assert "n_face" in ds_face.dims
+    assert "n_node" in ds_node.dims
+    #assert "n_edge" in ds_edge.dims   # uncomment after fixing #1758
+    counter = 0  # (count up during loop to make sure nothing is skipped unexpectedly)
+    for method in "isel", "sel":
+        for dataset in [ds_face, ds_node]:  # include ds_edge after fixing #1758
+            for grid_dim in ("n_face", "n_edge", "n_node"):
+                for to_array in [False, True]:
+                    counter += 1
+                    obj = _as_array(dataset) if to_array else dataset
+                    # index by empty list:
+                    result = getattr(obj, method)({grid_dim: []})
+                    assert _as_array(result).size == 0
+                    assert set(result.dims) == set(obj.dims)
+                    # index by empty numpy array:
+                    result = getattr(obj, method)({grid_dim: np.array([])})
+                    assert _as_array(result).size == 0
+                    assert set(result.dims) == set(obj.dims)
+                    # index by empty xr.DataArray:
+                    result = getattr(obj, method)({grid_dim: xr.DataArray([])})
+                    assert _as_array(result).size == 0
+                    assert set(result.dims) == set(obj.dims)
+                    # index by empty xr.DataArray with a scalar coord:
+                    indexer = xr.DataArray([]).assign_coords({"scalar7": 7})
+                    result = getattr(obj, method)({grid_dim: indexer})
+                    assert _as_array(result).size == 0
+                    assert set(result.dims) == set(obj.dims)
+                    assert result.coords["scalar7"] == 7
+
 
 def test_indexing_does_not_edit_indexers_dict():
     """ensure isel() and sel() do not edit the provided indexers dict.
@@ -253,7 +520,7 @@ def test_sel_crash_if_provided_selection_options_with_coordless_dims():
     whenever any of the indexed dims have no associated coordinates.
     (Tests below also demonstrate that this behavior is consistent with xarray.)
     Regression test inspired by reviewer comment in #1641.
-    TODO: fix #1714 then uncomment the relevant UxDataset tests below
+    Also includes a regression test for #1714.
     """
     kw_options = ({"method": "nearest"}, {"method": "nearest", "tolerance": 0.1})
 
@@ -264,13 +531,13 @@ def test_sel_crash_if_provided_selection_options_with_coordless_dims():
     assert set(ds0.dims) == {'n_face'}
     ds0_labeled = ds0.assign_coords({'n_face': [0,10,20,30]})
 
-    # (uncomment the next few lines after fixing #1714)
-    # ds0.sel(n_face=[0,1])  # (sanity check: no crash when no options provided)
-    # for kw in kw_options:
-    #     with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
-    #         ds0.sel(n_face=[0,1], **kw)  # provides method, tolerance, or both.
-    #     # separately: checking to ensure that passing these options is fine in "labeled" case.
-    #     ds0_labeled.sel(n_face=[0,10], **kw)
+    # (the next few lines also serve as a regression test for #1714)
+    ds0.sel(n_face=[0,1])  # (sanity check: no crash when no options provided)
+    for kw in kw_options:
+        with pytest.raises(ValueError, match=r"cannot supply selection options.+for dimension 'n_face'"):
+            ds0.sel(n_face=[0,1], **kw)  # provides method, tolerance, or both.
+        # separately: checking to ensure that passing these options is fine in "labeled" case.
+        ds0_labeled.sel(n_face=[0,10], **kw)
 
     # ensure same behavior for xarray objects:
     ds0.to_xarray().sel(n_face=[0,1])
@@ -280,9 +547,9 @@ def test_sel_crash_if_provided_selection_options_with_coordless_dims():
         ds0_labeled.to_xarray().sel(n_face=[0,10], **kw)
 
     # ensure supplying just tolerance raises a different error, if indexing is otherwise valid:
-    # (uncomment the next few lines after fixing #1714)
-    # with pytest.raises(ValueError, match=r"tolerance argument only valid if doing.+"):
-    #     ds0_labeled.sel(n_face=[0,10], tolerance=0.1)
+    # (the following pytest.raises statement also serves as a regression test for #1714)
+    with pytest.raises(ValueError, match=r"tolerance argument only valid if doing.+"):
+        ds0_labeled.sel(n_face=[0,10], tolerance=0.1)
     with pytest.raises(ValueError, match=r"tolerance argument only valid if doing.+"):
         ds0_labeled.to_xarray().sel(n_face=[0,10], tolerance=0.1)
 
@@ -388,3 +655,83 @@ def test_sel_crash_if_provided_selection_options_with_coordless_dims():
             arr1.to_xarray().sel(time=4, **kw)
         with pytest.raises(ValueError, match=r"cannot supply selection options"):
             arr1.to_xarray().sel(time=4, n_face=[3], **kw)
+
+def test_isel_crash_if_coordinates_conflict():
+    """Ensure isel crashes if there is a coordinates conflict,
+    such as indexing an array with time dim by an array with a scalar time coord.
+    Regression test for bug (2) discovered during review of PR #1759.
+    (Also checks indexing an array with scalar time coord by an array with a time dim.)
+    """
+    ds = ux.tutorial.open_dataset("outCSne30-timeseries")
+    arr = ds['psi']
+    indexer0 = xr.DataArray(0, coords={'time': arr['time'][0].item()})
+    indexer1 = arr.isel(time=0).argmax('n_face')
+    indexer2 = xr.DataArray([0,1], dims='time', coords={'time': arr['time'][:2].values})
+    assert isinstance(indexer1, ux.UxDataArray)
+    assert 'time' in indexer1.coords and 'time' not in indexer1.dims
+    MATCH_ERRMSG = "dimension coordinate 'time' conflicts between indexed and indexing objects"
+    MATCH_ERRMSG_2 = "The indexer's dimension \('time'\) already exists as a scalar"
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        arr.to_xarray().isel(n_face=indexer0)  # sanity check that xarray also crashes here.
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        arr.isel(n_face=indexer0)
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        arr.to_xarray().isel(n_face=indexer1)  # sanity check that xarray also crashes here.
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        arr.isel(n_face=indexer1)
+    arr_t0 = arr.isel(time=0)
+    assert 'time' in arr_t0.coords and 'time' not in arr_t0.dims
+    with pytest.raises(ux.errors.DimensionError, match=MATCH_ERRMSG_2):
+        arr_t0.isel(n_face=indexer2)
+
+    # repeat tests for UxDataArray:
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        ds.to_xarray().isel(n_face=indexer0)
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        ds.isel(n_face=indexer0)
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        ds.to_xarray().isel(n_face=indexer1)
+    with pytest.raises(IndexError, match=MATCH_ERRMSG):
+        ds.isel(n_face=indexer1)
+    ds_t0 = ds.isel(time=0)
+    assert 'time' in ds_t0.coords and 'time' not in ds_t0.dims
+    with pytest.raises(ux.errors.DimensionError, match=MATCH_ERRMSG_2):
+        ds_t0.isel(n_face=indexer2)
+
+def test_isel_when_indexer_dim_in_uxarray_obj():
+    """Ensure isel() crashes with NotImplementedError when the indexer's dim has
+    the same name as a dim or non-scalar coordinate in the uxarray object being indexed.
+    Regression test for follow-up to bug (2) discovered during review of PR #1759.
+    """
+    ds = ux.tutorial.open_dataset('quad-hexagon').expand_dims(time=[100,200])
+    arr = ds['t2m']
+    imax = arr.argmax('n_face')
+    assert set(imax.dims) == {'time'} and set(imax.coords) == {'time'}
+    assert set(ds.dims) == {'time', 'n_face'} and set(ds.coords) == {'time'}
+    assert imax.coords['time'].equals(ds.coords['time'])
+    # pure xarray indexing here returns a result with only 'time' dimension;
+    # that's the main reason uxarray should raise NotImplementedError in this case.
+    xr_result = ds.to_xarray().isel(n_face=imax.to_xarray())
+    assert set(xr_result.dims) == {'time'}
+    ERRMSG = (
+        r"Indexing a {typestr} .+ using an xarray DataArray whose dimension \('time'\) "
+        r"is already present .+ is not yet supported"
+    )
+    with pytest.raises(NotImplementedError, match=ERRMSG.format(typestr="UxDataset")):
+        ds.isel(n_face=imax)
+    ds1 = ds.swap_dims({'time': 'otherdim'})
+    assert 'time' in ds1.coords and 'time' not in ds1.dims
+    with pytest.raises(NotImplementedError, match=ERRMSG.format(typestr="UxDataset")):
+        ds1.isel(n_face=imax)
+
+    # repeat tests for UxDataArray:
+    assert set(arr.dims) == {'time', 'n_face'} and set(arr.coords) == {'time'}
+    assert imax.coords['time'].equals(arr.coords['time'])
+    xr_result = arr.to_xarray().isel(n_face=imax.to_xarray())
+    assert set(xr_result.dims) == {'time'}
+    with pytest.raises(NotImplementedError, match=ERRMSG.format(typestr="UxDataArray")):
+        arr.isel(n_face=imax)
+    arr1 = arr.swap_dims({'time': 'otherdim'})
+    assert 'time' in arr1.coords and 'time' not in arr1.dims
+    with pytest.raises(NotImplementedError, match=ERRMSG.format(typestr="UxDataArray")):
+        arr1.isel(n_face=imax)

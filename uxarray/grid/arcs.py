@@ -70,7 +70,7 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
         raise ValueError(
             "The input Great Circle Arc spans exactly 180 degrees, which can correspond to multiple planes. "
             "Consider breaking the Great Circle Arc into two smaller arcs."
-        )
+        )  # (numba complains about f-strings, so don't put actual values in message.)
 
     # 2. Verify if the point lies on the plane of the GCA
     cross_product = np.cross(gca_a_xyz, gca_b_xyz)
@@ -224,7 +224,8 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     """
     # Validate extreme_type
     if (extreme_type != "max") and (extreme_type != "min"):
-        raise ValueError("extreme_type must be either 'max' or 'min'")
+        raise ValueError("Invalid extreme_type. Expected 'max' or 'min'.")
+        # (numba complains about f-strings, so don't put `extreme_type` value in message.)
 
     # Extract the two points
     n1 = gca_cart[0]
@@ -305,7 +306,8 @@ def extreme_gca_z(gca_cart, extreme_type):
 
     # Validate extreme_type
     if (extreme_type != "max") and (extreme_type != "min"):
-        raise ValueError("extreme_type must be either 'max' or 'min'")
+        raise ValueError("Invalid extreme_type. Expected 'max' or 'min'.")
+        # (numba complains about f-strings, so don't put `extreme_type` value in message.)
 
     # Extract the two points
     n1 = gca_cart[0]
