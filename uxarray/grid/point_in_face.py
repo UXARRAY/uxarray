@@ -37,7 +37,7 @@ def _point_in_face_from_grid(point: np.ndarray, grid: Grid, fidx: int):
 
 @njit(cache=True)
 def _point_in_face(
-    point: np.ndarray,
+    point: np.ndarray | tuple[float, float, float],
     nodes_idx: np.ndarray,
     node_x: np.ndarray,
     node_y: np.ndarray,
@@ -52,7 +52,7 @@ def _point_in_face(
 
     Parameters
     ----------
-    point : np.ndarray, shape (3,)
+    point : iterable of length 3
         3D unit-vector of the query point on the unit sphere.
     nodes_idx : np.ndarray, shape (n_nodes,)
         Node indices (within node_x, node_y, node_z) for precisely all nodes in this face.
@@ -127,7 +127,7 @@ def _point_in_face(
 def _set_faces_containing_point(
     result: np.ndarray,
     i: int,
-    point: np.ndarray,
+    point: np.ndarray | tuple[float, float, float],
     candidate_indices: np.ndarray,
     face_node_connectivity: np.ndarray,
     n_nodes_per_face: np.ndarray,
@@ -149,7 +149,7 @@ def _set_faces_containing_point(
         the maximum number of hits is n_max_face_nodes, because
         the "worst case" of point being a node would lead to hits
         of all faces it is a part of, but nothing else.
-    point : np.ndarray, shape (3,)
+    point : iterable of length 3
         Cartesian unit-vector of the query point.
     candidate_indices : np.ndarray, shape (k,)
         Array of face indices to test (e.g., from a k-d tree cull).
@@ -217,7 +217,7 @@ def _batch_point_in_face(
     for i in prange(n_points):
         start = offsets[i]
         end = offsets[i + 1]
-        p = points[i]
+        p = (points[i][0], points[i][1], points[i][2])
         cands = flat_candidate_indices[start:end]
 
         n_hits = _set_faces_containing_point(
