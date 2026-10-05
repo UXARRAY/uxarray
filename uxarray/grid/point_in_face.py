@@ -90,9 +90,8 @@ def _point_in_face(
         ai = nodes_idx[i]
         bi = nodes_idx[i + 1] if i < max_i_node else nodes_idx[0]
 
-        # TODO: avoid tiny numpy arrays, after rewriting point_within_gca to accept tuples
-        a = np.array([node_x[ai], node_y[ai], node_z[ai]])
-        b = np.array([node_x[bi], node_y[bi], node_z[bi]])
+        a = (node_x[ai], node_y[ai], node_z[ai])
+        b = (node_x[bi], node_y[bi], node_z[bi])
         if point_within_gca(point, a, b):
             return True
 
