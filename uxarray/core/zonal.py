@@ -1,17 +1,17 @@
 import numpy as np
 from numba import njit
 
+from uxarray.constants import ERROR_TOLERANCE
 from uxarray.errors import DimensionError
-from uxarray.grid.area import calculate_face_area
-from uxarray.grid.geometry import _unique_points
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
-from uxarray.grid.intersections import (
-    gca_const_lat_intersection,
-    get_number_of_intersections,
-)
-from uxarray.grid.utils import (
-    _get_cartesian_face_edge_nodes_array_subset,
-    _small_angle_of_2_vectors,
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array_subset
+from uxarray.utils.numba_math import (
+    _numba_add3,
+    _numba_cross3,
+    _numba_div3_scalar,
+    _numba_dot3,
+    _numba_mul3_scalar,
+    _numba_norm3,
 )
 
 
@@ -101,139 +101,201 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
 
 
 @njit(cache=True)
-def _sort_points_by_angle(points):
-    """Sort points by longitude angle for proper polygon formation.
-
-    Parameters
-    ----------
-    points : ndarray
-        Array of 3D points on unit sphere, shape (n_points, 3)
-
-    Returns
-    -------
-    ndarray
-        Points sorted by longitude angle
-    """
-    n_points = points.shape[0]
-    if n_points <= 1:
-        return points.copy()
-
-    # Calculate angles (longitude)
-    angles = np.empty(n_points, dtype=np.float64)
-    x_axis = np.array([1.0, 0.0, 0.0])
-    for i in range(n_points):
-        # Project point to xy plane for longitude calculation
-        point_xy = np.array([points[i, 0], points[i, 1], 0.0])
-        point_xy_norm = np.linalg.norm(point_xy)
-
-        if point_xy_norm < 1e-15:
-            angles[i] = 0.0  # Point at pole
-        else:
-            point_xy_unit = point_xy / point_xy_norm
-            angle = _small_angle_of_2_vectors(x_axis, point_xy_unit)
-            # Determine sign based on y coordinate
-            if points[i, 1] < 0:
-                angle = -angle
-            angles[i] = angle
-
-    # Simple insertion sort (numba-friendly for small arrays)
-    sorted_points = points.copy()
-    for i in range(1, n_points):
-        key_angle = angles[i]
-        key_point = sorted_points[i].copy()
-        j = i - 1
-
-        while j >= 0 and angles[j] > key_angle:
-            angles[j + 1] = angles[j]
-            sorted_points[j + 1] = sorted_points[j]
-            j -= 1
-
-        angles[j + 1] = key_angle
-        sorted_points[j + 1] = key_point
-
-    return sorted_points
+def _is_pole_point(p):
+    """Whether ``p`` lies (numerically) on a pole, where longitude is undefined."""
+    return p[0] * p[0] + p[1] * p[1] < ERROR_TOLERANCE * ERROR_TOLERANCE
 
 
 @njit(cache=True)
-def _compute_band_overlap_area(
-    face_edges_xyz, z_min, z_max, quadrature_rule="gaussian", order=4
-):
-    """Compute overlap area between a face and latitude band using area.py functions.
+def _lon_delta(a, b):
+    """Signed longitude change from ``a`` to ``b`` in (-pi, pi].
 
-    This function finds the intersection polygon between a face and latitude band,
-    then uses calculate_face_area from area.py with latitude_adjusted_area=True
-    for accurate area computation when edges lie on constant latitude lines.
+    Computed from the horizontal projections of the two points, so it is
+    unaffected by the antimeridian.
+    """
+    return np.arctan2(a[0] * b[1] - a[1] * b[0], a[0] * b[0] + a[1] * b[1])
+
+
+@njit(cache=True)
+def _gca_z_dlon_integral(a, b):
+    """Exact value of the line integral of ``z dlon`` along the minor great-circle arc a -> b.
+
+    With ``n = a x b`` and ``t = n x p`` the (unnormalized) tangent at ``p``, an
+    antiderivative along the arc is ``-arctan(t_z / n_z)``. The difference of the
+    two arctangents is evaluated with a single ``arctan2`` so meridian arcs
+    (``n_z == 0``) give 0 instead of dividing by zero.
+    """
+    n = _numba_cross3(a, b)
+    ta_z = n[0] * a[1] - n[1] * a[0]
+    tb_z = n[0] * b[1] - n[1] * b[0]
+    return -np.arctan2(n[2] * (tb_z - ta_z), n[2] * n[2] + ta_z * tb_z)
+
+
+@njit(cache=True)
+def _edge_band_integral(a, b, z_min, z_max):
+    """Line integral of ``(clip(z, z_min, z_max) - z_min) dlon`` along the arc a -> b.
+
+    The arc is split where it crosses ``z = z_min`` and ``z = z_max`` (at most
+    twice each), so on every piece the integrand is either a constant or ``z``
+    itself, both of which integrate exactly.
+
+    Returns the integral and whether any piece of the arc lies strictly inside
+    the band.
+    """
+    a = (a[0], a[1], a[2])
+    b = (b[0], b[1], b[2])
+    n = _numba_cross3(a, b)
+    sin_arc = _numba_norm3(n)
+    if sin_arc == 0.0:
+        return 0.0, False
+    arc = np.arctan2(sin_arc, _numba_dot3(a, b))
+
+    # Parametrize the arc as p(t) = a cos(t) + u sin(t), t in [0, arc], where u is
+    # the unit tangent at a pointing toward b. Then z(t) = r cos(t - t0).
+    u = _numba_div3_scalar(_numba_cross3(n, a), sin_arc)
+    r = np.hypot(a[2], u[2])
+    t0 = np.arctan2(u[2], a[2])
+
+    ts = np.empty(6, dtype=np.float64)
+    ts[0] = 0.0
+    nt = 1
+    for c in (z_min, z_max):
+        if np.abs(c) < r:
+            d = np.arccos(c / r)
+            for t in (t0 - d, t0 + d):
+                if t > np.pi:
+                    t -= 2.0 * np.pi
+                elif t <= -np.pi:
+                    t += 2.0 * np.pi
+                if 0.0 < t < arc:
+                    ts[nt] = t
+                    nt += 1
+    ts[nt] = arc
+    nt += 1
+    ts[:nt].sort()
+
+    total = 0.0
+    inside = False
+    p0 = a
+    for i in range(1, nt):
+        if i == nt - 1:
+            p1 = b
+        else:
+            p1 = _numba_add3(
+                _numba_mul3_scalar(a, np.cos(ts[i])),
+                _numba_mul3_scalar(u, np.sin(ts[i])),
+            )
+
+        # Each piece lies entirely below, inside, or above the band; classify it
+        # by its midpoint. The integrand is continuous in z, so a piece grazing a
+        # band edge contributes (almost) the same under either classification.
+        t_mid = 0.5 * (ts[i - 1] + ts[i])
+        z_mid = a[2] * np.cos(t_mid) + u[2] * np.sin(t_mid)
+        if z_mid > z_min:
+            dlon = _lon_delta(p0, p1)
+            if z_mid >= z_max:
+                total += (z_max - z_min) * dlon
+            else:
+                total += _gca_z_dlon_integral(p0, p1) - z_min * dlon
+                inside = True
+        p0 = p1
+
+    return total, inside
+
+
+@njit(cache=True)
+def _compute_band_overlap_area(face_edges_xyz, z_min, z_max):
+    """Compute the exact overlap area between a face and a latitude band.
+
+    The Lambert cylindrical equal-area map ``(lon, z)``, with ``z = sin(lat)``,
+    preserves area and sends the band to the strip ``z_min <= z <= z_max``. By
+    Green's theorem the area of the part of a face inside that strip is
+
+        -(closed line integral of (clip(z, z_min, z_max) - z_min) dlon)
+
+    taken around the face boundary, which is evaluated exactly on each
+    great-circle edge (see :func:`_edge_band_integral`). No intersection
+    polygon is constructed, so there is no vertex ordering to get wrong, and
+    longitude only enters through local differences, so faces spanning the
+    antimeridian need no special handling.
+
+    Pole handling: at a vertex lying on a pole the boundary jumps between
+    meridians, which contributes the integrand at the pole times that jump. A
+    face enclosing a pole winds once around it in longitude; the strip region
+    above (north) or below (south) its boundary then contributes
+    ``2*pi*(z_max - z_min)`` or ``0`` respectively.
 
     Parameters
     ----------
     face_edges_xyz : ndarray
-        Cartesian coordinates of face edge nodes, shape (n_edges, 2, 3)
+        Cartesian coordinates of the face's edge nodes on the unit sphere, shape
+        (n_edges, 2, 3), with the edges in boundary order.
     z_min, z_max : float
-        Z-coordinate bounds of the latitude band (z = sin(latitude))
-    quadrature_rule : str, optional
-        Quadrature rule to use ("gaussian" or "triangular", default: "gaussian")
-    order : int, optional
-        Quadrature order (default: 4, same as area.py)
+        Z-coordinate bounds of the latitude band (z = sin(latitude)),
+        ``z_min <= z_max``.
 
     Returns
     -------
     float
-        Overlap area between face and latitude band
+        Overlap area between the face and the latitude band.
     """
-    # Pre-allocate for maximum possible intersection points
-    # Worst case: 2 intersections per edge * 2 boundaries + all vertices
-    max_points = face_edges_xyz.shape[0] * 4 + face_edges_xyz.shape[0]
-    polygon_points = np.empty((max_points, 3), dtype=np.float64)
-    point_count = 0
+    n_edges = face_edges_xyz.shape[0]
+    line_integral = 0.0
+    total_dlon = 0.0
+    z_sum = 0.0
+    boundary_in_band = False
 
-    # Find intersections with z_min and z_max boundaries
-    z_boundaries = np.array([z_min, z_max])
-    for z_boundary in z_boundaries:
-        for e in range(face_edges_xyz.shape[0]):
-            edge = face_edges_xyz[e]
-            inter = gca_const_lat_intersection(edge, z_boundary)
-            nint = get_number_of_intersections(inter)
+    for e in range(n_edges):
+        a = face_edges_xyz[e, 0]
+        b = face_edges_xyz[e, 1]
+        z_sum += a[2]
 
-            for i in range(nint):
-                if point_count < max_points:
-                    polygon_points[point_count] = inter[i]
-                    point_count += 1
+        if _is_pole_point(a) or _is_pole_point(b):
+            # Meridian arc to or from a pole: longitude is constant along it, so
+            # it adds nothing to the integral, and z varies monotonically.
+            z_lo = min(a[2], b[2])
+            z_hi = max(a[2], b[2])
+            boundary_in_band |= max(z_lo, z_min) < min(z_hi, z_max)
+            if _is_pole_point(a):
+                # Turning at the pole from the incoming to the outgoing meridian
+                # sweeps longitude at constant z = a_z.
+                jump = _lon_delta(face_edges_xyz[e - 1, 0], b)
+                h_pole = min(max(a[2], z_min), z_max) - z_min
+                line_integral += h_pole * jump
+                total_dlon += jump
+            continue
 
-    # Add face vertices that lie within the band
-    for e in range(face_edges_xyz.shape[0]):
-        vertex = face_edges_xyz[e, 0]  # First point of edge
-        if z_min <= vertex[2] <= z_max:
-            if point_count < max_points:
-                polygon_points[point_count] = vertex
-                point_count += 1
+        total_dlon += _lon_delta(a, b)
+        integral, inside = _edge_band_integral(a, b, z_min, z_max)
+        line_integral += integral
+        boundary_in_band |= inside
 
-    if point_count < 3:
+    area = -line_integral
+    winding = int(np.round(total_dlon / (2.0 * np.pi)))
+    if winding == 0:
+        # Taking the magnitude makes the result independent of whether the
+        # face is ordered counterclockwise or clockwise.
+        area = np.abs(area)
+    else:
+        # The face encloses a pole. The winding direction combined with which
+        # pole is enclosed gives the orientation (counterclockwise winds
+        # eastward around the north pole and westward around the south pole).
+        north = z_sum > 0.0
+        orientation = np.sign(winding) if north else -np.sign(winding)
+        area *= orientation
+        if north:
+            area += 2.0 * np.pi * (z_max - z_min)
+
+    if not boundary_in_band:
+        # The boundary never enters the band, so the band either misses the
+        # face or lies entirely inside it (only possible for a face enclosing a
+        # pole). Return that exactly instead of the near-cancelling sum, so a
+        # face that merely touches the band gets a weight of exactly zero.
+        full_band = 2.0 * np.pi * (z_max - z_min)
+        if winding != 0 and area > 0.5 * full_band:
+            return full_band
         return 0.0
-
-    # Remove duplicate points
-    unique_points = _unique_points(polygon_points[:point_count])
-
-    if unique_points.shape[0] < 3:
-        return 0.0
-
-    # Sort points to form a proper polygon
-    sorted_points = _sort_points_by_angle(unique_points)
-
-    # Use area.py calculate_face_area with latitude adjustment
-    x = sorted_points[:, 0]
-    y = sorted_points[:, 1]
-    z = sorted_points[:, 2]
-
-    area, _ = calculate_face_area(
-        x,
-        y,
-        z,
-        quadrature_rule=quadrature_rule,
-        order=order,
-        latitude_adjusted_area=True,  # Key improvement: use latitude adjustment
-    )
-
-    return area
+    return max(area, 0.0)
 
 
 def _compute_face_band_weights(uxgrid, bands):
