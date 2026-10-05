@@ -173,7 +173,9 @@ def constant_lon_intersections_face_bounds(lon: float, face_bounds_lon: np.ndarr
 
 def faces_within_lon_bounds(lons, face_bounds_lon):
     """
-    Identify candidate faces that lie within a specified longitudinal interval.
+    Identify faces whose longitude bounds lie fully within a specified interval.
+
+    A face that only partially overlaps the interval is not returned.
 
     Parameters
     ----------
@@ -184,13 +186,14 @@ def faces_within_lon_bounds(lons, face_bounds_lon):
     face_bounds_lon : numpy.ndarray
         A 2D array of shape (n_faces, 2), where each row represents the longitude bounds
         of a face. The first element is the minimum longitude and the second is the maximum
-        longitude for that face. Bounds may cross the antimeridian.
+        longitude for that face. A face whose stored minimum exceeds its maximum crosses
+        the antimeridian.
 
     Returns
     -------
-    candidate_faces : numpy.ndarray
+    faces : numpy.ndarray
         A 1D array of integers containing the indices of the faces whose longitude bounds
-        overlap with the specified interval.
+        are contained in the specified interval.
     """
     face_bounds_lon_min = face_bounds_lon[:, 0]
     face_bounds_lon_max = face_bounds_lon[:, 1]
@@ -229,13 +232,14 @@ def faces_within_lon_bounds(lons, face_bounds_lon):
 
 def faces_within_lat_bounds(lats, face_bounds_lat):
     """
-    Identify candidate faces that lie within a specified latitudinal interval.
+    Identify faces whose latitude bounds lie fully within a specified interval.
+
+    A face that only partially overlaps the interval is not returned.
 
     Parameters
     ----------
     lats : tuple or list of length 2
-        A pair (min_lat, max_lat) specifying the query interval. All returned faces
-        must be fully contained within this interval.
+        A pair (min_lat, max_lat) specifying the query interval.
     face_bounds_lat : numpy.ndarray
         A 2D array of shape (n_faces, 2), where each row represents the latitude
         bounds of a face. The first element is the minimum latitude and the second
@@ -243,9 +247,9 @@ def faces_within_lat_bounds(lats, face_bounds_lat):
 
     Returns
     -------
-    candidate_faces : numpy.ndarray
+    faces : numpy.ndarray
         A 1D array of integers containing the indices of the faces whose latitude
-        bounds lie completely within the specified interval.
+        bounds are contained in the specified interval.
     """
 
     min_lat, max_lat = lats

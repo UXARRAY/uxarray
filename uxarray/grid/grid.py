@@ -24,7 +24,11 @@ from uxarray.grid.angles import (
     _compute_face_node_angles_convex,
 )
 from uxarray.grid.area import _get_all_face_area_from_coords
-from uxarray.grid.bounds import _populate_face_bounds
+from uxarray.grid.bounds import (
+    _face_bounds_lat_degrees,
+    _face_bounds_lon_degrees,
+    _populate_face_bounds,
+)
 from uxarray.grid.connectivity import (
     _populate_edge_face_connectivity,
     _populate_edge_node_connectivity,
@@ -1636,16 +1640,8 @@ class Grid:
         """
 
         if "face_bounds_lon" not in self._ds:
-            bounds = self.bounds.values
-
-            bounds_deg = np.rad2deg(bounds[:, 1, :])
-            bounds_normalized = (bounds_deg + 180.0) % 360.0 - 180.0
-            bounds_lon = bounds_normalized
-            mask_zero = (bounds_lon[:, 0] == 0) & (bounds_lon[:, 1] == 0)
-            # for faces that span all longitudes (i.e. pole faces)
-            bounds_lon[mask_zero] = [-180.0, 180.0]
             self._ds["face_bounds_lon"] = xr.DataArray(
-                data=bounds_lon,
+                data=_face_bounds_lon_degrees(self.bounds.values),
                 dims=["n_face", "min_max"],
             )
 
@@ -1664,10 +1660,8 @@ class Grid:
         """
 
         if "face_bounds_lat" not in self._ds:
-            bounds = self.bounds.values
-            bounds_lat = np.sort(np.rad2deg(bounds[:, 0, :]), axis=-1)
             self._ds["face_bounds_lat"] = xr.DataArray(
-                data=bounds_lat,
+                data=_face_bounds_lat_degrees(self.bounds.values),
                 dims=["n_face", "min_max"],
             )
         return self._ds["face_bounds_lat"]
