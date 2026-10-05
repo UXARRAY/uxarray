@@ -81,8 +81,11 @@ requires = [
 packages = ["uxarray"]
 
 [tool.setuptools.package-data]
-# PEP 561 marker. Without this, setuptools ships only .py files and type
-# checkers ignore every annotation in the package.
+# PEP 561 marker. setuptools >= 69.0 adds py.typed to a wheel on its own
+# (_IMPLICIT_DATA_FILES in setuptools/command/build_py.py), but the build
+# requirement below is setuptools >= 60, and on 68.2.2 the marker is dropped
+# from the wheel unless it is declared here. Keep this until that floor is
+# raised past 69.
 uxarray = ["py.typed"]
 
 [tool.setuptools_scm]
