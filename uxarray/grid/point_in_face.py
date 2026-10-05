@@ -22,67 +22,6 @@ if TYPE_CHECKING:
     from uxarray.grid.grid import Grid
 
 
-@njit(cache=True)
-def _face_contains_point_from_edges(face_edges: np.ndarray, point: np.ndarray) -> bool:
-    """
-    Determine whether a point lies within a face using the spherical winding-number method.
-
-    This function sums the signed central angles between successive vertices of the face
-    as seen from `point`.  If the total absolute winding exceeds π, the point is inside.
-    Points exactly on a node or edge also count as inside.
-
-    Parameters
-    ----------
-    face_edges : np.ndarray, shape (n_edges, 2, 3)
-        Cartesian coordinates (unit-vectors) of each great-circle edge of the face.
-        Each row is [start_xyz, end_xyz].
-    point : np.ndarray, shape (3,)
-        3D unit-vector of the query point on the unit sphere.
-
-    Returns
-    -------
-    inside : bool
-        True if the point is inside the face or lies exactly on a node/edge; False otherwise.
-    """
-    # Check for an exact hit with any of the corner nodes
-    for e in range(face_edges.shape[0]):
-        if np.allclose(
-            face_edges[e, 0], point, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
-        ):
-            return True
-        if np.allclose(
-            face_edges[e, 1], point, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
-        ):
-            return True
-        if point_within_gca(point, face_edges[e, 0], face_edges[e, 1]):
-            return True
-
-    n = face_edges.shape[0]
-
-    total = 0.0
-    p = point
-    for i in range(n):
-        a = face_edges[i, 0]
-        b = face_edges[i + 1, 0] if i + 1 < n else face_edges[0, 0]
-
-        vi = a - p
-        vj = b - p
-
-        # check if you’re right on a vertex
-        if np.linalg.norm(vi) < ERROR_TOLERANCE or np.linalg.norm(vj) < ERROR_TOLERANCE:
-            return True
-
-        ang = _small_angle_of_2_vectors(vi, vj)
-
-        # determine sign from cross
-        c = np.cross(vi, vj)
-        sign = 1.0 if (c[0] * p[0] + c[1] * p[1] + c[2] * p[2]) >= 0.0 else -1.0
-
-        total += sign * ang
-
-    return np.abs(total) > np.pi
-
-
 def _point_in_face_from_grid(point: np.ndarray, grid: Grid, fidx: int):
     """Returns whether this point lies within the indicated face of this grid.
     Helper function providing convenient entry point into `_point_in_face`;
