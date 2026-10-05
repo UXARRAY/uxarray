@@ -259,9 +259,11 @@ def _node_lat_range(uxgrid):
 def test_face_bounds_contain_every_node(gridpath):
     """A face's latitude bounds must not be narrower than its own nodes.
 
-    Each edge used to contribute either its interior latitude extreme or its
-    first node, never both, so a face whose edges all bulge poleward lost its
-    lowest node. ``geoflow-small`` has 70 such faces.
+    On ``main`` each edge contributed either its interior latitude extreme or
+    its first node, never both, so a face whose edges all bulge poleward lost
+    its lowest node; ``geoflow-small`` has 70 such faces. Fixed in the first
+    commit of this PR, and pinned here because the bounding-box screen relies
+    on a face's bounds containing its nodes.
     """
     # Triangles near the pole whose every edge reaches a higher latitude than
     # both of its endpoints.

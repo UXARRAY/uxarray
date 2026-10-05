@@ -4,7 +4,19 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from uxarray.constants import INT_FILL_VALUE
 from uxarray.errors import DimensionError
+from uxarray.grid.bounds import (
+    _construct_face_bounds_array,
+    _face_bounds_lat_degrees,
+    _face_bounds_lon_degrees,
+    _faces_with_nodes_within_box,
+)
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz
+from uxarray.grid.intersections import (
+    faces_within_lat_bounds,
+    faces_within_lon_bounds,
+)
 
 if TYPE_CHECKING:
     from uxarray.grid import Grid
@@ -429,16 +441,6 @@ def _faces_in_bounding_box(uxgrid, lon_bounds, lat_bounds):
     needs no margin or assumption about face size or shape. Bounds that are
     already cached on the grid are used as they are.
     """
-    from uxarray.grid.bounds import (
-        _face_bounds_lat_degrees,
-        _face_bounds_lon_degrees,
-        _faces_with_nodes_within_box,
-    )
-    from uxarray.grid.intersections import (
-        faces_within_lat_bounds,
-        faces_within_lon_bounds,
-    )
-
     if "bounds" in uxgrid._ds:
         return np.intersect1d(
             uxgrid.get_faces_between_longitudes(lon_bounds),
@@ -490,10 +492,6 @@ def _candidate_face_bounds(
     gathered longitudes and latitudes instead of being populated for every
     node.
     """
-    from uxarray.constants import INT_FILL_VALUE
-    from uxarray.grid.bounds import _construct_face_bounds_array
-    from uxarray.grid.coordinates import _lonlat_rad_to_xyz
-
     valid = face_node_connectivity != INT_FILL_VALUE
     nodes, local_index = np.unique(face_node_connectivity[valid], return_inverse=True)
     local_connectivity = np.full_like(face_node_connectivity, INT_FILL_VALUE)

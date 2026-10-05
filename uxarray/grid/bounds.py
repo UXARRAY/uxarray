@@ -390,12 +390,18 @@ def _faces_with_nodes_within_box(
     condition for the bounds to lie inside the box: it screens candidates
     for :func:`_construct_face_bounds_array` without missing any face that
     the exact test on bounds keeps. Longitudes are normalized to
-    ``[-180, 180)`` as the bounds are, and ``lon_min > lon_max`` is a box
-    that crosses the antimeridian, as in
-    :func:`~uxarray.grid.intersections.faces_within_lon_bounds`. The box is
-    widened by ``ERROR_TOLERANCE`` so that round-off in the exact bounds'
-    degree-radian-degree round trip cannot exclude a face the exact test
-    keeps.
+    ``[-180, 180)`` as the bounds are.
+
+    ``lon_min > lon_max`` is a box that crosses the antimeridian, as in
+    :func:`~uxarray.grid.intersections.faces_within_lon_bounds`. Such a box
+    is the union of two intervals, ``[lon_min, 180)`` and ``[-180, lon_max]``,
+    and a node is inside when it lies in either one; equivalently it is
+    outside only when ``lon_max < lon < lon_min``, the gap between them.
+    For example ``[170, -170]`` admits 175 and -175 but not 0.
+
+    The box is widened by ``ERROR_TOLERANCE`` so that round-off in the exact
+    bounds' degree-radian-degree round trip cannot exclude a face the exact
+    test keeps.
     """
     n_face = face_node_connectivity.shape[0]
     within = np.zeros(n_face, dtype=np.bool_)
@@ -416,6 +422,7 @@ def _faces_with_nodes_within_box(
                 break
             lon = (node_lon[node] + 180.0) % 360.0 - 180.0
             if crosses_antimeridian:
+                # outside only in the gap between the two intervals
                 if lon < lon_min and lon > lon_max:
                     inside = False
                     break

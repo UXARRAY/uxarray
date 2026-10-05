@@ -397,12 +397,23 @@ class TestBoundingBoxSubset:
     @pytest.mark.parametrize("lon_bounds,lat_bounds", BOXES)
     @pytest.mark.parametrize("name", list(GRIDS))
     def test_matches_whole_mesh_path(self, gridpath, name, lon_bounds, lat_bounds):
+        """The screened path must return exactly the whole-mesh faces.
+
+        Run over every grid and box in the matrix: polar, antimeridian-crossing,
+        whole-globe and empty boxes included. A fresh grid is built for each
+        path so neither can reuse the other's cached bounds.
+        """
         make = self.GRIDS[name]
         expected = self.whole_mesh(make(gridpath), lon_bounds, lat_bounds)
         actual = self.screened(make(gridpath), lon_bounds, lat_bounds)
         np.testing.assert_array_equal(actual, np.sort(expected))
 
     def test_accessor_matches_whole_mesh_path(self, gridpath):
+        """``subset.bounding_box`` itself, not just the private helper, agrees.
+
+        Checks the public accessor end to end via ``inverse_indices``, and that
+        it leaves no whole-mesh ``bounds`` behind on the grid.
+        """
         grid = self.GRIDS["mpas"](gridpath)
         expected = self.whole_mesh(self.GRIDS["mpas"](gridpath), [-30, 30], [-20, 20])
         assert expected.size > 0
@@ -415,7 +426,13 @@ class TestBoundingBoxSubset:
         )
 
     def test_bounds_are_computed_for_candidates_only(self, gridpath, monkeypatch):
-        import uxarray.grid.bounds as bounds_module
+        """The bounds kernel must see only the candidate faces, never the mesh.
+
+        Counts the faces handed to ``_construct_face_bounds_array`` and asserts
+        it equals the number of faces whose every node lies in the box, and
+        that ``Grid.bounds`` is never populated along the way.
+        """
+        import uxarray.subset.grid_accessor as accessor_module
         from uxarray.constants import INT_FILL_VALUE
 
         grid = self.GRIDS["geoflow"](gridpath)
@@ -433,13 +450,15 @@ class TestBoundingBoxSubset:
         assert 0 < n_candidates < grid.n_face
 
         sizes = []
-        kernel = bounds_module._construct_face_bounds_array
+        kernel = accessor_module._construct_face_bounds_array
 
         def counting_kernel(face_node_connectivity, *args):
             sizes.append(face_node_connectivity.shape[0])
             return kernel(face_node_connectivity, *args)
 
-        monkeypatch.setattr(bounds_module, "_construct_face_bounds_array", counting_kernel)
+        monkeypatch.setattr(
+            accessor_module, "_construct_face_bounds_array", counting_kernel
+        )
 
         sub = grid.subset.bounding_box(lon_bounds, lat_bounds)
 
@@ -448,13 +467,18 @@ class TestBoundingBoxSubset:
         assert "bounds" not in grid._ds
 
     def test_cached_bounds_are_used(self, gridpath, monkeypatch):
-        import uxarray.grid.bounds as bounds_module
+        """A grid that already has ``bounds`` must not be screened again.
+
+        The screen is replaced by a failing stub, so reaching it is an error;
+        the cached whole-mesh path must still give the same faces.
+        """
+        import uxarray.subset.grid_accessor as accessor_module
         from uxarray.subset.grid_accessor import _faces_in_bounding_box
 
         grid = self.GRIDS["mpas"](gridpath)
         grid.bounds
         monkeypatch.setattr(
-            bounds_module,
+            accessor_module,
             "_faces_with_nodes_within_box",
             lambda *a: pytest.fail("cached bounds were ignored"),
         )
@@ -465,6 +489,12 @@ class TestBoundingBoxSubset:
         )
 
     def test_partially_contained_faces_are_excluded(self, gridpath):
+        """A face straddling a box edge is out; containment, not overlap.
+
+        Places the box's top edge through the middle of a face, asserts that
+        face and every other straddling face is excluded, then moves the edge
+        out to that face's own upper bound and asserts it comes in.
+        """
         reference = self.GRIDS["geoflow"](gridpath)
         bounds_lat = reference.face_bounds_lat.values
         bounds_lon = reference.face_bounds_lon.values
@@ -496,6 +526,12 @@ class TestBoundingBoxSubset:
         )
 
     def test_nodes_on_the_box_edge(self, gridpath):
+        """Nodes exactly on the box edge are kept; bulging arcs are not.
+
+        The ROUND face's nodes sit on +-30 lon and +-20 lat, but the arcs
+        between them bulge past +-20, so it fits its own bounds and not
+        ``[-20, 20]``. This pins the screen against off-by-epsilon errors.
+        """
         make = self.GRIDS["vertices"]
         reference = make(gridpath)
         lat_lo, lat_hi = reference.face_bounds_lat.values[self.ROUND]
@@ -511,6 +547,11 @@ class TestBoundingBoxSubset:
         assert self.ROUND not in self.screened(make(gridpath), [-30, 30], [-20, 20])
 
     def test_antimeridian(self, gridpath):
+        """A box given as ``lon_min > lon_max`` wraps across the antimeridian.
+
+        The wrapping box must take the crossing face and both faces flanking
+        it, while each one-sided box takes only the face on its own side.
+        """
         make = self.GRIDS["vertices"]
         crossing = self.screened(make(gridpath), [170, -170], [-30, 30])
         east = self.screened(make(gridpath), [170, 180], [-30, 30])
@@ -521,12 +562,22 @@ class TestBoundingBoxSubset:
         assert set(west) == {self.WEST}
 
     def test_pole_face(self, gridpath):
+        """A face containing the pole spans every longitude.
+
+        Its bounds are ``[-180, 180]``, so it is contained only by a box that
+        is itself full-width; narrow or wrapping boxes must not pick it up.
+        """
         make = self.GRIDS["vertices"]
         assert self.POLE not in self.screened(make(gridpath), [0, 10], [70, 90])
         assert self.POLE not in self.screened(make(gridpath), [170, -170], [70, 90])
         assert self.POLE in self.screened(make(gridpath), [-180, 180], [70, 90])
 
     def test_region_outside_a_partial_grid_is_empty(self, gridpath, datasetpath):
+        """A box genuinely off the mesh yields no faces and an empty subset.
+
+        quad-hexagon covers only part of the sphere, so a box east of all of
+        its faces must screen to nothing rather than erroring.
+        """
         grid = ux.open_grid(gridpath("ugrid", "quad-hexagon", "grid.nc"))
         assert grid.face_lon.values.max() < 90
         assert self.screened(grid, [100, 110], [-10, 10]).size == 0
