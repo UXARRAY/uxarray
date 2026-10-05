@@ -405,6 +405,10 @@ from uxarray.core.zonal import (  # noqa: E402
     _compute_face_band_weights,
 )
 from uxarray.grid.area import calculate_face_area  # noqa: E402
+from uxarray.grid.intersections import (  # noqa: E402
+    gca_const_lat_intersection,
+    get_number_of_intersections,
+)
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array_subset  # noqa: E402
 
 
@@ -517,6 +521,41 @@ class TestBandOverlapArea:
         assert _band_area(fe, 85.0, 90.0) == pytest.approx(quarter_cap, rel=1e-12)
         parts = _band_area(fe, 70.0, 82.0) + _band_area(fe, 82.0, 90.0)
         assert parts == pytest.approx(face_area, rel=1e-9)
+
+    @pytest.mark.parametrize("hemisphere", [1.0, -1.0])
+    def test_matches_latitude_adjusted_clipped_polygon(self, hemisphere):
+        """Agrees with clipping the face by hand and correcting its parallel edges.
+
+        The clipped ring is (in counterclockwise order) a crossing of the 12 deg
+        parallel, a face vertex, two crossings of the 28 deg parallel and one more
+        crossing of 12 deg. Its great-circle area plus the constant-latitude
+        correction on the two parallel edges is the overlap area.
+        """
+        lat = np.array([10.0, 15.0, 35.0, 30.0])
+        lon = np.array([-8.0, 9.0, 7.0, -6.0])
+        if hemisphere < 0:
+            # Mirror across the equator and reverse to stay counterclockwise.
+            lat, lon = -lat[::-1], lon[::-1]
+        fe = _face_edges(lat, lon)
+
+        def crossing(edge, lat_deg):
+            pts = gca_const_lat_intersection(edge, np.sin(np.deg2rad(lat_deg)))
+            assert get_number_of_intersections(pts) == 1
+            return pts[0]
+
+        if hemisphere > 0:
+            ring = [crossing(fe[0], 12.0), fe[1, 0], crossing(fe[1], 28.0),
+                    crossing(fe[3], 28.0), crossing(fe[3], 12.0)]
+        else:
+            ring = [crossing(fe[3], -28.0), crossing(fe[1], -28.0), fe[2, 0],
+                    crossing(fe[2], -12.0), crossing(fe[3], -12.0)]
+        ring = np.array(ring)
+
+        expected, _ = calculate_face_area(
+            ring[:, 0], ring[:, 1], ring[:, 2], order=6, latitude_adjusted_area=True
+        )
+        lat0, lat1 = sorted((hemisphere * 12.0, hemisphere * 28.0))
+        assert _band_area(fe, lat0, lat1) == pytest.approx(expected, rel=1e-12)
 
     def test_face_touching_band_has_zero_overlap(self):
         """A face sharing only an edge with the band boundary has zero overlap."""
