@@ -12,6 +12,7 @@ from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
 from uxarray.constants import GRID_DIMS
+from uxarray.core.arithmetic import UxSupportsArithmetic
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.utils import (
     _map_dims_to_ugrid,
@@ -35,7 +36,7 @@ from uxarray.utils.coords import (
 )
 
 
-class UxDataset(xr.Dataset):
+class UxDataset(UxSupportsArithmetic, xr.Dataset):
     """Grid informed ``xarray.Dataset`` with an attached ``Grid`` accessor and
     grid-specific functionality.
 
@@ -923,6 +924,16 @@ class UxDataset(xr.Dataset):
             return xr.Dataset(ds.data_vars, coords=ds.coords, attrs=ds.attrs)
 
         return xr.Dataset(self.data_vars, coords=self.coords, attrs=self.attrs)
+
+    def astype(self, dtype, **kw_super):
+        """Copy of this uxarray object, with data cast to a specified type.
+        Leaves coordinate dtype unchanged.
+
+        Behaves just like :meth:`xarray.Dataset.astype`, except that
+        the returned object is a UxDataset with same uxgrid as the input.
+        """
+        da = super().astype(dtype, **kw_super)
+        return type(self)(da, uxgrid=self._uxgrid)
 
     def get_dual(self):
         """Compute the dual mesh for a dataset, returns a new dataset object.
