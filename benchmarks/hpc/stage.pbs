@@ -13,47 +13,40 @@ STAGE="${STAGE:?STAGE must be setup, shard or merge}"
 SHARDS="${SHARDS:-4}"
 REV="${REV:-HEAD^!}"
 REPO="${REPO:?REPO must be the repository root}"
-CONFIG="${CONFIG:-asv.conf.hpc.json}"
-# One machine name for all shards, or the merge has nothing to line up; see
-# ``_machine.default_name``.
-ASV_MACHINE="${ASV_MACHINE:-$(cd "$REPO" && python -m benchmarks.helpers._machine --print)}"
-# Optional shared cache so shards read the source grids once between them.
-if [ -n "${UXARRAY_BENCH_CACHE_DIR:-}" ]; then
-    export UXARRAY_BENCH_CACHE_DIR
-fi
+# Always set: numba's own default counts SMT siblings as cores. Applied through
+# env_nobuild, so it lands in asv's environment name and thread counts do not
+# overwrite each other's results.
+THREADS="${THREADS:-8}"
 
 eval "${ASV_ACTIVATE:-true}"
 cd "$REPO/benchmarks"
+# One machine name for all shards, or the merge has nothing to line up; see
+# ``helpers/_machine.py``.
+export ASV_MACHINE="${ASV_MACHINE:-$(cd .. && python -m benchmarks.helpers._machine --print)}"
 
 case "$STAGE" in
 setup)
     # Done once so concurrent shards do not race to build the shared
     # fixture cache, machine file and ``env/<hash>``.
     (cd .. && python -m benchmarks.helpers._fixtures)
-    asv machine --yes --config "$CONFIG"
-    (cd .. && python -m benchmarks.helpers._machine --name "$ASV_MACHINE")
+    (cd .. && python -m benchmarks.helpers._machine)
     # Discovery only: builds the environments and benchmarks.json, runs
     # nothing. ``env_nobuild`` is not hashed into ``env/<hash>``, so one build
-    # serves every thread count.
-    # ``--config`` everywhere, else asv picks up the CI asv.conf.json.
-    # ``-m`` after the pin, which renamed this host's entry: asv would fail
-    # with "No information stored about machine '<hostname>'".
-    asv run --bench just-discover --config "$CONFIG" -m "$ASV_MACHINE" "$REV"
+    # serves every thread count. ``-m`` because the machine file has the
+    # pinned name, not this host's.
+    asv run --bench just-discover -m "$ASV_MACHINE" "$REV"
     PYTHONPATH=.. python -m benchmarks.helpers._partition --shards "$SHARDS"
     ;;
 shard)
     SHARD="${PBS_ARRAY_INDEX:-${SHARD:?}}"
-    # ``--asv-args`` writes this shard's config (own results_dir, --env
-    # override) and prints the asv arguments. THREADS, if set, overrides the
-    # config's NUMBA_NUM_THREADS and lands in the environment name.
-    THREAD_ARG=""
-    if [ -n "${THREADS:-}" ]; then
-        THREAD_ARG="--env NUMBA_NUM_THREADS=$THREADS"
-    fi
+    # Writes this shard's config (own results_dir, thread count) and prints
+    # the asv arguments.
     ASV_ARGS=$(PYTHONPATH=.. python -m benchmarks.helpers._partition \
-        --shards "$SHARDS" --shard "$SHARD" --config "$CONFIG" $THREAD_ARG --asv-args)
+        --shards "$SHARDS" --shard "$SHARD" --env NUMBA_NUM_THREADS="$THREADS")
     status=0
-    asv run --show-stderr -m "$ASV_MACHINE" $ASV_ARGS "$REV" || status=$?
+    # A parallel kernel at one thread runs ~core-count times longer than at
+    # eight, so allow more than CI's default timeout.
+    asv run --show-stderr -m "$ASV_MACHINE" -a timeout=1800 $ASV_ARGS "$REV" || status=$?
     # 2 means some benchmarks failed; the rest are still worth merging.
     if [ "$status" -eq 2 ]; then
         echo "asv exited 2: some benchmarks failed, see above" >&2
@@ -64,7 +57,7 @@ shard)
 merge)
     (cd .. && python -m benchmarks.helpers._merge \
         --out benchmarks/results benchmarks/results.shard*)
-    asv show --config "$CONFIG" -m "$ASV_MACHINE" || true
+    asv show -m "$ASV_MACHINE" || true
     ;;
 *)
     echo "unknown STAGE $STAGE" >&2

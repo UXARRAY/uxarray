@@ -10,8 +10,8 @@
 #   PBS_ACCOUNT=UXXX0001 THREADS=8 ./benchmarks/hpc/submit.sh
 #   PBS_ACCOUNT=UXXX0001 SHARDS=8 REV=main^! ./benchmarks/hpc/submit.sh
 #
-# THREADS overrides the config's NUMBA_NUM_THREADS and is recorded in the
-# environment name, so thread counts do not overwrite each other's results.
+# THREADS (default 8, see stage.pbs) sets NUMBA_NUM_THREADS and is recorded in
+# the environment name, so thread counts do not overwrite each other's results.
 #
 set -euo pipefail
 
@@ -22,7 +22,6 @@ SHARDS="${SHARDS:-4}"
 # An asv range: ``main^!`` is one commit, ``base..head`` every commit between.
 REV="${REV:-HEAD^!}"
 QUEUE="${QUEUE:-main}"
-CONFIG="${CONFIG:-asv.conf.hpc.json}"
 # Empty means stage.pbs derives it from NCAR_HOST or the node name.
 ASV_MACHINE="${ASV_MACHINE:-}"
 WALLTIME="${WALLTIME:-12:00:00}"
@@ -39,8 +38,7 @@ command -v asv >/dev/null || [ "$ASV_ACTIVATE" != "true" ] || {
 
 STAGE_SCRIPT="$REPO/benchmarks/hpc/stage.pbs"
 # Via the environment, not ``-v``, whose comma-separated list cannot hold commas.
-export REPO SHARDS REV CONFIG ASV_MACHINE
-export THREADS="${THREADS:-}"
+export REPO SHARDS REV ASV_MACHINE THREADS
 export UXARRAY_BENCH_CACHE_DIR="$CACHE_DIR"
 
 mkdir -p "$CACHE_DIR"
