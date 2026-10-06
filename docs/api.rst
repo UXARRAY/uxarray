@@ -195,6 +195,7 @@ Methods
    Grid.calculate_total_face_area
    Grid.compute_face_areas
    Grid.compute_face_node_angles
+   Grid.compute_skewness
    Grid.construct_face_centers
    Grid.get_ball_tree
    Grid.neighborhood
@@ -244,6 +245,7 @@ Selection & Indexing
    :toctree: generated/
 
    UxDataArray.isel
+   UxDataArray.sel
    UxDataArray.where
 
 
@@ -255,7 +257,6 @@ Grid Accessor
 
    UxDataArray.uxgrid
    UxDataArray.data_mapping
-   UxDataArray.data_location
 
 
 UxDataset

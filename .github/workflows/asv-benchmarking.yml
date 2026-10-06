@@ -76,13 +76,15 @@ jobs:
             cp -r uxarray-asv/results benchmarks/
           fi
 
+      # asv builds its own conda environment under ``benchmarks/env`` from
+      # ci/environment.yml (see asv.conf.json). No restore-keys: asv reuses a
+      # restored env without checking it, so a prefix match would hand it one
+      # built from an older environment file.
       - name: Cache asv's benchmark environment
         uses: actions/cache@v6
         with:
           path: ${{ env.ASV_DIR }}/env
-          key: asv-env-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('benchmarks/asv.conf.json') }}
-          restore-keys: |
-            asv-env-${{ runner.os }}-${{ runner.arch }}-
+          key: "asv-env-${{runner.os}}-${{runner.arch}}-${{hashFiles('ci/environment.yml', 'benchmarks/asv.conf.json')}}"
 
       - name: Cache the benchmark fixtures
         uses: actions/cache@v6
@@ -98,14 +100,8 @@ jobs:
         shell: bash -l {0}
         id: benchmark
         run: |
-          # Fill the fixture cache before asv preimports the suite, which would
-          # otherwise build it serially in the forkserver parent. Guarded because
-          # this workflow checks out main whatever ref it was dispatched from
-          if [ -f benchmarks/helpers/_fixtures.py ]; then
-            python -m benchmarks.helpers._fixtures
-          else
-            echo "no benchmarks/helpers/_fixtures.py on this ref; nothing to prime"
-          fi
+          # Fill the fixture cache before asv preimports the suite, which would otherwise build it serially in the forkserver parent
+          python -m benchmarks.helpers._fixtures
           cd benchmarks
           asv machine --machine GH-Actions --os ubuntu-latest --arch x64 --cpu "2-core unknown" --ram 7GB
           # ``--skip-existing-commits``, not ``--skip-existing``: the latter keys

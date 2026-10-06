@@ -4,6 +4,7 @@ import numpy.testing as nt
 import pytest
 
 import uxarray as ux
+from uxarray.io._fesom2 import _parse_elem2d, _parse_nod2d
 
 
 
@@ -62,3 +63,15 @@ def test_open_mfdataset_pi_path(test_data_dir):
     assert "n_node" in uxds.dims
     assert "n_face" in uxds.dims
     assert len(uxds) == 3
+
+
+def test_parse_nod2d_missing_file_names_the_file(tmp_path):
+    """A missing 'nod2d.out' must say which file is missing and where."""
+    with pytest.raises(FileNotFoundError, match="nod2d.out"):
+        _parse_nod2d(str(tmp_path))
+
+
+def test_parse_elem2d_missing_file_names_the_file(tmp_path):
+    """A missing 'elem2d.out' must say which file is missing and where."""
+    with pytest.raises(FileNotFoundError, match="elem2d.out"):
+        _parse_elem2d(str(tmp_path))

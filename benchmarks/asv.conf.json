@@ -34,7 +34,12 @@
 
     // Customizable commands for installing and uninstalling the project.
     // See asv.conf.json documentation.
-    // "install_command": ["in-dir={env_dir} python -mpip install {wheel_file}"],
+    //
+    // --no-deps: conda already installed every dependency from ci/environment.yml.
+    // --force-reinstall is asv's default; the version may not change (asv gh-1421).
+    "install_command": [
+        "in-dir={env_dir} python -m pip install {wheel_file} --no-deps --force-reinstall"
+    ],
     // "uninstall_command": ["return-code=any python -mpip uninstall -y {project}"],
 
     // List of branches to benchmark. If not provided, defaults to "master"
@@ -57,17 +62,16 @@
     "environment_type": "conda",
     "conda_channels": ["conda-forge"],
 
+    // Same package set as the rest of CI, so benchmarks cannot drift from it:
+    // #1548 made cartopy, matplotlib and spatialpandas optional and broke two.
+    "conda_environment_file": "../ci/environment.yml",
+
     // timeout in seconds for installing any dependencies in environment
     // defaults to 10 min
     "install_timeout": 600,
 
     // Fork each benchmark from one interpreter that has already imported the
-    // suite, instead of starting a fresh one per benchmark. Saves the ~0.9s
-    // uxarray import and the numba kernel load on every one of ~160 benchmark
-    // processes, and lets a fixture loaded at import be inherited rather than
-    // re-read. asv leaves this at "spawn" by default because fork and threads
-    // mix badly; nothing in this suite runs a parallel kernel at import time,
-    // which is what makes it safe here -- keep it that way.
+    // suite, instead of starting a fresh one per benchmark.
     "launch_method": "forkserver",
 
     // ``benchmark_timeout`` is not a key asv reads -- the one that sets the
@@ -102,10 +106,13 @@
     // will not be set for the current combination.
     //
      "matrix": {
+        // Only what ci/environment.yml lacks: the build tools, which asv seeds itself
+        // only when building an environment without a file, plus pyfma from PyPI
+        // and tbb (below).
         "req": {
+            "python-build": [""],
+            "wheel": [""],
             "setuptools_scm": [""],
-            "xarray": [""],
-            "netcdf4": [""],
             "pip+pyfma": [""],
 
             // numba picks its threading layer by availability, and only ``tbb``
@@ -114,22 +121,18 @@
             // forked from a parent that holds a pool then dies with "Terminating:
             // fork() called from a process already using GNU OpenMP". numba
             // *prefers* TBB, so a developer machine that has it cannot reproduce
-            // that -- hence pinning it here rather than inheriting whatever the
-            // environment happens to offer.
+            // that, hence pinning it here.
             "tbb": [""]
         },
 
         // Belt to that brace: if TBB is ever unavailable, pick the other
-        // fork-safe layer rather than quietly falling back to the one that
-        // breaks. ``forksafe`` raises if no fork-safe layer exists at all.
+        // fork-safe layer rather. ``forksafe`` raises if no fork-safe layer
+        // exists at all.
         //
-        // The BLAS variables are pinned so numpy cannot take the runner's four
-        // vCPUs out from under whatever is being measured. Unpinned it competes
-        // with numba for the same cores, which shows up as run-to-run spread in
-        // every benchmark that touches an array, not just the threaded ones.
-        // ``NUMBA_NUM_THREADS`` is deliberately left alone: numba's default is
-        // the whole machine, and with BLAS out of the way that is now an
-        // unambiguous four rather than four contended with numpy's.
+        // The BLAS variables are pinned so numpy does not compete with numba
+        // for the runner's cores, which shows up as run-to-run spread in every
+        // benchmark that touches an array. ``NUMBA_NUM_THREADS`` is left at
+        // numba's default of the whole machine.
         "env_nobuild": {
             "NUMBA_THREADING_LAYER": ["forksafe"],
             "OMP_NUM_THREADS": ["1"],
@@ -210,9 +213,9 @@
     // the number of builds to keep, per environment.
     //
     // Raised from the default of 2, which is exactly the number of commits
-    // ``asv continuous`` builds and so leaves no headroom: with rounds
-    // interleaved it revisits each commit, and a wheel that has been evicted
-    // in between is built again from scratch.
+    // ``asv continuous`` builds and so it leaves no headroom: with forking,
+    // we need an extra round per commit, so 4 is the baseline for 2 commits
+    // with correct caching.
     "build_cache_size": 4,
 
     // The commits after which the regression search in `asv publish`

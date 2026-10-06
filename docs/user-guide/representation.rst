@@ -176,7 +176,7 @@ UXarray relies on connectivity variables to describe how various elements (i.e n
      - Indices of the faces that surround each face
    * - Edge Node
      - ``Grid.edge_node_connectivity``
-     - ``(n_edge, 2)``
+     - ``(n_edge, two)``
      - Indices of the two nodes that make up each edge
    * - Edge Edge
      - ``Grid.edge_edge_connectivity``
@@ -184,7 +184,7 @@ UXarray relies on connectivity variables to describe how various elements (i.e n
      - Indices of the edges that surround each edge
    * - Edge Face
      - ``Grid.edge_face_connectivity``
-     - ``(n_edge, n_max_edge_faces)``
+     - ``(n_edge, two)``
      - Indices of the faces that saddle each edge
    * - Node Edge
      - ``Grid.node_edge_connectivity``

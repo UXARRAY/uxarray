@@ -1,10 +1,11 @@
-import functools
+import enum
+import math
 import warnings
 from typing import Callable
 
 import numpy as np
 import xarray as xr
-from numba import guvectorize, njit
+from numba import njit, prange
 from numpy import deg2rad
 
 from uxarray.constants import (
@@ -76,8 +77,8 @@ class KDTree:
             self._n_elements = self._source_grid.n_edge
         else:
             raise ValueError(
-                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
-                f"or 'edge centers'"
+                "Invalid `coordinates`. Expected one of ['nodes', 'face centers', 'edge centers'], "
+                f"but got {coordinates!r}, in uxarray.KDTree()."
             )
 
     def _build_from_nodes(self):
@@ -107,8 +108,7 @@ class KDTree:
 
             else:
                 raise ValueError(
-                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                    f"'spherical'"
+                    f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
                 )
 
             self._tree_from_nodes = SKKDTree(coords, metric=self.distance_metric)
@@ -142,8 +142,7 @@ class KDTree:
 
             else:
                 raise ValueError(
-                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                    f"'spherical'"
+                    f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
                 )
 
             self._tree_from_face_centers = SKKDTree(coords, metric=self.distance_metric)
@@ -159,7 +158,10 @@ class KDTree:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "cartesian":
                 if self._source_grid.edge_x is None:
-                    raise ValueError("edge_x isn't populated")
+                    raise ValueError(
+                        f"{type(self).__name__}._build_from_edge_centers() when coordinate_system='cartesian' "
+                        "requires edge_x/y/z, but _source_grid.edge_x isn't populated."
+                    )
 
                 coords = np.stack(
                     (
@@ -172,7 +174,10 @@ class KDTree:
 
             elif self.coordinate_system == "spherical":
                 if self._source_grid.edge_lat is None:
-                    raise ValueError("edge_lat isn't populated")
+                    raise ValueError(
+                        f"{type(self).__name__}._build_from_edge_centers() when coordinate_system='spherical' "
+                        "requires edge_lat/lon, but _source_grid.edge_lat isn't populated."
+                    )
 
                 coords = np.vstack(
                     (
@@ -183,8 +188,7 @@ class KDTree:
 
             else:
                 raise ValueError(
-                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                    f"'spherical'"
+                    f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
                 )
 
             self._tree_from_edge_centers = SKKDTree(coords, metric=self.distance_metric)
@@ -203,8 +207,8 @@ class KDTree:
             _tree = self._tree_from_edge_centers
         else:
             raise ValueError(
-                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
-                f"or 'edge centers'"
+                "Invalid `coordinates`. Expected one of ['nodes', 'face centers', 'edge centers']; "
+                f"got {self._coordinates!r}."
             )
 
         return _tree
@@ -248,8 +252,7 @@ class KDTree:
 
         if k < 1 or k > self._n_elements:
             raise AssertionError(
-                f"The value of k must be greater than 1 and less than the number of elements used to construct "
-                f"the tree ({self._n_elements})."
+                f"Expected 1 <= k <= {self._n_elements} (number of elements used to construct tree); got k={k}"
             )
         if self.coordinate_system == "cartesian":
             coords = _prepare_xyz_for_query(coords)
@@ -259,8 +262,7 @@ class KDTree:
             )
         else:
             raise ValueError(
-                f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                f"'spherical'"
+                f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
             )
 
         # perform query with distance
@@ -330,9 +332,7 @@ class KDTree:
         """
 
         if r < 0.0:
-            raise AssertionError(
-                "The value of r must be greater than or equal to zero."
-            )
+            raise AssertionError(f"Expected radius r>=0; got r={r}")
 
         # Use the correct function to prepare for query based on coordinate type
         if self.coordinate_system == "cartesian":
@@ -343,8 +343,7 @@ class KDTree:
             )
         else:
             raise ValueError(
-                f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                f"'spherical'"
+                f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
             )
 
         if count_only:
@@ -405,8 +404,8 @@ class KDTree:
             self._n_elements = self._source_grid.n_edge
         else:
             raise ValueError(
-                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
-                f"or 'edge centers'"
+                "Invalid `coordinates`. Expected one of ['nodes', 'face centers', 'edge centers']; "
+                f"got {self._coordinates!r}."
             )
 
 
@@ -468,8 +467,8 @@ class BallTree:
             self._n_elements = self._source_grid.n_edge
         else:
             raise ValueError(
-                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
-                f"or 'edge centers'"
+                "Invalid `coordinates`. Expected one of ['nodes', 'face centers', 'edge centers']; "
+                f"got {self._coordinates!r}."
             )
 
     def _build_from_face_centers(self):
@@ -498,8 +497,7 @@ class BallTree:
                 )
             else:
                 raise ValueError(
-                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                    f"'spherical'"
+                    f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
                 )
 
             self._tree_from_face_centers = SKBallTree(
@@ -545,7 +543,10 @@ class BallTree:
             # Sets which values to use for the tree based on the coordinate_system
             if self.coordinate_system == "spherical":
                 if self._source_grid.edge_lat is None:
-                    raise ValueError("edge_lat isn't populated")
+                    raise ValueError(
+                        f"{type(self).__name__}._build_from_edge_centers() when coordinate_system='spherical' "
+                        "requires edge_lat/lon, but _source_grid.edge_lat isn't populated."
+                    )
 
                 coords = np.vstack(
                     (
@@ -556,7 +557,10 @@ class BallTree:
 
             elif self.coordinate_system == "cartesian":
                 if self._source_grid.edge_x is None:
-                    raise ValueError("edge_x isn't populated")
+                    raise ValueError(
+                        f"{type(self).__name__}._build_from_edge_centers() when coordinate_system='cartesian' "
+                        "requires edge_x/y/z, but _source_grid.edge_x isn't populated."
+                    )
 
                 coords = np.stack(
                     (
@@ -568,8 +572,7 @@ class BallTree:
                 )
             else:
                 raise ValueError(
-                    f"Unknown coordinate_system, {self.coordinate_system}, use either 'cartesian' or "
-                    f"'spherical'"
+                    f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
                 )
 
             self._tree_from_edge_centers = SKBallTree(
@@ -589,8 +592,8 @@ class BallTree:
             _tree = self._tree_from_edge_centers
         else:
             raise TypeError(
-                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
-                f"or 'edge centers'"
+                "Invalid `coordinates`. Expected one of ['nodes', 'face centers', 'edge centers']; "
+                f"got {self._coordinates!r}."
             )
 
         return _tree
@@ -634,8 +637,7 @@ class BallTree:
 
         if k < 1 or k > self._n_elements:
             raise AssertionError(
-                f"The value of k must be greater than 1 and less than the number of elements used to construct "
-                f"the tree ({self._n_elements})."
+                f"Expected 1 <= k <= {self._n_elements} (number of elements used to construct tree); got k={k}"
             )
 
         # Use the correct function to prepare for query based on coordinate type
@@ -715,9 +717,7 @@ class BallTree:
         """
 
         if r < 0.0:
-            raise AssertionError(
-                "The value of r must be greater than or equal to zero."
-            )
+            raise AssertionError(f"Expected radius r>=0; got r={r}")
 
         # Use the correct function to prepare for query based on coordinate type
         if self.coordinate_system == "spherical":
@@ -787,8 +787,8 @@ class BallTree:
             self._n_elements = self._source_grid.n_edge
         else:
             raise ValueError(
-                f"Unknown coordinates location, {self._coordinates}, use either 'nodes', 'face centers', "
-                f"or 'edge centers'"
+                "Invalid `coordinates`. Expected one of ['nodes', 'face centers', 'edge centers']; "
+                f"got {self._coordinates!r}."
             )
 
 
@@ -893,10 +893,11 @@ class SpatialHash:
                     for j in range(j1[eid], j2[eid] + 1):
                         for i in range(i1[eid], i2[eid] + 1):
                             index_to_face[i + self._nx * j].append(eid)
-            except IndexError:
+            except IndexError as err:
                 raise IndexError(
-                    "list index out of range. This may indicate incorrect `edge_node_distances` values."
-                )
+                    f"list index out of range during {type(self).__name__}._initialize_face_hash_table(). "
+                    "This may indicate incorrect `edge_node_distances` values."
+                ) from err
 
             return index_to_face
 
@@ -1010,7 +1011,10 @@ def _barycentric_coordinates(nodes, point):
 
 def _prepare_xy_for_query(xy, use_radians, distance_metric):
     """Prepares xy coordinates for query with the sklearn BallTree or
-    KDTree."""
+    KDTree. xy actually represents lat/lon, not cartesian x,y, so the
+    name might be a bit misleading. xy shape should be (n_pairs, 2),
+    with second dimension corresponding to (lon, lat).
+    """
 
     xy = np.asarray(xy)
 
@@ -1019,15 +1023,10 @@ def _prepare_xy_for_query(xy, use_radians, distance_metric):
         xy = np.expand_dims(xy, axis=0)
 
     # expected shape is [n_pairs, 2]
-    if xy.shape[1] == 3:
-        raise DimensionError(
-            "The dimension of each coordinate pair must be two (lon, lat). Did you attempt to query using Cartesian "
-            "(x, y, z) coordinates?"
-        )
-
     if xy.shape[1] != 2:
         raise DimensionError(
-            "The dimension of each coordinate pair must be two (lon, lat).)"
+            f"Expected shape (n_pairs, 2) but got shape {xy.shape}, in _prepare_xy_for_query(). "
+            "(The 2 corresponds to (lon, lat) coordinates.)"
         )
 
     # swap x and y if the distance metric used is haversine
@@ -1044,7 +1043,9 @@ def _prepare_xy_for_query(xy, use_radians, distance_metric):
 
 def _prepare_xyz_for_query(xyz):
     """Prepares xyz coordinates for query with the sklearn BallTree and
-    KDTree."""
+    KDTree. xyz represents cartesian x,y,z coordinates, and should have
+    shape (n_pairs, 3), with second dimension corresponding to (x, y, z).
+    """
 
     xyz = np.asarray(xyz)
 
@@ -1053,15 +1054,10 @@ def _prepare_xyz_for_query(xyz):
         xyz = np.expand_dims(xyz, axis=0)
 
     # expected shape is [n_pairs, 3]
-    if xyz.shape[1] == 2:
-        raise DimensionError(
-            "The dimension of each coordinate pair must be three (x, y, z). Did you attempt to query using latlon "
-            "(lat, lon) coordinates?"
-        )
-
     if xyz.shape[1] != 3:
         raise DimensionError(
-            "The dimension of each coordinate pair must be three (x, y, z).)"
+            f"Expected shape (n_pairs, 3) but got shape {xyz.shape}, in _prepare_xyz_for_query(). "
+            "(The 3 corresponds to (x, y, z) coordinates.)"
         )
 
     return xyz
@@ -1082,7 +1078,7 @@ def _populate_edge_node_distances(grid):
     )
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
     """Helper for computing the arc-distance between nodes compose each
     edge."""
@@ -1117,7 +1113,7 @@ def _populate_edge_face_distances(grid):
     )
 
 
-@njit(cache=True)
+@njit(cache=True, nogil=True)
 def _construct_edge_face_distances(face_lon, face_lat, edge_faces):
     """Helper for computing the arc-distance between faces that saddle a given
     edge."""
@@ -1168,9 +1164,9 @@ def _get_element_coords(grid, data_mapping: str, coordinate_system: str):
 
     if data_mapping not in prefix_map:
         raise ValueError(
-            f"Invalid data_mapping. Expected 'nodes', 'edge centers', or 'face centers', "
-            f"but received: {data_mapping}"
-        )
+            "Invalid `data_mapping`. Expected one of ['nodes', 'edge centers', 'face centers']; "
+            f"got {data_mapping!r}, in _get_element_coords(grid, data_mapping=...)."
+        )  # (kwarg hint data_mapping=... helps distinguish from UxDataArray.data_mapping property.)
 
     prefix = prefix_map[data_mapping]
 
@@ -1187,69 +1183,60 @@ def _get_element_coords(grid, data_mapping: str, coordinate_system: str):
 
     else:
         raise ValueError(
-            f"Invalid coordinate_system. Expected either 'spherical' or 'cartesian', "
-            f"but received {coordinate_system}"
+            f"Invalid coordinate_system. Expected 'spherical' or 'cartesian'; got {coordinate_system!r}"
         )
 
 
 # A neighborhood reduction is a segmented reduction over a ragged (CSR-like)
 # neighbor structure: elementwise in every dimension except the grid axis,
-# which it reduces over. That is exactly a generalized ufunc signature, so the
-# kernels below declare the grid axis as a core dimension. Two consequences
-# fall out of stating it that way:
+# which it reduces over. ``Neighborhood._apply`` hands the kernels below one
+# NumPy block at a time with the grid axis last, flattened to ``(rows, grid)``,
+# and declares the grid axis a *core* dimension to ``apply_ufunc``, so that
 #
 #   * dask can parallelize over the remaining (chunked) dimensions on its own,
 #     so the filter stays lazy instead of materializing the whole array, and
-#   * the grid axis is a *core* dimension, so dask refuses to split it rather
-#     than silently handing a kernel a block the neighbor indices overrun.
+#   * dask refuses to split the grid axis rather than silently handing a
+#     kernel a block the neighbor indices overrun.
 #
-# ``(n)`` is the source grid axis, ``(k)`` the flattened neighbor index array,
-# and ``(m)`` the destination axis. Output is float64 regardless of input
-# dtype, matching the behaviour of the generic path below.
-_GUFUNC_SIGNATURES = [
-    "void(float64[:], int64[:], int64[:], int64[:], float64, float64[:])",
-    "void(float32[:], int64[:], int64[:], int64[:], float64, float64[:])",
-]
-_GUFUNC_LAYOUT = "(n),(k),(m),(m),()->(m)"
-_GUFUNC_KWARGS = {"nopython": True, "cache": True, "target": "parallel"}
+# The kernels are plain ``njit`` functions rather than ``guvectorize`` gufuncs,
+# for two reasons that both surfaced as hard crashes:
+#
+#   * numba caches a gufunc as two separate entries, the kernel and its
+#     ``guf-`` wrapper, each embedding the kernel's symbol name, which carries
+#     a per-process counter. Two processes compiling at once on a cold cache
+#     can leave one entry from each, after which every process that loads
+#     them aborts in LLVM with "Symbol not found". An ``njit`` cache entry is
+#     one self-contained library, so it has no second entry to disagree with.
+#   * a ``target="parallel"`` gufunc launches numba's threading layer on every
+#     call, and the ``workqueue`` layer -- numba's fallback when neither TBB
+#     nor OpenMP is available -- aborts the process when dask worker threads
+#     launch it concurrently. Dask-backed blocks therefore run the serial
+#     kernel, dask having already parallelized over chunks, and only in-memory
+#     arrays of more than one row run the ``prange`` kernel.
+#
+# ``njit`` compiles on first call, so ``import uxarray`` builds nothing
+# (``test_no_numba_kernels_built_on_import`` guards this), and the dispatcher
+# compiles under numba's global compiler lock, so dask threads reaching an
+# uncompiled kernel together still compile it once.
 
 
-def _make_kernel(reduce_fn):
-    """Builds a kernel that gathers each neighborhood, then calls
-    ``reduce_fn(window, param)`` on the 1-D result.
-
-    ``reduce_fn`` must be numba-compilable, and must be defined in a real
-    source file for ``cache=True`` to find it.
-    """
-    # A reducer shared between kernels arrives already compiled; numba rejects
-    # jitting a dispatcher twice.
-    if not hasattr(reduce_fn, "py_func"):
-        reduce_fn = njit(cache=True)(reduce_fn)
-
-    @guvectorize(_GUFUNC_SIGNATURES, _GUFUNC_LAYOUT, **_GUFUNC_KWARGS)
-    def kernel(data, flat, starts, counts, param, out):
-        widest = 0
-        for i in range(counts.shape[0]):
-            if counts[i] > widest:
-                widest = counts[i]
-        buffer = np.empty(widest, dtype=np.float64)
-
-        for i in range(starts.shape[0]):
-            count = counts[i]
-            if count == 0:
-                out[i] = np.nan
-                continue
-            start = starts[i]
-            for j in range(count):
-                buffer[j] = data[flat[start + j]]
-            out[i] = reduce_fn(buffer[:count], param)
-
-    return kernel
+@njit(cache=True)
+def _widest(counts):
+    """Largest neighborhood, so each kernel allocates its buffer once."""
+    widest = 0
+    for i in range(counts.shape[0]):
+        if counts[i] > widest:
+            widest = counts[i]
+    return widest
 
 
-# Reducers take ``(window, param)``; those without a parameter ignore the
-# second argument. Numba keys its cache by code object rather than qualified
-# name, so the identically-named lambdas below do not collide.
+@njit(cache=True)
+def _gather(data, flat, start, count, buffer):
+    """Copies one neighborhood's values into ``buffer[:count]``."""
+    for j in range(count):
+        buffer[j] = data[flat[start + j]]
+
+
 @njit(cache=True)
 def _variance(window, ddof):
     """Variance with a delta degrees of freedom. Numba's ``np.var`` takes no
@@ -1265,7 +1252,7 @@ def _variance(window, ddof):
 
 
 @njit(cache=True)
-def _median(window, _):
+def _median(window):
     """numba's ``np.median`` selects by partitioning, and whether a NaN survives
     that depends on where it lands -- so unlike numpy's, it propagates NaN
     only sometimes. This spelling short-circuits and allocates nothing:
@@ -1276,6 +1263,79 @@ def _median(window, _):
         if np.isnan(value):
             return np.nan
     return np.median(window)
+
+
+# Awkward, but needed to get around numba's caching mechanics.
+class _Reduction(enum.IntEnum):
+    """The compiled reductions, as the codes ``_reduce_window`` dispatches on.
+
+    A kernel cannot take its reducer as an argument instead: numba then treats
+    the reducer as a dynamic global and refuses to cache the kernel at all.
+    """
+
+    MEAN = enum.auto()
+    SUM = enum.auto()
+    MIN = enum.auto()
+    MAX = enum.auto()
+    PTP = enum.auto()
+    MEDIAN = enum.auto()
+    VAR = enum.auto()
+    STD = enum.auto()
+    QUANTILE = enum.auto()
+
+
+@njit(cache=True)
+def _reduce_window(window, op, param):
+    """Reduces one gathered neighborhood. ``param`` is ``ddof`` for ``VAR`` and
+    ``STD``, the 0-1 fraction for ``QUANTILE``, and unused otherwise."""
+    if op == _Reduction.MEAN:
+        return np.mean(window)
+    if op == _Reduction.SUM:
+        return np.sum(window)
+    if op == _Reduction.MIN:
+        return np.min(window)
+    if op == _Reduction.MAX:
+        return np.max(window)
+    if op == _Reduction.PTP:
+        return np.max(window) - np.min(window)
+    if op == _Reduction.MEDIAN:
+        return _median(window)
+    if op == _Reduction.VAR:
+        return _variance(window, param)
+    if op == _Reduction.STD:
+        return np.sqrt(_variance(window, param))
+    if op == _Reduction.QUANTILE:
+        return np.quantile(window, param)
+    return np.nan
+
+
+@njit(cache=True)
+def _reduce_row(data, flat, starts, counts, op, param, out, buffer):
+    """Reduces every neighborhood of the 1-D ``data`` into ``out``."""
+    for i in range(starts.shape[0]):
+        count = counts[i]
+        if count == 0:
+            out[i] = np.nan
+            continue
+        _gather(data, flat, starts[i], count, buffer)
+        out[i] = _reduce_window(buffer[:count], op, param)
+
+
+@njit(cache=True, nogil=True)
+def _reduce_rows(data, flat, starts, counts, op, param, out):
+    """Reduces each row of the 2-D ``data`` in turn, for dask-backed blocks."""
+    buffer = np.empty(_widest(counts), dtype=np.float64)
+    for r in range(data.shape[0]):
+        _reduce_row(data[r], flat, starts, counts, op, param, out[r], buffer)
+
+
+@njit(cache=True, nogil=True, parallel=True)
+def _reduce_rows_parallel(data, flat, starts, counts, op, param, out):
+    """Reduces the rows of the 2-D ``data`` in parallel, for in-memory arrays."""
+    widest = _widest(counts)
+    for r in prange(data.shape[0]):
+        buffer = np.empty(widest, dtype=np.float64)
+        _reduce_row(data[r], flat, starts, counts, op, param, out[r], buffer)
 
 
 def _as_quantile(q, scale: float):
@@ -1360,6 +1420,26 @@ def _neighborhood_reduce(block, flat, starts, counts, func: Callable):
         ) from exc
 
     return destination_data
+
+
+def _reduce_block(block, flat, starts, counts, op, param, parallel):
+    """Runs the compiled reduction ``op`` over a NumPy ``block`` with the grid
+    dimension last.
+
+    ``parallel`` permits the ``prange`` kernel, which is used only when there
+    is more than one row to spread across threads: starting numba's thread
+    pool costs more than a whole single-row reduction on a small grid.
+    """
+    # Floating-point input is gathered as it is; anything else (integer
+    # fields, say) is promoted, which the generic path does too by writing
+    # into a float64 output.
+    if block.dtype not in (np.float64, np.float32):
+        block = block.astype(np.float64)
+    rows = block.reshape(math.prod(block.shape[:-1]), block.shape[-1])
+    out = np.empty(rows.shape, dtype=np.float64)
+    kernel = _reduce_rows_parallel if parallel and rows.shape[0] > 1 else _reduce_rows
+    kernel(rows, flat, starts, counts, op, param, out)
+    return out.reshape(block.shape)
 
 
 def _rechunk_grid_dim(uxda, grid_dim: str):
@@ -1488,107 +1568,53 @@ class Neighborhood:
             f"neighbors_per_element=[{self._counts.min()}, {self._counts.max()}]>"
         )
 
-    # One compiled kernel per reduction. The methods below call into these
-    # directly. Non-compiled functions are only provided hooks through
-    # ``reduce``. If new compiled reductions are desired, they should follow
-    # this pattern.
-    #
-    # ``functools.cache`` defers each build to the first call. The deferred
-    # compilation ensures that these kernels will only be compiled individually
-    # and lazily. Further, the lazy compilation prevents gufuncs from spawning
-    # threadpools eagerly and disrupting threading and forking in other
-    # contexts. They are ``staticmethod``s rather than attributes for the same
-    # reason: a class body runs at import, so assigning them there would
-    # compile all nine during ``import uxarray``.
-
-    @staticmethod
-    @functools.cache
-    def _mean_kernel():
-        return _make_kernel(lambda window, _: np.mean(window))
-
-    @staticmethod
-    @functools.cache
-    def _sum_kernel():
-        return _make_kernel(lambda window, _: np.sum(window))
-
-    @staticmethod
-    @functools.cache
-    def _min_kernel():
-        return _make_kernel(lambda window, _: np.min(window))
-
-    @staticmethod
-    @functools.cache
-    def _max_kernel():
-        return _make_kernel(lambda window, _: np.max(window))
-
-    @staticmethod
-    @functools.cache
-    def _ptp_kernel():
-        return _make_kernel(lambda window, _: np.max(window) - np.min(window))
-
-    @staticmethod
-    @functools.cache
-    def _median_kernel():
-        return _make_kernel(_median)
-
-    @staticmethod
-    @functools.cache
-    def _var_kernel():
-        return _make_kernel(_variance)
-
-    @staticmethod
-    @functools.cache
-    def _std_kernel():
-        return _make_kernel(lambda window, ddof: np.sqrt(_variance(window, ddof)))
-
-    # ``percentile`` is ``quantile`` on a 0-100 scale, so both methods
-    # rescale onto this one kernel rather than compiling a near-duplicate.
-    @staticmethod
-    @functools.cache
-    def _quantile_kernel():
-        return _make_kernel(lambda window, q: np.quantile(window, q))
+    # Each compiled reduction is a ``_Reduction`` member, which the methods
+    # below pass to ``_apply_kernel``. Non-compiled functions are only provided
+    # hooks through ``reduce``. A new compiled reduction needs a member and a
+    # branch in ``_reduce_window``. ``percentile`` is ``quantile`` on a 0-100
+    # scale, so both rescale onto ``_Reduction.QUANTILE``.
 
     def mean(self, uxda):
         """Mean of each neighborhood."""
-        return self._apply_kernel(uxda, self._mean_kernel, 0.0)
+        return self._apply_kernel(uxda, _Reduction.MEAN, 0.0)
 
     def sum(self, uxda):
         """Sum of each neighborhood."""
-        return self._apply_kernel(uxda, self._sum_kernel, 0.0)
+        return self._apply_kernel(uxda, _Reduction.SUM, 0.0)
 
     def min(self, uxda):
         """Smallest value in each neighborhood."""
-        return self._apply_kernel(uxda, self._min_kernel, 0.0)
+        return self._apply_kernel(uxda, _Reduction.MIN, 0.0)
 
     def max(self, uxda):
         """Largest value in each neighborhood."""
-        return self._apply_kernel(uxda, self._max_kernel, 0.0)
+        return self._apply_kernel(uxda, _Reduction.MAX, 0.0)
 
     def ptp(self, uxda):
         """Peak-to-peak spread (``max - min``) of each neighborhood."""
-        return self._apply_kernel(uxda, self._ptp_kernel, 0.0)
+        return self._apply_kernel(uxda, _Reduction.PTP, 0.0)
 
     def median(self, uxda):
         """Median of each neighborhood."""
-        return self._apply_kernel(uxda, self._median_kernel, 0.0)
+        return self._apply_kernel(uxda, _Reduction.MEDIAN, 0.0)
 
     def var(self, uxda, ddof: int = 0):
         """Variance of each neighborhood, with ``ddof`` delta degrees of
         freedom."""
-        return self._apply_kernel(uxda, self._var_kernel, float(ddof))
+        return self._apply_kernel(uxda, _Reduction.VAR, float(ddof))
 
     def std(self, uxda, ddof: int = 0):
         """Standard deviation of each neighborhood, with ``ddof`` delta degrees
         of freedom."""
-        return self._apply_kernel(uxda, self._std_kernel, float(ddof))
+        return self._apply_kernel(uxda, _Reduction.STD, float(ddof))
 
     def quantile(self, uxda, q: float):
         """Quantile ``q`` (between 0 and 1) of each neighborhood."""
-        return self._apply_kernel(uxda, self._quantile_kernel, _as_quantile(q, 1.0))
+        return self._apply_kernel(uxda, _Reduction.QUANTILE, _as_quantile(q, 1.0))
 
     def percentile(self, uxda, q: float):
         """Percentile ``q`` (between 0 and 100) of each neighborhood."""
-        return self._apply_kernel(uxda, self._quantile_kernel, _as_quantile(q, 100.0))
+        return self._apply_kernel(uxda, _Reduction.QUANTILE, _as_quantile(q, 100.0))
 
     def reduce(self, uxda, func: Callable):
         """Reduces each neighborhood with an arbitrary callable.
@@ -1619,27 +1645,32 @@ class Neighborhood:
         >>> nb.reduce(uxds["psi"], skew)  # doctest: +SKIP
         """
 
-        def run(block, arrays):
-            return _neighborhood_reduce(block, *arrays, func)
+        return self._apply(uxda, _neighborhood_reduce, func=func)
 
-        return self._apply(uxda, run)
+    def _apply_kernel(self, uxda, op: _Reduction, param: float):
+        """Runs the compiled reduction ``op`` over every neighborhood."""
+        # A plain int: an enum member as a kernel argument costs ~170 ms of
+        # typing on every process's first call, even on a cache hit. Dask
+        # already runs one task per chunk on its own threads, and numba's
+        # ``workqueue`` threading layer aborts if those threads launch parallel
+        # kernels concurrently, so only in-memory data may take the parallel
+        # path.
+        return self._apply(
+            uxda,
+            _reduce_block,
+            op=int(op),
+            param=param,
+            parallel=uxda.chunks is None,
+        )
 
-    def _apply_kernel(self, uxda, kernel, param: float):
-        """Runs a compiled ``kernel`` over every neighborhood."""
+    def _apply(self, uxda, block_func, **kwargs):
+        """Validates ``uxda`` against this neighborhood and maps ``func`` over
+        it, one NumPy block at a time with the grid dimension last.
 
-        def run(block, arrays):
-            # The kernels are compiled for float32/float64 only; anything
-            # else (integer fields, say) is promoted, which the generic
-            # path does too by writing into a float64 output.
-            if block.dtype not in (np.float64, np.float32):
-                block = block.astype(np.float64)
-            return kernel()(block, *arrays, param)
-
-        return self._apply(uxda, run)
-
-    def _apply(self, uxda, run):
-        """Validates ``uxda`` against this neighborhood and maps ``run`` over
-        it, one NumPy block at a time with the grid dimension last."""
+        ``block_func`` is called as
+        ``block_func(block, flat, starts, counts, **kwargs)``.
+        It must be a module-level function taking only cheap arguments.
+        """
         # Local import: uxarray.core.dataarray imports this module.
         from uxarray.core.dataarray import UxDataArray
         from uxarray.errors import DataCenteringError
@@ -1657,20 +1688,18 @@ class Neighborhood:
                 f"probably mapped to a different grid."
             )
 
-        arrays = (self._flat, self._starts, self._counts)
-
-        def _apply(block):
-            return run(block, arrays)
-
         work = _rechunk_grid_dim(uxda, grid_dim)
 
         # ``apply_ufunc`` moves the grid dimension last before calling
-        # ``_apply`` and, for dask-backed input, hands each chunk over as a
+        # ``block_func`` and, for dask-backed input, hands each chunk over as a
         # materialized NumPy block. Indexing the array one destination element
         # at a time would instead trigger one graph execution per grid element.
         filtered = xr.apply_ufunc(
-            _apply,
+            block_func,
             work,
+            kwargs=dict(
+                flat=self._flat, starts=self._starts, counts=self._counts, **kwargs
+            ),
             input_core_dims=[[grid_dim]],
             output_core_dims=[[grid_dim]],
             dask="parallelized",
@@ -1716,7 +1745,7 @@ class _BoundNeighborhoodReductions:
 
         Subclasses must implement this; it is the only thing they need to.
         """
-        raise NotImplementedError
+        raise NotImplementedError(f"{type(self).__name__}._map()")
 
     def mean(self):
         """Mean of each neighborhood."""

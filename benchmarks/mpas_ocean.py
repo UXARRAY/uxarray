@@ -20,13 +20,8 @@ from .helpers._peakmem import numba_threads, peak_allocated, subprocess_peak_rss
 data_var = 'bottomDepth'
 
 # Sample budget for the benchmarks with long single call runtimes.
-#
-# Only the classes whose slowest parameter clears ~0.25s carry this; on the rest
-# the cap would never bind and would cost samples for nothing.
 SLOW_CALL_REPEAT = (2, 3, 8.0)
 
-# Paths, and fetching the files in the first place, both live in
-# ``helpers._fixtures`` now -- ``bench_connectivity`` draws the same grids from it.
 file_path_dict = OQU_DATASETS
 
 
@@ -175,6 +170,9 @@ class GeoDataFrame(DatasetBenchmark):
 
 
 class ConnectivityConstruction(DatasetBenchmark):
+    # ASV: only run this benchmark once, since the results will be cached
+    number = 1
+
     def time_n_nodes_per_face(self, resolution):
         _ = self.uxds.uxgrid.n_nodes_per_face
 
@@ -331,10 +329,7 @@ class ZonalAverage(DatasetBenchmark):
 
 class ZonalAveragePeakMem:
     """Peak memory of a cold-start non-conservative zonal-mean sweep.
-
-    A fresh interpreter per sample. The cold start is the subject, and a forked
-    benchmark process no longer has one.
-    """
+    Uses a fresh interpreter per sample."""
 
     param_names = ["resolution"]
     params = [OQU_RESOLUTIONS]
@@ -363,9 +358,7 @@ class ZonalAveragePeakMem:
 
 class CrossSectionsPeakMem:
     """Peak memory of a cold-start constant-latitude cross-section sweep.
-
-    A fresh interpreter per sample,
-    """
+    Uses a fresh interpreter per sample."""
 
     param_names = ["resolution", "lat_step"]
     params = [OQU_RESOLUTIONS, [1, 2, 4]]
