@@ -1,27 +1,15 @@
 {
-    // Thread-scaling variant of ``asv.conf.json``, for a machine with cores to
-    // spare. Run it explicitly:
+    // Thread-scaling variant of ``asv.conf.json``:
     //
     //     asv run --config benchmarks/asv.conf.hpc.json <range>
-    //     asv compare --config benchmarks/asv.conf.hpc.json -E conda:3.11 A B
     //
-    // Why a second file rather than an environment variable: asv records the
-    // ``env_nobuild`` matrix into every results file it writes and folds it
-    // into the environment name, so each thread count gets its own result set
-    // and ``asv compare`` keeps them apart. A count exported in the shell is
-    // invisible to asv -- runs at 1 and 64 threads land in the *same* file for
-    // a commit and compare as though they measured the same thing. See
-    // ``benchmarks/helpers/_threads.py`` for the shell route, which is the
-    // right one for "just run this faster" and the wrong one for a study.
+    // A separate file, not a shell export, because asv folds ``env_nobuild``
+    // into the environment name, keeping each thread count's results apart;
+    // it also overrides any exported ``NUMBA_NUM_THREADS``.
     //
-    // The two mechanisms are mutually exclusive: asv layers ``env_nobuild``
-    // over the inherited environment, so ``NUMBA_NUM_THREADS`` below wins over
-    // any export.
-    //
-    // KEEP IN SYNC with asv.conf.json: ``pythons``, ``environment_type``,
-    // ``conda_channels``, ``matrix.req`` and ``build_command`` decide what gets
-    // installed. Let them drift and these numbers stop being comparable to the
-    // ones the normal config produces, silently.
+    // KEEP IN SYNC with asv.conf.json (``pythons``, ``environment_type``,
+    // ``conda_channels``, ``matrix.req``, ``build_command``) or results
+    // silently stop being comparable.
 
     "version": 1,
     "project": "uxarray",
@@ -41,9 +29,7 @@
     ],
     "build_cache_size": 4,
 
-    // A parallel kernel held at one thread takes roughly as long as the core
-    // count it would otherwise have used, so the 360s the normal config allows
-    // is not enough at the bottom of a scaling sweep.
+    // A parallel kernel at one thread runs ~core-count times longer.
     "default_benchmark_timeout": 1800,
 
     "matrix": {
@@ -55,23 +41,10 @@
             "tbb": [""]
         },
 
-        // One result set per value, so the run costs its length: four values is
-        // four passes over the suite. Edit for the node -- powers of two up to
-        // its physical core count is the usual shape, and
-        // ``python -m benchmarks.helpers._threads`` reports that count.
-        // Values above the core count are allowed and simply oversubscribe.
-        // One value each: a matrix entry with several values is a separate
-        // environment per value, and asv runs the whole suite in every one of
-        // them. Only 24 of the 86 benchmarks reach a ``parallel=True`` kernel,
-        // so a four-value sweep ran the other 62 four times over to print the
-        // same number four times. ``NUMBA_NUM_THREADS`` is the one knob here;
-        // to sweep it, see ``--env`` in ``benchmarks/helpers/_partition.py``.
-        //
-        // The BLAS variables are pinned because they are what made the old
-        // sweep unreadable: numpy would take the whole node in every
-        // environment, so the ``NUMBA_NUM_THREADS=1`` column was never a
-        // single-threaded baseline and the scaling curve it implied was
-        // measuring contention. Pinned, numba's threads are the only ones.
+        // One value each: every value is a full pass over the suite, though
+        // few benchmarks reach a ``parallel=True`` kernel. To sweep
+        // ``NUMBA_NUM_THREADS``, see ``--env`` in ``helpers/_partition.py``.
+        // BLAS is pinned so numba's threads are the only ones measured.
         "env_nobuild": {
             "NUMBA_THREADING_LAYER": ["forksafe"],
             "NUMBA_NUM_THREADS": ["8"],

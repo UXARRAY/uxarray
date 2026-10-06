@@ -1,16 +1,8 @@
 #!/usr/bin/env bash
-# Runs the sharded suite on the node you are already sitting on -- an
-# interactive PBS session, typically -- with the shards concurrent rather than
-# queued as separate jobs.
-#
-# This only makes sense because a derecho CPU node has 128 cores and a shard at
-# NUMBA_NUM_THREADS=8 wants nine of them. Each shard is pinned to its own slice
-# so they cannot land on each other's cores; what they do still share is memory
-# bandwidth and last-level cache, and for the grid operations in this suite that
-# is not nothing. So: the BASE-vs-HEAD ratios ``asv compare`` reports stay
-# usable, since both sides of a comparison run inside the same shard under the
-# same contention, but absolute timings come out noisier than a run that had a
-# node to itself. Take those from one-shard-per-node (``submit.sh``).
+# Runs the sharded suite concurrently on the current node (e.g. a ``qsub -I``
+# session), each shard pinned to its own core slice. Shared memory bandwidth
+# and cache add noise: ``asv compare`` ratios stay usable, but take absolute
+# timings from one-shard-per-node (``submit.sh``).
 #
 # Usage, from the repository root:
 #
@@ -26,27 +18,18 @@ THREADS="${THREADS:-8}"
 export REPO SHARDS THREADS
 export REV="${REV:-HEAD^!}"
 export CONFIG="${CONFIG:-asv.conf.hpc.json}"
-# Left empty on purpose: stage.pbs derives it, so this works unchanged on
-# derecho and casper both.
+# Empty on purpose: stage.pbs derives it per cluster.
 export ASV_MACHINE="${ASV_MACHINE:-}"
 export ASV_ACTIVATE="${ASV_ACTIVATE:-true}"
-# Also evaluated here, not just in the stages, so the core count below can be
-# read with python rather than with a shell tool that lies about it.
+# Activated here too so the core count below can come from python.
 eval "$ASV_ACTIVATE"
 
 STAGE_SCRIPT="$REPO/benchmarks/hpc/stage.pbs"
 LOGS="${LOGS:-$REPO/benchmarks/hpc/logs}"
 mkdir -p "$LOGS"
 
-# Neither PBS's NCPUS nor ``nproc`` can be trusted for this. NCPUS is the ncpus
-# *requested per chunk*, 1 for a plain ``qsub -I``, and says nothing about the
-# node. And GNU ``nproc`` honours OMP_NUM_THREADS and OMP_THREAD_LIMIT, so in a
-# session that sets either it reports the OpenMP thread limit -- 1, or 2 -- and
-# not the machine's cores at all.
-#
-# The affinity mask is the real answer: the CPUs this process may actually run
-# on. It respects a cpuset the scheduler imposed and ignores OpenMP entirely.
-# Override with CORES to hold the run to fewer than the mask allows.
+# The affinity mask, not PBS's NCPUS (per-chunk request) or ``nproc`` (honours
+# OMP_NUM_THREADS). Override with CORES.
 CORES="${CORES:-$(python -c '
 import os
 try:
@@ -90,9 +73,7 @@ for S in $(seq 0 $((SHARDS - 1))); do
     echo "  shard $S -> cores $lo-$hi, pid $pid, log $LOGS/shard$S.log"
 done
 
-# Every shard is waited on and its status reported, but a failure does not stop
-# the merge: a tree missing one shard's rows is still worth having, same as the
-# ``afteranyarray`` dependency the PBS path uses.
+# A failed shard does not stop the merge (cf. ``afteranyarray`` in submit.sh).
 failed=0
 for S in $(seq 0 $((SHARDS - 1))); do
     if wait "${pids[$S]}"; then

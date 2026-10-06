@@ -1,42 +1,17 @@
-"""Splitting the suite into shards of roughly equal cost.
+"""Splits the suite into shards of roughly equal cost, one per runner.
 
-asv runs one benchmark at a time. ``--parallel`` builds environments in
-parallel and nothing else -- its own help text is "Build (but don't benchmark)
-in parallel" -- so cutting the wall clock means running several ``asv``
-processes, and a ``time_*`` result is only worth having if nothing else is
-competing for the machine while it is measured. That points at one shard per
-runner rather than several per runner, and at this module, whose whole job is to
-decide which benchmarks each of those runners should claim.
+asv's ``--parallel`` only parallelizes environment builds, and ``time_*``
+results need an uncontended machine, so each shard gets its own runner.
 
-The split is by whole class, not by benchmark and not by parameter
-combination. asv matches ``--bench`` against the expanded
-``name(param0, param1)``, so a much finer cut is available, but a class's
-benchmarks share the kernels its first one compiles and splitting them makes
-every shard pay that compile again. Measured: ``face_bounds.FaceBounds``'s four
-benchmarks cost ~59s together in one process, where ``time_face_bounds`` paid
-the bounds compile and the three ``track_*`` variants rode on it warm at under
-7s each; scattered one per shard across four runners they cost 221s, every one
-of them paying the compile alone. ``cache=True`` does not save this -- asv
-reinstalls the wheel for each commit and the on-disk cache goes with it. The
-suite stays flat enough at class granularity for greedy longest-first packing
-to land close to a perfect split.
+Shards split by whole class: a class's benchmarks share the kernels its first
+one compiles, so splitting it makes every shard recompile (``FaceBounds``: 59s
+in one shard, 221s across four). Numba's ``cache=True`` does not help, as asv
+reinstalls the wheel per commit. Whole benchmarks also leave every results row
+owned by one shard, so :mod:`benchmarks.helpers._merge` can merge by union.
 
-Going finer than a whole benchmark would also put two shards in one row of one
-results file, with no sane way to reconcile them. Whole benchmarks leave every
-row owned by exactly one shard, which is what lets
-:mod:`benchmarks.helpers._merge` rebuild the tree by union.
-
-Shards still need somewhere separate to write, because asv names its results
-file per commit and environment rather than per run and rewrites the whole thing
-at the end of a set. ``--config-out`` emits a copy of the config with
-``results_dir`` pointed at this shard's own directory, which is what the merge
-then reads.
-
-Weights come from the ``duration`` asv records per benchmark in the results file
-it writes (``Results.save``), so a partition improves as results accumulate
-rather than needing a cost model. Benchmarks with no recorded duration -- new
-ones, mostly -- get the median of the ones that have, which is a better guess
-than either zero or the mean of a long-tailed distribution.
+Each shard writes to its own ``results_dir``, since asv rewrites the whole
+per-commit results file at the end of a run. Weights are the ``duration`` asv
+records per benchmark; benchmarks without one get the median.
 
 Usage::
 
@@ -44,8 +19,7 @@ Usage::
     asv run $(python -m benchmarks.helpers._partition --shards 4 --shard 0 \
         --config asv.conf.hpc.json --asv-args)
 
-    # A thread sweep, for whoever wants one. ``--shards 1`` is the whole suite;
-    # add ``--bench`` to hold it to the benchmarks that can actually respond.
+    # Thread sweep over the whole suite (add ``--bench`` to narrow it).
     for n in 1 2 4 8; do
         asv run $(python -m benchmarks.helpers._partition --shards 1 --shard 0 \
             --config asv.conf.hpc.json --env NUMBA_NUM_THREADS=$n --asv-args)
@@ -71,17 +45,15 @@ __all__ = [
 
 BENCHMARK_DIR = Path(__file__).resolve().parents[1]
 
-# ``setup_cache`` groups whose members may be split across shards. Anything else
-# is paid once per shard that holds any of its benchmarks, so those move
-# together. ``CachedFixtures.setup_cache`` is just ``prime()``, a stat per file
-# once the cache is warm (1.2s in CI), and ``None`` is no setup_cache at all.
+# ``setup_cache`` keys cheap enough to repeat per shard (``prime()`` is a stat
+# per file once warm). Other groups would rerun in every shard, so stay together.
 SPLITTABLE_PREFIX = "helpers._fixtures:"
 
 _SKIP_FILES = frozenset({"machine.json", "benchmarks.json"})
 
 
 def _splittable(setup_cache_key):
-    """Whether benchmarks sharing this ``setup_cache_key`` may land in different shards."""
+    """Whether benchmarks sharing this ``setup_cache_key`` may span shards."""
     return setup_cache_key is None or str(setup_cache_key).startswith(SPLITTABLE_PREFIX)
 
 
@@ -91,20 +63,11 @@ def _owner(name):
 
 
 def _units(benchmarks):
-    """Benchmarks that have to ride together, as ``{root name: [names]}``.
+    """Benchmarks that must share a shard, as ``{root name: [names]}``.
 
-    Two constraints, unioned so a ``setup_cache`` group spanning classes pulls
-    those classes together rather than contradicting them:
-
-    ``class``
-        Its benchmarks share whatever its first one compiles (see the module
-        docstring for what splitting one measured).
-    ``setup_cache``
-        Anything sharing a ``setup_cache`` expensive enough to matter, which asv
-        would otherwise run once in every shard holding a member.
-
-    Roots are the lexicographically smallest member, so the grouping is
-    deterministic and a shard can still work out its own membership.
+    Unions same-class benchmarks with those sharing a non-splittable
+    ``setup_cache``. Roots are the smallest member name, so grouping is
+    deterministic.
     """
     parent = {}
 
@@ -147,12 +110,10 @@ def load_benchmarks(results_dir):
 
 
 def load_weights(results_dirs):
-    """Mean recorded duration per benchmark, in seconds, over the files on disk.
+    """Mean recorded duration per benchmark, in seconds.
 
-    The mean rather than the latest: a benchmark's first run on a cold numba
-    cache can cost hundreds of times its warm cost (a 9.6s bounds compile
-    against 13ms warm, in one observed run), and a partition built from one
-    such outlier sends a whole shard chasing work that is not there.
+    Mean, not latest: a cold numba cache can make one run hundreds of times
+    slower than warm, and a single outlier would skew the plan.
     """
     samples = {}
     for results_dir in results_dirs:
@@ -181,13 +142,8 @@ def load_weights(results_dirs):
 def plan(benchmarks, n_shards, weights=None):
     """Partitions ``benchmarks`` into ``n_shards`` lists of names.
 
-    Greedy longest-first onto the lightest shard so far -- the standard LPT
-    heuristic, which on a distribution this flat is within about 1% of optimal
-    and, unlike anything smarter, is obvious enough to debug from the report.
-
-    Deterministic: equal weights are broken by name, so the same inputs always
-    give the same shards and a shard can compute its own membership without
-    being told.
+    Greedy longest-first (LPT): within about 1% of optimal on this suite and
+    easy to debug. Ties break by name, so a shard can compute its own membership.
     """
     if n_shards < 1:
         raise ValueError(f"n_shards must be at least 1, got {n_shards}")
@@ -212,13 +168,10 @@ def plan(benchmarks, n_shards, weights=None):
 
 
 def bench_regexes(names):
-    """``--bench`` patterns selecting exactly ``names`` and nothing else.
+    """``--bench`` patterns selecting exactly ``names``.
 
-    asv filters a parameterized benchmark on ``name(param0, param1)`` and an
-    unparameterized one on ``name`` (``Benchmarks.__init__``), so the trailing
-    group has to admit both an open parenthesis and end-of-string. Without it
-    ``^name$`` silently matches none of a parameterized benchmark's
-    combinations, and the shard runs nothing.
+    asv matches parameterized benchmarks as ``name(p0, p1)``, so the trailing
+    group admits ``(`` as well as end-of-string; ``^name$`` would match none.
     """
     return [f"^{re.escape(name)}($|\\()" for name in names]
 
@@ -235,17 +188,12 @@ def shard_results_dir(results_dir, shard):
 
 
 def write_shard_config(base_config, out_path, shard, env=None):
-    """Writes a copy of ``base_config`` that writes results where ``shard`` should.
+    """Copies ``base_config`` with the shard's ``results_dir``; returns that dir.
 
-    ``env`` overrides ``env_nobuild`` variables. An override lands in the
-    environment's name, so asv files those results under a name of their own and
-    a sweep's runs do not overwrite one another.
-
-    Returns the shard's results directory.
+    ``env`` overrides ``env_nobuild`` variables. Overrides land in the
+    environment name, so a sweep's runs do not overwrite one another.
     """
-    # asv's loader, because an asv config is JSON with javascript comments and
-    # ``json`` cannot read one. Imported here so the rest of the module stays
-    # runnable without asv installed.
+    # asv configs are JSON with JS comments; lazy so the module runs without asv.
     from asv import util
 
     config = util.load_json(str(base_config), js_comments=True)
@@ -253,8 +201,7 @@ def write_shard_config(base_config, out_path, shard, env=None):
     config["results_dir"] = results_dir
     if env:
         matrix = config.setdefault("matrix", {}).setdefault("env_nobuild", {})
-        # One value per variable: a list of several is a separate environment
-        # per value, and asv would run the whole suite in each of them.
+        # Several values would each be an environment running the whole suite.
         matrix.update({key: [value] for key, value in env.items()})
     with open(out_path, "w") as handle:
         json.dump(config, handle, indent=4)
@@ -294,13 +241,12 @@ def main(argv=None):
         "--results",
         action="append",
         default=None,
-        help="Results directory to read durations and benchmarks.json from. "
-        "Repeatable; defaults to benchmarks/results.",
+        help="Results directory to read (repeatable; default benchmarks/results).",
     )
     parser.add_argument(
         "--bench-args",
         action="store_true",
-        help="Print the shard's --bench arguments for asv, rather than a report.",
+        help="Print the shard's --bench arguments instead of a report.",
     )
     parser.add_argument(
         "--config",
@@ -317,15 +263,12 @@ def main(argv=None):
         action="append",
         default=[],
         metavar="KEY=VALUE",
-        help="Override an env_nobuild variable in the generated config. Repeatable; "
-        "use it to sweep a variable the config pins to one value, e.g. "
-        "--env NUMBA_NUM_THREADS=4.",
+        help="Override an env_nobuild variable, e.g. NUMBA_NUM_THREADS=4 (repeatable).",
     )
     parser.add_argument(
         "--asv-args",
         action="store_true",
-        help="Write this shard's config and print every argument its asv run "
-        "needs, so launching a shard is one substitution. Needs --shard.",
+        help="Write this shard's config and print its asv run arguments. Needs --shard.",
     )
     args = parser.parse_args(argv)
 
@@ -338,10 +281,8 @@ def main(argv=None):
         if args.shard is None:
             parser.error("--bench-args and --asv-args need --shard")
         if args.asv_args:
-            # Written here rather than by a call of its own: a shard that is
-            # told which benchmarks to run has to be told where to put them,
-            # and splitting that across two commands is two chances to pass
-            # one shard's benchmarks with another's results directory.
+            # Emitted with ``--bench`` so a shard can't pair its benchmarks with
+            # another shard's results dir.
             env = {}
             for entry in args.env:
                 key, sep, value = entry.partition("=")

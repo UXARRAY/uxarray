@@ -9,8 +9,7 @@ on:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    # Without this the platform's 6h cap is the only limit, which is how a
-    # mis-skipped range quietly turns into a 453-commit build.
+    # Otherwise only the 6h platform cap stops a runaway range build.
     timeout-minutes: 180
     defaults:
       run:
@@ -76,10 +75,8 @@ jobs:
             cp -r uxarray-asv/results benchmarks/
           fi
 
-      # asv builds its own conda environment under ``benchmarks/env`` from
-      # ci/environment.yml (see asv.conf.json). No restore-keys: asv reuses a
-      # restored env without checking it, so a prefix match would hand it one
-      # built from an older environment file.
+      # asv builds benchmarks/env from ci/environment.yml (per asv.conf.json), not
+      # ci/asv.yml. No restore-keys: asv reuses a restored env without checking it.
       - name: Cache asv's benchmark environment
         uses: actions/cache@v6
         with:
@@ -104,10 +101,8 @@ jobs:
           python -m benchmarks.helpers._fixtures
           cd benchmarks
           asv machine --machine GH-Actions --os ubuntu-latest --arch x64 --cpu "2-core unknown" --ram 7GB
-          # ``--skip-existing-commits``, not ``--skip-existing``: the latter keys
-          # its skip set by (commit, env), so asv's per-commit check never
-          # matches and it builds and installs every commit in the range before
-          # skipping the benchmarks it already has.
+          # --skip-existing-commits, not --skip-existing: the latter still builds
+          # every commit in the range before skipping benchmarks it already has.
           asv run main^! --skip-existing-commits --parallel || true
 
       - name: Commit and push benchmark results

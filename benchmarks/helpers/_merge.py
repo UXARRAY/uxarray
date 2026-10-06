@@ -1,30 +1,13 @@
-"""Merging a sharded run's results back into one tree.
+"""Merges a sharded run's results directories back into one tree.
 
-asv reads its results file once before running a benchmark set and writes it
-once after (``Results.load_data`` then ``Results.save`` in ``commands/run.py``),
-and the name it writes is ``results/<machine>/<commit>-<env>.json`` -- one file
-per commit and environment, whatever subset of benchmarks the run measured. So
-shards sharing a results directory each rewrite that whole file from what they
-alone measured, and the last one to finish wins. Each shard therefore gets its
-own directory (``_partition --config-out``) and they are combined here.
+asv rewrites the whole ``<machine>/<commit>-<env>.json`` at the end of a run,
+so shards sharing a directory would overwrite one another; each writes its own
+and they are combined here. Shards split by whole benchmark, so every row
+belongs to one shard and the merge is a union.
 
-The combination is a union rather than an element-wise reconciliation, which is
-what the by-whole-benchmark split buys: a row is keyed on the benchmark name and
-carries its whole parameter sweep inside, so every row is owned by exactly one
-shard. Splitting inside a benchmark would have put two shards in one row.
-
-Order is restored rather than preserved. ``results`` is a JSON object, asv writes
-it with ``compact=True`` -- which disables sorting, so key order is the order asv
-appended to it -- and for an unsharded run that order is ``sorted(benchmarks)``
-grouped by ``setup_cache_key`` (``runner.py``, ``iter_run_items``). Shards finish
-in whatever order the queue hands back, so :func:`canonical_order` recovers the
-order the same suite would have produced serially and every merged file is
-written in it.
-
-Idempotent, and indifferent to shards that have not landed: merging the three
-directories that exist gives a valid tree, and merging again when the fourth
-arrives puts its rows in their proper place. That is what makes it safe to run
-from a polling loop as jobs come back rather than only after a barrier.
+Rows are written in the order a serial run would produce
+(:func:`canonical_order`). Idempotent and tolerant of shards not yet landed, so
+it can run as jobs come back.
 
 Usage::
 
@@ -56,11 +39,9 @@ def _load(path):
 
 
 def _dump(path, data):
-    """Writes ``data`` the way asv writes a results file.
+    """Writes ``data`` unsorted, like asv's ``write_json(..., compact=True)``.
 
-    ``util.write_json(..., compact=True)`` disables both sorting and
-    indentation; the sorting is the part that matters, because key order is the
-    only place a results file records what ran when.
+    Key order is the only record of what ran when.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as handle:
@@ -70,10 +51,8 @@ def _dump(path, data):
 def canonical_order(benchmarks):
     """Benchmark names in the order an unsharded ``asv run`` would produce them.
 
-    Mirrors ``runner.run_benchmarks``: it walks ``sorted(benchmarks.items())``
-    building ``benchmark_order``, a dict keyed on ``setup_cache_key``, then runs
-    each of those groups in turn. So the order is by name within a group, and
-    groups in the order their first member is reached by name.
+    Mirrors ``runner.run_benchmarks``: by name within each ``setup_cache_key``
+    group, groups ordered by their first member's name.
     """
     groups = {}
     for name in sorted(benchmarks):
@@ -85,9 +64,8 @@ def canonical_order(benchmarks):
 def merge_benchmarks(shard_dirs):
     """Union of the shards' ``benchmarks.json``.
 
-    A shard discovers under its own ``--bench`` patterns, so each file holds
-    only that shard's benchmarks and the full set exists nowhere until here.
-    ``_partition.load_benchmarks`` needs that full set to plan the next run.
+    Each shard only lists its own benchmarks; ``_partition`` needs the full set
+    to plan the next run.
     """
     merged, version = {}, None
     for shard_dir in shard_dirs:
@@ -107,11 +85,8 @@ def merge_benchmarks(shard_dirs):
 def _pick(name, existing, candidate, report):
     """Which of two rows for one benchmark to keep.
 
-    Only reachable when a name landed in more than one shard, which the
-    partition does not do -- so it means the plan the shards ran was not the one
-    that produced them. Preferring a row that has a result over one that does
-    not, then the later ``started_at``, keeps a re-run over the run it replaced
-    instead of picking on file order.
+    Only reached if shards ran different plans. Prefers a row with a result,
+    then the later ``started_at``, so a re-run beats the run it replaced.
     """
     if existing == candidate:
         return existing
@@ -128,31 +103,25 @@ def _pick(name, existing, candidate, report):
 
 
 def merge_result_files(datas, order, report):
-    """One results file from several shards' versions of it.
+    """One results file from several shards' copies, rows written in ``order``.
 
-    ``datas`` are the parsed files, in shard order; ``order`` is the name order
-    to write. Every field outside ``results`` and ``durations`` describes the
-    commit and environment rather than the run, and is identical across shards
-    by construction, so the first shard's copy carries over untouched.
+    Fields other than ``results`` and ``durations`` are identical across shards,
+    so the first shard's are kept.
     """
     merged = dict(datas[0])
     columns = list(merged.get("result_columns") or [])
 
     rows, durations = {}, {}
     for data in datas:
-        # Read each row against its own file's columns. Identical in practice --
-        # one asv builds every shard -- but a row is a bare list, so aligning it
-        # to the wrong header would silently shift every value.
+        # Rows are bare lists, so align each to its own file's columns.
         shard_columns = data.get("result_columns") or columns
         for name, row in (data.get("results") or {}).items():
             values = dict(zip(shard_columns, row))
             rows[name] = (
                 _pick(name, rows[name], values, report) if name in rows else values
             )
-        # ``durations`` holds only the ``<build>`` and ``<setup_cache ...>``
-        # entries; a benchmark's own duration lives in its row. Every shard pays
-        # both, so the max is the one a single run would have reported, and the
-        # sum would describe work no single wall clock ever saw.
+        # Only ``<build>`` and ``<setup_cache ...>`` entries, which every shard
+        # pays; the max is what a single run would report.
         for key, value in (data.get("durations") or {}).items():
             durations[key] = max(durations.get(key, 0.0), float(value))
 
@@ -164,8 +133,7 @@ def merge_result_files(datas, order, report):
     results = {}
     for name in known + extra:
         row = [rows[name].get(column) for column in columns]
-        # asv drops trailing nulls when it writes a row; keeping that keeps the
-        # merged file the same size as the one a serial run would have written.
+        # Matches asv, which drops trailing nulls.
         while row and row[-1] is None:
             row.pop()
         results[name] = row
@@ -195,9 +163,7 @@ def merge(shard_dirs, out_dir, report=lambda message: None):
     if len(benchmarks) > (1 if _VERSION_KEY in benchmarks else 0):
         _dump(out_dir / BENCHMARKS_FILE, benchmarks)
 
-    # One group per (machine, results file): a shard writes the same file name as
-    # every other shard of its commit and environment, which is the collision
-    # this module exists to undo.
+    # Shards of one commit and environment write the same file name.
     groups = {}
     for shard_dir in present:
         for path in sorted(shard_dir.glob("*/*.json")):

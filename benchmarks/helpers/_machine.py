@@ -1,22 +1,9 @@
-"""Pinning the machine name asv records results under.
+"""Pins the machine name asv files results under.
 
-asv keys results on a machine name and defaults it to the hostname
-(``Machine.get_defaults``), which on a hosted runner is fresh for every job --
-``runnervmgx7h7`` on one run, something else on the next. A name that never
-repeats cannot be compared across runs, and once the suite is sharded it cannot
-even be merged within one run: the file asv writes is
-``results/<machine>/<commit>-<env>.json``, so every shard has to agree on
-``<machine>`` or there is nothing for :mod:`_merge` to line up.
-
-``asv machine --machine NAME`` will not do it on its own. That command stores
-only the fields that differ from the ones it detected and then skips filling the
-rest in (``commands/machine.py``), so naming the machine is precisely what drops
-``cpu``, ``num_cpu`` and ``ram`` -- the fields that say what the timings were
-measured on, and the ones the duration report prints. Detect first with ``asv
-machine --yes``, rename after, which is what this does.
-
-Idempotent, so a job that runs it twice, or a machine file that arrives already
-pinned, is fine.
+asv defaults it to the hostname, which changes every hosted-runner job and
+every cluster node, so results cannot be compared across runs or merged across
+shards (``results/<machine>/...``). ``asv machine --machine NAME`` alone drops
+``cpu``/``num_cpu``/``ram``, hence detect first, rename after. Idempotent.
 
 Usage::
 
@@ -38,18 +25,11 @@ _VERSION_KEY = "version"
 
 
 def default_name():
-    """A machine name that survives landing on a different node next time.
+    """Returns ``(name, source_variable)`` stable across nodes of one cluster.
 
-    The scheduler puts you on ``derecho3`` one day and ``crhtc70`` the next, and
-    asv keys results on ``platform.uname``'s node name, so left alone it records
-    a new machine every login and the results scatter across all of them.
-
-    ``NCAR_HOST`` is the reliable answer where it is set -- it names the cluster
-    rather than the node, which is the granularity results want. Failing that,
-    the node name with its trailing digits removed, which folds ``derecho3`` and
-    ``derecho5`` together but *not* ``derecho3`` and ``crhtc70``: login and
-    compute nodes of one cluster do not share a stem. Set ``ASV_MACHINE``
-    yourself if you move between them without ``NCAR_HOST``.
+    ``$ASV_MACHINE``, then ``$NCAR_HOST`` (names the cluster, not the node),
+    then the node name minus trailing digits. Login and compute nodes do not
+    share a stem, so set ``ASV_MACHINE`` if you use both without ``NCAR_HOST``.
     """
     for variable in ("ASV_MACHINE", "NCAR_HOST"):
         value = os.environ.get(variable)
@@ -60,23 +40,15 @@ def default_name():
 
 
 def default_path():
-    """Where asv keeps its machine file (``MachineCollection.get_machine_file_path``)."""
+    """asv's machine file (``MachineCollection.get_machine_file_path``)."""
     return Path.home() / ".asv-machine.json"
 
 
 def pin(name, path=None, hostname=None, sole=False):
-    """Renames the machine file's freshly detected entry to ``name``.
+    """Renames the machine file's freshly detected entry to ``name``; returns it.
 
-    Returns its details. Entries for other machines are left alone -- a runner
-    has only the one, but a login node that has recorded every compute node it
-    ever landed on should not lose them to a benchmark run.
-
-    The fresh entry is the one keyed by this host's name, since that is what
-    ``asv machine --yes`` writes (``Machine.get_defaults`` takes it from
-    ``platform.uname``). Renaming it is the whole point: several nodes of one
-    cluster should file their results under one machine, or a sharded run has
-    nothing to merge. Falls back to a lone entry whatever its name, for a runner
-    whose hostname has already been renamed away by an earlier call.
+    The fresh entry is the one keyed by this hostname, else one already named
+    ``name``, else a lone entry. Other entries are kept unless ``sole``.
     """
     path = Path(path) if path is not None else default_path()
     hostname = hostname if hostname is not None else platform.node()
@@ -116,8 +88,7 @@ def main(argv=None):
     parser.add_argument(
         "--name",
         default=None,
-        help="Machine name to pin to. Defaults to $ASV_MACHINE, then $NCAR_HOST, "
-        "then this host's name with trailing digits removed.",
+        help="Default $ASV_MACHINE, $NCAR_HOST, then hostname minus trailing digits.",
     )
     parser.add_argument("--path", default=None, help="Machine file (default ~/.asv-machine.json).")
     parser.add_argument(
@@ -126,9 +97,7 @@ def main(argv=None):
     parser.add_argument(
         "--sole",
         action="store_true",
-        help="Drop every other machine from the file. asv falls back to a lone entry "
-        "whatever the hostname, so this makes bare ``asv run``/``asv show`` work from "
-        "any node without -m. Use it where you only ever benchmark one machine.",
+        help="Drop other machines, so bare asv run/show work on any node without -m.",
     )
     parser.add_argument(
         "--quiet", action="store_true", help="Print only the pinned name, for capturing."
