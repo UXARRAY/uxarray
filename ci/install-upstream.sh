@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # adapted from https://github.com/pydata/xarray/blob/main/ci/install-upstream-wheels.sh
 
+# fail the job if anything goes wrong (e.g. if `conda remove ...` fails)
+# instead of silently continuing.
+set -e
+
 # forcibly remove packages to avoid artifacts
 conda remove -y --force \
     antimeridian \
