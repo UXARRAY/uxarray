@@ -10,6 +10,7 @@ from uxarray.grid.intersections import (
     gca_const_lat_intersection,
     get_number_of_intersections,
 )
+from uxarray.utils.parallel import parallel_njit
 
 DUMMY_EDGE_VALUE = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
 
@@ -598,7 +599,7 @@ def _compute_face_arc_length(face_edges_xyz, z):
     return total_length
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _zonal_face_weights_util_numba(
     face_edges_xyz: np.ndarray,
     n_edges_per_face: np.ndarray,

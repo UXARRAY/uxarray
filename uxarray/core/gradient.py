@@ -5,6 +5,7 @@ from numba import njit, prange
 
 from uxarray.constants import INT_FILL_VALUE
 from uxarray.errors import DataCenteringError, DimensionError
+from uxarray.utils.parallel import parallel_njit
 
 
 def _calculate_edge_face_difference(d_var, edge_faces, n_edge):
@@ -351,7 +352,7 @@ def _dual_cell_area(sx, sy, sz, angles, n):
     return np.abs(area)
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _compute_gradients_on_faces(
     data,
     n_face,

@@ -9,6 +9,7 @@ from uxarray.utils.numba_math import (
     _numba_norm3,
     _numba_sub3,
 )
+from uxarray.utils.parallel import parallel_njit
 
 
 @njit(cache=True)
@@ -266,7 +267,7 @@ def _get_cartesian_face_edge_nodes_array(
     return face_edges_cartesian.reshape(n_face, n_max_face_edges, 2, 3)
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _get_cartesian_face_edge_nodes_array_subset(
     face_indices,
     face_node_connectivity,
