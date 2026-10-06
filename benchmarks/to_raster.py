@@ -111,16 +111,19 @@ class ToRaster:
     """
     param_names = ["n_faces_and_area_ratio",]
     params = [[
-        (1e3, 10.0),
-        (1e3, 100.0),
-        # (1e3, 1000.0) isn't properly resolved;
+        ## commented-out below are some additional reasonable parameter combinations,
+        ## excluded from default benchmark suite for brevity, but kept because they
+        ## could be uncommented for local runs or more detailed profiling.
+        # (1e3, 10.0),
+        # (1e3, 100.0),
+        ## never do (1e3, 1000.0), it isn't properly resolved;
         # it would just make a bunch of faces stretching from pole to equator.
         (1e4, 10.0),
         (1e4, 100.0),
-        (1e4, 1000.0),
-        (1e5, 10.0),
+        # (1e4, 1000.0),
+        # (1e5, 10.0),
         (1e5, 100.0),
-        (1e5, 1000.0),
+        # (1e5, 1000.0),
     ]]
 
     # if any combination takes longer than 3 mins, give up.
