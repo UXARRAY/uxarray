@@ -27,8 +27,7 @@ file_path_dict = OQU_DATASETS
 
 class DatasetBenchmark(CachedFixtures):
     """Class used as a template for benchmarks requiring a ``UxDataset`` in
-    this module across both resolutions.
-    """
+    this module across both resolutions."""
     param_names = ['resolution', ]
     params = [OQU_RESOLUTIONS, ]
 

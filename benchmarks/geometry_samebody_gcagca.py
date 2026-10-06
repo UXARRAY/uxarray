@@ -32,8 +32,6 @@ from uxarray.utils.numba_math import (
 
 from .helpers._warmup import warm_in_parent
 
-from .helpers._warmup import warm_in_parent
-
 
 @njit(cache=True, inline="always", error_model="numpy")
 def _fp64_gca(w0, w1, v0, v1):
