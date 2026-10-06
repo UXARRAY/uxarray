@@ -80,7 +80,10 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     # 2. Verify if the point lies on the plane of the GCA
     cross_product = _numba_cross3(gca_a_xyz, gca_b_xyz)
     if not np.isclose(
-        _numba_dot3(cross_product, pt_xyz), 0, rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
+        _numba_dot3(cross_product, pt_xyz),
+        0,
+        rtol=MACHINE_EPSILON,
+        atol=MACHINE_EPSILON,
     ):
         return False
 

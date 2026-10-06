@@ -7,7 +7,7 @@ from numba import njit, prange
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.arcs import point_within_gca
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes, _small_angle_of_2_vectors
+from uxarray.grid.utils import _small_angle_of_2_vectors
 from uxarray.utils.numba_math import (
     _numba_allclose3,
     _numba_cross3,
@@ -80,7 +80,9 @@ def _point_in_face(
     for i in range(n_nodes):
         node_idx = nodes_idx[i]
         node_xyz = (node_x[node_idx], node_y[node_idx], node_z[node_idx])
-        if _numba_allclose3(node_xyz, point, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE):
+        if _numba_allclose3(
+            node_xyz, point, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
+        ):
             return True
 
     # Check whether point lies on any edge of the face
@@ -168,7 +170,7 @@ def _set_faces_containing_point(
     count = 0
     for k in range(candidate_indices.shape[0]):
         fidx = candidate_indices[k]
-        nodes_idx = face_node_connectivity[fidx][:n_nodes_per_face[fidx]]
+        nodes_idx = face_node_connectivity[fidx][: n_nodes_per_face[fidx]]
         if _point_in_face(point, nodes_idx, node_x, node_y, node_z):
             result[i, count] = fidx
             count += 1
@@ -221,7 +223,15 @@ def _batch_point_in_face(
         cands = flat_candidate_indices[start:end]
 
         n_hits = _set_faces_containing_point(
-            results, i, p, cands, face_node_connectivity, n_nodes_per_face, node_x, node_y, node_z
+            results,
+            i,
+            p,
+            cands,
+            face_node_connectivity,
+            n_nodes_per_face,
+            node_x,
+            node_y,
+            node_z,
         )
         counts[i] = n_hits
 

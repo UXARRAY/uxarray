@@ -14,7 +14,6 @@ from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
 from uxarray.grid.point_in_face import _point_in_face
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 POLE_POINTS_XYZ = {
@@ -1266,7 +1265,9 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
             nodes_idx = np.array([0, 1, 2])
 
             # Check to see if the point lies within the current triangle
-            contains_point = _point_in_face(point_xyz, nodes_idx, node_x, node_y, node_z)
+            contains_point = _point_in_face(
+                point_xyz, nodes_idx, node_x, node_y, node_z
+            )
 
             # If the point is in the current triangle, get the weights for that triangle
             if contains_point:
