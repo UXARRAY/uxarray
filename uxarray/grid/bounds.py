@@ -190,8 +190,8 @@ def _construct_face_bounds(
 ):
     """Compute the bounds of a single face."""
     # Check if face_edges contains pole points
-    has_north_pole = pole_point_inside_polygon(1, face_edges_xyz, face_edges_lonlat)
-    has_south_pole = pole_point_inside_polygon(-1, face_edges_xyz, face_edges_lonlat)
+    has_north_pole = pole_point_inside_polygon(1, face_edges_xyz)
+    has_south_pole = pole_point_inside_polygon(-1, face_edges_xyz)
 
     # Initialize face_latlon_array with INT_FILL_VALUE
     face_latlon_array = np.full((2, 2), np.nan, dtype=np.float64)
