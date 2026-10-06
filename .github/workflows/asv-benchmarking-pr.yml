@@ -266,6 +266,12 @@ jobs:
             --config asv.conf.json --asv-args)
           echo "Baseline:  $BASE"
           echo "Contender: ${GITHUB_SHA} (${PR_HEAD_LABEL:-$GITHUB_REF_NAME})"
+          # ``asv run`` over both commits rather than ``asv continuous``:
+          # continuous is this same interleaved run followed by a comparison,
+          # and it exits 1 when that comparison finds a regression -- the same
+          # status it uses for a broken run -- so a slower PR would fail its
+          # shard. The merge job compares the whole suite; a shard only measures.
+          printf '%s\n' "${GITHUB_SHA}" "$BASE" > "$RUNNER_TEMP/commits.txt"
           # asv returns 2 when a benchmark failed rather than when the run
           # broke (``commands/run.py``: ``if failures: return 2``), and this
           # shard's other results are complete and worth merging. The old
@@ -274,8 +280,8 @@ jobs:
           # deliberate here, loudly, rather than letting one long-broken
           # benchmark redden every shard that happens to hold it.
           status=0
-          asv continuous --split --show-stderr -m "$ASV_MACHINE" $ASV_ARGS \
-            "$BASE" "${GITHUB_SHA}" || status=$?
+          asv run --show-stderr -m "$ASV_MACHINE" $ASV_ARGS \
+            "HASHFILE:$RUNNER_TEMP/commits.txt" || status=$?
           if [ "$status" -eq 2 ]; then
             echo "::warning title=Benchmark failures in shard ${SHARD}::asv exited 2; see the failed entries above"
           elif [ "$status" -ne 0 ]; then
