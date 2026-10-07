@@ -11,6 +11,10 @@ visualization-examples:
     path: examples/visualization/e3sm-load-viz.ipynb
     thumbnail: _static/thumbnails/qflx_e3sm.png
 
+  - title: Contour Maps of Hurricane Maria (MPAS 15-3 km)
+    path: examples/visualization/mpas-hurricane-maria-contours.ipynb
+    thumbnail: _static/thumbnails/default.svg
+
 workflow-examples:
   - title: Working with MPAS Grids
     path: examples/working-with-mpas-grids.ipynb
