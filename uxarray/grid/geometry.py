@@ -1,4 +1,5 @@
 import math
+import warnings
 
 import numpy as np
 from numba import njit, prange
@@ -151,11 +152,18 @@ def _central_longitude_of(projection):
     prime meridian as ``pm`` and has no ``lon_0`` at all. Reading ``lon_0``
     directly raises ``KeyError`` on that projection, so check both and fall back
     to 0.0 for any projection that declares neither.
+
+    Additionally, the key's name for ObliqueMercator, at least in cartopy<0.26,
+    is ``lonc``, so check that here as well.
     """
     params = projection.proj4_params
-    for key in ("lon_0", "pm"):
+    for key in ("lon_0", "pm", "lonc"):
         if key in params:
             return float(params[key])
+    warnings.warn(
+        f"Could not determine central longitude from projection with "
+        f"type {type(projection).__name__} and proj4_params {params}; defaulting to 0.0."
+    )
     return 0.0
 
 
@@ -163,22 +171,10 @@ def _correct_central_longitude(node_lon, node_lat, projection):
     """Shifts the central longitude of an unstructured grid, which moves the
     antimeridian when visualizing, which is used when projections have a
     central longitude other than 0.0."""
-    _raise_hint_if_optional_deps_missing("cartopy")
-    import cartopy.crs as ccrs
-
     if projection:
         central_longitude = _central_longitude_of(projection)
         if central_longitude != 0.0:
-            _source_projection = ccrs.PlateCarree(central_longitude=0.0)
-            _destination_projection = ccrs.PlateCarree(
-                central_longitude=central_longitude
-            )
-
-            lonlat_proj = _destination_projection.transform_points(
-                _source_projection, node_lon, node_lat
-            )
-
-            node_lon = lonlat_proj[:, 0]
+            node_lon = (node_lon - central_longitude + 180.0) % 360.0 - 180.0
     else:
         central_longitude = 0.0
 
