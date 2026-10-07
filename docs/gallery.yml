@@ -13,7 +13,7 @@ visualization-examples:
 
   - title: Contour Maps of Hurricane Maria (MPAS 15-3 km)
     path: examples/visualization/mpas-hurricane-maria-contours.ipynb
-    thumbnail: _static/thumbnails/default.svg
+    thumbnail: _static/thumbnails/mpas_maria_contours.png
 
 workflow-examples:
   - title: Working with MPAS Grids
