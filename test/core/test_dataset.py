@@ -323,6 +323,20 @@ def test_uxgrid_None_is_invalid_in_uxdataset():
         ux.UxDataset({'arr1': xr.DataArray([4,5], dims=['n_face'])}, uxgrid=[1,2])
 
 
+def test_uxdataset_astype_returns_uxdataset():
+    """Ensures UxDataset.astype() result type is UxDataset.
+    Regression test for issue #1737 (though that issue just mentions UxDataArray).
+    """
+    obj = ux.tutorial.open_dataset('quad-hexagon')
+    result = obj.astype('float64')
+    assert isinstance(result, ux.UxDataset)
+    assert result.uxgrid == obj.uxgrid
+    assert result.dtypes['t2m'] == np.float64
+    result = obj.astype('float32')
+    assert obj.dtypes['t2m'] == np.float32  # the original dtype was float32
+    assert result.identical(obj)  # so astype() should be a no-op.
+
+
 class TestUxDatasetMimicsUxDataArrayMethods:
     """Testing behavior of UxDataset methods which simply apply UxDataArray methods iteratively,
     such as UxDataset.zonal_mean().
