@@ -4,7 +4,8 @@ import numpy as np
 from numba import njit, prange
 
 from uxarray.constants import INT_FILL_VALUE
-from uxarray.errors import DataCenteringError, DimensionError
+from uxarray.core.utils import _apply_1dfunc_with_grid_core_dim
+from uxarray.errors import DataCenteringError
 
 
 def _calculate_edge_face_difference(d_var, edge_faces, n_edge):
@@ -91,16 +92,7 @@ def _check_node_on_boundary_and_gather_node_neighbors(
 
 
 def _compute_gradient(data, scale_by_radius=True):
-    from uxarray import UxDataArray
-
     uxgrid = data.uxgrid
-
-    if data.ndim > 1:
-        raise DimensionError(
-            "gradient() computation currently only supports 1-dimensional data; "
-            f"got data.dims={data.dims}. Consider reducing dimensionality along non-grid dimensions, "
-            "e.g. by applying something like .isel(time=0), .sel(lev=500), or .mean('Time')."
-        )
 
     if data._face_centered():
         face_coords = np.array(
@@ -126,17 +118,22 @@ def _compute_gradient(data, scale_by_radius=True):
             ]
         ).T
 
-        grad_zonal, grad_meridional = _compute_gradients_on_faces(
-            data.values,
-            uxgrid.n_face,
-            face_coords,
-            uxgrid.edge_face_connectivity.values,
-            uxgrid.face_node_connectivity.values,
-            uxgrid.node_edge_connectivity.values,
-            face_lat,
-            face_lon,
-            normal_lon,
-            normal_lat,
+        grad_zonal, grad_meridional = _apply_1dfunc_with_grid_core_dim(
+            _compute_gradients_on_faces,
+            "n_face",
+            data,
+            other_args=(
+                uxgrid.n_face,
+                face_coords,
+                uxgrid.edge_face_connectivity.values,
+                uxgrid.face_node_connectivity.values,
+                uxgrid.node_edge_connectivity.values,
+                face_lat,
+                face_lon,
+                normal_lon,
+                normal_lat,
+            ),
+            n_outputs=2,
         )
 
     # TODO: Add support for this after merging face-centered implementation
@@ -206,15 +203,11 @@ def _compute_gradient(data, scale_by_radius=True):
         grad_units = f"{base_units}/rad" if base_units else "1/rad"
 
     # Zonal
-    grad_zonal_da = UxDataArray(
-        data=grad_zonal, name="zonal_gradient", dims=data.dims, uxgrid=uxgrid
-    )
+    grad_zonal_da = grad_zonal.rename("zonal_gradient")
     grad_zonal_da.attrs["units"] = grad_units
 
     # Meridional
-    grad_meridional_da = UxDataArray(
-        data=grad_meridional, name="meridional_gradient", dims=data.dims, uxgrid=uxgrid
-    )
+    grad_meridional_da = grad_meridional.rename("meridional_gradient")
     grad_meridional_da.attrs["units"] = grad_units
 
     return grad_zonal_da, grad_meridional_da
