@@ -376,3 +376,159 @@ def test_plot_topology_with_explicit_projection(gridpath):
     renderer.get_plot(plot0)
     renderer.get_plot(plot1)
     renderer.get_plot(plot2)
+
+
+def _face_latitude(uxgrid):
+    """Face-centered data equal to the latitude of each face center."""
+    return ux.UxDataArray(
+        xr.DataArray(uxgrid.face_lat.values, dims="n_face", name="lat"), uxgrid=uxgrid
+    )
+
+
+def _contour_lines(contours):
+    """(level, x, y) of each line in a ``Contours`` element."""
+    name = contours.vdims[0].name
+    return [(float(np.atleast_1d(p[name])[0]), np.asarray(p["x"]), np.asarray(p["y"])) for p in contours.data]
+
+
+@pytest.mark.parametrize("method", ["interpolated", "edges"])
+def test_contour_face_centered(gridpath, datasetpath, method):
+    """Tests that contours of face-centered data are returned on both backends and can be overlaid."""
+    uxds = ux.open_dataset(gridpath("ugrid", "outCSne30", "outCSne30.ug"), datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"))
+
+    for backend in ['matplotlib', 'bokeh']:
+        contours = uxds['psi'].plot.contour(method=method, backend=backend)
+        assert isinstance(contours, hv.Contours)
+        assert len(contours.data) > 0
+        assert contours.vdims[0].name == "psi"
+
+        overlay = uxds['psi'].plot(backend=backend) * contours.opts(color="black")
+        hv.renderer(backend).get_plot(overlay)
+
+
+def test_contour_node_centered(gridpath, datasetpath):
+    """Tests contours of node-centered data, which only support interpolation."""
+    uxds = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
+    v1 = uxds['v1'][0][0]
+
+    # the default method for node-centered data is "interpolated"
+    contours = v1.plot.contour(backend="matplotlib")
+    assert isinstance(contours, hv.Contours)
+    assert len(contours.data) > 0
+    assert len(contours.data) == len(v1.plot.contour(method="interpolated").data)
+
+    with pytest.raises(ux.errors.DataCenteringError):
+        v1.plot.contour(method="edges")
+
+
+def test_contour_levels(gridpath, datasetpath):
+    """Tests that explicit levels are used and levels outside the data range give no lines."""
+    uxds = ux.open_dataset(gridpath("ugrid", "outCSne30", "outCSne30.ug"), datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"))
+
+    for method in ["interpolated", "edges"]:
+        contours = uxds['psi'].plot.contour(levels=[0.6, 0.9, 1.2, 99.0], method=method)
+        assert {level for level, _, _ in _contour_lines(contours)} == {0.6, 0.9, 1.2}
+
+        # an integer asks for a number of levels, which then fall inside the data range
+        levels = {level for level, _, _ in _contour_lines(uxds['psi'].plot.contour(levels=4, method=method))}
+        assert 1 <= len(levels) <= 6
+        assert uxds['psi'].min() < min(levels) and max(levels) < uxds['psi'].max()
+
+    assert len(uxds['psi'].plot.contour(levels=[99.0]).data) == 0
+
+
+def test_contour_interpolated_values(gridpath):
+    """Contours of a field equal to latitude lie on that latitude."""
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
+    levels = [-30.0, 0.0, 45.0]
+
+    lines = _contour_lines(_face_latitude(uxgrid).plot.contour(levels=levels, method="interpolated"))
+    assert {level for level, _, _ in lines} == set(levels)
+    for level, _, y in lines:
+        np.testing.assert_allclose(y, level, atol=1e-8)
+
+
+def test_contour_edges_follow_grid(gridpath):
+    """Edge contours are made of the edges between faces on either side of the level."""
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    uxda = _face_latitude(uxgrid)
+    level = 20.0
+
+    # "edges" is the default method for face-centered data
+    lines = _contour_lines(uxda.plot.contour(levels=[level]))
+
+    # every point on the contour is a node of the grid
+    nodes = set(zip(np.round(uxgrid.node_lon.values, 6), np.round(uxgrid.node_lat.values, 6)))
+    n_segments = 0
+    for _, x, y in lines:
+        assert set(zip(np.round(x, 6), np.round(y, 6))) <= nodes
+        n_segments += len(x) - 1
+
+    # one segment per edge whose two faces are on either side of the level
+    edge_faces = uxgrid.edge_face_connectivity.values
+    edge_nodes = uxgrid.edge_node_connectivity.values
+    above = uxda.values > level
+    crossing = above[edge_faces[:, 0]] != above[edge_faces[:, 1]]
+    not_wrapped = np.abs(np.diff(uxgrid.node_lon.values[edge_nodes], axis=1)[:, 0]) < 180
+    assert n_segments == np.count_nonzero(crossing & not_wrapped)
+
+
+def test_contour_projection(gridpath, datasetpath):
+    """Tests that a projection returns a GeoViews element that renders with the projected data."""
+    import geoviews as gv
+
+    uxds = ux.open_dataset(gridpath("ugrid", "outCSne30", "outCSne30.ug"), datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"))
+    projection = ccrs.Robinson()
+
+    contours = uxds['psi'].plot.contour(projection=projection, color="black", backend="matplotlib")
+    assert isinstance(contours, gv.Contours)
+
+    overlay = uxds['psi'].plot(projection=projection, backend="matplotlib") * contours
+    hv.renderer("matplotlib").get_plot(overlay)
+
+
+def test_contour_projection_line_on_map_edge():
+    """Lines that lie along the edge of the map are dropped, since they cannot be projected."""
+    uxgrid = ux.Grid.from_healpix(zoom=4)
+    lon, lat = np.radians(uxgrid.face_lon.values), np.radians(uxgrid.face_lat.values)
+    values = np.cos(2 * lat) * np.sin(3 * lon) + 0.5 * np.sin(lat)
+    uxda = ux.UxDataArray(xr.DataArray(values, dims="n_face", name="wave"), uxgrid=uxgrid)
+
+    # without a projection, some lines run along the antimeridian
+    lines = _contour_lines(uxda.plot.contour(levels=5, method="edges"))
+    assert any(np.all(np.abs(x) == 180) for _, x, _ in lines)
+
+    # rendering used to fail in GeoViews with an IndexError for those lines
+    contours = uxda.plot.contour(levels=5, method="edges", projection=ccrs.Robinson(), backend="matplotlib")
+    assert 0 < len(contours.data) < len(lines)
+    hv.renderer("matplotlib").get_plot(contours)
+
+
+def test_contour_missing_values(gridpath):
+    """Faces without data are left out instead of raising."""
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    uxda = _face_latitude(uxgrid)
+    uxda = uxda.where(uxgrid.face_lon.values < 0)
+
+    for method in ["interpolated", "edges"]:
+        lines = _contour_lines(uxda.plot.contour(levels=[10.0], method=method))
+        assert len(lines) > 0
+        assert all(x.max() < 5 for _, x, _ in lines)
+
+
+def test_contour_invalid_input(gridpath, datasetpath):
+    """Tests the errors for unsupported methods, dimensions and data locations."""
+    uxds = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
+
+    with pytest.raises(ValueError, match="Unsupported method"):
+        uxds['v1'][0][0].plot.contour(method="smooth")
+
+    # more than one dimension that is not of length 1
+    with pytest.raises(ux.errors.DimensionError):
+        uxds['v1'].plot.contour()
+
+    # edge-centered data
+    uxgrid = uxds.uxgrid
+    edge_data = ux.UxDataArray(xr.DataArray(np.zeros(uxgrid.n_edge), dims="n_edge"), uxgrid=uxgrid)
+    with pytest.raises(ux.errors.DataCenteringError):
+        edge_data.plot.contour()

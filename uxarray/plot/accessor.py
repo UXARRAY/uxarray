@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
 import pandas as pd
 
@@ -366,6 +366,7 @@ class UxDataArrayPlotAccessor:
 
     - :func:`UxDataArray.plot.polygons`
     - :func:`UxDataArray.plot.points`
+    - :func:`UxDataArray.plot.contour`
     - :func:`UxDataArray.plot.line`
     - :func:`UxDataArray.plot.scatter`
 
@@ -539,6 +540,110 @@ class UxDataArrayPlotAccessor:
         points_df = pd.DataFrame.from_dict(verts)
 
         return points_df.hvplot.points("lon", "lat", c="z", *args, **kwargs)
+
+    def contour(
+        self,
+        levels: int | Sequence[float] = 7,
+        method: str | None = None,
+        backend: str | None = None,
+        projection=None,
+        **kwargs,
+    ):
+        """Generate a contour line plot.
+
+        The contour lines are computed on the unstructured grid itself, without
+        regridding the data, and are returned as a HoloViews element that can be
+        overlaid on other plots with ``*``.
+
+        Parameters
+        ----------
+        levels : int or sequence of float, default=7
+            If an integer, roughly that many contour levels are chosen at round
+            values within the range of the data. If a sequence, contour lines are
+            drawn at those values.
+        method : str, optional
+            How the contour lines are computed. Defaults to "edges" for
+            face-centered data and "interpolated" for node-centered data.
+            Options are:
+
+            - "edges": Lines follow the edges of the grid that separate faces
+              above a level from faces at or below it, without interpolation.
+              Supported for face-centered data.
+            - "interpolated": The data is linearly interpolated between the
+              locations it is defined on, which gives smooth lines. Supported for
+              face-centered and node-centered data.
+        backend : str or None, optional
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
+        projection : ccrs.Projection, optional
+            The map projection to use.
+        **kwargs : dict
+            Additional options applied to the returned element with ``.opts()``, such as ``color`` or ``cmap``.
+            The available options depend on the backend.
+
+        Returns
+        -------
+        contours : hv.Contours or gv.Contours
+            One path per contour line, with the contour level as its value. A
+            ``gv.Contours`` is returned if a ``projection`` is given.
+
+        Raises
+        ------
+        DataCenteringError (subclass of ValueError)
+            If the data is not mapped to the faces or nodes of the grid, or if
+            ``method="edges"`` is used with data that is not face-centered.
+
+        Notes
+        -----
+        Contour lines are not drawn across the antimeridian.
+
+        Examples
+        --------
+        Overlay black contour lines on a shaded plot of the same variable
+
+        >>> uxds["psi"].plot() * uxds["psi"].plot.contour(color="black")
+
+        Draw smooth contours of one variable over another, at chosen levels
+
+        >>> uxds["wind"].plot() * uxds["mslp"].plot.contour(
+        ...     levels=[980, 990, 1000, 1010], method="interpolated", color="black"
+        ... )
+        """
+        import holoviews as hv
+
+        from uxarray.plot.contour import (
+            _compute_contours,
+            _drop_lines_outside_projection,
+        )
+
+        plotting_backend.assign(backend)
+
+        contours = _compute_contours(self._uxda, levels=levels, method=method)
+        if projection is not None:
+            _raise_hint_if_optional_deps_missing("cartopy", "geoviews")
+            contours = _drop_lines_outside_projection(contours, projection)
+
+        level_name = self._uxda.name if self._uxda.name is not None else "level"
+        kdims = [
+            hv.Dimension("x", label="Longitude"),
+            hv.Dimension("y", label="Latitude"),
+        ]
+        paths = [
+            {"x": line[:, 0], "y": line[:, 1], level_name: level}
+            for level, line in contours
+        ]
+
+        if projection is not None:
+            import cartopy.crs as ccrs
+            import geoviews as gv
+
+            element = gv.Contours(
+                paths, kdims=kdims, vdims=[level_name], crs=ccrs.PlateCarree()
+            )
+            kwargs["projection"] = projection
+        else:
+            element = hv.Contours(paths, kdims=kdims, vdims=[level_name])
+
+        return element.opts(**kwargs) if kwargs else element
 
     def line(self, backend=None, *args, **kwargs):
         """Wrapper for ``hvplot.line()``"""
