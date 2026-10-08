@@ -20,17 +20,21 @@ readme = "README.md"
 requires-python = ">=3.11"
 
 # minimal dependencies start
+# Lower bounds are added only for a known failure with an older release; the
+# comment on each says what breaks.  The "Minimum Dependencies" CI workflow
+# tests the oldest releases still supported under SPEC 0 and opens an issue
+# when they fail, which is how new bounds get found.
 dependencies = [
-  "antimeridian",
-  "dask[dataframe]",
+  "antimeridian>=0.3.0",  # fix_polygon(fix_winding=...) is new in 0.3.0.
+  "dask[dataframe]>=2024.12.0",  # older dd.from_dask_array() fails on empty arrays (empty SCRIP grids).
   "netcdf4",
   "numba>=0.63",  # 0.63 is the first release supporting Python 3.14 (3.10 <= py < 3.15). See #1561.
   "numpy",
   "pandas",
   "scikit-learn",
   "scipy",
-  "shapely",
-  "xarray",
+  "shapely>=2.0.6",  # 2.0 API (shapely.polygons()); older 2.0.x fail in create_collection under numpy 2.
+  "xarray>=2024.10.0",  # older releases break resample() and dask-backed weighted_mean().
   "polars",
 ]
 # minimal dependencies end
@@ -49,9 +53,9 @@ dev = [
 geo = [
     "cartopy",  # in both geo and viz because it is needed by to_geodataframe() and by plotting routines.
     "geopandas>=1.0",  # 1.0 is the first release requiring pyogrio, the file-IO backend read_file needs. See #1693.
-    "healpix",
+    "healpix>=2024.2",  # older releases are built against numpy 1 and fail to import under numpy 2.
     "pyproj",
-    "spatialpandas",
+    "spatialpandas>=0.4.10",  # PolygonArray.from_exterior_coords() is new in 0.4.10.
 ]
 viz = [
     "cartopy<0.26",  # cartopy 0.26.0 breaks some geoviews plots; see issue #1780.
