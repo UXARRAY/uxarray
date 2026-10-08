@@ -119,7 +119,7 @@ def test_weighted_mean_crash_if_node_centered_and_no_weights():
     ERRMSG_ARR = r"weighted_mean\(\) cannot automatically infer weights for node-centered data."
     with pytest.raises(ux.errors.DataCenteringError, match=ERRMSG_ARR):
         arr.weighted_mean()
-    ERRMSG_DS = r"Expected UxDataset\.dims to contain least 1 grid dimension supported by 'weighted_mean'"
+    ERRMSG_DS = r"Expected UxDataset\.dims to contain at least 1 grid dimension supported by 'weighted_mean'"
     with pytest.raises(ux.errors.DataCenteringError, match=ERRMSG_DS):
         ds.weighted_mean()
 
@@ -193,7 +193,7 @@ def test_weighted_mean_if_provided_weights():
             weighted_mean = weighted_mean_ds.to_array('variable').isel(variable=0)
             assert weighted_mean.ndim == 0
             nt.assert_equal(weighted_mean.item(), expected_weighted_mean)
-        # special cases for xr.DataArray weights: wrong dim, or has a scalar coord
+        ## special cases for xr.DataArray and/or chunked weights:
         # wrong dim --> need to crash.
         weights_da_wrongdim = xr.DataArray(weights_nparr, dims=['wrongdim'])
         with pytest.raises(ux.errors.DimensionError):
@@ -206,6 +206,39 @@ def test_weighted_mean_if_provided_weights():
         assert weighted_mean.coords['scalarcoord'] == 7
         weighted_mean_ds = ds.weighted_mean(weights=weights_da_scalarcoord)
         assert weighted_mean_ds.coords['scalarcoord'] == 7
+        # has grid_dim coords which disagree with arr's coords --> need to crash.
+        grid_dim = arr._grid_dim
+        dsC = ds.assign_coords({grid_dim: 10*np.arange(ds.sizes[grid_dim])})
+        arrC = dsC.to_array('variable').isel(variable=0)
+        weightsC0 = arrC.to_xarray().assign_coords({grid_dim: 100*np.arange(arrC.sizes[grid_dim])})
+        weightsC1 = arrC.to_xarray().isel({grid_dim: [0,1]})
+        with pytest.raises(ux.errors.DimensionError):
+            arrC.weighted_mean(weights=weightsC0)
+        with pytest.raises(ux.errors.DimensionError):
+            dsC.weighted_mean(weights=weightsC0)
+        with pytest.raises(ux.errors.DimensionError):
+            arrC.weighted_mean(weights=weightsC1)
+        with pytest.raises(ux.errors.DimensionError):
+            dsC.weighted_mean(weights=weightsC1)
+        # chunked weights and/or chunked input --> chunked result
+        dsc = ds.chunk({ds._grid_dim: -1})
+        arrc = dsc.to_array('variable').isel(variable=0)
+        weightsc_xr = weights_da.chunk({ds._grid_dim: -1})
+        weightsc_da = weightsc_xr.data   # weights as dask array
+        assert arrc.weighted_mean(weights=weights_da).chunks is not None
+        assert arrc.weighted_mean(weights=weightsc_xr).chunks is not None
+        assert arrc.weighted_mean(weights=weightsc_da).chunks is not None
+        assert arr.weighted_mean(weights=weightsc_xr).chunks is not None
+        assert arr.weighted_mean(weights=weightsc_da).chunks is not None
+        assert arr.weighted_mean(weights=weights_da).chunks is None
+        var = list(ds.data_vars)[0]
+        assert dsc.weighted_mean(weights=weights_da)[var].chunks is not None
+        assert dsc.weighted_mean(weights=weightsc_xr)[var].chunks is not None
+        assert dsc.weighted_mean(weights=weightsc_da)[var].chunks is not None
+        assert ds.weighted_mean(weights=weightsc_xr)[var].chunks is not None
+        assert ds.weighted_mean(weights=weightsc_da)[var].chunks is not None
+        assert ds.weighted_mean(weights=weights_da)[var].chunks is None
+
 
 def test_weighted_mean_doesnt_care_about_dim_order():
     """Ensure weighted mean does not care about dimension order.

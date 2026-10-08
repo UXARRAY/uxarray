@@ -1166,7 +1166,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 )
         else:
             # user-defined weights
-            if not isinstance(weights, xr.DataArray):
+            if not hasattr(weights, "ndim"):  # not yet numpy, xarray, dask, etc.
                 weights = np.asanyarray(weights)
             if weights.ndim != 1:
                 raise DimensionError(f"Expected 1D weights, got ndim={weights.ndim}.")
@@ -1176,6 +1176,16 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                         f"Expected xr.DataArray weights dimension to match the data's grid dimension "
                         f"({self._grid_dim!r}), but got weights with dimension {weights.dims[0]!r}."
                     )
+                # if weights and self both have coords on grid dim, ensure exact alignment,
+                # otherwise xarray silently only keeps locations where coords agree.
+                try:
+                    self, weights = xr.align(self, weights, join="exact")
+                except xr.AlignmentError as err:
+                    raise DimensionError(
+                        f"For DataArray weights, expected alignment with data's grid dimension "
+                        f"({self._grid_dim!r}), but got mismatch in sizes and/or coords."
+                    ) from err
+
         if not isinstance(weights, xr.DataArray):
             # convert to xr.DataArray to ensure operations below align dims properly
             weights = xr.DataArray(weights, dims=(self._grid_dim,))

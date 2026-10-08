@@ -1057,7 +1057,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         # eager crash if self not centered properly for method
         if not any(dim in self.dims for dim in _grid_dims_as_a_set):
             raise DataCenteringError(
-                f"Expected {type(self).__name__}.dims to contain least 1 grid dimension "
+                f"Expected {type(self).__name__}.dims to contain at least 1 grid dimension "
                 f"supported by {method!r}, i.e. one of {grid_dims}, but got dims={self.dims}."
             )
 
