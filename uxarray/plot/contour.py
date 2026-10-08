@@ -109,6 +109,7 @@ def _contour_levels(values: np.ndarray, levels: int | Sequence[float]) -> np.nda
     if isinstance(levels, (int, np.integer)):
         if levels < 1:
             raise ValueError(f"levels must be at least 1, but got {levels}")
+        _raise_hint_if_optional_deps_missing("matplotlib")
         from matplotlib.ticker import MaxNLocator
 
         levels = MaxNLocator(levels + 1, min_n_ticks=1).tick_values(vmin, vmax)
@@ -122,6 +123,7 @@ def _interpolated_contours(
     values: np.ndarray, uxgrid: Grid, dim: str, levels: np.ndarray
 ) -> list[tuple[float, np.ndarray]]:
     """Contour lines from linear interpolation on a triangulation of the grid."""
+    _raise_hint_if_optional_deps_missing("matplotlib")
     from matplotlib.figure import Figure
     from matplotlib.tri import Triangulation
 
@@ -211,6 +213,7 @@ def _drop_lines_outside_projection(
 ) -> list[tuple[float, np.ndarray]]:
     """Removes the lines that have no extent in a map projection, such as a
     line that lies along the edge of the map. GeoViews cannot project them."""
+    _raise_hint_if_optional_deps_missing("cartopy")
     import cartopy.crs as ccrs
     import shapely
 
@@ -240,7 +243,6 @@ def _compute_contours(
         raise ValueError(
             f"Unsupported method. Expected one of ['edges', 'interpolated'], but received '{method}'"
         )
-    _raise_hint_if_optional_deps_missing("matplotlib")
 
     values, dim = _spatial_values(uxda)
     levels = _contour_levels(values, levels)

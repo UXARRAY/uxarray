@@ -608,6 +608,7 @@ class UxDataArrayPlotAccessor:
         ...     levels=[980, 990, 1000, 1010], method="interpolated", color="black"
         ... )
         """
+        _raise_hint_if_optional_deps_missing("holoviews")
         import holoviews as hv
 
         from uxarray.plot.contour import (
