@@ -46,9 +46,11 @@ jobs:
       - name: Install oldest dependencies
         run: |
           # lowest-direct installs the oldest release pyproject.toml allows for
-          # each dependency (or the nearest ones the resolver can make
-          # consistent), but the newest of anything they pull in.  --no-build
-          # skips releases with no wheel for this Python.
+          # each package uxarray lists directly (or the nearest ones the
+          # resolver can make consistent).  Packages that only come in as
+          # dependencies of those (e.g. param, bokeh, panel) get their newest
+          # compatible releases.  --no-build skips releases with no wheel for
+          # this Python.
           uv pip install --no-build --resolution lowest-direct \
             -r pyproject.toml --extra geo --extra viz
           # Test-only packages get their newest releases, without moving
