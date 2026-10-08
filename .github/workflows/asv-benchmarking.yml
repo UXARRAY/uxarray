@@ -126,3 +126,28 @@ jobs:
           force: true
           repository: UXARRAY/uxarray-asv
           directory: uxarray-asv
+
+      # The PR workflow plans its shards from asv's recorded durations, and a
+      # PR's own caches are invisible to other PRs, so without this every PR's
+      # first run splits by count. Only this commit's results: _partition
+      # averages every file it finds, and the history has since-redefined
+      # benchmarks. After the push, so the pruning never reaches uxarray-asv.
+      - name: Keep only this commit's durations
+        id: durations
+        working-directory: ${{ env.ASV_DIR }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          find results -name '*.json' ! -name benchmarks.json ! -name machine.json \
+            ! -name "${sha:0:8}-*" -delete
+          # A failed run leaves nothing; don't shadow an older cache with that.
+          if compgen -G "results/*/${sha:0:8}-*.json" > /dev/null; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Same path and key prefix the PR workflow restores.
+      - name: Save recorded durations for PR runs
+        if: steps.durations.outputs.found == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.ASV_DIR }}/results
+          key: asv-results-${{ runner.os }}-${{ github.run_id }}

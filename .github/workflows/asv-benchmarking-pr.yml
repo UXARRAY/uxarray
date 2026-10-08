@@ -111,7 +111,8 @@ jobs:
           key: asv-wheels-${{ runner.os }}-${{ github.run_id }}
 
       # _partition balances shards by asv's recorded durations; with none it
-      # splits by count. Restore-only: the merge job saves the updated tree.
+      # splits by count. Restore-only: the merge job saves the updated tree. A
+      # PR's first run falls back to main's, saved by asv-benchmarking.yml.
       - name: Restore recorded durations
         uses: actions/cache/restore@v6
         with:

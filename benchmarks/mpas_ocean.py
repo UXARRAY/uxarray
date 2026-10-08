@@ -391,6 +391,19 @@ class CrossSectionsPeakMem:
 # and dozens on the fine one.
 NEIGHBORHOOD_RADIUS = 5.0
 
+# asv re-runs ``setup`` before every sample, about six times per benchmark
+# process, and the neighborhood setups (fixture, warmup reduction, radius
+# query) cost far more than the calls they time: ``NeighborhoodReduce.
+# time_reduce`` timed a 5ms kernel at 120km but took 27s, almost all setup. The
+# timed calls only read what setup builds, so it is built once per process.
+_prepared = {}
+
+
+def _once_per_process(key, build):
+    if key not in _prepared:
+        _prepared[key] = build()
+    return _prepared[key]
+
 
 class NeighborhoodBuild(DatasetBenchmark):
     """Construction cost of a ``Neighborhood``, split into its three stages.
@@ -475,6 +488,17 @@ class NeighborhoodReduce(DatasetBenchmark):
         return getattr(neighborhood, reduction)()
 
     def setup(self, resolution, reduction):
+        self.uxds, self.nb = _once_per_process(
+            ('NeighborhoodReduce', resolution, reduction),
+            lambda: self._prepare(resolution, reduction))
+        # The grid caches one ball tree, and ``time_dataset_reduce`` leaves it
+        # on edges. Put back the face tree a fresh setup leaves, so every sample
+        # rebuilds the same trees.
+        self.uxds.uxgrid.get_ball_tree(coordinates="face centers",
+                                       coordinate_system="spherical",
+                                       distance_metric="haversine")
+
+    def _prepare(self, resolution, reduction):
         super().setup(resolution)
         uxgrid = self.uxds.uxgrid
 
@@ -498,7 +522,7 @@ class NeighborhoodReduce(DatasetBenchmark):
         # locations now so the first timed call is not the one that pays.
         _, _, _ = uxgrid.node_lon, uxgrid.edge_lon, uxgrid.face_lon
 
-        self.nb = self.uxds[data_var].neighborhood(r=self.radius)
+        return self.uxds, self.uxds[data_var].neighborhood(r=self.radius)
 
     def time_reduce(self, resolution, reduction):
         """The kernel alone: the query was paid for in ``setup``."""
@@ -534,6 +558,11 @@ class NeighborhoodDask(DatasetBenchmark):
     radius = NEIGHBORHOOD_RADIUS
 
     def setup(self, resolution, chunking):
+        self.uxds, self.nb = _once_per_process(
+            ('NeighborhoodDask', resolution, chunking),
+            lambda: self._prepare(resolution, chunking))
+
+    def _prepare(self, resolution, chunking):
         super().setup(resolution)
         grid, data = file_path_dict[self.params[0][0]]
         _ = ux.open_dataset(grid, data)[data_var].neighborhood(r=1.0).mean()
@@ -550,15 +579,16 @@ class NeighborhoodDask(DatasetBenchmark):
 
         # Built here, so these measure the reduction and the graph it runs
         # through rather than the query.
-        self.nb = uxda.neighborhood(r=self.radius)
+        nb = uxda.neighborhood(r=self.radius)
 
         # One reduction here too, to warm the dask graph path -- and, for
         # 'grid_chunks', to let the rechunk warning through exactly once...
-        _ = self.nb.mean().compute()
+        _ = nb.mean().compute()
 
         # ...then silence the repeats.
         warnings.filterwarnings('ignore', category=UserWarning,
                                 message='Rechunking')
+        return self.uxds, nb
 
     def time_mean(self, resolution, chunking):
         _ = self.nb.mean().compute()
