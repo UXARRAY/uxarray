@@ -1,8 +1,7 @@
 name: CI Minimum Dependencies
 # Tests the oldest Python allowed by requires-python together with the oldest
-# release of each dependency still supported under SPEC 0, raised to any lower
-# bound in pyproject.toml.  ci/min-deps.py works those versions out from PyPI
-# release dates on each run, so nothing here needs to be bumped by hand.
+# release of each dependency that pyproject.toml allows.  The versions tested
+# only change when pyproject.toml does, so there is nothing to bump by hand.
 #
 # A failure means an older release that pyproject.toml still allows is broken:
 # add a lower bound for it, with a comment saying what breaks.
@@ -13,7 +12,6 @@ on:
   pull_request:
     paths:
       - pyproject.toml
-      - ci/min-deps.py
       - .github/workflows/min-deps-ci.yml
 
 concurrency:
@@ -37,29 +35,22 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v10.2.0  # setup-uv doesn't publish major-version tags
 
-      - name: Find oldest supported versions
-        run: |
-          python_version=$(uv run --no-project --with packaging python ci/min-deps.py --python-version)
-          echo "PYTHON_VERSION=${python_version}" >> "$GITHUB_ENV"
-          uv run --no-project --with packaging python ci/min-deps.py > requirements-min.txt
-          cat requirements-min.txt
-          {
-            echo '```'
-            cat requirements-min.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
       - name: Create environment
         run: |
-          uv venv --python "${PYTHON_VERSION}" .venv
+          # The oldest Python that requires-python allows
+          python_version=$(python3 -c 'import re, tomllib; print(re.search(r">=\s*([\d.]+)", tomllib.load(open("pyproject.toml", "rb"))["project"]["requires-python"])[1])')
+          uv venv --python "${python_version}" .venv
           echo "VIRTUAL_ENV=${PWD}/.venv" >> "$GITHUB_ENV"
           echo "${PWD}/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Install oldest dependencies
         run: |
-          # lowest-direct installs the oldest allowed release of each package
-          # listed, but the newest of anything they pull in.
-          uv pip install --no-build --resolution lowest-direct -r requirements-min.txt
+          # lowest-direct installs the oldest release pyproject.toml allows for
+          # each dependency (or the nearest ones the resolver can make
+          # consistent), but the newest of anything they pull in.  --no-build
+          # skips releases with no wheel for this Python.
+          uv pip install --no-build --resolution lowest-direct \
+            -r pyproject.toml --extra geo --extra viz
           # Test-only packages get their newest releases, without moving
           # anything installed above.
           uv pip freeze > constraints-min.txt
@@ -79,6 +70,11 @@ jobs:
       - name: List packages
         run: |
           uv pip list
+          {
+            echo '```'
+            uv pip list
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Running Tests
         id: tests
