@@ -91,7 +91,14 @@ def _check_node_on_boundary_and_gather_node_neighbors(
     return bool_bdy, node_neighbors[0:num_node_neighbors]
 
 
-def _compute_gradient(data, scale_by_radius=True):
+def _compute_gradient(data, scale_by_radius=True, **kw_apply_ufunc):
+    """returns (zonal_gradient, meridional_gradient) as UxDataArrays, which are the
+    zonal and meridional components of the gradient of the input UxDataArray.
+
+    kw_apply_ufunc get passed to apply_ufunc for a function which takes `data` as input,
+    and outputs grad_zonal, grad_meridional. E.g. it may be appropriate to provide
+    kwargs like dask="parallelized" and output_dtypes=[float, float].
+    """
     uxgrid = data.uxgrid
 
     if data._face_centered():
@@ -134,6 +141,7 @@ def _compute_gradient(data, scale_by_radius=True):
                 normal_lat,
             ),
             n_outputs=2,
+            **kw_apply_ufunc,
         )
 
     # TODO: Add support for this after merging face-centered implementation
