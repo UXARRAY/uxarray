@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 import uxarray as ux
+import xarray as xr
 import numpy.testing as nt
 
 
@@ -903,3 +904,32 @@ class TestSphericalManufacturedSolutions:
             results[label] = np.median(ratio[sel])
 
         assert abs(results["quad"] - results["hex"]) < 0.02
+
+
+class TestMoreThan1D:
+    """Ensure calculus operators loop across non-grid dimensions as expected,
+    treating the grid dimension as the only core dimension.
+    """
+    def test_gradient_more_than_1d(self):
+        ds0 = ux.tutorial.open_dataset('outCSne30-vortex')
+        arr0 = ds0['psi']
+        arr0.uxgrid._ds.attrs['sphere_radius'] = 1.0
+        # ^ set 'sphere_radius' to avoid the warning which is irrelevant here:
+        # "scale_by_radius=True but the grid has no 'sphere_radius' attribute"
+        times = xr.DataArray([1,3,5,7], coords={'time': [10,30,50,70]})
+        levels = xr.DataArray([2,4], coords={'level': [2,4]})
+        arr = arr0 * times + levels
+        assert arr.sizes == {'time': 4, 'level': 2, 'n_face': arr0.sizes['n_face']}
+        result = arr.gradient()
+        assert result.sizes == arr.sizes
+        for it in range(arr.sizes['time']):
+            for il in range(arr.sizes['level']):
+                arr_it_il_gradient = arr.isel(time=it, level=il).gradient()
+                assert result.isel(time=it, level=il).equals(arr_it_il_gradient)
+        # (derivative of (arr0 * times + levels)) / (derivative of arr0) == times + 0 * levels:
+        arr0_gradient = arr0.gradient()
+        ratio = result / arr0_gradient
+        assert np.allclose(ratio.min('n_face')['zonal_gradient'], times + 0 * levels, atol=0, rtol=1e-9)
+        assert np.allclose(ratio.max('n_face')['zonal_gradient'], times + 0 * levels, atol=0, rtol=1e-9)
+        assert np.allclose(ratio.min('n_face')['meridional_gradient'], times + 0 * levels, atol=0, rtol=1e-9)
+        assert np.allclose(ratio.max('n_face')['meridional_gradient'], times + 0 * levels, atol=0, rtol=1e-9)
