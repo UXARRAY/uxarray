@@ -99,7 +99,9 @@ def mesh_constants():
         'NNODES_outRLL1deg': 64442,
         'DATAVARS_outCSne30': 4,
         'TRI_AREA': 0.02216612469199045,
-        'CORRECTED_TRI_AREA': 0.02244844510268421,
+        # TRI_AREA with the 41.8 deg N top edge taken as a parallel instead of a
+        # great-circle arc; checked against brute-force integration.
+        'CORRECTED_TRI_AREA': 0.021883797973858587,
         'MESH30_AREA': 12.566,
         'PSI_INTG': 12.566,
         'VAR2_INTG': 12.566,
