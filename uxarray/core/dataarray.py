@@ -1599,27 +1599,27 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         """
         return _uxda_grid_aggregate(self, destination, "any", **kwargs)
 
-    def gradient(self, scale_by_radius: bool = True, **kwargs) -> UxDataset:
+    def gradient(self, scale_by_radius: bool = True) -> UxDataset:
         """
-        Computes the gradient of a data variable.
+        Computes the gradient of this UxDataArray
+        in the horizontal direction (i.e., along the unstructured grid dimension).
 
         Parameters
         ----------
         scale_by_radius : bool, default=True
-            Divide unit-sphere derivatives by ``uxgrid.sphere_radius`` so the
-            result carries physical, per-meter units (``[data units]/m``). When
-            ``False`` the result is left on the unit sphere with per-radian units
-            (``[data units]/rad``). If ``True`` but the grid has no
-            ``sphere_radius`` attribute, the result falls back to unit-sphere
-            output and a ``UserWarning`` is emitted.
+            Whether to divide unit-sphere derivatives by ``uxgrid.sphere_radius``.
+            When ``True`` (and the grid's ``sphere_radius`` is set correctly),
+            the result carries physical units: [u units]/meter
+            (e.g. result has units of 1/s if u represents velocity).
+            When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
+            the result caries per-radian units: [u units]/radian.
+            (e.g. result has units of (m/s)/rad if u represents velocity).
 
         Returns
         -------
         gradient: UxDataset
-            Dataset containing the zonal and meridional components of the gradient.
-            With the default ``scale_by_radius=True`` the components are in
-            ``[data units]/m``; with ``scale_by_radius=False`` they are in
-            ``[data units]/rad``.
+            UxDataset with data_vars "zonal_gradient" and "meridional_gradient".
+            Units determined by ``scale_by_radius``.
 
         Notes
         -----
@@ -1639,13 +1639,6 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         """
         from uxarray import UxDataset
 
-        if "use_magnitude" in kwargs or "normalize" in kwargs:
-            # Deprecation warning for old gradient implementation
-            warn(
-                "The `use_magnitude` and `normalize` parameters are deprecated. ",
-                DeprecationWarning,
-            )
-
         # Compute the zonal and meridional gradient components of the stored data variable
         grad_zonal_da, grad_meridional_da = _compute_gradient(
             self, scale_by_radius=scale_by_radius
@@ -1663,50 +1656,43 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         )
 
     def curl(
-        self, other: "UxDataArray", scale_by_radius: bool = True, **kwargs
+        self, other: "UxDataArray", scale_by_radius: bool = True,
     ) -> "UxDataArray":
         """
-        Computes the curl of a vector field.
+        Computes the curl of the vector field defined by this UxDataArray and ``other``,
+        in the horizontal direction (i.e., along the unstructured grid dimension).
+
+        The formula is: curl(u,v) = ∂v/∂x - ∂u/∂y + u·tan(φ)/a,
+        where u, x correspond to the zonal direction; v, y the meridional direction;
+        φ=latitude; and a=sphere radius.
 
         Parameters
         ----------
+        self : UxDataArray
+            The zonal (u) component of the vector field. Data must be face-centered.
         other : UxDataArray
-            The second component of the vector field. This UxDataArray should
-            represent the meridional (v) component, while self represents the
-            zonal (u) component.
+            The meridional (v) component of the vector field. Data must be face-centered,
+            and must have ``other.uxgrid == self.uxgrid``.
         scale_by_radius : bool, default=True
-            Divide unit-sphere derivatives by ``uxgrid.sphere_radius`` so the
-            result carries physical, per-meter units (e.g. ``1/s`` for a velocity
-            field). When ``False`` the result is left on the unit sphere
-            (per radian).
-        **kwargs : dict
-            Additional keyword arguments (currently unused, reserved for future extensions).
+            Whether to divide unit-sphere derivatives by ``uxgrid.sphere_radius``.
+            When ``True`` (and the grid's ``sphere_radius`` is set correctly),
+            the result carries physical units: [u units]/meter
+            (e.g. result has units of 1/s if u represents velocity).
+            When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
+            the result caries per-radian units: [u units]/radian.
+            (e.g. result has units of (m/s)/rad if u represents velocity).
 
         Returns
         -------
         curl : UxDataArray
-            The curl of the vector field (u, v), computed as:
-            curl = ∂v/∂x - ∂u/∂y. With the default ``scale_by_radius=True`` the
-            result is in ``([u units])/m`` (``1/s`` for velocity); with
-            ``scale_by_radius=False`` it is in ``([u units])/rad``.
+            The curl of the vector field (self, other), as a UxDataArray.
+            Units determined by ``scale_by_radius``.
 
         Notes
         -----
         The curl is computed using the existing gradient infrastructure.
-        For a 2D vector field V = (u, v), the curl is a scalar field representing
+        For a 2D vector field (u, v), the curl is a scalar field representing
         the rotation or circulation density at each point.
-
-        The curl is computed by:
-        1. Computing the gradient of the u-component: ∇u = (∂u/∂x, ∂u/∂y)
-        2. Computing the gradient of the v-component: ∇v = (∂v/∂x, ∂v/∂y)
-        3. Extracting the relevant components: ∂v/∂x and ∂u/∂y
-        4. Computing: curl = ∂v/∂x - ∂u/∂y
-
-        Requirements:
-        - Both components must be UxDataArray objects
-        - Both must be defined on the same grid
-        - Both must be 1-dimensional (use .isel() for multi-dimensional data)
-        - Data must be face-centered
 
         Example
         -------
@@ -1726,25 +1712,31 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 "during u.curl(v), but got u.uxgrid != v.uxgrid."
             )
 
-        if self.dims != other.dims:
-            raise DimensionError(
-                "Both vector components must have the same dimensions during u.curl(v), "
-                f"but got u.dims={self.dims}, v.dims={other.dims}"
+        if not (self._face_centered() and other._face_centered()):
+            _wrong_locs = []
+            if not self._face_centered():
+                _wrong_locs.append(
+                    f"u.data_mapping={self.data_mapping!r}, u.sizes={dict(**self.sizes)}"
+                )
+            if not other._face_centered():
+                _wrong_locs.append(
+                    f"v.data_mapping={other.data_mapping!r}, v.sizes={dict(**other.sizes)}"
+                )
+            raise DataCenteringError(
+                "u.curl(v) is only supported for face-centered data; got "
+                + ", ".join(_wrong_locs)
             )
 
-        if len(self.dims) != 1:
-            raise DimensionError(
-                "curl() computation currently only supports 1-dimensional data; "
-                f"got data.dims={self.dims}. Consider reducing dimensionality along non-grid dimensions, "
-                "e.g. by applying something like .isel(time=0), .sel(lev=500), or .mean('Time')."
-            )
+        # Validate coordinate alignment up-front so a misaligned input fails
+        # before the (potentially expensive) gradient call.
+        u, v = xr.align(self, other, join="exact", copy=False)
 
         # Compute gradients of both components
         grad_u_zonal, grad_u_meridional = _compute_gradient(
-            self, scale_by_radius=scale_by_radius
+            u, scale_by_radius=scale_by_radius
         )
         grad_v_zonal, grad_v_meridional = _compute_gradient(
-            other, scale_by_radius=scale_by_radius
+            v, scale_by_radius=scale_by_radius
         )
 
         # Compute curl = ∂v/∂x - ∂u/∂y + u·tan(φ)/a
@@ -1753,72 +1745,65 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         # valid on a plane; on the sphere it costs a factor of two on
         # solid-body rotation. When the derivatives have been divided by the
         # radius the term carries the same 1/a factor.
-        tan_lat = np.tan(np.deg2rad(self.uxgrid.face_lat.values))
-        metric = self.data * tan_lat
-        if scale_by_radius and "sphere_radius" in self.uxgrid._ds.attrs:
-            metric = metric / self.uxgrid._ds.attrs["sphere_radius"]
-        curl_values = grad_v_zonal.data - grad_u_meridional.data + metric
+        metric = self * np.tan(np.deg2rad(self.uxgrid.face_lat.drop_attrs()))
+        if scale_by_radius and self.uxgrid.sphere_radius != 1.0:
+            metric = metric / self.uxgrid.sphere_radius
+        result = grad_v_zonal - grad_u_meridional + metric
 
-        u_units = self.attrs.get("units", "")
-        has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
-        if scale_by_radius and has_sphere_radius:
-            curl_units = f"({u_units})/m" if u_units else "1/m"
-        else:
-            curl_units = f"({u_units})/rad" if u_units else "1/rad"
-
-        # Create the result UxDataArray
-        curl_da = UxDataArray(
-            curl_values,
-            dims=self.dims,
-            attrs={
-                "long_name": f"Curl of ({self.name}, {other.name})",
-                "units": curl_units,
-                "description": (
-                    "Curl of vector field computed as ∂v/∂x - ∂u/∂y + u·tan(φ)/a"
-                ),
-            },
-            uxgrid=self.uxgrid,
-            name=f"curl_{self.name}_{other.name}",
-        )
-
-        return curl_da
+        # bookkeeping for name & attrs
+        result = result.rename(f"curl_{self.name}_{other.name}")
+        attrs = {
+            "long_name": f"Curl of ({self.name}, {other.name})",
+            "units": grad_u_meridional.attrs["units"],
+            "description": (
+                "Curl of vector field computed as ∂v/∂x - ∂u/∂y + u·tan(φ)/a, "
+                "with u, x zonal; v, y meridional; φ=latitude; a=sphere radius."
+            ),
+        }
+        result = result.assign_attrs(attrs)
+        return result
 
     def divergence(
-        self, other: "UxDataArray", scale_by_radius: bool = True, **kwargs
+        self, other: "UxDataArray", scale_by_radius: bool = True, **kw_unused
     ) -> "UxDataArray":
         """
-        Computes the divergence of the vector field defined by this UxDataArray and other.
+        Computes the divergence of the vector field defined by this UxDataArray and ``other``,
+        in the horizontal direction (i.e., along the unstructured grid dimension).
+
+        The formula is: div(u, v) = ∂u/∂x + ∂v/∂y - v·tan(φ)/a,
+        where u, x correspond to the zonal direction; v, y the meridional direction;
+        φ=latitude; and a=sphere radius.
 
         Parameters
         ----------
+        self : UxDataArray
+            The zonal (u) component of the vector field. Data must be face-centered.
         other : UxDataArray
-            The second (meridional, v) component of the vector field; ``self`` is
-            the first (zonal, u) component.
+            The meridional (v) component of the vector field. Data must be face-centered,
+            and must have ``other.uxgrid == self.uxgrid``.
         scale_by_radius : bool, default=True
-            Divide unit-sphere derivatives by ``uxgrid.sphere_radius``. When
-            ``True`` (and the grid has a ``sphere_radius`` attribute) the result
-            carries physical, per-meter units (e.g. ``1/s`` for a velocity
-            field); when ``False`` the result is left on the unit sphere
-            (per radian).
-        **kwargs
-            Additional keyword arguments. ``units`` may be passed to override the
-            automatically inferred units.
+            Whether to divide unit-sphere derivatives by ``uxgrid.sphere_radius``.
+            When ``True`` (and the grid's ``sphere_radius`` is set correctly),
+            the result carries physical units: [u units]/meter
+            (e.g. result has units of 1/s if u represents velocity).
+            When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
+            the result caries per-radian units: [u units]/radian.
+            (e.g. result has units of (m/s)/rad if u represents velocity).
+        **kw_unused
+            Currently unused; passing passing "units" will emit a DeprecationWarning,
+            while passing anything else will raise a TypeError.
 
         Returns
         -------
         divergence : UxDataArray
-            UxDataArray containing the divergence of the vector field.
+            The divergence of the vector field (self, other), as a UxDataArray.
+            Units determined by ``scale_by_radius``.
 
         Notes
         -----
-        The divergence is computed using the finite volume method. For a vector field V = (u, v),
-        where u and v are the components represented by this UxDataArray and other respectively,
-        the divergence is calculated as div(V) = ∂u/∂x + ∂v/∂y.
-
+        The divergence is computed using the finite volume method.
         The implementation uses edge-centered gradients and face-centered divergence calculation
-        following the discrete divergence theorem. By default the underlying
-        gradients are divided by ``uxgrid.sphere_radius``; pass
-        ``scale_by_radius=False`` for per-radian (unit-sphere) output.
+        following the discrete divergence theorem.
 
         Example
         -------
@@ -1837,19 +1822,6 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 "during u.divergence(v), but got u.uxgrid != v.uxgrid."
             )
 
-        if self.dims != other.dims:
-            raise DimensionError(
-                "Both vector components must have the same dimensions during u.divergence(v), "
-                f"but got u.dims={self.dims}, v.dims={other.dims}"
-            )
-
-        if self.ndim > 1:
-            raise DimensionError(
-                "divergence() computation currently only supports 1-dimensional data; "
-                f"got data.dims={self.dims}. Consider reducing dimensionality along non-grid dimensions, "
-                "e.g. by applying something like .isel(time=0), .sel(lev=500), or .mean('Time')."
-            )
-
         if not (self._face_centered() and other._face_centered()):
             _wrong_locs = []
             if not self._face_centered():
@@ -1865,69 +1837,72 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 + ", ".join(_wrong_locs)
             )
 
+        if "units" in kw_unused:
+            warn(
+                ("The ``units`` parameter in divergence() was deprecated in October 2026. "
+                "Use scale_by_radius=True/False to control the units, "
+                "or set result.attrs['units'] manually to set the units attribute after the call."),
+                DeprecationWarning,
+            )
+            kw_unused.pop("units")
+        if len(kw_unused) > 0:
+            raise TypeError(
+                f"divergence() got unexpected keyword argument(s): {list(kw_unused.keys())}"
+            )
+
+        # Validate coordinate alignment up-front so a misaligned input fails
+        # before the (potentially expensive) gradient call.
+        u, v = xr.align(self, other, join="exact", copy=False)
+
         # Compute gradients of both components
-        u_gradient = self.gradient(scale_by_radius=scale_by_radius)
-        v_gradient = other.gradient(scale_by_radius=scale_by_radius)
-
-        # For divergence: div(V) = ∂u/∂x + ∂v/∂y - v·tan(φ)/a
-        # We use the zonal gradient (∂/∂lon) of u and meridional gradient (∂/∂lat) of v
-        u = u_gradient["zonal_gradient"]
-        v = v_gradient["meridional_gradient"]
-
-        # Align DataArrays to ensure coords/dims match, then perform xarray-aware addition
-        u, v = xr.align(u, v)
-        divergence = u + v
-
-        # Spherical metric term, the companion of the one in curl(). Omitting
-        # it is only valid on a plane.
-        tan_lat = np.tan(np.deg2rad(self.uxgrid.face_lat.values))
-        metric = other.data * tan_lat
-        if scale_by_radius and "sphere_radius" in self.uxgrid._ds.attrs:
-            metric = metric / self.uxgrid._ds.attrs["sphere_radius"]
-        divergence = divergence - metric
-        divergence.name = "divergence"
-
-        # Infer units consistently with gradient()/curl(): a divergence is a
-        # spatial derivative of the input field, so it carries an extra 1/length
-        # factor (per meter when scaled by radius, otherwise per radian).
-        if "units" in kwargs:
-            div_units = kwargs["units"]
-        else:
-            u_units = self.attrs.get("units", "")
-            has_sphere_radius = "sphere_radius" in self.uxgrid._ds.attrs
-            if scale_by_radius and has_sphere_radius:
-                div_units = f"({u_units})/m" if u_units else "1/m"
-            else:
-                div_units = f"({u_units})/rad" if u_units else "1/rad"
-
-        divergence.attrs.update(
-            {
-                "divergence": True,
-                "units": div_units,
-            }
+        grad_u_zonal, grad_u_meridional = _compute_gradient(
+            u, scale_by_radius=scale_by_radius
+        )
+        grad_v_zonal, grad_v_meridional = _compute_gradient(
+            v, scale_by_radius=scale_by_radius
         )
 
-        # Wrap result as a UxDataArray while preserving uxgrid and coords
-        divergence_da = UxDataArray(divergence, uxgrid=self.uxgrid)
+        # For divergence: div(V) = ∂u/∂x + ∂v/∂y - v·tan(φ)/a
+        # The trailing term is the spherical metric term, the companion
+        # of the one in curl(). Omitting it is only valid on a plane.
+        metric = other * np.tan(np.deg2rad(self.uxgrid.face_lat.drop_attrs()))
+        if scale_by_radius and self.uxgrid.sphere_radius != 1.0:
+            metric = metric / self.uxgrid.sphere_radius
+        result = grad_u_zonal + grad_v_meridional - metric
 
-        return divergence_da
+        # bookkeeping for name & attrs
+        result = result.rename(f"divergence_{self.name}_{other.name}")
+        attrs = {
+            "long_name": f"Divergence of ({self.name}, {other.name})",
+            "units": grad_u_zonal.attrs["units"],
+            "description": (
+                "Divergence of vector field computed as ∂u/∂x + ∂v/∂y - v·tan(φ)/a, "
+                "with u, x zonal; v, y meridional; φ=latitude; a=sphere radius."
+            ),
+        }
+        result = result.assign_attrs(attrs)
+        return result
 
     def scalardotgradient(self, v: "UxDataArray", q: "UxDataArray") -> "UxDataArray":
         """
         Compute the dot product between a vector field and the gradient of a scalar field.
+        The formula is: scalar_dot_gradient = u * (dq/dx) + v * (dq/dy),
+        where u, x correspond to the zonal direction; v, y the meridional direction;
+        and q is the scalar field.
 
         Parameters
         ----------
+        self : UxDataArray
+            The zonal (u) component of the vector field.
         v : UxDataArray
-            The meridional component of the vector field. ``self`` is treated as
-            the zonal component.
+            The meridional (v) component of the vector field.
         q : UxDataArray
             Scalar field whose gradient is dotted with the vector field.
 
         Returns
         -------
         scalar_dot_gradient : UxDataArray
-            Dot product ``self * dq/dx + v * dq/dy``.
+            The dot product (self,v) dot grad(q), as a UxDataArray.
         """
         if not isinstance(v, UxDataArray):
             raise TypeError(
@@ -1951,13 +1926,6 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 f"but got u.dims={self.dims}, v.dims={v.dims}, q.dims={q.dims}."
             )
 
-        if self.ndim > 1:
-            raise DimensionError(
-                "scalardotgradient() computation currently only supports 1-dimensional data; "
-                f"got data.dims={self.dims}. Consider reducing dimensionality along non-grid dimensions, "
-                "e.g. by applying something like .isel(time=0), .sel(lev=500), or .mean('Time')."
-            )
-
         if not (self._face_centered() and v._face_centered() and q._face_centered()):
             _wrong_locs = []
             if not self._face_centered():
@@ -1966,11 +1934,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 )
             if not v._face_centered():
                 _wrong_locs.append(
-                    f"v.data_mapping={self.data_mapping!r}, v.sizes={dict(**self.sizes)}"
+                    f"v.data_mapping={v.data_mapping!r}, v.sizes={dict(**v.sizes)}"
                 )
             if not q._face_centered():
                 _wrong_locs.append(
-                    f"q.data_mapping={self.data_mapping!r}, q.sizes={dict(**self.sizes)}"
+                    f"q.data_mapping={q.data_mapping!r}, q.sizes={dict(**q.sizes)}"
                 )
             raise DataCenteringError(
                 "u.scalardotgradient(v, q) is only supported for face-centered data; got "
@@ -1981,20 +1949,23 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         # before the (potentially expensive) gradient call.
         u_aligned, v_aligned, q_aligned = xr.align(self, v, q, join="exact", copy=False)
 
-        q_gradient = q_aligned.gradient()
-        q_zonal = q_gradient["zonal_gradient"]
-        q_meridional = q_gradient["meridional_gradient"]
-
-        scalar_dot_gradient = (u_aligned * q_zonal) + (v_aligned * q_meridional)
-        scalar_dot_gradient.name = "scalar_dot_gradient"
-        scalar_dot_gradient.attrs.update(
-            {
-                "long_name": "scalar dot gradient",
-                "description": "Dot product u * (dq/dx) + v * (dq/dy).",
-            }
+        grad_q_zonal, grad_q_meridional = _compute_gradient(
+            q_aligned, scale_by_radius=True
         )
+        result = (u_aligned * grad_q_zonal) + (v_aligned * grad_q_meridional)
 
-        return UxDataArray(scalar_dot_gradient, uxgrid=self.uxgrid)
+        # bookkeeping for name & attrs
+        result = result.rename(f"scalar_dot_gradient_{self.name}_{v.name}_{q.name}")
+        attrs = {
+            "long_name": f"Scalar dot gradient: ({self.name}, {v.name}) dot grad({q.name})",
+            # no promises about units yet; would need to consider units of u, v, and q...
+            "description": (
+                "Dot product of vector field (u, v) with the gradient of scalar field q, "
+                "computed as u * (dq/dx) + v * (dq/dy), with u, x zonal; v, y meridional."
+            ),
+        }
+        result = result.assign_attrs(attrs)
+        return result
 
     def difference(self, destination: str | None = "edge"):
         """Computes the absolute difference of a data variable.
