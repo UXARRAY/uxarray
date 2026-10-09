@@ -1,5 +1,10 @@
-import xarray as xr
+import warnings
 
+import numpy as np
+import xarray as xr
+from xarray.core.utils import either_dict_or_kwargs
+
+from uxarray.constants import GRID_DIMS
 from uxarray.errors import DimensionError
 from uxarray.io.utils import _get_source_dims_dict, _parse_grid_type
 
@@ -32,11 +37,18 @@ def _open_dataset_with_fallback(filename_or_obj, chunks=None, **kwargs):
     try:
         # Try opening with xarray's default read engine
         return xr.open_dataset(filename_or_obj, chunks=chunks, **kwargs)
-    except Exception:
+    except Exception as default_engine_error:
         # If it fails, use the "netcdf4" engine as backup
         # Extract engine from kwargs to prevent duplicate parameter error
         engine = kwargs.pop("engine", "netcdf4")
-        return xr.open_dataset(filename_or_obj, engine=engine, chunks=chunks, **kwargs)
+        try:
+            return xr.open_dataset(
+                filename_or_obj, engine=engine, chunks=chunks, **kwargs
+            )
+        except Exception as fallback_error:
+            # Chain the fallback onto the original so both engines' reasons are
+            # visible; otherwise the default engine's error is lost entirely.
+            raise fallback_error from default_engine_error
 
 
 def _map_dims_to_ugrid(
@@ -123,9 +135,31 @@ def match_chunks_to_ugrid(grid_filename_or_obj, chunks):
 
 
 def _validate_indexers(indexers, indexers_kwargs, func_name, ignore_grid):
-    from xarray.core.utils import either_dict_or_kwargs
+    """returns (dict of indexers, set of grid_dim strs).
 
-    from uxarray.constants import GRID_DIMS
+    Parameters
+    ----------
+    indexers: dict
+        indexers originally provided as dict. E.g., uxarr.isel({'n_face': 0}).
+        Provide indexers or indexers_kwargs but not both.
+    indexers_kwargs: dict
+        indexers originally provided as kwargs. E.g. uxarr.isel(n_face=0).
+        Provide indexers or indexers_kwargs but not both.
+    func_name: str
+        name of the function calling _validate_indexers. E.g. "isel".
+        Included in error message if provided both indexers and indexers_kwargs.
+    ignore_grid: bool
+        whether ignore_grid=True flag was set in the indexing operation.
+        If False, ensure len(grid_dims) <= 1 else raise DimensionError.
+
+    Returns
+    -------
+    indexers: dict
+        validated dict of indexers, including grid dims indexers if present.
+    grid_dims: set
+        set of grid dimension names (from ``GRID_DIMS``) present as keys in indexers;
+        values from {"n_face", "n_node", "n_edge"} (at most 1 value if ignore_grid=False).
+    """
 
     # Used to filter out slices containing all Nones (causes subscription errors, i.e., var[0])
     _is_full_none_slice = lambda v: (
@@ -147,3 +181,47 @@ def _validate_indexers(indexers, indexers_kwargs, func_name, ignore_grid):
         )
 
     return indexers, grid_dims
+
+
+def _resolve_coordinate_labels_to_indices(
+    dim, labels_to_sel, coord_array, *, method=None, tolerance=None
+):
+    """returns indices which would be selected by coord_array.sel({dim: labels_to_sel}, ...)
+    coord_array.isel({dim: result}) should be equivalent to coord_array.sel({dim: labels_to_sel}, ...).
+    If labels_to_sel is an xr.DataArray, its coords/dims will also be attached to the result.
+
+    dim: str
+        dimension name to select along
+    labels_to_sel: any valid indexer which can be passed to .sel()
+        values to select along dim
+    coord_array: xr.DataArray or UxDataArray
+        coordinate array to select from.
+    method, tolerance: passed directly to .sel().
+    """
+    # just using xarray's .sel() on a simple np.arange(), to ensure exactly consistent behavior with sel().
+    # (Maybe a more efficient implementation exists, but this is simple and gives correct results.)
+    indices = xr.DataArray(np.arange(coord_array.sizes[dim]), dims=dim)
+    _indices_coord_name = f"__{dim}_indices__"  # just needs to be any unused name.
+    if _indices_coord_name in coord_array.coords:
+        warnings.warn(
+            f"Coordinate {_indices_coord_name!r} already exists in coord_array.coords "
+            "and will be overwritten, which may cause errors or subtly incorrect results..."
+        )
+    if hasattr(coord_array, "to_xarray"):  # convert to xarray to avoid recursive sel()
+        coord_array = coord_array.to_xarray()
+    coord_with_indices = coord_array.assign_coords({_indices_coord_name: indices})
+    selected = coord_with_indices.sel(
+        {dim: labels_to_sel}, method=method, tolerance=tolerance
+    )
+    result = selected[_indices_coord_name]
+    if isinstance(labels_to_sel, xr.DataArray):
+        # handle coords appropriately
+        result = result.drop_vars((dim, _indices_coord_name))
+        # (drop grid dim coords because the caller is expected to handle those directly;
+        # here the goal is just to properly propagate any other coords from labels_to_sel.)
+        result = result.rename(None)  # no reason to keep the _indices_coord_name
+        # (and keeping it for longer could maybe cause confusing error later?)
+    else:
+        # drop all coords/name info which was added internally during this method.
+        result = result.values
+    return result

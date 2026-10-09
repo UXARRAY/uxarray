@@ -1,21 +1,12 @@
 import numpy as np
-from numba import njit, prange
 
-
-@njit(parallel=True)
-def _fill_numba(flat_orig, face_idx, n_face, n_steps):
-    M = flat_orig.shape[0]
-    out = np.full((M, n_steps), np.nan, np.float64)
-    for i in prange(n_steps):
-        f = face_idx[i]
-        if 0 <= f < n_face:
-            out[:, i] = flat_orig[:, f]
-    return out
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 
 def sample_geodesic(
     start: tuple[float, float], end: tuple[float, float], steps: int
 ) -> tuple[np.ndarray, np.ndarray]:
+    _raise_hint_if_optional_deps_missing("pyproj")
     from pyproj import Geod
 
     lon0, lat0 = start

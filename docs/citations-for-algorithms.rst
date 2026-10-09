@@ -74,54 +74,54 @@ Algorithm-to-Publication Mapping
    * - Documentation section
      - API or implementation
      - Required citation(s)
-   * - `Descriptors <api.html#descriptors>`__
+   * - :ref:`Descriptors <descriptors>`
      - :py:attr:`~uxarray.Grid.bounds`
 
        :py:attr:`~uxarray.Grid.face_bounds_lon`
 
        :py:attr:`~uxarray.Grid.face_bounds_lat`
      - |cite-gmd|
-   * - `Zonal Average <api.html#zonal-average>`__
+   * - :ref:`Zonal Average <zonal-average>`
      - All zonal-average remapping implementations (e.g. :py:meth:`~uxarray.UxDataArray.zonal_mean`)
      - |cite-siam|
-   * - `Spherical Geometry: Intersections <api.html#intersections>`__
+   * - :ref:`Spherical Geometry: Intersections <intersections>`
      - All spherical-intersection APIs in this section (:py:func:`~uxarray.grid.intersections.gca_gca_intersection`, :py:func:`~uxarray.grid.intersections.gca_const_lat_intersection`, :py:func:`~uxarray.grid.intersections.get_number_of_intersections`)
      - **Cite both:**
 
        |cite-gmd|
 
        |cite-siam|
-   * - `Spherical Geometry: Arcs <api.html#arcs>`__
+   * - :ref:`Spherical Geometry: Arcs <arcs>`
      - :py:func:`~uxarray.grid.arcs.in_between`
 
        :py:func:`~uxarray.grid.arcs.point_within_gca`
      - No new citation required. Expected to be removed in a future release.
-   * - `Spherical Geometry: Arcs <api.html#arcs>`__
+   * - :ref:`Spherical Geometry: Arcs <arcs>`
      - :py:func:`~uxarray.grid.arcs.extreme_gca_latitude`
      - |cite-gmd|
-   * - `Spherical Geometry: Arcs <api.html#arcs>`__
+   * - :ref:`Spherical Geometry: Arcs <arcs>`
      - :py:func:`~uxarray.grid.arcs.orient3d_on_sphere`
 
        :py:func:`~uxarray.grid.arcs.on_minor_arc`
      - |cite-shewchuk|
-   * - `Compensated Arithmetic <api.html#compensated-arithmetic>`__
+   * - :ref:`Compensated Arithmetic <compensated-arithmetic>`
      - :py:func:`~uxarray.utils.computing.two_sum`
      - |cite-knuth|
-   * - `Compensated Arithmetic <api.html#compensated-arithmetic>`__
+   * - :ref:`Compensated Arithmetic <compensated-arithmetic>`
      - :py:func:`~uxarray.utils.computing.two_prod`
      - |cite-dekker|
-   * - `Compensated Arithmetic <api.html#compensated-arithmetic>`__
+   * - :ref:`Compensated Arithmetic <compensated-arithmetic>`
      - :py:func:`~uxarray.utils.computing.diff_of_products`
      - **Cite both:**
 
        |cite-higham|
 
        |cite-jeannerod|
-   * - `Compensated Arithmetic <api.html#compensated-arithmetic>`__
+   * - :ref:`Compensated Arithmetic <compensated-arithmetic>`
      - :py:func:`~uxarray.utils.computing.accucross`
 
        :py:func:`~uxarray.utils.computing.accucross_pair`
      - |cite-gmd|
-   * - `Compensated Arithmetic <api.html#compensated-arithmetic>`__
+   * - :ref:`Compensated Arithmetic <compensated-arithmetic>`
      - :py:func:`~uxarray.utils.computing.acc_sqrt_re`
      - |cite-rump|

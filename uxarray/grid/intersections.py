@@ -1,11 +1,11 @@
 import math
 
 import numpy as np
-from numba import njit, prange
+from numba import njit
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE
 from uxarray.errors import DimensionError
-from uxarray.grid.arcs import _on_minor_arc_xyz, on_minor_arc
+from uxarray.grid.arcs import on_minor_arc
 from uxarray.utils.computing import (
     _cdp2,
     _cdp4,
@@ -16,14 +16,27 @@ from uxarray.utils.computing import (
     two_prod,
     two_sum,
 )
+from uxarray.utils.numba_math import (
+    _numba_add3,
+    _numba_allfinite3,
+    _numba_mul3_scalar,
+    _numba_neg3,
+)
 
 # Edge screeners: fast O(n) passes used by Grid.get_edges_at_constant_* to
 # identify candidate edges before the expensive GCA intersection. "no_extreme"
 # means arc z-extrema along the great circle are not considered.
+#
+# These are deliberately plain NumPy (no @njit): they are memory-bound elementwise
+# predicates where NumPy is ~2x faster than a Numba prange loop,
 
 
-@njit(parallel=True, nogil=True, cache=True)
-def constant_lat_intersections_no_extreme(lat, edge_node_z, n_edge):
+def _flatnonzero(mask):
+    """Sorted indices where a 1-D boolean mask is True"""
+    return np.asarray(np.flatnonzero(mask))
+
+
+def constant_lat_intersections_no_extreme(lat, edge_node_z):
     """Determine which edges intersect a constant line of latitude on a
     sphere, without wrapping to the opposite longitude, with extremes
     along each great circle arc not considered.
@@ -32,55 +45,30 @@ def constant_lat_intersections_no_extreme(lat, edge_node_z, n_edge):
     ----------
     lat:
         Constant latitude value in degrees.
-    edge_node_x:
-        Array of shape (n_edge, 2) containing x-coordinates of the edge nodes.
-    edge_node_y:
-        Array of shape (n_edge, 2) containing y-coordinates of the edge nodes.
-    n_edge:
-        Total number of edges to check.
+        May be NumPy or dask array.
+    edge_node_z:
+        Array of shape (n_edge, 2) containing z-coordinates of the edge nodes.
+        May be NumPy or dask array.
 
     Returns
     -------
     intersecting_edges:
         array of indices of edges that intersect the constant latitude.
     """
-    lat = np.deg2rad(lat)
+    z_constant = np.sin(np.deg2rad(lat))
 
-    intersecting_edges_mask = np.zeros(n_edge, dtype=np.int32)
+    d0 = edge_node_z[:, 0] - z_constant
+    d1 = edge_node_z[:, 1] - z_constant
 
-    # Calculate the constant z-value for the given latitude
-    z_constant = np.sin(lat)
+    # Edge crosses the latitude (endpoints straddle it) or lies exactly on it.
+    intersecting = (d0 * d1 < 0.0) | (
+        (np.abs(d0) < ERROR_TOLERANCE) & (np.abs(d1) < ERROR_TOLERANCE)
+    )
 
-    # Iterate through each edge and check for intersections
-    for i in prange(n_edge):
-        # Check if the edge crosses the constant latitude or lies exactly on it
-        if edge_intersects_constant_lat_no_extreme(edge_node_z[i], z_constant):
-            intersecting_edges_mask[i] = 1
-
-    intersecting_edges = np.argwhere(intersecting_edges_mask)
-
-    return np.unique(intersecting_edges)
+    return _flatnonzero(intersecting)
 
 
-@njit(cache=True, nogil=True)
-def edge_intersects_constant_lat_no_extreme(edge_node_z, z_constant):
-    """Helper to compute whether an edge intersects a line of constant latitude."""
-
-    # z coordinate of edge nodes
-    z0 = edge_node_z[0]
-    z1 = edge_node_z[1]
-
-    if (z0 - z_constant) * (z1 - z_constant) < 0.0 or (
-        abs(z0 - z_constant) < ERROR_TOLERANCE
-        and abs(z1 - z_constant) < ERROR_TOLERANCE
-    ):
-        return True
-    else:
-        return False
-
-
-@njit(parallel=True, nogil=True, cache=True)
-def constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y, n_edge):
+def constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y):
     """Determine which edges intersect a constant line of longitude on a
     sphere, without wrapping to the opposite longitude, with extremes
     along each great circle arc not considered.
@@ -91,50 +79,42 @@ def constant_lon_intersections_no_extreme(lon, edge_node_x, edge_node_y, n_edge)
         Constant longitude value in degrees.
     edge_node_x:
         Array of shape (n_edge, 2) containing x-coordinates of the edge nodes.
+        May be NumPy or dask array.
     edge_node_y:
         Array of shape (n_edge, 2) containing y-coordinates of the edge nodes.
-    n_edge:
-        Total number of edges to check.
+        May be NumPy or dask array.
 
     Returns
     -------
     intersecting_edges:
         array of indices of edges that intersect the constant longitude.
     """
-
     lon = np.deg2rad(lon)
-
-    intersecting_edges_mask = np.zeros(n_edge, dtype=np.int32)
-
-    # calculate the cos and sin of the constant longitude
     cos_lon = np.cos(lon)
     sin_lon = np.sin(lon)
 
-    for i in prange(n_edge):
-        # get the x and y coordinates of the edge's nodes
-        x0, x1 = edge_node_x[i, 0], edge_node_x[i, 1]
-        y0, y1 = edge_node_y[i, 0], edge_node_y[i, 1]
+    x0 = edge_node_x[:, 0]
+    x1 = edge_node_x[:, 1]
+    y0 = edge_node_y[:, 0]
+    y1 = edge_node_y[:, 1]
 
-        # calculate the dot products to determine on which side of the constant longitude the points lie
-        dot0 = x0 * sin_lon - y0 * cos_lon
-        dot1 = x1 * sin_lon - y1 * cos_lon
+    # Signed distance to the meridian plane for each endpoint.
+    dot0 = x0 * sin_lon - y0 * cos_lon
+    dot1 = x1 * sin_lon - y1 * cos_lon
 
-        # ensure that both points are not on the opposite longitude (180 degrees away)
-        if (x0 * cos_lon + y0 * sin_lon) < 0.0 or (x1 * cos_lon + y1 * sin_lon) < 0.0:
-            continue
+    # Discard edges with an endpoint on the opposite meridian (180 deg away).
+    not_opposite = (x0 * cos_lon + y0 * sin_lon >= 0.0) & (
+        x1 * cos_lon + y1 * sin_lon >= 0.0
+    )
 
-        # check if the edge crosses the constant longitude or lies exactly on it
-        if dot0 * dot1 < 0.0 or (
-            abs(dot0) < ERROR_TOLERANCE and abs(dot1) < ERROR_TOLERANCE
-        ):
-            intersecting_edges_mask[i] = 1
+    # Edge crosses the longitude or lies exactly on it.
+    crosses = (dot0 * dot1 < 0.0) | (
+        (np.abs(dot0) < ERROR_TOLERANCE) & (np.abs(dot1) < ERROR_TOLERANCE)
+    )
 
-    intersecting_edges = np.argwhere(intersecting_edges_mask)
-
-    return np.unique(intersecting_edges)
+    return _flatnonzero(not_opposite & crosses)
 
 
-@njit(cache=True)
 def constant_lat_intersections_face_bounds(lat: float, face_bounds_lat: np.ndarray):
     """
     Identify candidate faces that intersect with a given constant latitude line.
@@ -154,15 +134,10 @@ def constant_lat_intersections_face_bounds(lat: float, face_bounds_lat: np.ndarr
         A 1D array of integers containing the indices of the faces that intersect
         the given latitude.
     """
-    face_bounds_lat_min = face_bounds_lat[:, 0]
-    face_bounds_lat_max = face_bounds_lat[:, 1]
-
-    within_bounds = (face_bounds_lat_min <= lat) & (face_bounds_lat_max >= lat)
-    candidate_faces = np.where(within_bounds)[0]
-    return candidate_faces
+    within_bounds = (face_bounds_lat[:, 0] <= lat) & (face_bounds_lat[:, 1] >= lat)
+    return _flatnonzero(within_bounds)
 
 
-@njit(cache=True)
 def constant_lon_intersections_face_bounds(lon: float, face_bounds_lon: np.ndarray):
     """
     Identify candidate faces that intersect with a given constant longitude line.
@@ -184,25 +159,18 @@ def constant_lon_intersections_face_bounds(lon: float, face_bounds_lon: np.ndarr
     """
     face_bounds_lon_min = face_bounds_lon[:, 0]
     face_bounds_lon_max = face_bounds_lon[:, 1]
-    n_face = face_bounds_lon.shape[0]
 
-    candidate_faces = []
-    for i in range(n_face):
-        cur_face_bounds_lon_min = face_bounds_lon_min[i]
-        cur_face_bounds_lon_max = face_bounds_lon_max[i]
+    # Normal faces (min < max): lon inside [min, max].
+    normal = face_bounds_lon_min < face_bounds_lon_max
+    in_normal = normal & (lon >= face_bounds_lon_min) & (lon <= face_bounds_lon_max)
+    # Antimeridian faces (min >= max): lon >= min OR lon <= max.
+    in_antimeridian = (~normal) & (
+        (lon >= face_bounds_lon_min) | (lon <= face_bounds_lon_max)
+    )
 
-        if cur_face_bounds_lon_min < cur_face_bounds_lon_max:
-            if (lon >= cur_face_bounds_lon_min) and (lon <= cur_face_bounds_lon_max):
-                candidate_faces.append(i)
-        else:
-            # antimeridian case
-            if (lon >= cur_face_bounds_lon_min) or (lon <= cur_face_bounds_lon_max):
-                candidate_faces.append(i)
-
-    return np.array(candidate_faces, dtype=INT_DTYPE)
+    return _flatnonzero(in_normal | in_antimeridian).astype(INT_DTYPE, copy=False)
 
 
-@njit(cache=True)
 def faces_within_lon_bounds(lons, face_bounds_lon):
     """
     Identify candidate faces that lie within a specified longitudinal interval.
@@ -226,51 +194,39 @@ def faces_within_lon_bounds(lons, face_bounds_lon):
     """
     face_bounds_lon_min = face_bounds_lon[:, 0]
     face_bounds_lon_max = face_bounds_lon[:, 1]
-    n_face = face_bounds_lon.shape[0]
 
     min_lon, max_lon = lons
 
     # For example, a query of (160, -160) would cross the antimeridian
     antimeridian = min_lon > max_lon
 
-    candidate_faces = []
-    for i in range(n_face):
-        cur_face_min = face_bounds_lon_min[i]
-        cur_face_max = face_bounds_lon_max[i]
+    # A face itself crosses the antimeridian when its stored min > max.
+    face_crosses = face_bounds_lon_min > face_bounds_lon_max
 
-        # Check if the face itself crosses the antimeridian
-        face_crosses_antimeridian = cur_face_min > cur_face_max
+    if not antimeridian:
+        # Normal query interval [min_lon, max_lon]. Only non-crossing faces can
+        # be strictly contained; crossing faces are excluded.
+        mask = (
+            (~face_crosses)
+            & (face_bounds_lon_min >= min_lon)
+            & (face_bounds_lon_max <= max_lon)
+        )
+    else:
+        # Antimeridian query: effectively [min_lon, 180] U [-180, max_lon].
+        crossing_contained = (
+            face_crosses
+            & (face_bounds_lon_min >= min_lon)
+            & (face_bounds_lon_max <= max_lon)
+        )
+        noncrossing_contained = (~face_crosses) & (
+            ((face_bounds_lon_min >= min_lon) & (face_bounds_lon_max <= 180))
+            | ((face_bounds_lon_min >= -180) & (face_bounds_lon_max <= max_lon))
+        )
+        mask = crossing_contained | noncrossing_contained
 
-        if not antimeridian:
-            # Normal case: min_lon <= max_lon
-            # Face must be strictly contained within [min_lon, max_lon]
-            if not face_crosses_antimeridian:
-                if (cur_face_min >= min_lon) and (cur_face_max <= max_lon):
-                    candidate_faces.append(i)
-            else:
-                # If face crosses antimeridian, it cannot be strictly contained
-                # in a non-antimeridian query interval
-                continue
-        else:
-            # Antimeridian case: interval crosses the -180/180 boundary
-            # The query interval is effectively [min_lon, 180] U [-180, max_lon]
-
-            if face_crosses_antimeridian:
-                # If face crosses antimeridian, check if it's contained in the full query range
-                if (cur_face_min >= min_lon) and (cur_face_max <= max_lon):
-                    candidate_faces.append(i)
-            else:
-                # For non-crossing faces, check if they're strictly contained in either part
-                contained_part1 = (cur_face_min >= min_lon) and (cur_face_max <= 180)
-                contained_part2 = (cur_face_min >= -180) and (cur_face_max <= max_lon)
-
-                if contained_part1 or contained_part2:
-                    candidate_faces.append(i)
-
-    return np.array(candidate_faces, dtype=INT_DTYPE)
+    return _flatnonzero(mask).astype(INT_DTYPE, copy=False)
 
 
-@njit(cache=True)
 def faces_within_lat_bounds(lats, face_bounds_lat):
     """
     Identify candidate faces that lie within a specified latitudinal interval.
@@ -298,8 +254,7 @@ def faces_within_lat_bounds(lats, face_bounds_lat):
     face_bounds_lat_max = face_bounds_lat[:, 1]
 
     within_bounds = (face_bounds_lat_max <= max_lat) & (face_bounds_lat_min >= min_lat)
-    candidate_faces = np.where(within_bounds)[0]
-    return candidate_faces
+    return _flatnonzero(within_bounds)
 
 
 @njit(cache=True, inline="always", error_model="numpy")
@@ -313,14 +268,14 @@ def _accux_gca(w0, w1, v0, v1):
 
     Parameters
     ----------
-    w0, w1 : np.ndarray, shape (3,)
+    w0, w1 : iterables of length 3
         Cartesian endpoints of the first arc.
-    v0, v1 : np.ndarray, shape (3,)
+    v0, v1 : iterables of length 3
         Cartesian endpoints of the second arc.
 
     Returns
     -------
-    pos, neg : np.ndarray, shape (3,)
+    pos, neg : tuples of length 3
         Two antipodal candidate unit vectors.
     """
     n1x_hi, n1y_hi, n1z_hi, n1x_lo, n1y_lo, n1z_lo = accucross(
@@ -351,45 +306,48 @@ def _accux_gca(w0, w1, v0, v1):
     sum_hi, sum_lo = _sum_of_squares_c((vx_hi, vy_hi, vz_hi), (vx_lo, vy_lo, vz_lo))
     vn, _ = acc_sqrt_re(sum_hi, sum_lo)
     # vn==0 (coplanar arcs) yields inf via IEEE division under error_model="numpy",
-    # so pos/neg become non-finite and the status layer masks them out. Branch-free.
+    # so pos/neg become non-finite and the status layer masks them out.
     inv = 1.0 / vn
-    pos = np.empty(3)
-    pos[0] = vx * inv
-    pos[1] = vy * inv
-    pos[2] = vz * inv
-    neg = np.empty(3)
-    neg[0] = -pos[0]
-    neg[1] = -pos[1]
-    neg[2] = -pos[2]
+    pos = _numba_mul3_scalar((vx, vy, vz), inv)
+    neg = _numba_neg3(pos)
     return pos, neg
 
 
-@njit(cache=True, error_model="numpy")
+@njit(cache=True, inline="always", error_model="numpy")
 def _try_gca_gca_intersection(w0, w1, v0, v1):
     """Select the valid great-circle intersection and report a status code.
+    Returns point, status, pos, neg.
 
     Batch/status layer (mirrors AccuSphGeom ``try_gca_gca_intersection``).
 
     Calls the pure numerical kernel, applies integer mask arithmetic to determine
     validity, selects the output point without if/else branching in the hot path.
 
-    Status codes mirror AccuSphGeom:
-        0  exactly one candidate is valid
-        1  both candidates are valid
+    Parameters
+    ----------
+    w0, w1 : iterables of length 3
+        Cartesian endpoints of the first arc.
+    v0, v1 : iterables of length 3
+        Cartesian endpoints of the second arc.
+
+    Returns
+    -------
+    point : tuple of length 3
+        The single valid intersection point, if status == 0, else meaningless.
+    status : int
+        Status codes mirror AccuSphGeom:
+        0  exactly one candidate is valid (point)
+        1  both candidates are valid (pos and neg)
         2  neither candidate is valid  (includes coplanar/parallel case)
+    pos : tuple of length 3
+        The positive candidate intersection point (antipodal to neg).
+    neg : tuple of length 3
+        The negative candidate intersection point (antipodal to pos).
     """
     pos, neg = _accux_gca(w0, w1, v0, v1)
 
-    pos_fin = (
-        int(math.isfinite(pos[0]))
-        * int(math.isfinite(pos[1]))
-        * int(math.isfinite(pos[2]))
-    )
-    neg_fin = (
-        int(math.isfinite(neg[0]))
-        * int(math.isfinite(neg[1]))
-        * int(math.isfinite(neg[2]))
-    )
+    pos_fin = _numba_allfinite3(pos)
+    neg_fin = _numba_allfinite3(neg)
     pos_on_a = pos_fin * on_minor_arc(pos, w0, w1)
     pos_on_b = pos_fin * on_minor_arc(pos, v0, v1)
     neg_on_a = neg_fin * on_minor_arc(neg, w0, w1)
@@ -401,10 +359,9 @@ def _try_gca_gca_intersection(w0, w1, v0, v1):
     pos_mask = pos_valid * (1 - neg_valid)
     neg_mask = neg_valid * (1 - pos_valid)
 
-    point = np.empty(3)
-    point[0] = pos_mask * pos[0] + neg_mask * neg[0]
-    point[1] = pos_mask * pos[1] + neg_mask * neg[1]
-    point[2] = pos_mask * pos[2] + neg_mask * neg[2]
+    point = _numba_add3(
+        _numba_mul3_scalar(pos, pos_mask), _numba_mul3_scalar(neg, neg_mask)
+    )
 
     both = pos_valid * neg_valid
     none = (1 - pos_valid) * (1 - neg_valid)
@@ -422,16 +379,18 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
 
     Parameters
     ----------
-    gca_a_xyz : numpy.ndarray
-        First great-circle arc as two Cartesian endpoints, shape ``(2, 3)``.
-    gca_b_xyz : numpy.ndarray
-        Second great-circle arc as two Cartesian endpoints, shape ``(2, 3)``.
+    gca_a_xyz : iterable of 2 length-3 iterables
+        First great-circle arc as two Cartesian endpoints.
+        (If numpy array, has shape (2,3). If tuple, contains two length-3 tuples.)
+    gca_b_xyz : iterable of 2 length-3 iterables
+        Second great-circle arc as two Cartesian endpoints.
+        (If numpy array, has shape (2,3). If tuple, contains two length-3 tuples.)
 
     Returns
     -------
-    numpy.ndarray
-        Intersection points, shape ``(2, 3)``, with unused rows filled with NaN
-        (0, 1, or 2 valid rows).
+    intersections : tuple of 2 length-3 tuples
+        The (x,y,z) coordinates of the intersections, filling with NaNs as needed.
+        E.g. if there is one intersection, returns ((x1,y1,z1) (nan,nan,nan)).
 
     References
     ----------
@@ -444,8 +403,18 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
     intersections on a sphere. SIAM Journal on Scientific Computing, 48(2),
     B208-B232. https://doi.org/10.1137/25M1737614
     """
-    if gca_a_xyz.shape[1] != 3 or gca_b_xyz.shape[1] != 3:
-        raise DimensionError("The two GCAs must be in the cartesian [x, y, z] format")
+    if len(gca_a_xyz) != 2 or len(gca_b_xyz) != 2:
+        raise DimensionError("Each input to gca_gca_intersection must have length 2")
+    if len(gca_a_xyz[0]) != 3 or len(gca_a_xyz[1]) != 3:
+        raise DimensionError(
+            "gca_a points must be in cartesian format (x,y,z), but got len(gca_a[0]) != 3"
+            "or len(gca_a[1]) != 3, in gca_gca_intersection(gca_a, gca_b)"
+        )
+    if len(gca_b_xyz[0]) != 3 or len(gca_b_xyz[1]) != 3:
+        raise DimensionError(
+            "gca_b points must be in cartesian format (x,y,z), but got len(gca_b[0]) != 3"
+            "or len(gca_b[1]) != 3, in gca_gca_intersection(gca_a, gca_b)"
+        )
 
     w0 = gca_a_xyz[0]
     w1 = gca_a_xyz[1]
@@ -454,56 +423,59 @@ def gca_gca_intersection(gca_a_xyz, gca_b_xyz):
 
     point, status, pos, neg = _try_gca_gca_intersection(w0, w1, v0, v1)
 
-    res = np.empty((2, 3))
-    count = 0
-    if status == 0:
-        res[0, 0] = point[0]
-        res[0, 1] = point[1]
-        res[0, 2] = point[2]
-        count = 1
+    # Always return two points; branching logic changing output shape while
+    # using tuple outputs causes numba crash like "Can't unify return type".
+    # (And, swapping to tiny numpy array outputs causes significant slowdown.)
+    if status == 0:  # one intersection point
+        result = (point, (np.nan, np.nan, np.nan))
     elif status == 1:
-        res[0, 0] = pos[0]
-        res[0, 1] = pos[1]
-        res[0, 2] = pos[2]
-        res[1, 0] = neg[0]
-        res[1, 1] = neg[1]
-        res[1, 2] = neg[2]
-        count = 2
+        result = (pos, neg)
     else:
         # status == 2: no candidate on both arcs.
         # Check for coplanar overlap (shared endpoints) outside the kernel.
-        if on_minor_arc(v0, w0, w1):
-            res[count, 0] = v0[0]
-            res[count, 1] = v0[1]
-            res[count, 2] = v0[2]
-            count += 1
-        if on_minor_arc(v1, w0, w1):
-            res[count, 0] = v1[0]
-            res[count, 1] = v1[1]
-            res[count, 2] = v1[2]
-            count += 1
-    return res[:count]
+        v0_on_w_arc = on_minor_arc(v0, w0, w1)
+        v1_on_w_arc = on_minor_arc(v1, w0, w1)
+        if v0_on_w_arc or v1_on_w_arc:
+            # Ensure result will be (tuple,tuple), to avoid "Can't unify return type",
+            # which occurs if there is any chance of (array,tuple) or (array,array).
+            v0 = (v0[0], v0[1], v0[2])
+            v1 = (v1[0], v1[1], v1[2])
+            if v0_on_w_arc and v1_on_w_arc:
+                result = (v0, v1)
+            elif v0_on_w_arc:
+                result = (v0, (np.nan, np.nan, np.nan))
+            elif v1_on_w_arc:
+                result = (v1, (np.nan, np.nan, np.nan))
+        else:
+            result = ((np.nan, np.nan, np.nan), (np.nan, np.nan, np.nan))
+    return result
 
 
 @njit(cache=True, inline="always", error_model="numpy")
-def _accux_constlat_scalar(a0, a1, a2, b0, b1, b2, const_z):
-    """Compute the constant-latitude intersection candidates, scalar in/out.
+def _accux_constlat(a, b, const_z):
+    """Compute the two constant-latitude intersection candidates as tuples
 
-    Allocation-free numerical kernel. Same compensated AccuSphGeom sequence as
-    :func:`_accux_constlat`, but takes the two arc endpoints as six scalars and
-    returns the two candidate points as six scalars (``pos`` xy and ``neg`` xy;
-    the z of both candidates is ``const_z``). Returning scalars instead of
-    ``np.empty(3)`` arrays lets Numba
-    keep everything in registers, so a batch loop over many edges does no
-    per-point heap allocation. This is the preferred entry point for hot loops.
+    Pure numerical kernel (mirrors AccuSphGeom ``accux_constlat``). Computes the
+    two candidate intersection points between the great-circle arc defined by
+    unit vectors *x1*, *x2* and the constant-latitude plane z = const_z. No
+    branching, no validity filtering.
+
+    Parameters
+    ----------
+    a, b : iterables of length 3
+        Cartesian endpoints of the great-circle arc.
+    const_z : float
+        Constant-latitude plane, given as the Cartesian z value ``sin(lat)``.
 
     Returns
     -------
-    px, py, nx_out, ny_out : float
+    pos, neg : tuples of length 3
         ``pos = (px, py, const_z)`` and ``neg = (nx_out, ny_out, const_z)``.
         Invalid inputs propagate as non-finite coordinates.
     """
-    nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(a0, a1, a2, b0, b1, b2)
+    nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(
+        a[0], a[1], a[2], b[0], b[1], b[2]
+    )
     s2_hi, s2_lo = _sum_of_squares_c((nx_hi, ny_hi), (nx_lo, ny_lo))
     denom = s2_hi + s2_lo
     s3_hi, s3_lo = _sum_of_squares_c((nx_hi, ny_hi, nz_hi), (nx_lo, ny_lo, nz_lo))
@@ -528,50 +500,13 @@ def _accux_constlat_scalar(a0, a1, a2, b0, b1, b2, const_z):
     py = -(yp_hi + yp_lo) * inv_denom
     nxo = -(xn_hi + xn_lo) * inv_denom
     nyo = -(yn_hi + yn_lo) * inv_denom
-    return px, py, nxo, nyo
-
-
-@njit(cache=True, inline="always")
-def _accux_constlat(x1, x2, const_z):
-    """Compute the two constant-latitude intersection candidates as arrays.
-
-    Pure numerical kernel (mirrors AccuSphGeom ``accux_constlat``). An
-    array-returning wrapper around :func:`_accux_constlat_scalar`. Computes the
-    two candidate intersection points between the great-circle arc defined by
-    unit vectors *x1*, *x2* and the constant-latitude plane z = const_z. No
-    branching, no validity filtering. For allocation-free hot loops call
-    :func:`_accux_constlat_scalar` directly.
-
-    Parameters
-    ----------
-    x1, x2 : np.ndarray, shape (3,)
-        Cartesian endpoints of the great-circle arc.
-    const_z : float
-        Constant-latitude plane, given as the Cartesian z value ``sin(lat)``.
-
-    Returns
-    -------
-    pos, neg : np.ndarray, shape (3,)
-        Two antipodal candidate points.  Invalid inputs propagate as non-finite
-        coordinates; the caller uses masks/status to identify validity.
-    """
-    px, py, nxo, nyo = _accux_constlat_scalar(
-        x1[0], x1[1], x1[2], x2[0], x2[1], x2[2], const_z
-    )
-    pos = np.empty(3)
-    pos[0] = px
-    pos[1] = py
-    pos[2] = const_z
-    neg = np.empty(3)
-    neg[0] = nxo
-    neg[1] = nyo
-    neg[2] = const_z
-    return pos, neg
+    return (px, py, const_z), (nxo, nyo, const_z)
 
 
 @njit(cache=True, error_model="numpy")
 def _try_gca_const_lat_intersection(gca_cart, const_z):
     """Select the valid constant-latitude intersection and report a status code.
+    Returns point, status, pos, neg.
 
     Batch/status layer (mirrors AccuSphGeom ``try_gca_constlat_intersection``).
 
@@ -579,10 +514,24 @@ def _try_gca_const_lat_intersection(gca_cart, const_z):
     for each candidate using finiteness and arc-membership tests, then selects
     the output point via integer arithmetic — no if/else branching in the hot path.
 
-    Status codes mirror AccuSphGeom:
-        0  exactly one candidate is valid  (normal case)
-        1  both candidates are valid
+    Parameters
+    ----------
+    gca_cart : iterable of 2 length-3 iterables
+        Cartesian endpoints of the first arc.
+    const_z : float
+        Constant-latitude plane, given as the Cartesian z value ``sin(lat)``.
+
+    Returns
+    -------
+    point : tuple of length 3
+        The single valid intersection point, if status == 0, else meaningless.
+    status : int
+        Status codes mirror AccuSphGeom:
+        0  exactly one candidate is valid (point) (this is the normal case)
+        1  both candidates are valid (pos and neg)
         2  neither candidate is valid
+    pos, neg : tuple of length 3
+        The candidate intersection points.
     """
     x1 = gca_cart[0]
     x2 = gca_cart[1]
@@ -599,10 +548,9 @@ def _try_gca_const_lat_intersection(gca_cart, const_z):
     pos_mask = pos_valid * (1 - neg_valid)
     neg_mask = neg_valid * (1 - pos_valid)
 
-    point = np.empty(3)
-    point[0] = pos_mask * pos[0] + neg_mask * neg[0]
-    point[1] = pos_mask * pos[1] + neg_mask * neg[1]
-    point[2] = pos_mask * pos[2] + neg_mask * neg[2]
+    point = _numba_add3(
+        _numba_mul3_scalar(pos, pos_mask), _numba_mul3_scalar(neg, neg_mask)
+    )
 
     both = pos_valid * neg_valid
     none = (1 - pos_valid) * (1 - neg_valid)
@@ -611,45 +559,35 @@ def _try_gca_const_lat_intersection(gca_cart, const_z):
 
 
 @njit(cache=True)
-def _snap_const_lat_endpoint(point, x1, x2, const_z):
-    """Snap a candidate point to an arc endpoint when the endpoint lies on the latitude."""
+def _snap_const_lat_endpoint(point, a, b, const_z):
+    """Snap a candidate point to an arc endpoint when the endpoint lies on the latitude.
+    Returns (x,y,z) of the possibly-snapped point.
+
+    point, a, b : iterables of length 3
+        Cartesian coordinates of the candidate point and the two arc endpoints.
+    const_z : float
+        Constant-latitude plane, given as the Cartesian z value ``sin(lat)``.
+    """
     # 1e-14 is distance² in Cartesian between candidate and endpoint; corresponds
     # to ~1e-7 in arc length (unit sphere). Candidates within this distance are
     # snapped to the exact endpoint to avoid sub-ulp drift when the arc ends
     # exactly on the latitude circle.
-    sx, sy = _snap_const_lat_endpoint_xy(
-        point[0], point[1], x1[0], x1[1], x1[2], x2[0], x2[1], x2[2], const_z
-    )
-    out = np.empty(3)
-    out[0] = sx
-    out[1] = sy
-    out[2] = point[2]
-    return out
-
-
-@njit(cache=True, inline="always")
-def _snap_const_lat_endpoint_xy(px, py, a0, a1, a2, b0, b1, b2, const_z):
-    """Scalar-argument form of :func:`_snap_const_lat_endpoint`.
-
-    Returns the (possibly snapped) x, y of the candidate; z is always ``const_z``
-    so it is not returned. Allocation-free for use in hot loops.
-    """
     snap_sq = 1e-14
-    ox = px
-    oy = py
-    if abs(a2 - const_z) <= ERROR_TOLERANCE:
-        dx = ox - a0
-        dy = oy - a1
+    ox = point[0]
+    oy = point[1]
+    if abs(a[2] - const_z) <= ERROR_TOLERANCE:
+        dx = ox - a[0]
+        dy = oy - a[1]
         if dx * dx + dy * dy < snap_sq:
-            ox = a0
-            oy = a1
-    if abs(b2 - const_z) <= ERROR_TOLERANCE:
-        dx = ox - b0
-        dy = oy - b1
+            ox = a[0]
+            oy = a[1]
+    if abs(b[2] - const_z) <= ERROR_TOLERANCE:
+        dx = ox - b[0]
+        dy = oy - b[1]
         if dx * dx + dy * dy < snap_sq:
-            ox = b0
-            oy = b1
-    return ox, oy
+            ox = b[0]
+            oy = b[1]
+    return (ox, oy, point[2])
 
 
 @njit(cache=True, error_model="numpy")
@@ -657,24 +595,23 @@ def gca_const_lat_intersection(gca_cart, const_z):
     """Return the intersection points of a great-circle arc and a latitude.
 
     Dispatcher / convenience API. Runs the numerical kernel, validity masks,
-    endpoint snapping, and packaging into UXarray's NaN-filled (2, 3) format
-    entirely on scalars, so the only heap allocation is the returned array. All
-    UXarray-specific branching lives here so the numerical core stays uniform.
-    See ``_try_gca_const_lat_intersection`` for the array-returning form used by
-    the layer benchmarks.
+    endpoint snapping, and packaging into UXarray's NaN-filled (2,3) format.
+    All UXarray-specific branching lives here so the numerical core stays uniform.
+    See also: ``_try_gca_const_lat_intersection``.
 
     Parameters
     ----------
-    gca_cart : numpy.ndarray
-        Great-circle arc as two Cartesian endpoints, shape ``(2, 3)``.
+    gca_cart : iterable of 2 length-3 iterables
+        Great-circle arc as two Cartesian endpoints.
+        (If numpy array, has shape (2,3). If tuple, contains two length-3 tuples.)
     const_z : float
         Constant-latitude plane, given as the Cartesian z value ``sin(lat)``.
 
     Returns
     -------
-    numpy.ndarray
-        Intersection points, shape ``(2, 3)``, with unused rows filled with NaN
-        (0, 1, or 2 valid rows).
+    intersections : tuple of 2 length-3 tuples
+        The (x,y,z) coordinates of the intersections, filling with NaNs as needed.
+        E.g. if there is one intersection, returns ((x1,y1,z1),(nan,nan,nan)).
 
     References
     ----------
@@ -687,63 +624,51 @@ def gca_const_lat_intersection(gca_cart, const_z):
     intersections on a sphere. SIAM Journal on Scientific Computing, 48(2),
     B208-B232. https://doi.org/10.1137/25M1737614
     """
-    res = np.empty((2, 3))
-    res.fill(np.nan)
+    a = gca_cart[0]
+    b = gca_cart[1]
 
-    a0 = gca_cart[0, 0]
-    a1 = gca_cart[0, 1]
-    a2 = gca_cart[0, 2]
-    b0 = gca_cart[1, 0]
-    b1 = gca_cart[1, 1]
-    b2 = gca_cart[1, 2]
+    pos, neg = _accux_constlat(a, b, const_z)
 
-    px, py, nx, ny = _accux_constlat_scalar(a0, a1, a2, b0, b1, b2, const_z)
-
-    pos_fin = int(math.isfinite(px)) * int(math.isfinite(py))
-    neg_fin = int(math.isfinite(nx)) * int(math.isfinite(ny))
-    pos_valid = pos_fin * _on_minor_arc_xyz(px, py, const_z, a0, a1, a2, b0, b1, b2)
-    neg_valid = neg_fin * _on_minor_arc_xyz(nx, ny, const_z, a0, a1, a2, b0, b1, b2)
+    pos_fin = int(math.isfinite(pos[0])) * int(math.isfinite(pos[1]))
+    neg_fin = int(math.isfinite(neg[0])) * int(math.isfinite(neg[1]))
+    pos_valid = pos_fin * on_minor_arc(pos, a, b)
+    neg_valid = neg_fin * on_minor_arc(neg, a, b)
 
     if pos_valid ^ neg_valid:
+        # exactly 1 valid intersection point
         if pos_valid:
-            sx, sy = _snap_const_lat_endpoint_xy(
-                px, py, a0, a1, a2, b0, b1, b2, const_z
-            )
+            point_snapped = _snap_const_lat_endpoint(pos, a, b, const_z)
         else:
-            sx, sy = _snap_const_lat_endpoint_xy(
-                nx, ny, a0, a1, a2, b0, b1, b2, const_z
-            )
-        res[0, 0] = sx
-        res[0, 1] = sy
-        res[0, 2] = const_z
+            point_snapped = _snap_const_lat_endpoint(neg, a, b, const_z)
+        result = (point_snapped, (np.nan, np.nan, np.nan))
     elif pos_valid and neg_valid:
-        psx, psy = _snap_const_lat_endpoint_xy(px, py, a0, a1, a2, b0, b1, b2, const_z)
-        nsx, nsy = _snap_const_lat_endpoint_xy(nx, ny, a0, a1, a2, b0, b1, b2, const_z)
-        dx = psx - nsx
-        dy = psy - nsy
+        # probably 2 valid intersection points
+        pos_snapped = _snap_const_lat_endpoint(pos, a, b, const_z)
+        neg_snapped = _snap_const_lat_endpoint(neg, a, b, const_z)
+        dx = pos_snapped[0] - neg_snapped[0]
+        dy = pos_snapped[1] - neg_snapped[1]
         if dx * dx + dy * dy < 1e-14:
-            res[0, 0] = psx
-            res[0, 1] = psy
-            res[0, 2] = const_z
+            # (actually, they are the same point! --> Only 1 valid point.)
+            result = (pos_snapped, (np.nan, np.nan, np.nan))
         else:
-            res[0, 0] = psx
-            res[0, 1] = psy
-            res[0, 2] = const_z
-            res[1, 0] = nsx
-            res[1, 1] = nsy
-            res[1, 2] = const_z
-    return res
+            result = (pos_snapped, neg_snapped)
+    else:
+        # 0 valid intersection points
+        result = ((np.nan, np.nan, np.nan), (np.nan, np.nan, np.nan))
+    return result
 
 
 @njit(cache=True)
 def get_number_of_intersections(arr):
-    """Return the number of intersection points in a gca-const-lat result.
+    """Return the number of intersection points in a gca intersections result.
 
     Parameters
     ----------
-    arr : numpy.ndarray
-        Output of :func:`gca_const_lat_intersection`, shape ``(2, 3)`` with
-        unused rows filled with NaN.
+    arr : iterable of 2 length-3 iterables
+        Intersection points from a gca intersections function, e.g. one of:
+        :func:`gca_gca_intersection` or :func:`gca_const_lat_intersection`.
+        (If numpy array, has shape (2,3). If tuple, contains two length-3 tuples.)
+        NaN values indicate no intersection at that point.
 
     Returns
     -------
@@ -761,8 +686,8 @@ def get_number_of_intersections(arr):
     intersections on a sphere. SIAM Journal on Scientific Computing, 48(2),
     B208-B232. https://doi.org/10.1137/25M1737614
     """
-    row1_is_nan = np.all(np.isnan(arr[0]))
-    row2_is_nan = np.all(np.isnan(arr[1]))
+    row1_is_nan = np.isnan(arr[0][0]) * np.isnan(arr[0][1]) * np.isnan(arr[0][2])
+    row2_is_nan = np.isnan(arr[1][0]) * np.isnan(arr[1][1]) * np.isnan(arr[1][2])
 
     if row1_is_nan and row2_is_nan:
         return 0

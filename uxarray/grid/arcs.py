@@ -9,6 +9,11 @@ from uxarray.grid.coordinates import (
 )
 from uxarray.grid.utils import _angle_of_2_vectors
 from uxarray.utils.computing import _cdp8, accucross
+from uxarray.utils.numba_math import (
+    _numba_cross3,
+    _numba_dot3,
+    _numba_sub3,
+)
 
 # Magnitude below which orient3d_on_sphere classifies a result as zero. For
 # double-precision unit-vector inputs this covers rounding error in the
@@ -40,11 +45,11 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
 
     Parameters
     ----------
-    pt_xyz : numpy.ndarray
+    pt_xyz : iterable of length 3
         Cartesian coordinates of the point.
-    gca_a_xyz : numpy.ndarray
+    gca_a_xyz : iterable of length 3
         Cartesian coordinates of the first endpoint of the Great Circle Arc.
-    gca_b_xyz : numpy.ndarray
+    gca_b_xyz : iterable of length 3
         Cartesian coordinates of the second endpoint of the Great Circle Arc.
 
     Returns
@@ -62,29 +67,32 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     -----
     - The function ensures that the point lies on the same plane as the GCA before performing interval checks.
     - It assumes the input represents the smaller arc of the Great Circle.
-    - The `_angle_of_2_vectors` and `_xyz_to_lonlat_rad_scalar` functions are used for calculations.
+    - The `_angle_of_2_vectors` function is used for calculations.
     """
     # 1. Check if the input GCA spans exactly 180 degrees
     angle_ab = _angle_of_2_vectors(gca_a_xyz, gca_b_xyz)
-    if np.allclose(angle_ab, np.pi, rtol=0.0, atol=MACHINE_EPSILON):
+    if np.isclose(angle_ab, np.pi, rtol=0.0, atol=MACHINE_EPSILON):
         raise ValueError(
             "The input Great Circle Arc spans exactly 180 degrees, which can correspond to multiple planes. "
             "Consider breaking the Great Circle Arc into two smaller arcs."
-        )
+        )  # (numba complains about f-strings, so don't put actual values in message.)
 
     # 2. Verify if the point lies on the plane of the GCA
-    cross_product = np.cross(gca_a_xyz, gca_b_xyz)
-    if not np.allclose(
-        np.dot(cross_product, pt_xyz), 0, rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
+    cross_product = _numba_cross3(gca_a_xyz, gca_b_xyz)
+    if not np.isclose(
+        _numba_dot3(cross_product, pt_xyz),
+        0,
+        rtol=MACHINE_EPSILON,
+        atol=MACHINE_EPSILON,
     ):
         return False
 
     # 3. Check if the point lies within the Great Circle Arc interval
-    pt_a = gca_a_xyz - pt_xyz
-    pt_b = gca_b_xyz - pt_xyz
+    pt_a = _numba_sub3(gca_a_xyz, pt_xyz)
+    pt_b = _numba_sub3(gca_b_xyz, pt_xyz)
 
     # Use the dot product to determine the sign of the angle between pt_a and pt_b
-    cos_theta = np.dot(pt_a, pt_b)
+    cos_theta = _numba_dot3(pt_a, pt_b)
 
     # Return True if the point lies within the interval (smaller arc)
     if cos_theta < 0:
@@ -224,7 +232,8 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     """
     # Validate extreme_type
     if (extreme_type != "max") and (extreme_type != "min"):
-        raise ValueError("extreme_type must be either 'max' or 'min'")
+        raise ValueError("Invalid extreme_type. Expected 'max' or 'min'.")
+        # (numba complains about f-strings, so don't put `extreme_type` value in message.)
 
     # Extract the two points
     n1 = gca_cart[0]
@@ -305,7 +314,8 @@ def extreme_gca_z(gca_cart, extreme_type):
 
     # Validate extreme_type
     if (extreme_type != "max") and (extreme_type != "min"):
-        raise ValueError("extreme_type must be either 'max' or 'min'")
+        raise ValueError("Invalid extreme_type. Expected 'max' or 'min'.")
+        # (numba complains about f-strings, so don't put `extreme_type` value in message.)
 
     # Extract the two points
     n1 = gca_cart[0]
@@ -499,10 +509,10 @@ def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
 
     Parameters
     ----------
-    q : np.ndarray, shape (3,)
+    q : iterable of length 3
         Query point (unit vector).
-    a, b : np.ndarray, shape (3,)
-        Endpoints of the great-circle arc (unit vectors).
+    a, b : iterable of length 3
+        (x,y,z) coordinates of endpoints of the great-circle arc (unit vectors).
     tol : float, optional
         Tolerance for the collinearity and interval checks.
 
@@ -519,16 +529,6 @@ def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
     Shewchuk, J. R. (1997). Adaptive precision floating-point arithmetic and
     fast robust geometric predicates. Discrete & Computational Geometry, 18,
     305-363. https://doi.org/10.1007/PL00009321
-    """
-    return _on_minor_arc_xyz(q[0], q[1], q[2], a[0], a[1], a[2], b[0], b[1], b[2], tol)
-
-
-@njit(cache=True, inline="always")
-def _on_minor_arc_xyz(q0, q1, q2, a0, a1, a2, b0, b1, b2, tol=_ON_MINOR_ARC_TOL):
-    """Scalar-argument form of :func:`on_minor_arc`, returning a 0/1 int mask.
-
-    Same logic, but takes the nine vector components directly so hot loops can
-    test arc membership without allocating ``(3,)`` arrays for the query point.
     """
     # An attempt to implement a similar Python function that provides the
     # same functionality as AccuSphGeom's on_minor_arc_tol_ptr: the result is
@@ -551,6 +551,9 @@ def _on_minor_arc_xyz(q0, q1, q2, a0, a1, a2, b0, b1, b2, tol=_ON_MINOR_ARC_TOL)
     # implement. The C++ reference's ``on_minor_arc_tol_ptr`` only guards
     # exact coincidence and assumes non-antipodal mesh edges, so this
     # widening is a UXarray-side addition, not a port of the reference.
+    a0, a1, a2 = a
+    b0, b1, b2 = b
+    q0, q1, q2 = q
     cx = a1 * b2 - a2 * b1
     cy = a2 * b0 - a0 * b2
     cz = a0 * b1 - a1 * b0

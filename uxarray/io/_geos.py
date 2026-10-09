@@ -12,8 +12,8 @@ def _read_geos_cs(in_ds: xr.Dataset):
     """
     out_ds = xr.Dataset()
 
-    node_lon = in_ds["corner_lons"].values.ravel()
-    node_lat = in_ds["corner_lats"].values.ravel()
+    node_lon = in_ds["corner_lons"].data.ravel()
+    node_lat = in_ds["corner_lats"].data.ravel()
 
     out_ds["node_lon"] = xr.DataArray(
         data=node_lon, dims=ugrid.NODE_DIM, attrs=ugrid.NODE_LON_ATTRS
@@ -24,8 +24,8 @@ def _read_geos_cs(in_ds: xr.Dataset):
     )
 
     if "lons" in in_ds:
-        face_lon = in_ds["lons"].values.ravel()
-        face_lat = in_ds["lats"].values.ravel()
+        face_lon = in_ds["lons"].data.ravel()
+        face_lat = in_ds["lats"].data.ravel()
 
         out_ds["face_lon"] = xr.DataArray(
             data=face_lon, dims=ugrid.FACE_DIM, attrs=ugrid.FACE_LON_ATTRS

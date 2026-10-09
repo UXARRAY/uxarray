@@ -364,9 +364,9 @@ class RemapAccessor:
 
         Notes
         -----
-        Dask-backed inputs are materialized in memory before the sparse
-        operator is applied. For lazy/chunked execution, prefer
-        ``nearest_neighbor`` or ``inverse_distance_weighted``.
+        Dask-backed inputs are remapped lazily: the sparse operator is applied
+        blockwise over the leading dimensions, keeping the source dimension in a
+        single chunk. Numpy-backed inputs are applied eagerly.
         """
 
         return _apply_weights(

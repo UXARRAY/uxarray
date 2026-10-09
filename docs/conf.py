@@ -245,6 +245,8 @@ linkcheck_ignore = [
     r"https://healpix.sourceforge.io/*",
     r"https://zenodo.org/*",
     r"https://doi.org/10.5281/zenodo*",
+    r"https://stackoverflow.com/*",  # Cloudflare bot protection
+    r"https://doi.org/10.1137/*",  # SIAM DOIs -> epubs.siam.org blocks bots
     # More URLs as needed
 ]
 

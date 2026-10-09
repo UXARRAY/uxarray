@@ -32,7 +32,7 @@ These user guides provide detailed explanations of the core functionality in UXa
  Core data structures for working with unstructured grid and data files
 
 `Custom Grid Topology <user-guide/custom-grid.ipynb>`_
- Create a Grid from custom Grid topology and convert existing Xarray data structures to UXarray.
+ Create a Grid from custom Grid topology and convert existing Xarray data structures to UXarray
 
 `Loading Data using Dask <user-guide/parallel-load-ux-with-dask.ipynb>`_
  Read data with chunking and/or in parallel
@@ -50,7 +50,7 @@ These user guides provide detailed explanations of the core functionality in UXa
  Select specific regions of a grid
 
 `Spatial Hashing <user-guide/spatial-hashing.ipynb>`_
- Use spatial hashing to locate the faces a list of points reside in.
+ Use spatial hashing to locate the faces a list of points reside in
 
 `Cross-Sections <user-guide/cross-sections.ipynb>`_
  Select cross-sections of a grid
@@ -60,6 +60,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 
 `Azimuthal Mean <user-guide/azimuthal-average.ipynb>`_
  Compute the azimuthal average along rings of constant distance from a specified central point
+
+`Neighborhood Filter <user-guide/neighborhood-filter.ipynb>`_
+ Apply a function (e.g. mean, max, percentile) to all grid elements within a circular radius
 
 `Remapping <user-guide/remapping.ipynb>`_
  Remap (a.k.a Regrid) between unstructured grids
@@ -121,6 +124,7 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/cross-sections.ipynb
    user-guide/zonal-average.ipynb
    user-guide/azimuthal-average.ipynb
+   user-guide/neighborhood-filter.ipynb
    user-guide/remapping.ipynb
    user-guide/remap-weights.rst
    user-guide/topological-aggregations.ipynb
