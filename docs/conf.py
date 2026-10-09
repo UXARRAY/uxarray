@@ -14,7 +14,9 @@ from textwrap import dedent, indent
 import matplotlib.pyplot
 import sphinx_autosummary_accessors
 import yaml
+from sphinx import addnodes
 from sphinx.application import Sphinx
+from sphinx.environment import BuildEnvironment
 from sphinx.util import logging
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -63,7 +65,6 @@ extensions = [
     "sphinx_design",
     "IPython.sphinxext.ipython_directive",
     "IPython.sphinxext.ipython_console_highlighting",
-    "sphinx_remove_toctrees",
     "sphinx_copybutton",
 ]
 
@@ -102,8 +103,6 @@ intersphinx_mapping = {
 
 # Notebook execution (per cell)
 nb_execution_timeout = 120
-
-remove_from_toctrees = ["generated/*"]
 
 napoleon_use_admonition_for_examples = True
 napoleon_include_special_with_doc = True
@@ -286,7 +285,37 @@ def update_gallery(app: Sphinx):
     LOGGER.info("Gallery page updated.")
 
 
+STUB_DIR = "generated/"
+
+
+def prune_generated_toctrees(app: Sphinx, env: BuildEnvironment):
+    """Keep the autosummary stub pages out of the navigation sidebar.
+
+    ``:toctree: generated/`` is what makes ``autosummary`` write one stub page
+    per API entry, but it also files every stub under the page that summarised
+    it. Left alone, the sidebar entry for the API reference therefore expands
+    into hundreds of ``generated/...`` pages instead of the page's own
+    sections. Drop those entries once the environment is built, which is late
+    enough that the references have been resolved and no "document isn't
+    included in any toctree" warnings are emitted.
+    """
+    for toc in env.tocs.values():
+        # Materialize the iterator before touching the tree: removing a node
+        # while ``findall`` is still walking makes it skip the next siblings.
+        for toctree in list(toc.findall(addnodes.toctree)):
+            entries = [
+                entry
+                for entry in toctree.attributes.get("entries", [])
+                if not entry[1].startswith(STUB_DIR)
+            ]
+            if entries:
+                toctree.attributes["entries"] = entries
+            else:
+                toctree.parent.remove(toctree)
+
+
 # Allow for changes to be made to the css in the theme_overrides file
 def setup(app):
     app.add_css_file("theme_overrides.css")
     app.connect("builder-inited", update_gallery)
+    app.connect("env-updated", prune_generated_toctrees)
