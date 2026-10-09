@@ -13,6 +13,7 @@ Two methods are provided:
 from __future__ import annotations
 
 from collections import defaultdict
+from difflib import get_close_matches
 from typing import TYPE_CHECKING, Sequence
 
 import numpy as np
@@ -24,8 +25,13 @@ if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
     from uxarray.grid import Grid
 
-# Triangles or edges wider than this in longitude wrap around the antimeridian
+# Triangles wider than this in longitude wrap around the antimeridian
 _MAX_LON_SPAN = 180.0
+
+# Each level gets at most this many labels. Apart from its longest line, a line is
+# labeled only if it is at least this long, as a fraction of the extent of all the lines
+_MAX_LABELS_PER_LEVEL = 3
+_MIN_LABELED_LENGTH = 0.1
 
 
 def _spatial_values(uxda: UxDataArray) -> tuple[np.ndarray, str]:
@@ -65,7 +71,9 @@ def _fan_triangles(
     return np.concatenate(triangles)
 
 
-def _triangulation(uxgrid: Grid, dim: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _triangulation(
+    uxgrid: Grid, dim: str
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Triangles whose corners are the locations of the data.
 
     For node-centered data the faces of the grid are split into triangles. For
@@ -75,10 +83,14 @@ def _triangulation(uxgrid: Grid, dim: str) -> tuple[np.ndarray, np.ndarray, np.n
     Returns
     -------
     lon, lat : np.ndarray
-        Coordinates of the triangle corners, in degrees.
+        Coordinates of the triangle corners, in degrees. Triangles that cross
+        the antimeridian use copies of their western corners, moved 360 degrees
+        east, so longitudes can be greater than 180.
     triangles : np.ndarray
         Indices into ``lon`` and ``lat``, with shape ``(n_triangle, 3)``.
-        Triangles that cross the antimeridian are not included.
+        Triangles that contain a pole are not included.
+    index : np.ndarray
+        Index of the data value at each corner.
     """
     source = uxgrid.get_dual() if dim == "n_face" else uxgrid
 
@@ -87,12 +99,49 @@ def _triangulation(uxgrid: Grid, dim: str) -> tuple[np.ndarray, np.ndarray, np.n
     triangles = _fan_triangles(
         source.face_node_connectivity.values, source.n_nodes_per_face.values
     )
+    index = np.arange(len(lon))
 
-    usable = np.ptp(lon[triangles], axis=1) < _MAX_LON_SPAN
+    crossing = np.ptp(lon[triangles], axis=1) >= _MAX_LON_SPAN
+    if crossing.any():
+        corners = triangles[crossing]
+        west = np.unique(corners[lon[corners] < 0])
+        copy_of = np.full(len(lon), -1, dtype=triangles.dtype)
+        copy_of[west] = len(lon) + np.arange(len(west))
+        triangles[crossing] = np.where(lon[corners] < 0, copy_of[corners], corners)
+        lon = np.concatenate([lon, lon[west] + 360.0])
+        lat = np.concatenate([lat, lat[west]])
+        index = np.concatenate([index, west])
+
+    # A face that lists a node twice gives a triangle with a repeated corner.
+    # Matplotlib's contouring does not return when it is given one.
+    first, second, third = triangles.T
+    usable = (first != second) & (second != third) & (first != third)
+    usable &= np.ptp(lon[triangles], axis=1) < _MAX_LON_SPAN
     usable &= np.isfinite(lon[triangles]).all(axis=1)
     usable &= np.isfinite(lat[triangles]).all(axis=1)
 
-    return lon, lat, triangles[usable]
+    return lon, lat, triangles[usable], index
+
+
+def _split_at_antimeridian(line: np.ndarray) -> list[np.ndarray]:
+    """Splits a line whose longitudes run past -180 or 180 degrees into the
+    parts on either side of the antimeridian, each with longitudes in
+    [-180, 180]."""
+    lon = line[:, 0]
+    if lon.min() >= -180.0 and lon.max() <= 180.0:
+        return [line]
+
+    import shapely
+
+    parts = []
+    first_turn = int(np.floor((lon.min() + 180.0) / 360.0))
+    last_turn = int(np.floor((lon.max() + 180.0) / 360.0))
+    for turn in range(first_turn, last_turn + 1):
+        moved = shapely.LineString(line - [360.0 * turn, 0.0])
+        for part in shapely.get_parts(shapely.clip_by_rect(moved, -180, -91, 180, 91)):
+            if isinstance(part, shapely.LineString) and len(part.coords) > 1:
+                parts.append(np.asarray(part.coords))
+    return parts
 
 
 def _contour_levels(values: np.ndarray, levels: int | Sequence[float]) -> np.ndarray:
@@ -114,6 +163,11 @@ def _contour_levels(values: np.ndarray, levels: int | Sequence[float]) -> np.nda
 
         levels = MaxNLocator(levels + 1, min_n_ticks=1).tick_values(vmin, vmax)
     else:
+        if np.ndim(levels) != 1:
+            raise ValueError(
+                "levels must be an integer or a one-dimensional sequence of values, "
+                f"but got {levels!r}"
+            )
         levels = np.sort(np.asarray(levels, dtype=float))
 
     return levels[(levels > vmin) & (levels < vmax)]
@@ -127,7 +181,8 @@ def _interpolated_contours(
     from matplotlib.figure import Figure
     from matplotlib.tri import Triangulation
 
-    lon, lat, triangles = _triangulation(uxgrid, dim)
+    lon, lat, triangles, index = _triangulation(uxgrid, dim)
+    values = values[index]
 
     # Triangles with a missing value at a corner cannot be contoured
     finite = np.isfinite(values)
@@ -142,10 +197,11 @@ def _interpolated_contours(
     )
 
     return [
-        (float(level), line)
+        (float(level), part)
         for level, lines in zip(contour_set.levels, contour_set.allsegs)
         for line in lines
         if len(line) > 1
+        for part in _split_at_antimeridian(line)
     ]
 
 
@@ -191,12 +247,11 @@ def _edge_contours(
     lon = _wrap_longitude(uxgrid.node_lon.values)
     lat = uxgrid.node_lat.values
 
-    # Edges with a face on both sides, both with data, that do not wrap around
+    # Edges with a face on both sides, both with data
     has_two_faces = (edge_faces >= 0).all(axis=1)
     first, second = edge_faces[:, 0].clip(0), edge_faces[:, 1].clip(0)
     finite = np.isfinite(values)
     usable = has_two_faces & finite[first] & finite[second]
-    usable &= np.abs(lon[edge_nodes[:, 0]] - lon[edge_nodes[:, 1]]) < _MAX_LON_SPAN
 
     contours = []
     for level in levels:
@@ -204,7 +259,10 @@ def _edge_contours(
         on_contour = usable & (above[first] != above[second])
         nodes = edge_nodes[on_contour]
         for line in _join_segments(nodes[:, 0], nodes[:, 1]):
-            contours.append((float(level), np.column_stack([lon[line], lat[line]])))
+            # Unwrapped, a line that crosses the antimeridian runs past 180 degrees
+            points = np.column_stack([np.unwrap(lon[line], period=360.0), lat[line]])
+            for part in _split_at_antimeridian(points):
+                contours.append((float(level), part))
     return contours
 
 
@@ -223,6 +281,74 @@ def _drop_lines_outside_projection(
         for level, line in contours
         if not projection.project_geometry(shapely.LineString(line), source).is_empty
     ]
+
+
+def _label_points(
+    contours: list[tuple[float, np.ndarray]],
+) -> tuple[list[float], list[float], list[str]]:
+    """Positions and text of the labels of contour lines.
+
+    Each level is labeled at the middle of its longest lines: the longest one,
+    and up to ``_MAX_LABELS_PER_LEVEL - 1`` more that are not short compared
+    with the extent of all the lines.
+
+    Returns
+    -------
+    x, y : list of float
+        Longitude and latitude of each label, in degrees.
+    text : list of str
+        The level of the line each label is on.
+    """
+    x, y, text = [], [], []
+    if not contours:
+        return x, y, text
+
+    extent = np.ptp(np.concatenate([line for _, line in contours]), axis=0).max()
+    middles = defaultdict(list)
+    for level, line in contours:
+        steps = np.hypot(*np.diff(line, axis=0).T)
+        distance = np.concatenate([[0.0], np.cumsum(steps)])
+        middle = [np.interp(distance[-1] / 2, distance, line[:, i]) for i in (0, 1)]
+        middles[level].append((distance[-1], *middle))
+
+    for level, found in middles.items():
+        found.sort(reverse=True)
+        for rank, (length, lon, lat) in enumerate(found[:_MAX_LABELS_PER_LEVEL]):
+            if rank == 0 or length >= _MIN_LABELED_LENGTH * extent:
+                x.append(float(lon))
+                y.append(float(lat))
+                text.append(f"{level:g}")
+
+    return x, y, text
+
+
+def _apply_options(element, options: dict):
+    """Applies plot options to an element.
+
+    As in hvPlot, which the other plot methods go through, the options are given
+    with their Bokeh names and are translated for the backend that is active.
+    """
+    _raise_hint_if_optional_deps_missing("holoviews", "hvplot")
+    import holoviews as hv
+    from hvplot.backend_transforms import _transfer_opts_cur_backend
+
+    allowed = set()
+    groups = hv.Store.options(backend="bokeh")[type(element).__name__].groups
+    for group in groups.values():
+        allowed.update(group.allowed_keywords)
+
+    unknown = sorted(set(options) - allowed)
+    if unknown:
+        similar = sorted(
+            {match for name in unknown for match in get_close_matches(name, allowed)}
+        )
+        raise ValueError(
+            f"Unsupported option(s) for plot.contour(): {unknown}. Options are given "
+            "with their Bokeh names on both backends"
+            + (f". Similar options: {similar}" if similar else "")
+        )
+
+    return _transfer_opts_cur_backend(element.opts(backend="bokeh", **options))
 
 
 def _compute_contours(

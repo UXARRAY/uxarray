@@ -386,7 +386,9 @@ def _face_latitude(uxgrid):
 
 
 def _contour_lines(contours):
-    """(level, x, y) of each line in a ``Contours`` element."""
+    """(level, x, y) of each line of a contour plot, with or without labels."""
+    if isinstance(contours, hv.Overlay):
+        contours = contours.get(0)
     name = contours.vdims[0].name
     return [(float(np.atleast_1d(p[name])[0]), np.asarray(p["x"]), np.asarray(p["y"])) for p in contours.data]
 
@@ -397,28 +399,26 @@ def test_contour_face_centered(gridpath, datasetpath, method):
     uxds = ux.open_dataset(gridpath("ugrid", "outCSne30", "outCSne30.ug"), datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"))
 
     for backend in ['matplotlib', 'bokeh']:
-        contours = uxds['psi'].plot.contour(method=method, backend=backend)
-        assert isinstance(contours, hv.Contours)
-        assert len(contours.data) > 0
-        assert contours.vdims[0].name == "psi"
+        contours = uxds['psi'].plot.contour(method=method, backend=backend, color="black")
 
-        overlay = uxds['psi'].plot(backend=backend) * contours.opts(color="black")
-        hv.renderer(backend).get_plot(overlay)
+        # the lines, with the level as their value, and their labels
+        lines, labels = contours
+        assert isinstance(lines, hv.Contours) and isinstance(labels, hv.Labels)
+        assert len(lines.data) > 0
+        assert lines.vdims[0].name == "psi"
+
+        hv.renderer(backend).get_plot(uxds['psi'].plot(backend=backend) * contours)
 
 
 def test_contour_node_centered(gridpath, datasetpath):
-    """Tests contours of node-centered data, which only support interpolation."""
+    """Tests contours of node-centered data, which are interpolated by default."""
     uxds = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
     v1 = uxds['v1'][0][0]
 
-    # the default method for node-centered data is "interpolated"
-    contours = v1.plot.contour(backend="matplotlib")
+    contours = v1.plot.contour(backend="matplotlib", labels=False)
     assert isinstance(contours, hv.Contours)
     assert len(contours.data) > 0
-    assert len(contours.data) == len(v1.plot.contour(method="interpolated").data)
-
-    with pytest.raises(ux.errors.DataCenteringError):
-        v1.plot.contour(method="edges")
+    assert len(contours.data) == len(v1.plot.contour(method="interpolated", labels=False).data)
 
 
 def test_contour_levels(gridpath, datasetpath):
@@ -428,107 +428,205 @@ def test_contour_levels(gridpath, datasetpath):
     for method in ["interpolated", "edges"]:
         contours = uxds['psi'].plot.contour(levels=[0.6, 0.9, 1.2, 99.0], method=method)
         assert {level for level, _, _ in _contour_lines(contours)} == {0.6, 0.9, 1.2}
+        assert _contour_lines(uxds['psi'].plot.contour(levels=[99.0], method=method)) == []
 
         # an integer asks for a number of levels, which then fall inside the data range
         levels = {level for level, _, _ in _contour_lines(uxds['psi'].plot.contour(levels=4, method=method))}
         assert 1 <= len(levels) <= 6
         assert uxds['psi'].min() < min(levels) and max(levels) < uxds['psi'].max()
 
-    assert len(uxds['psi'].plot.contour(levels=[99.0]).data) == 0
+
+# the first grid has nodes on the antimeridian, the second has cells that cross it
+GLOBAL_GRIDS = [("ugrid", "outCSne30", "outCSne30.ug"), ("mpas", "QU", "mesh.QU.1920km.151026.nc")]
 
 
-def test_contour_interpolated_values(gridpath):
-    """Contours of a field equal to latitude lie on that latitude."""
-    uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
-    levels = [-30.0, 0.0, 45.0]
+@pytest.mark.parametrize("grid", GLOBAL_GRIDS)
+def test_contour_interpolated_values(gridpath, grid):
+    """Contours of a field equal to latitude lie on that latitude, all the way around the globe."""
+    uxgrid = ux.open_grid(gridpath(*grid))
+    levels = [-30.5, 10.5, 45.5]
 
     lines = _contour_lines(_face_latitude(uxgrid).plot.contour(levels=levels, method="interpolated"))
-    assert {level for level, _, _ in lines} == set(levels)
-    for level, _, y in lines:
-        np.testing.assert_allclose(y, level, atol=1e-8)
+    for level in levels:
+        at_level = [(x, y) for line_level, x, y in lines if line_level == level]
+        for x, y in at_level:
+            np.testing.assert_allclose(y, level, atol=1e-8)
+            assert np.abs(x).max() <= 180
+        # no gap at the antimeridian
+        assert sum(np.abs(np.diff(x)).sum() for x, _ in at_level) == pytest.approx(360)
 
 
-def test_contour_edges_follow_grid(gridpath):
+@pytest.mark.parametrize("grid", GLOBAL_GRIDS)
+def test_contour_edges_follow_grid(gridpath, grid):
     """Edge contours are made of the edges between faces on either side of the level."""
-    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    uxgrid = ux.open_grid(gridpath(*grid))
     uxda = _face_latitude(uxgrid)
-    level = 20.0
+    level = 10.5
 
     # "edges" is the default method for face-centered data
     lines = _contour_lines(uxda.plot.contour(levels=[level]))
 
-    # every point on the contour is a node of the grid
-    nodes = set(zip(np.round(uxgrid.node_lon.values, 6), np.round(uxgrid.node_lat.values, 6)))
-    n_segments = 0
+    # -180 and 180 are the same longitude
+    def points(lon, lat):
+        lon = np.radians(lon)
+        return list(zip(np.round(np.cos(lon), 6), np.round(np.sin(lon), 6), np.round(lat, 6)))
+
+    # every point is a node of the grid, except where a line is cut at the antimeridian
+    nodes = set(points(uxgrid.node_lon.values, uxgrid.node_lat.values))
+    n_segments, n_cut_ends = 0, 0
     for _, x, y in lines:
-        assert set(zip(np.round(x, 6), np.round(y, 6))) <= nodes
+        assert np.abs(x).max() <= 180
+        not_a_node = np.array([point not in nodes for point in points(x, y)])
+        assert (np.abs(x[not_a_node]) == 180).all()
+        n_cut_ends += np.count_nonzero(not_a_node)
         n_segments += len(x) - 1
 
-    # one segment per edge whose two faces are on either side of the level
+    # one segment per edge whose two faces are on either side of the level,
+    # and two for an edge that is cut at the antimeridian
     edge_faces = uxgrid.edge_face_connectivity.values
-    edge_nodes = uxgrid.edge_node_connectivity.values
     above = uxda.values > level
-    crossing = above[edge_faces[:, 0]] != above[edge_faces[:, 1]]
-    not_wrapped = np.abs(np.diff(uxgrid.node_lon.values[edge_nodes], axis=1)[:, 0]) < 180
-    assert n_segments == np.count_nonzero(crossing & not_wrapped)
+    between = above[edge_faces[:, 0]] != above[edge_faces[:, 1]]
+    lon = uxgrid.node_lon.values[uxgrid.edge_node_connectivity.values]
+    cut = between & (np.abs(lon[:, 0] - lon[:, 1]) > 180) & (np.abs(lon) < 180).all(axis=1)
+    assert n_cut_ends == 2 * np.count_nonzero(cut)
+    assert n_segments == np.count_nonzero(between) + np.count_nonzero(cut)
 
 
-def test_contour_projection(gridpath, datasetpath):
-    """Tests that a projection returns a GeoViews element that renders with the projected data."""
+def test_contour_labels(gridpath):
+    """Lines are labeled with their level by default, each level at the middle of its longest lines."""
+    uxda = _face_latitude(ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug")))
+    levels = [-30.5, 10.5, 45.5]
+
+    lines, labels = uxda.plot.contour(levels=levels, method="interpolated")
+    text = labels.dimension_values("text")
+
+    # every level is labeled, at most three times, and each label is on a line of its level
+    assert sorted(set(text)) == sorted(f"{level:g}" for level in levels)
+    assert max(np.count_nonzero(text == label) for label in set(text)) <= 3
+    np.testing.assert_allclose(labels.dimension_values("y"), text.astype(float), atol=1e-8)
+
+    # without labels, the lines alone are returned
+    assert isinstance(uxda.plot.contour(levels=levels, labels=False), hv.Contours)
+
+
+def test_contour_options(gridpath):
+    """Options have one spelling on both backends, and Bokeh shows the level of a line on hover."""
+    uxda = _face_latitude(ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")))
+
+    for backend, line_width in [("matplotlib", "linewidth"), ("bokeh", "line_width")]:
+        contours = uxda.plot.contour(levels=[10.5], backend=backend, line_width=3, color="black")
+        assert contours.get(0).opts.get(backend=backend, defaults=False).kwargs[line_width] == 3
+        hv.renderer(backend).get_plot(contours)
+
+    def tools(contours):
+        return [type(tool).__name__ for tool in hv.renderer("bokeh").get_plot(contours).state.tools]
+
+    assert "HoverTool" in tools(uxda.plot.contour(levels=[10.5], backend="bokeh"))
+    assert "HoverTool" not in tools(uxda.plot.contour(levels=[10.5], backend="bokeh", hover=False))
+
+
+def test_contour_projection(gridpath):
+    """Tests that a projection gives GeoViews elements that render, without the lines that are not on the map."""
     import geoviews as gv
 
-    uxds = ux.open_dataset(gridpath("ugrid", "outCSne30", "outCSne30.ug"), datasetpath("ugrid", "outCSne30", "outCSne30_vortex.nc"))
+    uxda = _face_latitude(ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")))
+    levels = [-45.5, 45.5]
+
     projection = ccrs.Robinson()
+    contours = uxda.plot.contour(levels=levels, projection=projection, color="black", backend="matplotlib")
+    lines, labels = contours
+    assert isinstance(lines, gv.Contours) and isinstance(labels, gv.Labels)
+    hv.renderer("matplotlib").get_plot(uxda.plot(projection=projection, backend="matplotlib") * contours)
 
-    contours = uxds['psi'].plot.contour(projection=projection, color="black", backend="matplotlib")
-    assert isinstance(contours, gv.Contours)
-
-    overlay = uxds['psi'].plot(projection=projection, backend="matplotlib") * contours
-    hv.renderer("matplotlib").get_plot(overlay)
-
-
-def test_contour_projection_line_on_map_edge():
-    """Lines that lie along the edge of the map are dropped, since they cannot be projected."""
-    uxgrid = ux.Grid.from_healpix(zoom=4)
-    lon, lat = np.radians(uxgrid.face_lon.values), np.radians(uxgrid.face_lat.values)
-    values = np.cos(2 * lat) * np.sin(3 * lon) + 0.5 * np.sin(lat)
-    uxda = ux.UxDataArray(xr.DataArray(values, dims="n_face", name="wave"), uxgrid=uxgrid)
-
-    # without a projection, some lines run along the antimeridian
-    lines = _contour_lines(uxda.plot.contour(levels=5, method="edges"))
-    assert any(np.all(np.abs(x) == 180) for _, x, _ in lines)
-
-    # rendering used to fail in GeoViews with an IndexError for those lines
-    contours = uxda.plot.contour(levels=5, method="edges", projection=ccrs.Robinson(), backend="matplotlib")
-    assert 0 < len(contours.data) < len(lines)
-    hv.renderer("matplotlib").get_plot(contours)
+    # seen from above the north pole, the southern line is not on the map.
+    # GeoViews raises an IndexError for such a line, so it is dropped
+    for method in ["interpolated", "edges"]:
+        n_lines = len(_contour_lines(uxda.plot.contour(levels=levels, method=method)))
+        contours = uxda.plot.contour(levels=levels, method=method, projection=ccrs.Orthographic(0, 90), backend="matplotlib")
+        assert 0 < len(_contour_lines(contours)) < n_lines
+        hv.renderer("matplotlib").get_plot(contours)
 
 
 def test_contour_missing_values(gridpath):
     """Faces without data are left out instead of raising."""
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     uxda = _face_latitude(uxgrid)
-    uxda = uxda.where(uxgrid.face_lon.values < 0)
 
     for method in ["interpolated", "edges"]:
-        lines = _contour_lines(uxda.plot.contour(levels=[10.0], method=method))
+        lines = _contour_lines(uxda.where(uxgrid.face_lon.values < 0).plot.contour(levels=[10.0], method=method))
         assert len(lines) > 0
         assert all(x.max() < 5 for _, x, _ in lines)
 
+        # no data at all gives no lines
+        assert _contour_lines((uxda * np.nan).plot.contour(method=method)) == []
+
 
 def test_contour_invalid_input(gridpath, datasetpath):
-    """Tests the errors for unsupported methods, dimensions and data locations."""
+    """Tests the errors for unsupported methods, levels, options, dimensions and data locations."""
     uxds = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
+    v1 = uxds['v1'][0][0]
 
     with pytest.raises(ValueError, match="Unsupported method"):
-        uxds['v1'][0][0].plot.contour(method="smooth")
+        v1.plot.contour(method="smooth")
+
+    with pytest.raises(ValueError, match="levels must be at least 1"):
+        v1.plot.contour(levels=0)
+    # neither a number of levels nor a sequence of them
+    for levels in (10.0, None):
+        with pytest.raises(ValueError, match="levels must be an integer or a one-dimensional sequence"):
+            v1.plot.contour(levels=levels)
+
+    # the Matplotlib spelling of an option; the error names the one to use
+    with pytest.raises(ValueError, match="line_width"):
+        v1.plot.contour(linewidth=2)
 
     # more than one dimension that is not of length 1
     with pytest.raises(ux.errors.DimensionError):
         uxds['v1'].plot.contour()
 
-    # edge-centered data
+    # "edges" needs face-centered data, and edge-centered data is not supported
+    with pytest.raises(ux.errors.DataCenteringError):
+        v1.plot.contour(method="edges")
     uxgrid = uxds.uxgrid
     edge_data = ux.UxDataArray(xr.DataArray(np.zeros(uxgrid.n_edge), dims="n_edge"), uxgrid=uxgrid)
     with pytest.raises(ux.errors.DataCenteringError):
         edge_data.plot.contour()
+
+
+def test_contour_data_not_on_grid(gridpath):
+    """Data without a grid dimension is still contoured by xarray, as it was before plot.contour() was added."""
+    from matplotlib.contour import QuadContourSet
+
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
+    values = np.random.default_rng(0).random((4, 6, uxgrid.n_face))
+    uxda = ux.UxDataArray(xr.DataArray(values, dims=("time", "lev", "n_face"), name="temp"), uxgrid=uxgrid)
+
+    for section in (uxda.mean("n_face"), uxda.weighted_mean()):
+        assert section.dims == ("time", "lev")
+        assert isinstance(section.plot.contour(), QuadContourSet)
+        assert isinstance(section.plot.contour(levels=5, colors="k"), QuadContourSet)
+    plt.close("all")
+
+
+def test_contour_faces_with_repeated_nodes(gridpath):
+    """Faces padded by repeating a node do not give triangles that Matplotlib cannot contour."""
+    from uxarray.plot.contour import _triangulation
+
+    # every face of this grid is a quadrilateral stored with five nodes, the last one repeated
+    uxgrid = ux.open_grid(gridpath("ugrid", "ne120_TCsubset", "ne120_TCsubset.ug"))
+    face_nodes = uxgrid.face_node_connectivity.values
+    assert (face_nodes[:, -1] == face_nodes[:, -2]).all()
+
+    for dim in ("n_face", "n_node"):
+        _, _, triangles, _ = _triangulation(uxgrid, dim)
+        assert len(triangles) > 0
+        # no repeated corners, and no edge in more than two triangles
+        assert (np.sort(triangles, axis=1)[:, 1:] != np.sort(triangles, axis=1)[:, :-1]).all()
+        edges = np.sort(np.concatenate([triangles[:, [0, 1]], triangles[:, [1, 2]], triangles[:, [2, 0]]]), axis=1)
+        assert np.unique(edges, axis=0, return_counts=True)[1].max() <= 2
+
+    level = float(uxgrid.face_lat.mean())
+    lines = _contour_lines(_face_latitude(uxgrid).plot.contour(levels=[level], method="interpolated"))
+    assert len(lines) > 0
+    for _, _, y in lines:
+        np.testing.assert_allclose(y, level, atol=1e-8)
