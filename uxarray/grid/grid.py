@@ -245,6 +245,9 @@ class Grid:
         # flag to ensure projected-grid warning fires only once per instance
         self._projected_warning_issued = False
 
+        # longitude Variables already wrapped into [-180, 180], by name
+        self._wrapped_lon_vars = {}
+
         # set desired longitude range to [-180, 180]
         _set_desired_longitude_range(self)
 
