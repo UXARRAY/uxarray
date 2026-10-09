@@ -1755,6 +1755,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         attrs = {
             "long_name": f"Curl of ({self.name}, {other.name})",
             "units": grad_u_meridional.attrs["units"],
+            "curl": True,
             "description": (
                 "Curl of vector field computed as ∂v/∂x - ∂u/∂y + u·tan(φ)/a, "
                 "with u, x zonal; v, y meridional; φ=latitude; a=sphere radius."
@@ -1875,6 +1876,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         attrs = {
             "long_name": f"Divergence of ({self.name}, {other.name})",
             "units": grad_u_zonal.attrs["units"],
+            "divergence": True,
             "description": (
                 "Divergence of vector field computed as ∂u/∂x + ∂v/∂y - v·tan(φ)/a, "
                 "with u, x zonal; v, y meridional; φ=latitude; a=sphere radius."
@@ -1920,12 +1922,6 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 "but u.uxgrid, v.uxgrid, and q.uxgrid are not all the same."
             )
 
-        if self.dims != v.dims or self.dims != q.dims:
-            raise DimensionError(
-                "All UxDataArrays must have the same dimensions during u.scalardotgradient(v, q), "
-                f"but got u.dims={self.dims}, v.dims={v.dims}, q.dims={q.dims}."
-            )
-
         if not (self._face_centered() and v._face_centered() and q._face_centered()):
             _wrong_locs = []
             if not self._face_centered():
@@ -1955,10 +1951,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         result = (u_aligned * grad_q_zonal) + (v_aligned * grad_q_meridional)
 
         # bookkeeping for name & attrs
-        result = result.rename(f"scalar_dot_gradient_{self.name}_{v.name}_{q.name}")
+        result = result.rename(f"scalardotgradient_{self.name}_{v.name}_{q.name}")
         attrs = {
             "long_name": f"Scalar dot gradient: ({self.name}, {v.name}) dot grad({q.name})",
-            # no promises about units yet; would need to consider units of u, v, and q...
+            # "units": ... no promises about units yet; would need to consider units of u, v, and q...
+            "scalardotgradient": True,
             "description": (
                 "Dot product of vector field (u, v) with the gradient of scalar field q, "
                 "computed as u * (dq/dx) + v * (dq/dy), with u, x zonal; v, y meridional."
