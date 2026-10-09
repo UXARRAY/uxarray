@@ -5,6 +5,8 @@ from numba import njit, prange
 from uxarray.constants import EDGE_NODE_SORT_THRESHOLD, INT_DTYPE, INT_FILL_VALUE
 from uxarray.utils.numba_math import (
     _numba_add3,
+    _numba_cross3,
+    _numba_dot3,
     _numba_mul3_scalar,
     _numba_norm3,
     _numba_sub3,
@@ -46,9 +48,9 @@ def _angle_of_2_vectors(u, v):
 
     Parameters
     ----------
-    u : numpy.ndarray
+    u : iterable of length 3
         The first 3D vector (float), originating from the center of the unit sphere.
-    v : numpy.ndarray
+    v : iterable of length 3
         The second 3D vector (float), originating from the center of the unit sphere.
 
     Returns
@@ -62,13 +64,14 @@ def _angle_of_2_vectors(u, v):
     - Special cases such as vectors aligned along the same longitude are handled explicitly.
     """
     # Compute the cross product to determine the direction of the normal
-    normal = np.cross(u, v)
+    normal = _numba_cross3(u, v)
 
     # Calculate the angle using arctangent of cross and dot products
-    angle_u_v_rad = np.arctan2(np.linalg.norm(normal), np.dot(u, v))
+    angle_u_v_rad = np.arctan2(_numba_norm3(normal), _numba_dot3(u, v))
 
     # Determine the direction of the angle
-    normal_z = np.dot(normal, np.array([0.0, 0.0, 1.0]))
+    normal_z = normal[2]
+
     if normal_z > 0:
         # Counterclockwise direction
         return angle_u_v_rad
