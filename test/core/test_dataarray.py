@@ -80,6 +80,22 @@ def test_to_polycollection(gridpath, datasetpath):
     assert len(pc_geoflow_grid._paths) == uxds_geoflow.uxgrid.n_face
 
 
+def test_to_polycollection_split(gridpath):
+    """Faces crossing the antimeridian are split, so each maps back to its
+    original face and there are more polygons than faces."""
+    uxgrid = ux.open_grid(gridpath("scrip", "ne30pg2", "grid.nc"))
+
+    pc, corrected_to_original_faces = uxgrid.to_polycollection(
+        periodic_elements="split", return_indices=True
+    )
+
+    assert len(pc._paths) == len(corrected_to_original_faces)
+    assert len(pc._paths) > uxgrid.n_face
+    np.testing.assert_array_equal(
+        np.unique(corrected_to_original_faces), np.arange(uxgrid.n_face)
+    )
+
+
 def test_to_geodataframe_preserves_antimeridian_faces(gridpath, datasetpath):
     uxds = ux.open_dataset(
         gridpath("scrip", "ne30pg2", "grid.nc"),
@@ -569,3 +585,17 @@ def test_uxgrid_None_is_invalid_in_uxdataarray():
     # it also applies (for non-None non-Grid objects) during __init__:
     with pytest.raises(TypeError):
         ux.UxDataArray([4,5], dims=['n_face'], uxgrid="not a grid")
+
+
+def test_uxdataarray_astype_returns_uxdataarray():
+    """Ensures UxDataArray.astype() result type is UxDataArray.
+    Regression test for issue #1737.
+    """
+    obj = ux.tutorial.open_dataset('quad-hexagon')['t2m']
+    result = obj.astype('float64')
+    assert isinstance(result, ux.UxDataArray)
+    assert result.uxgrid == obj.uxgrid
+    assert result.dtype == np.float64
+    result = obj.astype('float32')
+    assert obj.dtype == np.float32  # the original dtype was float32
+    assert result.identical(obj)  # so astype() should be a no-op.
