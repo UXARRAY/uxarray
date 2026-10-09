@@ -483,7 +483,7 @@ Helpers
 .. autosummary::
    :toctree: generated/
 
-   RemapWeights
+   remap.RemapWeights
 
 
 UxDataArray
