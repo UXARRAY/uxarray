@@ -23,6 +23,7 @@ across various interesting datasets.
    examples/visualization/3_75km_mpas.ipynb
    examples/visualization/mpas_topology.ipynb
    examples/visualization/e3sm-load-viz.ipynb
+   examples/visualization/mpas-hurricane-maria-contours.ipynb
 
 
 
