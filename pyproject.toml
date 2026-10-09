@@ -20,43 +20,60 @@ readme = "README.md"
 requires-python = ">=3.11"
 
 # minimal dependencies start
+# Lower bounds are added only for a known failure with an older release; the
+# comment on each says what breaks.  The "Minimum Dependencies" CI workflow
+# tests the oldest versions these bounds allow and opens an issue when they
+# fail, which is how new bounds get found.
 dependencies = [
-  "antimeridian",
-  "cartopy",
-  "dask[dataframe]",
-  "datashader",
-  "geoviews",
-  "holoviews",
-  "matplotlib<3.11",  # matplotlib 3.11.0 breaks some plots but <3.11 is fine; see issue #1542.
-  "matplotlib-inline",
-  "netcdf4",
+  "antimeridian>=0.3.0",  # fix_polygon(fix_winding=...) is new in 0.3.0.
+  "dask[dataframe]>=2024.12.0",  # older dd.from_dask_array() fails on empty arrays (empty SCRIP grids).
+  "netcdf4>=1.7.0",  # older releases are built against numpy 1 and fail to import under numpy 2.
   "numba>=0.63",  # 0.63 is the first release supporting Python 3.14 (3.10 <= py < 3.15). See #1561.
-  "numpy",
-  "pandas",
-  "pyarrow",
-  "requests",
-  "scikit-learn",
+  "numpy>=2.0",  # np.asin() is new in 2.0.
+  "pandas>=2.2.2",  # older releases without a numpy<2 cap fail to import under numpy 2.
+  "scikit-learn>=1.4.2",  # older releases without a numpy<2 cap fail to import under numpy 2.
   "scipy",
-  "shapely",
-  "spatialpandas",
-  "geopandas>=1.0",  # 1.0 is the first release requiring pyogrio, the file-IO backend read_file needs. See #1693.
-  "xarray",
-  "hvplot",
-  "healpix",
-  "polars",
-  "pyproj"
+  "shapely>=2.0.6",  # 2.0 API (shapely.polygons()); older 2.0.x fail in create_collection under numpy 2.
+  "xarray>=2024.10.0",  # older releases break resample() and dask-backed weighted_mean().
+  "polars>=0.20.4",  # DataFrame.with_row_index() is new in 0.20.4.
 ]
 # minimal dependencies end
 
 [project.optional-dependencies]
-complete = ["uxarray[dev]"]
-dev = ['pre_commit', 'pytest', 'pytest-cov', 'ruff', 'asv']
+all = ["uxarray[dev,geo,viz]"]
+complete = ["uxarray[dev,geo,viz]"]  # alias to "all"
+dev = [
+    'asv',
+    'pooch',
+    'pre_commit',
+    'pytest',
+    'pytest-cov',
+    'ruff',
+]
+geo = [
+    "cartopy>=0.23",  # in both geo and viz because it is needed by to_geodataframe() and by plotting routines.
+    # (0.23 is the first release that works with numpy 2.)
+    "geopandas>=1.0",  # 1.0 is the first release requiring pyogrio, the file-IO backend read_file needs. See #1693.
+    "healpix>=2024.2",  # older releases are built against numpy 1 and fail to import under numpy 2.
+    "pyproj",
+    "spatialpandas>=0.4.10",  # PolygonArray.from_exterior_coords() is new in 0.4.10.
+]
+viz = [
+    "cartopy>=0.23,<0.26",  # cartopy 0.26.0 breaks some geoviews plots; see issue #1780.
+    # (cartopy pin intentionally here but not in "geo" extras because geoviews is only in "viz".)
+    "datashader",
+    "matplotlib>=3.8.4,<3.11",  # 3.11.0 breaks some plots (see issue #1542); older releases without a numpy<2 cap fail under numpy 2.
+    "geoviews>=1.11.0",  # older releases use np.NaN, removed in numpy 2. No upper pin; newer should support any cartopy; see holoviz/geoviews#884.
+    "holoviews>=1.19.0",  # older releases import panel.depends.param_value_if_widget, which current panel removed.
+    "hvplot>=0.8.3",  # older releases use param's .params(), removed in param 2.
+]
 
 [project.urls]
 Documentation = "https://uxarray.readthedocs.io/"
 Source = "https://github.com/UXARRAY/uxarray"
 Tracker = "https://github.com/UXARRAY/uxarray/issues"
-
+# please keep [project.urls] immediately after [project.optional-dependencies],
+# or, if rearranging sections, make sure to edit installation.rst accordingly.
 
 [build-system]
 build-backend = "setuptools.build_meta"
@@ -87,3 +104,6 @@ known-first-party = ["uxarray"]
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.pytest.ini_options]
+testpaths = ["test"]  # (intentionally excludes test_optional_deps)

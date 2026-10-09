@@ -9,6 +9,11 @@ from uxarray.grid.coordinates import (
 )
 from uxarray.grid.utils import _angle_of_2_vectors
 from uxarray.utils.computing import _cdp8, accucross
+from uxarray.utils.numba_math import (
+    _numba_cross3,
+    _numba_dot3,
+    _numba_sub3,
+)
 
 # Magnitude below which orient3d_on_sphere classifies a result as zero. For
 # double-precision unit-vector inputs this covers rounding error in the
@@ -40,11 +45,11 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
 
     Parameters
     ----------
-    pt_xyz : numpy.ndarray
+    pt_xyz : iterable of length 3
         Cartesian coordinates of the point.
-    gca_a_xyz : numpy.ndarray
+    gca_a_xyz : iterable of length 3
         Cartesian coordinates of the first endpoint of the Great Circle Arc.
-    gca_b_xyz : numpy.ndarray
+    gca_b_xyz : iterable of length 3
         Cartesian coordinates of the second endpoint of the Great Circle Arc.
 
     Returns
@@ -66,25 +71,28 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     """
     # 1. Check if the input GCA spans exactly 180 degrees
     angle_ab = _angle_of_2_vectors(gca_a_xyz, gca_b_xyz)
-    if np.allclose(angle_ab, np.pi, rtol=0.0, atol=MACHINE_EPSILON):
+    if np.isclose(angle_ab, np.pi, rtol=0.0, atol=MACHINE_EPSILON):
         raise ValueError(
             "The input Great Circle Arc spans exactly 180 degrees, which can correspond to multiple planes. "
             "Consider breaking the Great Circle Arc into two smaller arcs."
-        )
+        )  # (numba complains about f-strings, so don't put actual values in message.)
 
     # 2. Verify if the point lies on the plane of the GCA
-    cross_product = np.cross(gca_a_xyz, gca_b_xyz)
-    if not np.allclose(
-        np.dot(cross_product, pt_xyz), 0, rtol=MACHINE_EPSILON, atol=MACHINE_EPSILON
+    cross_product = _numba_cross3(gca_a_xyz, gca_b_xyz)
+    if not np.isclose(
+        _numba_dot3(cross_product, pt_xyz),
+        0,
+        rtol=MACHINE_EPSILON,
+        atol=MACHINE_EPSILON,
     ):
         return False
 
     # 3. Check if the point lies within the Great Circle Arc interval
-    pt_a = gca_a_xyz - pt_xyz
-    pt_b = gca_b_xyz - pt_xyz
+    pt_a = _numba_sub3(gca_a_xyz, pt_xyz)
+    pt_b = _numba_sub3(gca_b_xyz, pt_xyz)
 
     # Use the dot product to determine the sign of the angle between pt_a and pt_b
-    cos_theta = np.dot(pt_a, pt_b)
+    cos_theta = _numba_dot3(pt_a, pt_b)
 
     # Return True if the point lies within the interval (smaller arc)
     if cos_theta < 0:
@@ -224,7 +232,8 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     """
     # Validate extreme_type
     if (extreme_type != "max") and (extreme_type != "min"):
-        raise ValueError("extreme_type must be either 'max' or 'min'")
+        raise ValueError("Invalid extreme_type. Expected 'max' or 'min'.")
+        # (numba complains about f-strings, so don't put `extreme_type` value in message.)
 
     # Extract the two points
     n1 = gca_cart[0]
@@ -305,7 +314,8 @@ def extreme_gca_z(gca_cart, extreme_type):
 
     # Validate extreme_type
     if (extreme_type != "max") and (extreme_type != "min"):
-        raise ValueError("extreme_type must be either 'max' or 'min'")
+        raise ValueError("Invalid extreme_type. Expected 'max' or 'min'.")
+        # (numba complains about f-strings, so don't put `extreme_type` value in message.)
 
     # Extract the two points
     n1 = gca_cart[0]

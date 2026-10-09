@@ -13,7 +13,9 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.grid import Grid
 
+from uxarray.grid.geometry import _central_longitude_of
 from uxarray.plot.utils import backend as plotting_backend
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 # import speedup trick:
 #   code here uses obj.hvplot, which requires import hvplot.pandas and/or hvplot.xarray.
@@ -30,6 +32,7 @@ def _ensure_hvplot_imported() -> None:
     """
     global _IMPORTED_HVPLOT
     if not _IMPORTED_HVPLOT:
+        _raise_hint_if_optional_deps_missing("holoviews", "hvplot")
         # workaround for hvplot issue #1735;
         #  import hvplot.pandas and hvplot.xarray always adjust the hvplot.extension().
         # To respect previously-setup extension value, need to remember and restore it.
@@ -244,6 +247,7 @@ class GridPlotAccessor:
         gdf.hvplot.paths : hvplot.paths
             A paths plot of the edges of the unstructured grid
         """
+        _raise_hint_if_optional_deps_missing("cartopy")
         import cartopy.crs as ccrs
 
         plotting_backend.assign(backend)
@@ -258,7 +262,7 @@ class GridPlotAccessor:
             kwargs["color"] = "black"
         if "crs" not in kwargs:
             if "projection" in kwargs:
-                central_longitude = kwargs["projection"].proj4_params["lon_0"]
+                central_longitude = _central_longitude_of(kwargs["projection"])
             else:
                 central_longitude = 0.0
             kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
@@ -445,6 +449,7 @@ class UxDataArrayPlotAccessor:
         gdf.hvplot.polygons : hvplot.polygons
             A shaded polygon plot
         """
+        _raise_hint_if_optional_deps_missing("cartopy")
         import cartopy.crs as ccrs
 
         plotting_backend.assign(backend)
@@ -459,7 +464,7 @@ class UxDataArrayPlotAccessor:
             kwargs["projection"] = projection
             kwargs["geo"] = True
             if "crs" not in kwargs:
-                central_longitude = projection.proj4_params["lon_0"]
+                central_longitude = _central_longitude_of(projection)
                 kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
         if "clabel" not in kwargs and self._uxda.name is not None:
@@ -472,6 +477,9 @@ class UxDataArrayPlotAccessor:
             project=False,
         )
 
+        # import datashader  # no need to import explicitly, but gets used below when rasterize=True.
+        # (commented here for future reference, since datashader appears in uxarray dependency list,
+        #    but it isn't imported explicitly anywhere in uxarray. For more details see PR #1548.)
         return gdf.hvplot.polygons(
             c=self._uxda.name if self._uxda.name is not None else "var",
             rasterize=rasterize,

@@ -2,6 +2,7 @@ import warnings
 import numpy as np
 import uxarray as ux
 from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
+from uxarray.grid import neighbors
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
 from uxarray.core.dataset import UxDataset, UxDataArray
 import pytest
@@ -79,6 +80,22 @@ def test_to_polycollection(gridpath, datasetpath):
     assert len(pc_geoflow_grid._paths) == uxds_geoflow.uxgrid.n_face
 
 
+def test_to_polycollection_split(gridpath):
+    """Faces crossing the antimeridian are split, so each maps back to its
+    original face and there are more polygons than faces."""
+    uxgrid = ux.open_grid(gridpath("scrip", "ne30pg2", "grid.nc"))
+
+    pc, corrected_to_original_faces = uxgrid.to_polycollection(
+        periodic_elements="split", return_indices=True
+    )
+
+    assert len(pc._paths) == len(corrected_to_original_faces)
+    assert len(pc._paths) > uxgrid.n_face
+    np.testing.assert_array_equal(
+        np.unique(corrected_to_original_faces), np.arange(uxgrid.n_face)
+    )
+
+
 def test_to_geodataframe_preserves_antimeridian_faces(gridpath, datasetpath):
     uxds = ux.open_dataset(
         gridpath("scrip", "ne30pg2", "grid.nc"),
@@ -138,8 +155,8 @@ def test_isel_invalid_dim(gridpath, datasetpath):
         uxda.isel(level=0)
 
 
-def test_data_location():
-    """Tests data_location for face/node/edge centered data and non-grid data."""
+def test_data_mapping():
+    """Tests data_mapping for face/node/edge mapped data and non-grid data."""
     uxgrid = ux.Grid.from_healpix(zoom=1)
 
     face_da = UxDataArray(
@@ -155,16 +172,19 @@ def test_data_location():
         np.ones(5), dims=["other_dim"], uxgrid=uxgrid
     )
 
-    assert face_da.data_location == "face_centered"
-    assert node_da.data_location == "node_centered"
-    assert edge_da.data_location == "edge_centered"
-    assert other_da.data_location is None
+    assert face_da.data_mapping == "faces"
+    assert node_da.data_mapping == "nodes"
+    assert edge_da.data_mapping == "edges"
+    assert other_da.data_mapping is None
 
     # Works when an extra (non-grid) dimension is present
     face_time = UxDataArray(
         np.ones((3, uxgrid.n_face)), dims=["time", "n_face"], uxgrid=uxgrid
     )
-    assert face_time.data_location == "face_centered"
+    assert face_time.data_mapping == "faces"
+
+    # data_location was folded into data_mapping
+    assert not hasattr(face_da, "data_location")
 
 
 class TestNeighborhood:
@@ -243,7 +263,7 @@ class TestNeighborhood:
         assert filtered.shape == uxda_time.shape
         np.testing.assert_allclose(filtered.values, data)
 
-    def test_invalid_data_location(self):
+    def test_invalid_data_mapping(self):
         """Data that is not mapped to a grid element should raise an error."""
         uxgrid = ux.Grid.from_healpix(zoom=1)
         uxda = UxDataArray(np.ones(5), dims=["other_dim"], uxgrid=uxgrid)
@@ -484,6 +504,27 @@ class TestNeighborhood:
             filtered.compute().values, np.tile(eager.values, (6, 1))
         )
 
+    def test_dask_input_runs_serial_kernel(self, vortex, monkeypatch):
+        """Dask-backed chunks must not launch numba's parallel runtime: the
+        ``workqueue`` threading layer aborts the process when dask's worker
+        threads launch it concurrently."""
+
+        def refuse(*args):
+            raise AssertionError("a dask task launched the parallel kernel")
+
+        eager = vortex.neighborhood(r=2.0).mean()
+        monkeypatch.setattr(neighbors, "_reduce_rows_parallel", refuse)
+
+        stacked = UxDataArray(
+            np.tile(vortex.values, (6, 1)),
+            dims=["time", "n_face"],
+            uxgrid=vortex.uxgrid,
+            name="psi",
+        ).chunk({"time": 2, "n_face": -1})
+        filtered = stacked.neighborhood(r=2.0).mean().compute()
+
+        np.testing.assert_allclose(filtered.values, np.tile(eager.values, (6, 1)))
+
     def test_grid_dim_chunks_are_collapsed_with_warning(self, vortex):
         """A neighborhood may span the whole grid, so the grid dimension cannot
         stay chunked. Collapsing it undoes a memory decision the user made, so
@@ -500,9 +541,9 @@ class TestNeighborhood:
         np.testing.assert_allclose(filtered.compute().values, expected)
 
     def test_output_is_always_float64(self, vortex):
-        """float32 hits the kernel's float32 signature and integers have no
-        signature at all; both must come back as float64, as the generic path
-        does by writing into a float64 output."""
+        """float32 is gathered as it is and integers are promoted first; both
+        must come back as float64, as the generic path does by writing into a
+        float64 output."""
         uxgrid = ux.Grid.from_healpix(zoom=1)
         integers = UxDataArray(
             np.arange(uxgrid.n_face), dims=["n_face"], uxgrid=uxgrid, name="int_var"
@@ -544,3 +585,17 @@ def test_uxgrid_None_is_invalid_in_uxdataarray():
     # it also applies (for non-None non-Grid objects) during __init__:
     with pytest.raises(TypeError):
         ux.UxDataArray([4,5], dims=['n_face'], uxgrid="not a grid")
+
+
+def test_uxdataarray_astype_returns_uxdataarray():
+    """Ensures UxDataArray.astype() result type is UxDataArray.
+    Regression test for issue #1737.
+    """
+    obj = ux.tutorial.open_dataset('quad-hexagon')['t2m']
+    result = obj.astype('float64')
+    assert isinstance(result, ux.UxDataArray)
+    assert result.uxgrid == obj.uxgrid
+    assert result.dtype == np.float64
+    result = obj.astype('float32')
+    assert obj.dtype == np.float32  # the original dtype was float32
+    assert result.identical(obj)  # so astype() should be a no-op.

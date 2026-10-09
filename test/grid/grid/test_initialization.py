@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import numpy.testing as nt
 import pytest
@@ -98,3 +99,20 @@ def test_grid_init_handles_empty_longitude_fields():
     uxgrid = ux.Grid(ds, source_grid_spec="UGRID")
 
     assert uxgrid.n_face == 0
+
+
+def test_grid_from_dataset_errors_when_invalid():
+    """Ensure Grid.from_dataset(invalid_input) gives reasonable error messages.
+    Regression tests for bugs noticed during review of PR #1705.
+    """
+    # Previously raised confusing error: ``GridInvalidError: Unsupported Grid Format``
+    with pytest.raises(TypeError, match="Expected xarray.Dataset or path-like object"):
+        ux.Grid.from_dataset(None)
+    # Previously raised confusing error: ``UnboundLocalError: cannot access
+    # local variable 'grid_ds' where it is not associated with a value.``
+    with pytest.raises(FileNotFoundError):
+        ux.Grid.from_dataset("definitely_not_a_file")
+    # if path points to a single existing file, report as GridInvalidError:
+    assert os.path.isfile(__file__)
+    with pytest.raises(ux.errors.GridInvalidError, match="Expected a directory .+ but got a single file"):
+        ux.Grid.from_dataset(__file__)

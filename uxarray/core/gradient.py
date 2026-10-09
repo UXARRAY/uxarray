@@ -97,9 +97,9 @@ def _compute_gradient(data, scale_by_radius=True):
 
     if data.ndim > 1:
         raise DimensionError(
-            "Gradient currently requires 1D face-centered data. Consider "
-            "reducing the dimension by selecting data across leading dimensions (e.g., `.isel(time=0)`, "
-            "`.sel(lev=500)`, or `.mean('time')`). "
+            "gradient() computation currently only supports 1-dimensional data; "
+            f"got data.dims={data.dims}. Consider reducing dimensionality along non-grid dimensions, "
+            "e.g. by applying something like .isel(time=0), .sel(lev=500), or .mean('Time')."
         )
 
     if data._face_centered():
@@ -180,7 +180,8 @@ def _compute_gradient(data, scale_by_radius=True):
     #     )
     else:
         raise DataCenteringError(
-            "Computing the gradient is only supported for face-centered data variables."
+            "_compute_gradient(data) is only supported for face-centered data; got "
+            f"data.data_mapping={data.data_mapping!r}, data.sizes={dict(**data.sizes)}"
         )
 
     has_sphere_radius = "sphere_radius" in uxgrid._ds.attrs
@@ -350,7 +351,7 @@ def _dual_cell_area(sx, sy, sz, angles, n):
     return np.abs(area)
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def _compute_gradients_on_faces(
     data,
     n_face,
