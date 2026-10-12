@@ -255,7 +255,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: asv-benchmark-results-Linux
+          name: asv-benchmark-results-${{ runner.os }}
           path: |
             ${{ env.ASV_DIR }}/results
             ${{ env.ASV_DIR }}/asv_compare_results.txt

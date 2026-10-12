@@ -17,30 +17,31 @@ from pathlib import Path
 
 BENCHMARK_DIR = Path(__file__).resolve().parents[1]
 
-# Every shard's benchmarks.json lists the whole suite (asv saves all it
-# discovers, not just what ``--bench`` selects), and machine.json is pinned to
-# one name, so any shard's copy will do.
-_WHOLE_FILES = frozenset({"benchmarks.json", "machine.json"})
-
 
 def merge(shard_dirs, out_dir):
-    """Merges ``shard_dirs`` into ``out_dir``; returns ``{relative path: data}``."""
+    """Merges ``shard_dirs`` into ``out_dir``; returns ``{relative path: data}``.
+
+    Files without ``results`` keep the first shard's copy: every shard's
+    benchmarks.json lists the whole suite (asv saves all it discovers, not just
+    what ``--bench`` selects), and machine.json is pinned to one name.
+    """
     merged = {}
     for shard_dir in map(Path, shard_dirs):
         for path in sorted(shard_dir.rglob("*.json")):
-            rel = path.relative_to(shard_dir)
+            relpath = path.relative_to(shard_dir)
             data = json.loads(path.read_text())
-            if rel not in merged or path.name in _WHOLE_FILES:
-                merged[rel] = data
+            # The first shard with this file seeds it; later shards' results
+            # fold into that copy.
+            into = merged.setdefault(relpath, data)
+            if into is data or "results" not in data:
                 continue
-            into = merged[rel]
             into["results"].update(data["results"])
             # ``<build>`` and ``<setup_cache ...>``, which every shard pays; the
             # max is what a single run would report.
             for key, value in data.get("durations", {}).items():
                 into["durations"][key] = max(into["durations"].get(key, 0.0), value)
-    for rel, data in merged.items():
-        target = Path(out_dir) / rel
+    for relpath, data in merged.items():
+        target = Path(out_dir) / relpath
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(data))
     return merged
@@ -61,9 +62,9 @@ def main(argv=None):
     merged = merge(args.shards, args.out)
     if not merged:
         parser.error(f"no results under {', '.join(args.shards)}")
-    for rel, data in sorted(merged.items()):
+    for relpath, data in sorted(merged.items()):
         if "results" in data:
-            print(f"{rel}: {len(data['results'])} benchmarks")
+            print(f"{relpath}: {len(data['results'])} benchmarks")
     return 0
 
 
