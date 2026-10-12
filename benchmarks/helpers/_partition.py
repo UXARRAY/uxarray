@@ -52,12 +52,11 @@ def load_weights(results_dirs):
     """
     samples = {}
     for results_dir in results_dirs:
-        for path in sorted(Path(results_dir).glob("*/*.json")):
+        for path in Path(results_dir).glob("*/*.json"):
             data = json.loads(path.read_text())
-            columns = data.get("result_columns") or []
-            if "duration" not in columns:
+            if "results" not in data:  # machine.json
                 continue
-            index = columns.index("duration")
+            index = data["result_columns"].index("duration")
             for name, row in data["results"].items():
                 if len(row) > index and row[index] is not None:
                     samples.setdefault(name, []).append(float(row[index]))
