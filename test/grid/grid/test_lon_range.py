@@ -30,7 +30,7 @@ def test_wrap(values, expected):
     """Out-of-range values wrap; in-range values, both endpoints included, pass
     through bit-for-bit."""
     lon = ("n_node", np.array(values), {"units": "degrees_east"})
-    grid = SimpleNamespace(_ds=xr.Dataset({"node_lon": lon}))
+    grid = SimpleNamespace(_ds=xr.Dataset({"node_lon": lon}), _wrapped_lon_vars={})
 
     _set_desired_longitude_range(grid)
 
@@ -63,3 +63,33 @@ def test_wrap_is_lazy_and_memoized(gridpath):
     grid._ds["node_lon"] = grid._ds["node_lon"] + 200.0
     _set_desired_longitude_range(grid)
     assert float(grid._ds["node_lon"].max()) <= 180.0
+
+
+def test_repeated_access_does_not_grow_graph(gridpath):
+    """Wrapping one longitude must not invalidate the memo of the others; it did
+    when the memo was keyed on ``xr.Variable``, which every Dataset assignment
+    shallow-copies."""
+    grid = ux.open_grid(
+        gridpath("mpas", "QU", "oQU480.231010.nc"), chunks={"n_node": 1000}
+    )
+    grid.edge_lat
+    n_layers = {
+        name: len(grid._ds[name].data.dask.layers)
+        for name in ("node_lon", "edge_lon", "face_lon")
+    }
+    for _ in range(5):
+        grid.edge_lat
+        grid.face_lat
+        _set_desired_longitude_range(grid)
+    for name, n in n_layers.items():
+        assert len(grid._ds[name].data.dask.layers) == n, name
+
+
+def test_exodus_subset_near_prime_meridian(gridpath):
+    """Exodus nodes sitting ~1e-16 off the prime meridian must not give their
+    faces full-circle longitude bounds."""
+    grid = ux.open_grid(gridpath("exodus", "outCSne8", "outCSne8.g"))
+
+    assert grid.subset.constant_longitude(90.0).n_face == 32
+    box = grid.subset.bounding_box(lon_bounds=(-50, 50), lat_bounds=(-85, 85))
+    assert box.n_face == 88
