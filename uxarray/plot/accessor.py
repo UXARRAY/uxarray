@@ -557,6 +557,8 @@ class UxDataArrayPlotAccessor:
         regridding the data, and are returned as HoloViews elements that can be
         overlaid on other plots with ``*``.
 
+        See examples in :doc:`/examples/visualization/contour-demos`.
+
         Parameters
         ----------
         levels : int or sequence of float, default=7
