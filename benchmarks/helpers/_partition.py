@@ -44,10 +44,11 @@ def load_benchmarks(results_dir):
 
 
 def load_weights(results_dirs):
-    """Mean recorded duration per benchmark, in seconds.
+    """Median recorded duration per benchmark, in seconds.
 
-    Mean, not latest: a cold numba cache can make one run hundreds of times
-    slower than warm, and a single outlier would skew the plan.
+    Median, not latest or mean: a cold numba cache can make one run hundreds of
+    times slower than warm, and a single outlier would skew the plan. With two
+    samples, as in CI (the base and PR commits), it is the mean.
     """
     samples = {}
     for results_dir in results_dirs:
@@ -60,7 +61,7 @@ def load_weights(results_dirs):
             for name, row in data["results"].items():
                 if len(row) > index and row[index] is not None:
                     samples.setdefault(name, []).append(float(row[index]))
-    return {name: statistics.fmean(values) for name, values in samples.items()}
+    return {name: statistics.median(values) for name, values in samples.items()}
 
 
 def costs(benchmarks, weights):
