@@ -15,6 +15,10 @@ visualization-examples:
     path: examples/visualization/mpas-hurricane-maria-contours.ipynb
     thumbnail: _static/thumbnails/mpas_maria_contours.png
 
+  - title: Contour Demos
+    path: examples/visualization/contour-demos.ipynb
+    thumbnail: _static/thumbnails/contour_demos.png
+
 workflow-examples:
   - title: Working with MPAS Grids
     path: examples/working-with-mpas-grids.ipynb
