@@ -77,18 +77,22 @@ def plan(benchmarks, n_shards, weights=None):
     easy to debug. Ties break by name, so every shard computes the same plan.
     """
     cost = costs(benchmarks, weights or {})
-    classes = {}
+    # (benchmark name, cost) pairs by class, or by module for a bare function;
+    # a shard takes a benchmark class whole.
+    benchmark_classes = {}
     for name in sorted(benchmarks):
-        # The class -- or the module, for a bare function.
-        classes.setdefault(name.rsplit(".", 1)[0], []).append(name)
-    class_cost = {owner: sum(cost[name] for name in names) for owner, names in classes.items()}
+        benchmark_classes.setdefault(name.rsplit(".", 1)[0], []).append((name, cost[name]))
+    class_costs = {
+        benchmark_class: sum(benchmark_cost for _, benchmark_cost in members)
+        for benchmark_class, members in benchmark_classes.items()
+    }
 
     shards = [[] for _ in range(n_shards)]
     loads = [0.0] * n_shards
-    for owner in sorted(classes, key=lambda owner: (-class_cost[owner], owner)):
+    for benchmark_class in sorted(benchmark_classes, key=lambda c: (-class_costs[c], c)):
         target = loads.index(min(loads))
-        shards[target].extend(classes[owner])
-        loads[target] += class_cost[owner]
+        shards[target].extend(name for name, _ in benchmark_classes[benchmark_class])
+        loads[target] += class_costs[benchmark_class]
     return shards
 
 
