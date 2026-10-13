@@ -261,10 +261,10 @@ def _apply_1dfunc_with_grid_core_dim(
         number of outputs from f, and from this function.
         If 1, this function returns a single UxDataArray; if >1, returns a tuple of UxDataArrays.
     vectorize : bool
-        must be True. Included here to emphasize this is like using
-        apply_ufunc(vectorize=True), because f is expected to operate on 1D arrays.
-        If f is already vectorized to handle more dimensions, use xr.apply_ufunc
-        or some other solution; using vectorize=True is slow, in general.
+        If True (default), f receives 1D arrays and is looped over all other
+        dims, like apply_ufunc(vectorize=True); this is slow, in general.
+        If False, f receives arrays of shape (..., n_grid), with grid_dim last,
+        and must handle the leading dims itself.
     additional kwargs are passed to xr.apply_ufunc.
     """
     # misc. checks
@@ -283,10 +283,6 @@ def _apply_1dfunc_with_grid_core_dim(
                 f"Expected all input uxarray objects to have the same uxgrid, "
                 f"but uxarrays[0].uxgrid != uxarrays[{i}].uxgrid."
             )
-    if not vectorize:
-        raise ValueError(
-            "Expected vectorize=True, because f is expected to operate on 1D arrays."
-        )
     # misc. bookkeeping
     if other_args is None:
         other_args = ()
@@ -311,7 +307,7 @@ def _apply_1dfunc_with_grid_core_dim(
         *xarrays,
         input_core_dims=input_core_dims,
         output_core_dims=output_core_dims,
-        vectorize=True,
+        vectorize=vectorize,
         **kw_apply_ufunc,
     )
     # convert back to uxarray objects, and (style) restore original dims order.

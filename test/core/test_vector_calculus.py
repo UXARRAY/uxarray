@@ -1063,3 +1063,47 @@ class TestMoreThan1D:
                 assert resultE.isel(time=it, level=il).equals(arr_it_il_gradE)
                 assert resultF.isel(time=it, level=il).equals(arr_it_il_gradF)
                 assert resultG.isel(time=it, level=il).equals(arr_it_il_gradG)
+
+
+class TestFaceGradientOperator:
+    """The face gradient is applied as a sparse operator built once per grid."""
+
+    def test_operator_is_cached_and_reused(self):
+        from uxarray.core.gradient import _face_gradient_operator
+
+        grid = ux.Grid.from_healpix(zoom=2)
+        assert _face_gradient_operator(grid) is _face_gradient_operator(grid)
+
+    def test_operator_rebuilt_when_geometry_replaced(self, gridpath):
+        from uxarray.core.gradient import _face_gradient_operator
+
+        grid = ux.open_grid(gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"))
+        before = _face_gradient_operator(grid)
+        grid.construct_face_centers(method="welzl")
+        after = _face_gradient_operator(grid)
+        assert after is not before
+        # what the cache serves must match a from-scratch build of the current grid
+        grid._face_gradient_operator_cache = None
+        for a, b in zip(after, _face_gradient_operator(grid)):
+            nt.assert_array_equal(a.toarray(), b.toarray())
+        assert any((a != b).nnz for a, b in zip(after, before))
+
+    def test_blocked_build_matches_single_block(self, gridpath, monkeypatch):
+        """Grids too big for one build block give the same operator."""
+        import uxarray.core.gradient as gradient_module
+
+        path = gridpath("fesom", "pi")  # has open-contour (NaN) rows
+        single = gradient_module._face_gradient_operator(ux.open_grid(path))
+        monkeypatch.setattr(gradient_module, "_OPERATOR_BUILD_BLOCK_ENTRIES", 997)
+        blocked = gradient_module._face_gradient_operator(ux.open_grid(path))
+        for a, b in zip(single, blocked):
+            nt.assert_array_equal(a.indptr, b.indptr)
+            nt.assert_array_equal(a.indices, b.indices)
+            nt.assert_array_equal(a.data, b.data)  # NaNs compare equal here
+
+    def test_constant_field_has_zero_gradient(self):
+        grid = ux.Grid.from_healpix(zoom=3)
+        const = ux.UxDataArray(np.full(grid.n_face, 7.0), dims=["n_face"], uxgrid=grid)
+        grad = const.gradient(scale_by_radius=False)
+        nt.assert_allclose(grad["zonal_gradient"].values, 0.0, atol=1e-10)
+        nt.assert_allclose(grad["meridional_gradient"].values, 0.0, atol=1e-10)

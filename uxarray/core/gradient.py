@@ -102,45 +102,22 @@ def _compute_gradient(data, scale_by_radius=True, **kw_apply_ufunc):
     uxgrid = data.uxgrid
 
     if data._face_centered():
-        face_coords = np.array(
-            [uxgrid.face_x.values, uxgrid.face_y.values, uxgrid.face_z.values]
-        ).T
-        face_lat = uxgrid.face_lat.values
-        face_lon = uxgrid.face_lon.values
+        w_zonal, w_meridional = _face_gradient_operator(uxgrid)
 
-        face_lon_rad = np.deg2rad(face_lon)
-        face_lat_rad = np.deg2rad(face_lat)
-        normal_lat = np.array(
-            [
-                -np.cos(face_lon_rad) * np.sin(face_lat_rad),
-                -np.sin(face_lon_rad) * np.sin(face_lat_rad),
-                np.cos(face_lat_rad),
-            ]
-        ).T
-        normal_lon = np.array(
-            [
-                -np.sin(face_lon_rad),
-                np.cos(face_lon_rad),
-                np.zeros_like(face_lon_rad),
-            ]
-        ).T
+        def _kernel(values):
+            # values: (..., n_face). The gradient is linear in the data, so every
+            # slice shares one precomputed operator: one sparse product each.
+            flat = values.reshape(-1, values.shape[-1]).T
+            grad_zonal = (w_zonal @ flat).T.reshape(values.shape)
+            grad_meridional = (w_meridional @ flat).T.reshape(values.shape)
+            return grad_zonal, grad_meridional
 
         grad_zonal, grad_meridional = _apply_1dfunc_with_grid_core_dim(
-            _compute_gradients_on_faces,
+            _kernel,
             "n_face",
             data,
-            other_args=(
-                uxgrid.n_face,
-                face_coords,
-                uxgrid.edge_face_connectivity.values,
-                uxgrid.face_node_connectivity.values,
-                uxgrid.node_edge_connectivity.values,
-                face_lat,
-                face_lon,
-                normal_lon,
-                normal_lat,
-            ),
             n_outputs=2,
+            vectorize=False,
             **kw_apply_ufunc,
         )
 
@@ -352,10 +329,124 @@ def _dual_cell_area(sx, sy, sz, angles, n):
     return np.abs(area)
 
 
+# Entries of fixed-width scratch per build block: 2**22 * 24 B ~ 100 MB.
+_OPERATOR_BUILD_BLOCK_ENTRIES = 2**22
+# Grid variables the operator is built from.
+_OPERATOR_SOURCES = (
+    "face_x",
+    "face_y",
+    "face_z",
+    "face_lat",
+    "face_lon",
+    "edge_face_connectivity",
+    "face_node_connectivity",
+    "node_edge_connectivity",
+)
+
+
+def _face_gradient_operator(uxgrid):
+    """Return ``(w_zonal, w_meridional)``: sparse ``(n_face, n_face)`` operators
+    such that ``w_zonal @ data`` is the zonal gradient of face-centered ``data``
+    on the unit sphere (likewise meridional).
+
+    The Green-Gauss gradient is linear in the data, and everything else it needs
+    (stencil walk, normals, arc lengths, dual-cell areas) depends only on the
+    grid. Building the operator once per grid and caching it means each data
+    slice costs one sparse product instead of a full geometry pass.
+
+    Rows whose contour is open (see :func:`_face_gradient_weights`) hold a
+    single NaN weight, so they come out NaN for any data.
+
+    The cache is keyed on the identity of the grid variables it was built from,
+    so replacing any of them (property setters, ``construct_face_centers()``,
+    ``normalize_cartesian_coordinates()``) rebuilds it. Editing their
+    ``.values`` in place is not detected.
+    """
+    # Populate everything first: some grid properties are computed lazily, and
+    # computing one (e.g. face_lat) can replace another (face_x).
+    for name in _OPERATOR_SOURCES:
+        getattr(uxgrid, name)
+    sources = tuple(getattr(uxgrid, name).variable for name in _OPERATOR_SOURCES)
+    cached = getattr(uxgrid, "_face_gradient_operator_cache", None)
+    if cached is not None and all(a is b for a, b in zip(cached[0], sources)):
+        return cached[1]
+
+    from scipy import sparse
+
+    # float64 geometry: some grids store float32 coordinates, and the weights
+    # combine many products of them.
+    face_lat = uxgrid.face_lat.values.astype(np.float64)
+    face_lon = uxgrid.face_lon.values.astype(np.float64)
+    face_lon_rad = np.deg2rad(face_lon)
+    face_lat_rad = np.deg2rad(face_lat)
+    normal_lat = np.array(
+        [
+            -np.cos(face_lon_rad) * np.sin(face_lat_rad),
+            -np.sin(face_lon_rad) * np.sin(face_lat_rad),
+            np.cos(face_lat_rad),
+        ]
+    ).T
+    normal_lon = np.array(
+        [
+            -np.sin(face_lon_rad),
+            np.cos(face_lon_rad),
+            np.zeros_like(face_lon_rad),
+        ]
+    ).T
+
+    face_coords = np.array(
+        [uxgrid.face_x.values, uxgrid.face_y.values, uxgrid.face_z.values],
+        dtype=np.float64,
+    ).T
+    face_node_connectivity = uxgrid.face_node_connectivity.values
+    node_edge_connectivity = uxgrid.node_edge_connectivity.values
+    edge_face_connectivity = uxgrid.edge_face_connectivity.values
+
+    # The kernel writes fixed-width rows (max stencil + the face itself); build
+    # them a block of faces at a time so scratch stays bounded on any grid,
+    # keeping only the used slots of each row.
+    n_face = uxgrid.n_face
+    width = face_node_connectivity.shape[1] * node_edge_connectivity.shape[1] + 1
+    block = max(1, _OPERATOR_BUILD_BLOCK_ENTRIES // width)
+    index_dtype = np.int32 if n_face < np.iinfo(np.int32).max else np.int64
+    cols, w_zonal, w_meridional, counts = [], [], [], []
+    for start in range(0, n_face, block):
+        stop = min(start + block, n_face)
+        b_cols, b_zonal, b_meridional, b_counts = _face_gradient_weights(
+            start,
+            stop,
+            face_coords,
+            edge_face_connectivity,
+            face_node_connectivity,
+            node_edge_connectivity,
+            face_lat,
+            face_lon,
+            normal_lon,
+            normal_lat,
+        )
+        used = np.arange(width) < b_counts[:, None]
+        cols.append(b_cols[used].astype(index_dtype))
+        w_zonal.append(b_zonal[used])
+        w_meridional.append(b_meridional[used])
+        counts.append(b_counts)
+
+    cols = np.concatenate(cols)
+    indptr = np.concatenate(([0], np.cumsum(np.concatenate(counts)))).astype(
+        index_dtype
+    )
+    shape = (n_face, n_face)
+    operator = (
+        sparse.csr_matrix((np.concatenate(w_zonal), cols, indptr), shape=shape),
+        sparse.csr_matrix((np.concatenate(w_meridional), cols, indptr), shape=shape),
+    )
+    uxgrid._face_gradient_operator_cache = (sources, operator)
+    return operator
+
+
 @njit(cache=True, parallel=True, nogil=True)
-def _compute_gradients_on_faces(
-    data,
-    n_face,
+def _face_gradient_weights(
+    face_start,
+    face_stop,
     face_coords,
     edge_face_connectivity,
     face_node_connectivity,
@@ -366,61 +457,50 @@ def _compute_gradients_on_faces(
     normal_lat,
 ):
     """
-    Computes horizontal gradients on faces averaged over the cell constructed from connecting the centroids of the faces which share a common node with the face.
+    Weights of the horizontal gradient on faces, averaged over the cell constructed
+    from connecting the centroids of the faces which share a common node with the face.
 
+    Each contour edge between neighbor faces f1 and f2 contributes
+    ``((d[f1] + d[f2]) / 2 - d[face]) * c`` to the face's gradient, so the gradient
+    is ``sum(w[s] * d[s])`` over the face itself and its stencil faces.
 
-    Parameters
-    ----------
-    data : np.ndarray
-        Array containing the data to compute gradients on, must be face-centered
-    n_face: int
-        TODO
-    face_coords: np.ndarray
-        TODO
+    Covers faces ``face_start:face_stop``; row ``k`` is face ``face_start + k``.
 
     Returns
     -------
-    gradient_zonal: np.ndarray
-        Zonal component of gradient ...
-    gradient_meridional: np.ndarray
-        Meridional component of gradient ...
+    cols, w_zonal, w_meridional : np.ndarray, shape (n_rows, max_stencil + 1)
+        Fixed-width rows: column index and zonal/meridional weight. Slot 0 is the
+        face itself; only the first ``counts[k]`` slots of row ``k`` are used.
+    counts : np.ndarray, shape (n_rows,)
 
     Notes
     -----
-
     Combined ideas from:
     - Strategy (3) in Barth, Timothy, and Dennis Jespersen. "The design and application of upwind schemes on unstructured meshes." 27th Aerospace sciences meeting. 1989.
     - Equation (11) in Tomita, Hirofumi, et al. "Shallow water model on a modified icosahedral geodesic grid by using spring dynamics." Journal of Computational Physics 174.2 (2001): 579-613.
-
-    Returns:
-
-        two np.ndarray: (n_face,) for zonal_grad & meridional_grad
-
     """
-
-    gradient_zonal = np.empty(n_face)
-    gradient_meridional = np.empty(n_face)
-
     n_face_nodes = face_node_connectivity.shape[1]
     n_node_edges = node_edge_connectivity.shape[1]
     max_stencil = n_face_nodes * n_node_edges
 
+    n_rows = face_stop - face_start
+    cols = np.empty((n_rows, max_stencil + 1), dtype=np.int64)
+    w_zonal = np.zeros((n_rows, max_stencil + 1))
+    w_meridional = np.zeros((n_rows, max_stencil + 1))
+    counts = np.empty(n_rows, dtype=np.int64)
+
     # Parallel across faces
-    for face_idx in prange(n_face):
+    for row in prange(n_rows):
+        face_idx = face_start + row
         # Centroids of the faces forming the contour, collected as the loop
         # walks it so the normalizing area matches the region integrated over.
-        stencil = np.empty(max_stencil, dtype=np.int64)
         stencil_x = np.empty(max_stencil)
         stencil_y = np.empty(max_stencil)
         stencil_z = np.empty(max_stencil)
         angles = np.empty(max_stencil)
         n_stencil = 0
+        cols[row, 0] = face_idx
 
-        # Gradient accumulated component-wise to keep the inner loop free of
-        # temporary arrays.
-        grad_x = 0.0
-        grad_y = 0.0
-        grad_z = 0.0
         has_contribution = False
 
         # Green-Gauss only applies to a closed contour. If any edge in this
@@ -428,7 +508,6 @@ def _compute_gradients_on_faces(
         # open and no enclosed area exists.
         contour_closed = True
 
-        data_face = data[face_idx]
         face_x = face_coords[face_idx, 0]
         face_y = face_coords[face_idx, 1]
         face_z = face_coords[face_idx, 2]
@@ -491,51 +570,56 @@ def _compute_gradients_on_faces(
                     face_lon[face2_idx],
                 )
 
-                # compute trapezoidal rule
-                trapz = (data[face1_idx] + data[face2_idx]) / 2
-
-                # add to the gradient (subtract correction term)
-                weight = (trapz - data_face) * arc_length * inv_norm
-                grad_x += weight * cross_x
-                grad_y += weight * cross_y
-                grad_z += weight * cross_z
+                # this edge adds (trapz - d[face]) * coef * cross to the gradient,
+                # with trapz = (d[face1] + d[face2]) / 2; project cross now.
+                coef = arc_length * inv_norm
+                c_zonal = coef * (
+                    cross_x * normal_lon[face_idx, 0]
+                    + cross_y * normal_lon[face_idx, 1]
+                    + cross_z * normal_lon[face_idx, 2]
+                )
+                c_meridional = coef * (
+                    cross_x * normal_lat[face_idx, 0]
+                    + cross_y * normal_lat[face_idx, 1]
+                    + cross_z * normal_lat[face_idx, 2]
+                )
+                w_zonal[row, 0] -= c_zonal
+                w_meridional[row, 0] -= c_meridional
                 has_contribution = True
 
                 for cand in (face1_idx, face2_idx):
-                    seen = False
+                    slot = -1
                     for s in range(n_stencil):
-                        if stencil[s] == cand:
-                            seen = True
+                        if cols[row, s + 1] == cand:
+                            slot = s
                             break
-                    if not seen:
-                        stencil[n_stencil] = cand
-                        stencil_x[n_stencil] = face_coords[cand, 0]
-                        stencil_y[n_stencil] = face_coords[cand, 1]
-                        stencil_z[n_stencil] = face_coords[cand, 2]
+                    if slot < 0:
+                        slot = n_stencil
+                        cols[row, slot + 1] = cand
+                        stencil_x[slot] = face_coords[cand, 0]
+                        stencil_y[slot] = face_coords[cand, 1]
+                        stencil_z[slot] = face_coords[cand, 2]
                         n_stencil += 1
+                    w_zonal[row, slot + 1] += 0.5 * c_zonal
+                    w_meridional[row, slot + 1] += 0.5 * c_meridional
 
         # The contour must be closed, and a polygon, before it encloses an area.
+        # A lone NaN weight makes the row NaN for any data.
         if not has_contribution or not contour_closed or n_stencil < 3:
-            gradient_zonal[face_idx] = np.nan
-            gradient_meridional[face_idx] = np.nan
+            w_zonal[row, 0] = np.nan
+            w_meridional[row, 0] = np.nan
+            counts[row] = 1
             continue
 
-        area = _dual_cell_area(stencil_x, stencil_y, stencil_z, angles, n_stencil)
+        inv_area = 1.0 / _dual_cell_area(
+            stencil_x, stencil_y, stencil_z, angles, n_stencil
+        )
+        for s in range(n_stencil + 1):
+            w_zonal[row, s] *= inv_area
+            w_meridional[row, s] *= inv_area
+        counts[row] = n_stencil + 1
 
-        # Normalize and project zonal and meridional components and store the result for the current face
-        inv_area = 1.0 / area
-        gradient_zonal[face_idx] = (
-            grad_x * normal_lon[face_idx, 0]
-            + grad_y * normal_lon[face_idx, 1]
-            + grad_z * normal_lon[face_idx, 2]
-        ) * inv_area
-        gradient_meridional[face_idx] = (
-            grad_x * normal_lat[face_idx, 0]
-            + grad_y * normal_lat[face_idx, 1]
-            + grad_z * normal_lat[face_idx, 2]
-        ) * inv_area
-
-    return gradient_zonal, gradient_meridional
+    return cols, w_zonal, w_meridional, counts
 
 
 # TODO: Add support for this after merging face-centered implementation
