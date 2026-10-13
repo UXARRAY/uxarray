@@ -1615,6 +1615,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             the result caries per-radian units: [u units]/radian.
             (e.g. result has units of (m/s)/rad if u represents velocity).
 
+            CAUTION: this scaling does not account for any radius increases
+            due to vertical levels; it simply divides by ``uxgrid.sphere_radius``.
+
         Returns
         -------
         gradient: UxDataset
@@ -1681,6 +1684,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
             the result caries per-radian units: [u units]/radian.
             (e.g. result has units of (m/s)/rad if u represents velocity).
+
+            CAUTION: this scaling does not account for any radius increases
+            due to vertical levels; it simply divides by ``uxgrid.sphere_radius``.
 
         Returns
         -------
@@ -1790,6 +1796,10 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
             the result caries per-radian units: [u units]/radian.
             (e.g. result has units of (m/s)/rad if u represents velocity).
+
+            CAUTION: this scaling does not account for any radius increases
+            due to vertical levels; it simply divides by ``uxgrid.sphere_radius``.
+
         **kw_unused
             Currently unused; passing passing "units" will emit a DeprecationWarning,
             while passing anything else will raise a TypeError.
