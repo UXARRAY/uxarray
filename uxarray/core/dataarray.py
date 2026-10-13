@@ -1656,7 +1656,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         )
 
     def curl(
-        self, other: "UxDataArray", scale_by_radius: bool = True,
+        self,
+        other: "UxDataArray",
+        scale_by_radius: bool = True,
     ) -> "UxDataArray":
         """
         Computes the curl of the vector field defined by this UxDataArray and ``other``,
@@ -1731,12 +1733,12 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         # before the (potentially expensive) gradient call.
         u, v = xr.align(self, other, join="exact", copy=False)
 
-        # Compute gradients of both components
-        grad_u_zonal, grad_u_meridional = _compute_gradient(
-            u, scale_by_radius=scale_by_radius
+        # Only ∂v/∂x and ∂u/∂y are needed
+        (grad_u_meridional,) = _compute_gradient(
+            u, scale_by_radius=scale_by_radius, components=("meridional",)
         )
-        grad_v_zonal, grad_v_meridional = _compute_gradient(
-            v, scale_by_radius=scale_by_radius
+        (grad_v_zonal,) = _compute_gradient(
+            v, scale_by_radius=scale_by_radius, components=("zonal",)
         )
 
         # Compute curl = ∂v/∂x - ∂u/∂y + u·tan(φ)/a
@@ -1840,9 +1842,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         if "units" in kw_unused:
             warn(
-                ("The ``units`` parameter in divergence() was deprecated in October 2026. "
-                "Use scale_by_radius=True/False to control the units, "
-                "or set result.attrs['units'] manually to set the units attribute after the call."),
+                (
+                    "The ``units`` parameter in divergence() was deprecated in October 2026. "
+                    "Use scale_by_radius=True/False to control the units, "
+                    "or set result.attrs['units'] manually to set the units attribute after the call."
+                ),
                 DeprecationWarning,
             )
             kw_unused.pop("units")
@@ -1855,12 +1859,12 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         # before the (potentially expensive) gradient call.
         u, v = xr.align(self, other, join="exact", copy=False)
 
-        # Compute gradients of both components
-        grad_u_zonal, grad_u_meridional = _compute_gradient(
-            u, scale_by_radius=scale_by_radius
+        # Only ∂u/∂x and ∂v/∂y are needed
+        (grad_u_zonal,) = _compute_gradient(
+            u, scale_by_radius=scale_by_radius, components=("zonal",)
         )
-        grad_v_zonal, grad_v_meridional = _compute_gradient(
-            v, scale_by_radius=scale_by_radius
+        (grad_v_meridional,) = _compute_gradient(
+            v, scale_by_radius=scale_by_radius, components=("meridional",)
         )
 
         # For divergence: div(V) = ∂u/∂x + ∂v/∂y - v·tan(φ)/a

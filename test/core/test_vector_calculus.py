@@ -1107,3 +1107,50 @@ class TestFaceGradientOperator:
         grad = const.gradient(scale_by_radius=False)
         nt.assert_allclose(grad["zonal_gradient"].values, 0.0, atol=1e-10)
         nt.assert_allclose(grad["meridional_gradient"].values, 0.0, atol=1e-10)
+
+
+class TestGradientComponents:
+    """_compute_gradient(components=...) returns just the requested components."""
+
+    def test_components_match_full_gradient(self):
+        from uxarray.core.gradient import _compute_gradient
+
+        ds0 = ux.tutorial.open_dataset('outCSne30-vortex')
+        arr = ds0['psi']
+        arr.uxgrid._ds.attrs['sphere_radius'] = 6.371e6
+        zonal, meridional = _compute_gradient(arr)
+        (only_zonal,) = _compute_gradient(arr, components=("zonal",))
+        (only_meridional,) = _compute_gradient(arr, components=("meridional",))
+        swapped = _compute_gradient(arr, components=("meridional", "zonal"))
+        assert only_zonal.identical(zonal)
+        assert only_meridional.identical(meridional)
+        assert swapped[0].identical(meridional) and swapped[1].identical(zonal)
+
+    @pytest.mark.parametrize("components", [(), ("radial",), ("zonal", "up")])
+    def test_invalid_components_raise(self, components):
+        from uxarray.core.gradient import _compute_gradient
+
+        arr = ux.tutorial.open_dataset('outCSne30-vortex')['psi']
+        with pytest.raises(ValueError, match="components"):
+            _compute_gradient(arr, components=components)
+
+    def test_curl_and_divergence_compute_only_needed_components(self, monkeypatch):
+        import uxarray.core.dataarray as dataarray_module
+
+        ds0 = ux.tutorial.open_dataset('outCSne30-vortex')
+        u = ds0['psi']
+        u.uxgrid._ds.attrs['sphere_radius'] = 6.371e6
+        v = u.rename("v")
+        requested = []
+        real = dataarray_module._compute_gradient
+
+        def spy(data, *args, **kwargs):
+            requested.append(kwargs.get("components", ("zonal", "meridional")))
+            return real(data, *args, **kwargs)
+
+        monkeypatch.setattr(dataarray_module, "_compute_gradient", spy)
+        u.curl(v)
+        assert sorted(requested) == [("meridional",), ("zonal",)]
+        requested.clear()
+        u.divergence(v)
+        assert sorted(requested) == [("meridional",), ("zonal",)]

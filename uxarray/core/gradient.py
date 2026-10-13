@@ -91,35 +91,49 @@ def _check_node_on_boundary_and_gather_node_neighbors(
     return bool_bdy, node_neighbors[0:num_node_neighbors]
 
 
-def _compute_gradient(data, scale_by_radius=True, **kw_apply_ufunc):
+def _compute_gradient(
+    data, scale_by_radius=True, components=("zonal", "meridional"), **kw_apply_ufunc
+):
     """returns (zonal_gradient, meridional_gradient) as UxDataArrays, which are the
     zonal and meridional components of the gradient of the input UxDataArray.
+
+    components selects which of "zonal" and "meridional" to compute; they are
+    returned in the order given, always as a tuple (e.g. curl() only needs ∂v/∂x
+    and ∂u/∂y, so it asks for one component of each).
 
     kw_apply_ufunc get passed to apply_ufunc for a function which takes `data` as input,
     and outputs grad_zonal, grad_meridional. E.g. it may be appropriate to provide
     kwargs like dask="parallelized" and output_dtypes=[float, float].
     """
     uxgrid = data.uxgrid
+    components = tuple(components)
+    if not components or not set(components) <= {"zonal", "meridional"}:
+        raise ValueError(
+            "components must be a non-empty subset of ('zonal', 'meridional'); "
+            f"got {components!r}"
+        )
 
     if data._face_centered():
-        w_zonal, w_meridional = _face_gradient_operator(uxgrid)
+        operators = dict(zip(("zonal", "meridional"), _face_gradient_operator(uxgrid)))
+        selected = [operators[c] for c in components]
 
         def _kernel(values):
             # values: (..., n_face). The gradient is linear in the data, so every
             # slice shares one precomputed operator: one sparse product each.
             flat = values.reshape(-1, values.shape[-1]).T
-            grad_zonal = (w_zonal @ flat).T.reshape(values.shape)
-            grad_meridional = (w_meridional @ flat).T.reshape(values.shape)
-            return grad_zonal, grad_meridional
+            grads = tuple((w @ flat).T.reshape(values.shape) for w in selected)
+            return grads if len(grads) > 1 else grads[0]
 
-        grad_zonal, grad_meridional = _apply_1dfunc_with_grid_core_dim(
+        grads = _apply_1dfunc_with_grid_core_dim(
             _kernel,
             "n_face",
             data,
-            n_outputs=2,
+            n_outputs=len(components),
             vectorize=False,
             **kw_apply_ufunc,
         )
+        if len(components) == 1:
+            grads = (grads,)
 
     # TODO: Add support for this after merging face-centered implementation
     # elif data._node_centered():
@@ -170,8 +184,7 @@ def _compute_gradient(data, scale_by_radius=True, **kw_apply_ufunc):
     if scale_by_radius:
         if has_sphere_radius:
             radius = uxgrid.sphere_radius
-            grad_zonal = grad_zonal / radius
-            grad_meridional = grad_meridional / radius
+            grads = tuple(grad / radius for grad in grads)
         else:
             warnings.warn(
                 "scale_by_radius=True but the grid has no 'sphere_radius' "
@@ -187,15 +200,12 @@ def _compute_gradient(data, scale_by_radius=True, **kw_apply_ufunc):
     else:
         grad_units = f"{base_units}/rad" if base_units else "1/rad"
 
-    # Zonal
-    grad_zonal_da = grad_zonal.rename("zonal_gradient")
-    grad_zonal_da.attrs["units"] = grad_units
-
-    # Meridional
-    grad_meridional_da = grad_meridional.rename("meridional_gradient")
-    grad_meridional_da.attrs["units"] = grad_units
-
-    return grad_zonal_da, grad_meridional_da
+    results = []
+    for component, grad in zip(components, grads):
+        grad_da = grad.rename(f"{component}_gradient")
+        grad_da.attrs["units"] = grad_units
+        results.append(grad_da)
+    return tuple(results)
 
 
 @njit(cache=True)
