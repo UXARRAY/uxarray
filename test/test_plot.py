@@ -390,7 +390,14 @@ def _contour_lines(contours):
     if isinstance(contours, hv.Overlay):
         contours = contours.get(0)
     name = contours.vdims[0].name
-    return [(float(np.atleast_1d(p[name])[0]), np.asarray(p["x"]), np.asarray(p["y"])) for p in contours.data]
+    lines = []
+    # each path holds the lines of one level, separated by NaN
+    for p in contours.data:
+        level, x, y = float(np.atleast_1d(p[name])[0]), np.asarray(p["x"]), np.asarray(p["y"])
+        breaks = np.flatnonzero(np.isnan(x))
+        lines += [(level, xs, ys) for xs, ys in zip(np.split(x, breaks), np.split(y, breaks))]
+    # np.split keeps the NaN at the start of every line after the first
+    return [(level, x[np.isfinite(x)], y[np.isfinite(y)]) for level, x, y in lines]
 
 
 @pytest.mark.parametrize("method", ["interpolated", "edges"])
@@ -428,6 +435,8 @@ def test_contour_levels(gridpath, datasetpath):
     for method in ["interpolated", "edges"]:
         contours = uxds['psi'].plot.contour(levels=[0.6, 0.9, 1.2, 99.0], method=method)
         assert {level for level, _, _ in _contour_lines(contours)} == {0.6, 0.9, 1.2}
+        # one path per level, holding all the lines of that level
+        assert len(contours.get(0).data) == 3
         assert _contour_lines(uxds['psi'].plot.contour(levels=[99.0], method=method)) == []
 
         # an integer asks for a number of levels, which then fall inside the data range

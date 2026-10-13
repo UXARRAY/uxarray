@@ -283,6 +283,28 @@ def _drop_lines_outside_projection(
     ]
 
 
+def _paths_by_level(
+    contours: list[tuple[float, np.ndarray]], level_name: str
+) -> list[dict]:
+    """Path data for HoloViews, with one path per level whose lines are
+    separated by NaN.
+
+    HoloViews and the plotting libraries handle each path separately, which is
+    slow for the thousands of lines a noisy field gives, while a NaN is drawn as
+    a gap at almost no cost.
+    """
+    lines_at = defaultdict(list)
+    for level, line in contours:
+        lines_at[level].append(line)
+
+    gap = np.full((1, 2), np.nan)
+    paths = []
+    for level, lines in lines_at.items():
+        points = np.concatenate([part for line in lines for part in (gap, line)][1:])
+        paths.append({"x": points[:, 0], "y": points[:, 1], level_name: level})
+    return paths
+
+
 def _label_points(
     contours: list[tuple[float, np.ndarray]],
 ) -> tuple[list[float], list[float], list[str]]:
