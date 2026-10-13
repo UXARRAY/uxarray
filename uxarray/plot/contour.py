@@ -526,6 +526,38 @@ def _grid_extents(uxgrid: Grid) -> tuple[float, float, float, float]:
     return tuple(float(np.float32(value)) for value in (west, south, east, north))
 
 
+# The segment test in _project_lines() is adapted from straightAndDomain() in
+# lib/cartopy/trace.pyx of Cartopy 0.25.0, which is released under this license:
+#
+# BSD 3-Clause License
+#
+# Copyright (c) Crown and Cartopy contributors.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 def _project_lines(
     contours: list[tuple[float, np.ndarray]], projection
 ) -> tuple[list[tuple[float, np.ndarray]], np.ndarray]:
@@ -545,6 +577,14 @@ def _project_lines(
         The parts of the lines on the map, in the coordinates of the projection.
     on_map : np.ndarray
         Whether each of the lines has a part on the map.
+
+    Notes
+    -----
+    The test for a segment is adapted from ``straightAndDomain()`` in
+    ``lib/cartopy/trace.pyx`` of Cartopy 0.25.0, for a segment that starts on
+    the map, and applied here to all segments at once. Cartopy is Copyright (c)
+    Crown and Cartopy contributors, and is released under the BSD 3-Clause
+    License, whose notice is above this function.
     """
     _raise_hint_if_optional_deps_missing("cartopy")
     import cartopy.crs as ccrs
@@ -567,10 +607,10 @@ def _project_lines(
     keep = np.zeros(len(points), dtype=bool)
     keep[finite] = shapely.intersects_xy(domain, xy[finite, 0], xy[finite, 1])
 
-    # Every segment close to straight once projected, by Cartopy's test: the
-    # projection of its middle (Cartopy interpolates linearly in longitude and
-    # latitude) lies within the projection's threshold of the projected segment,
-    # less so towards its ends
+    # Every segment close to straight once projected, by the test adapted from
+    # Cartopy's straightAndDomain() (see Notes): the projection of its middle
+    # (Cartopy interpolates linearly in longitude and latitude) lies within the
+    # projection's threshold of the projected segment, less so towards its ends
     middle = (points[:-1] + points[1:]) / 2
     xy_middle = projection.transform_points(source, middle[:, 0], middle[:, 1])[:, :2]
     segment = xy[1:] - xy[:-1]
@@ -590,7 +630,8 @@ def _project_lines(
     straight[ends[:-1] - 1] = True
     keep[:-1] &= straight
 
-    # On a map that is not convex, a segment between two points on it can leave it
+    # On a map that is not convex, a segment between two points on it can leave
+    # it, so Cartopy also requires the map to cover the segment
     if not domain.equals(domain.convex_hull):
         covered = np.ones(len(points) - 1, dtype=bool)
         within_line = keep[:-1] & keep[1:]
