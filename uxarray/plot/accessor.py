@@ -595,9 +595,10 @@ class UxDataArrayPlotAccessor:
         -------
         contours : hv.Overlay, hv.Contours or gv.Contours
             The contour lines, one path per level with the level as its value
-            and its lines separated by NaN, overlaid with their labels. With ``labels=False`` the lines
-            alone: an ``hv.Contours``, or a ``gv.Contours`` if a ``projection`` is
-            given.
+            and its lines separated by NaN, overlaid with their labels. With
+            ``labels=False`` the lines alone: an ``hv.Contours``, or a
+            ``gv.Contours`` if a ``projection`` is given. Those lines are already
+            in the coordinates of the projection, which is their ``crs``.
 
         Raises
         ------
@@ -644,17 +645,20 @@ class UxDataArrayPlotAccessor:
         from uxarray.plot.contour import (
             _apply_options,
             _compute_contours,
-            _drop_lines_outside_projection,
             _label_points,
             _paths_by_level,
+            _project_lines,
+            _projected_contours,
         )
 
         plotting_backend.assign(backend)
 
         contours = _compute_contours(self._uxda, levels=levels, method=method)
+        labeled = contours
         if projection is not None:
             _raise_hint_if_optional_deps_missing("cartopy", "geoviews")
-            contours = _drop_lines_outside_projection(contours, projection)
+            contours, on_map = _project_lines(contours, projection)
+            labeled = [line for line, shown in zip(labeled, on_map) if shown]
 
         level_name = self._uxda.name if self._uxda.name is not None else "level"
         kdims = [
@@ -662,16 +666,19 @@ class UxDataArrayPlotAccessor:
             hv.Dimension("y", label="Latitude"),
         ]
         paths = _paths_by_level(contours, level_name)
-        label_x, label_y, label_text = _label_points(contours)
+        label_x, label_y, label_text = _label_points(labeled)
         label_data = {"x": label_x, "y": label_y, "text": label_text}
 
         if projection is not None:
             import cartopy.crs as ccrs
             import geoviews as gv
 
-            crs = ccrs.PlateCarree()
-            lines = gv.Contours(paths, kdims=kdims, vdims=[level_name], crs=crs)
-            text = gv.Labels(label_data, kdims=kdims, vdims=["text"], crs=crs)
+            lines = _projected_contours()(
+                paths, kdims=kdims, vdims=[level_name], crs=projection
+            )
+            text = gv.Labels(
+                label_data, kdims=kdims, vdims=["text"], crs=ccrs.PlateCarree()
+            )
         else:
             lines = hv.Contours(paths, kdims=kdims, vdims=[level_name])
             text = hv.Labels(label_data, kdims=kdims, vdims=["text"])

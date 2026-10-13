@@ -561,6 +561,16 @@ def test_contour_projection(gridpath):
     assert isinstance(lines, gv.Contours) and isinstance(labels, gv.Labels)
     hv.renderer("matplotlib").get_plot(uxda.plot(projection=projection, backend="matplotlib") * contours)
 
+    # the lines are already in the coordinates of the projection, so GeoViews plots them
+    # as a map without projecting them again, on both backends
+    x_limit = projection.x_limits[1]
+    assert lines.crs == projection
+    assert x_limit / 2 < max(np.abs(x).max() for _, x, _ in _contour_lines(lines)) <= x_limit
+    for backend in ["matplotlib", "bokeh"]:
+        lines = uxda.plot.contour(levels=levels, projection=projection, backend=backend, labels=False)
+        plot = hv.renderer(backend).get_plot(lines)
+        assert plot.geographic and plot._project_operation is None
+
     # seen from above the north pole, the southern line is not on the map.
     # GeoViews raises an IndexError for such a line, so it is dropped
     for method in ["interpolated", "edges"]:
@@ -573,21 +583,27 @@ def test_contour_projection(gridpath):
 @pytest.mark.parametrize("projection", [
     ccrs.Orthographic(0, 90), ccrs.PlateCarree(central_longitude=180), ccrs.LambertConformal(), ccrs.Robinson(-150)
 ])
-def test_contour_projection_drops_same_lines_as_projecting_each(gridpath, projection):
-    """Lines found on the map from their points alone are the lines whose projection is not empty."""
+def test_contour_projected_lines_match_cartopy(gridpath, projection):
+    """Lines projected all at once are the lines Cartopy gives when it projects them one at a time."""
     import shapely
-    from uxarray.plot.contour import _compute_contours, _drop_lines_outside_projection
+    from uxarray.plot.contour import _compute_contours, _project_lines
 
     uxda = _face_latitude(ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug")))
     for method in ["interpolated", "edges"]:
         contours = _compute_contours(uxda, levels=[-45.5, 0.5, 10.5, 45.5], method=method)
-        expected = [
-            line for _, line in contours
-            if not projection.project_geometry(shapely.LineString(line), ccrs.PlateCarree()).is_empty
-        ]
-        kept = [line for _, line in _drop_lines_outside_projection(contours, projection)]
-        assert len(kept) == len(expected)
-        assert all(a is b for a, b in zip(kept, expected))
+        expected, expected_on_map = [], []
+        for level, line in contours:
+            geometry = projection.project_geometry(shapely.LineString(line), ccrs.PlateCarree())
+            parts = [(level, np.asarray(part.coords)) for part in shapely.get_parts(geometry) if len(part.coords) > 1]
+            expected += parts
+            expected_on_map.append(len(parts) > 0)
+
+        projected, on_map = _project_lines(contours, projection)
+        assert on_map.tolist() == expected_on_map
+        assert len(projected) == len(expected)
+        for (level, line), (expected_level, expected_line) in zip(projected, expected):
+            assert level == expected_level
+            np.testing.assert_allclose(line, expected_line, rtol=1e-12)
 
 
 def test_contour_missing_values(gridpath):
