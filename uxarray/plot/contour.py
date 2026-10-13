@@ -355,8 +355,10 @@ def _unwrap_lines(lon: np.ndarray, starts: np.ndarray) -> np.ndarray:
     return lon - 360.0 * shift
 
 
-# The segment test in _project_lines() is adapted from straightAndDomain() in
-# lib/cartopy/trace.pyx of Cartopy 0.25.0, which is released under this license:
+# The segment test in _project_lines() is adapted from straightAndDomain(), and
+# its rule for lines with no point that can be projected from bisect() and
+# _project_segment(), in lib/cartopy/trace.pyx of Cartopy 0.25.0, which is
+# released under this license:
 #
 # BSD 3-Clause License
 #
@@ -411,9 +413,11 @@ def _project_lines(
     -----
     The test for a segment is adapted from ``straightAndDomain()`` in
     ``lib/cartopy/trace.pyx`` of Cartopy 0.25.0, for a segment that starts on
-    the map, and applied here to all segments at once. Cartopy is Copyright (c)
-    Crown and Cartopy contributors, and is released under the BSD 3-Clause
-    License, whose notice is above this function.
+    the map, and applied here to all segments at once. The rule that a line
+    with no point that can be projected is not on the map follows ``bisect()``
+    and ``_project_segment()`` in the same file. Cartopy is Copyright (c) Crown
+    and Cartopy contributors, and is released under the BSD 3-Clause License,
+    whose notice is above this function.
     """
     _raise_hint_if_optional_deps_missing("cartopy")
     import cartopy.crs as ccrs
@@ -471,11 +475,19 @@ def _project_lines(
 
     as_is = np.logical_and.reduceat(keep, starts)
 
+    # A line none of whose points can be projected, such as one on the far side
+    # of an orthographic map, is not on the map. For a segment whose ends both
+    # cannot be projected, Cartopy's bisection accepts the end at once and adds
+    # nothing, without looking at the points in between (see Notes)
+    off_map = ~np.logical_or.reduceat(finite, starts)
+
     projected = []
     on_map = as_is.copy()
     for i, (level, line) in enumerate(contours):
         if as_is[i]:
             projected.append((level, xy[starts[i] : ends[i]]))
+            continue
+        if off_map[i]:
             continue
         geometry = projection.project_geometry(shapely.LineString(line), source)
         for part in shapely.get_parts(geometry):
