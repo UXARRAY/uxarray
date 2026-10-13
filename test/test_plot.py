@@ -501,6 +501,20 @@ def test_contour_edges_follow_grid(gridpath, grid):
     assert n_segments == np.count_nonzero(between) + np.count_nonzero(cut)
 
 
+def test_contour_join_segments():
+    """Segments are joined into lines, open lines first from one of their ends, then closed loops."""
+    from uxarray.plot.contour import _join_segments
+
+    # a closed loop 0-1-2, and an open line 5-6-7 given in reverse
+    nodes, offsets = _join_segments(np.array([0, 1, 2, 6, 7]), np.array([1, 2, 0, 5, 6]))
+    assert [line.tolist() for line in np.split(nodes, offsets[1:-1])] == [[5, 6, 7], [0, 1, 2, 0]]
+    assert offsets.tolist() == [0, 3, 7]
+
+    # no segments give no lines
+    nodes, offsets = _join_segments(np.array([], dtype=int), np.array([], dtype=int))
+    assert len(nodes) == 0 and offsets.tolist() == [0]
+
+
 def test_contour_labels(gridpath):
     """Lines are labeled with their level by default, each level at the middle of its longest lines."""
     uxda = _face_latitude(ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug")))

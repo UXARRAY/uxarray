@@ -14,11 +14,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 from difflib import get_close_matches
-from itertools import chain
 from typing import TYPE_CHECKING, Sequence
 
 import numpy as np
+from numba import njit
 
+from uxarray.constants import INT_DTYPE
 from uxarray.errors import DataCenteringError, DimensionError
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
@@ -206,36 +207,98 @@ def _interpolated_contours(
     ]
 
 
-def _join_segments(start: np.ndarray, end: np.ndarray) -> list[list[int]]:
+def _join_segments(start: np.ndarray, end: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Joins segments, given by the indices of their two end nodes, into
-    continuous lines. Returns the node indices along each line."""
-    start, end = start.tolist(), end.tolist()
-    segments_at = defaultdict(list)
-    for i, (a, b) in enumerate(zip(start, end)):
-        segments_at[a].append(i)
-        segments_at[b].append(i)
+    continuous lines.
 
-    used = [False] * len(start)
+    Returns
+    -------
+    nodes : np.ndarray
+        The node indices along every line, one line after the other.
+    offsets : np.ndarray
+        Where each line starts in ``nodes``, followed by the length of ``nodes``.
+    """
+    if len(start) == 0:
+        return np.empty(0, dtype=INT_DTYPE), np.zeros(1, dtype=INT_DTYPE)
+    return _join_segments_kernel(
+        np.ascontiguousarray(start, dtype=INT_DTYPE),
+        np.ascontiguousarray(end, dtype=INT_DTYPE),
+    )
 
-    def walk(node):
-        line = [node]
-        while True:
-            unused = [i for i in segments_at[node] if not used[i]]
-            if not unused:
-                return line
-            used[unused[0]] = True
-            node = end[unused[0]] if start[unused[0]] == node else start[unused[0]]
-            line.append(node)
 
-    lines = []
+@njit(cache=True, nogil=True)
+def _join_segments_kernel(start, end):
+    n_segment = start.size
+
+    # The nodes are numbered in the order they first appear, which is the order
+    # the lines are started from them
+    number = np.full(max(start.max(), end.max()) + 1, -1, dtype=INT_DTYPE)
+    node_at = np.empty(2 * n_segment, dtype=INT_DTYPE)
+    n_node = 0
+    for i in range(n_segment):
+        for node in (start[i], end[i]):
+            if number[node] < 0:
+                number[node] = n_node
+                node_at[n_node] = node
+                n_node += 1
+
+    # The segments at each node, in the order of the segments, are
+    # segments_at[first[k]:first[k + 1]] for the node numbered k
+    first = np.zeros(n_node + 1, dtype=INT_DTYPE)
+    for i in range(n_segment):
+        first[number[start[i]] + 1] += 1
+        first[number[end[i]] + 1] += 1
+    for k in range(n_node):
+        first[k + 1] += first[k]
+    segments_at = np.empty(2 * n_segment, dtype=INT_DTYPE)
+    filled = first[:-1].copy()
+    for i in range(n_segment):
+        for node in (start[i], end[i]):
+            k = number[node]
+            segments_at[filled[k]] = i
+            filled[k] += 1
+
+    # Each line adds one node more than its segments, so there are at most twice
+    # as many nodes as segments, and at most as many lines as segments
+    used = np.zeros(n_segment, dtype=np.bool_)
+    unused_from = first[:-1].copy()
+    nodes = np.empty(2 * n_segment, dtype=INT_DTYPE)
+    offsets = np.zeros(n_segment + 1, dtype=INT_DTYPE)
+    n_point, n_line = 0, 0
+
     # Open lines first, starting from their ends, then closed loops
     for only_line_ends in (True, False):
-        for node, segments in segments_at.items():
-            if only_line_ends and len(segments) % 2 == 0:
+        for line_start in range(n_node):
+            if only_line_ends and (first[line_start + 1] - first[line_start]) % 2 == 0:
                 continue
-            while any(not used[i] for i in segments):
-                lines.append(walk(node))
-    return lines
+            while _next_unused(line_start, first, segments_at, used, unused_from) >= 0:
+                k = line_start
+                nodes[n_point] = node_at[k]
+                n_point += 1
+                while True:
+                    i = _next_unused(k, first, segments_at, used, unused_from)
+                    if i < 0:
+                        break
+                    used[i] = True
+                    node = end[i] if start[i] == node_at[k] else start[i]
+                    k = number[node]
+                    nodes[n_point] = node
+                    n_point += 1
+                n_line += 1
+                offsets[n_line] = n_point
+
+    return nodes[:n_point].copy(), offsets[: n_line + 1].copy()
+
+
+@njit(cache=True, nogil=True, inline="always")
+def _next_unused(k, first, segments_at, used, unused_from):
+    """The first unused segment at the node numbered k, or -1 if all are used.
+    The segments before ``unused_from[k]`` are known to be used."""
+    while unused_from[k] < first[k + 1] and used[segments_at[unused_from[k]]]:
+        unused_from[k] += 1
+    if unused_from[k] == first[k + 1]:
+        return -1
+    return segments_at[unused_from[k]]
 
 
 def _edge_contours(
@@ -259,15 +322,12 @@ def _edge_contours(
         above = values > level
         on_contour = usable & (above[first] != above[second])
         nodes = edge_nodes[on_contour]
-        lines = _join_segments(nodes[:, 0], nodes[:, 1])
-        if not lines:
+        line_nodes, offsets = _join_segments(nodes[:, 0], nodes[:, 1])
+        if len(line_nodes) == 0:
             continue
 
         # The lines are processed together, as one array of points
-        counts = np.array([len(line) for line in lines])
-        ends = np.cumsum(counts)
-        starts = ends - counts
-        line_nodes = np.fromiter(chain.from_iterable(lines), dtype=int, count=ends[-1])
+        starts, ends = offsets[:-1], offsets[1:]
         points = np.column_stack(
             [_unwrap_lines(lon[line_nodes], starts), lat[line_nodes]]
         )
@@ -317,9 +377,7 @@ def _drop_lines_outside_projection(
     domain = projection.domain
     margin = 1e-6 * np.ptp(np.reshape(domain.bounds, (2, 2)), axis=0).max()
     inside = np.zeros(len(points), dtype=bool)
-    inside[finite] = shapely.contains_xy(
-        domain.buffer(-margin), x[finite], y[finite]
-    )
+    inside[finite] = shapely.contains_xy(domain.buffer(-margin), x[finite], y[finite])
     starts = np.cumsum([0] + [len(line) for _, line in contours[:-1]])
     on_map = np.logical_or.reduceat(inside, starts)
 
