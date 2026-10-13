@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from difflib import get_close_matches
+from itertools import chain
 from typing import TYPE_CHECKING, Sequence
 
 import numpy as np
@@ -258,12 +259,40 @@ def _edge_contours(
         above = values > level
         on_contour = usable & (above[first] != above[second])
         nodes = edge_nodes[on_contour]
-        for line in _join_segments(nodes[:, 0], nodes[:, 1]):
-            # Unwrapped, a line that crosses the antimeridian runs past 180 degrees
-            points = np.column_stack([np.unwrap(lon[line], period=360.0), lat[line]])
-            for part in _split_at_antimeridian(points):
-                contours.append((float(level), part))
+        lines = _join_segments(nodes[:, 0], nodes[:, 1])
+        if not lines:
+            continue
+
+        # The lines are processed together, as one array of points
+        counts = np.array([len(line) for line in lines])
+        ends = np.cumsum(counts)
+        starts = ends - counts
+        line_nodes = np.fromiter(chain.from_iterable(lines), dtype=int, count=ends[-1])
+        points = np.column_stack(
+            [_unwrap_lines(lon[line_nodes], starts), lat[line_nodes]]
+        )
+
+        # Unwrapped, a line that crosses the antimeridian runs past 180 degrees
+        crosses = (np.minimum.reduceat(points[:, 0], starts) < -180.0) | (
+            np.maximum.reduceat(points[:, 0], starts) > 180.0
+        )
+        for line, crossing in zip(np.split(points, ends[:-1]), crosses):
+            parts = _split_at_antimeridian(line) if crossing else [line]
+            contours.extend((float(level), part) for part in parts)
     return contours
+
+
+def _unwrap_lines(lon: np.ndarray, starts: np.ndarray) -> np.ndarray:
+    """Removes the jumps of 360 degrees from the longitudes of several lines
+    stored one after the other, which begin at ``starts``. Each line is
+    unwrapped on its own, as by ``np.unwrap(..., period=360)``."""
+    step = np.diff(lon)
+    # The whole turns that bring each step into [-180, 180]
+    turns = np.where(np.abs(step) < 180.0, 0.0, np.round(step / 360.0))
+    turns[starts[1:] - 1] = 0.0  # no step between the end of a line and the next
+    shift = np.concatenate([[0.0], np.cumsum(turns)])
+    shift -= np.repeat(shift[starts], np.diff(np.append(starts, len(lon))))
+    return lon - 360.0 * shift
 
 
 def _drop_lines_outside_projection(
@@ -344,20 +373,29 @@ def _label_points(
     if not contours:
         return x, y, text
 
-    extent = np.ptp(np.concatenate([line for _, line in contours]), axis=0).max()
-    middles = defaultdict(list)
-    for level, line in contours:
-        steps = np.hypot(*np.diff(line, axis=0).T)
-        distance = np.concatenate([[0.0], np.cumsum(steps)])
-        middle = [np.interp(distance[-1] / 2, distance, line[:, i]) for i in (0, 1)]
-        middles[level].append((distance[-1], *middle))
+    line_levels = np.array([level for level, _ in contours])
+    points = np.concatenate([line for _, line in contours])
+    extent = np.ptp(points, axis=0).max()
 
-    for level, found in middles.items():
-        found.sort(reverse=True)
-        for rank, (length, lon, lat) in enumerate(found[:_MAX_LABELS_PER_LEVEL]):
-            if rank == 0 or length >= _MIN_LABELED_LENGTH * extent:
-                x.append(float(lon))
-                y.append(float(lat))
+    # The length of every line, from the steps between the points of all of them
+    counts = np.array([len(line) for _, line in contours])
+    ends = np.cumsum(counts)
+    steps = np.append(np.hypot(*np.diff(points, axis=0).T), 0.0)
+    steps[ends - 1] = 0.0  # no step between the end of a line and the next
+    lengths = np.add.reduceat(steps, ends - counts)
+
+    # Only the middles of the lines that are labeled are found
+    for level in dict.fromkeys(line_levels):
+        at_level = np.flatnonzero(line_levels == level)
+        longest = at_level[np.argsort(-lengths[at_level], kind="stable")]
+        for rank, i in enumerate(longest[:_MAX_LABELS_PER_LEVEL]):
+            if rank == 0 or lengths[i] >= _MIN_LABELED_LENGTH * extent:
+                line = contours[i][1]
+                distance = np.concatenate(
+                    [[0.0], np.cumsum(np.hypot(*np.diff(line, axis=0).T))]
+                )
+                x.append(float(np.interp(distance[-1] / 2, distance, line[:, 0])))
+                y.append(float(np.interp(distance[-1] / 2, distance, line[:, 1])))
                 text.append(f"{level:g}")
 
     return x, y, text
