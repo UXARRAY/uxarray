@@ -1093,6 +1093,51 @@ def calculate_max_face_radius(
     face_y: np.ndarray,
     face_z: np.ndarray,
 ) -> float:
+    """returns max face radius across all faces, with face radius is defined as
+    the maximum distance from the face center to any of its nodes.
+    """
+    n_faces = face_node_connectivity.shape[0]
+
+    face_radii2 = _compute_face_radii(
+        face_node_connectivity,
+        node_x,
+        node_y,
+        node_z,
+        face_x,
+        face_y,
+        face_z,
+        squared=True,
+    )
+
+    # now do a simple serial reduction
+    global_max2 = 0.0
+    for i in range(n_faces):
+        if face_radii2[i] > global_max2:
+            global_max2 = face_radii2[i]
+
+    # one sqrt at the end
+    return math.sqrt(global_max2)
+
+
+@njit(cache=True, parallel=True, nogil=True)
+def _compute_face_radii(
+    face_node_connectivity: np.ndarray,
+    node_x: np.ndarray,
+    node_y: np.ndarray,
+    node_z: np.ndarray,
+    face_x: np.ndarray,
+    face_y: np.ndarray,
+    face_z: np.ndarray,
+    squared: bool = False,
+) -> np.ndarray:
+    """return the radius of each face, defined as
+    the maximum distance from the face center to any of its nodes.
+
+    squared: bool
+        whether to return squared radius instead (default False).
+        squared = True option slightly improves efficiency if can compare values
+        before taking the square root, such as in calculating max_face_radius.
+    """
     n_faces, n_max_nodes = face_node_connectivity.shape
     # workspace to hold the max squared-distance for each face
     max2_per_face = np.empty(n_faces, dtype=np.float64)
@@ -1120,14 +1165,10 @@ def calculate_max_face_radius(
 
         max2_per_face[i] = face_max2
 
-    # now do a simple serial reduction
-    global_max2 = 0.0
-    for i in range(n_faces):
-        if max2_per_face[i] > global_max2:
-            global_max2 = max2_per_face[i]
-
-    # one sqrt at the end
-    return math.sqrt(global_max2)
+    if squared:
+        return max2_per_face
+    else:
+        return np.sqrt(max2_per_face)
 
 
 @njit(cache=True)
