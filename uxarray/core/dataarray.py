@@ -1659,7 +1659,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         )
 
     def curl(
-        self, other: "UxDataArray", scale_by_radius: bool = True,
+        self,
+        other: "UxDataArray",
+        scale_by_radius: bool = True,
     ) -> "UxDataArray":
         """
         Computes the curl of the vector field defined by this UxDataArray and ``other``,
@@ -1850,9 +1852,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         if "units" in kw_unused:
             warn(
-                ("The ``units`` parameter in divergence() was deprecated in October 2026. "
-                "Use scale_by_radius=True/False to control the units, "
-                "or set result.attrs['units'] manually to set the units attribute after the call."),
+                (
+                    "The ``units`` parameter in divergence() was deprecated in October 2026. "
+                    "Use scale_by_radius=True/False to control the units, "
+                    "or set result.attrs['units'] manually to set the units attribute after the call."
+                ),
                 DeprecationWarning,
             )
             kw_unused.pop("units")
