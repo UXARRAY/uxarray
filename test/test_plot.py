@@ -556,6 +556,26 @@ def test_contour_projection(gridpath):
         hv.renderer("matplotlib").get_plot(contours)
 
 
+@pytest.mark.parametrize("projection", [
+    ccrs.Orthographic(0, 90), ccrs.PlateCarree(central_longitude=180), ccrs.LambertConformal(), ccrs.Robinson(-150)
+])
+def test_contour_projection_drops_same_lines_as_projecting_each(gridpath, projection):
+    """Lines found on the map from their points alone are the lines whose projection is not empty."""
+    import shapely
+    from uxarray.plot.contour import _compute_contours, _drop_lines_outside_projection
+
+    uxda = _face_latitude(ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug")))
+    for method in ["interpolated", "edges"]:
+        contours = _compute_contours(uxda, levels=[-45.5, 0.5, 10.5, 45.5], method=method)
+        expected = [
+            line for _, line in contours
+            if not projection.project_geometry(shapely.LineString(line), ccrs.PlateCarree()).is_empty
+        ]
+        kept = [line for _, line in _drop_lines_outside_projection(contours, projection)]
+        assert len(kept) == len(expected)
+        assert all(a is b for a, b in zip(kept, expected))
+
+
 def test_contour_missing_values(gridpath):
     """Faces without data are left out instead of raising."""
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))

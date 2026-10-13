@@ -275,11 +275,30 @@ def _drop_lines_outside_projection(
     import cartopy.crs as ccrs
     import shapely
 
+    if not contours:
+        return contours
     source = ccrs.PlateCarree()
+
+    # A line with a point well inside the map has extent on it. Projecting all the
+    # points at once is much faster than projecting each line, so only the other
+    # lines, such as those along the edge of the map, are projected as lines.
+    points = np.concatenate([line for _, line in contours])
+    x, y = projection.transform_points(source, points[:, 0], points[:, 1])[:, :2].T
+    finite = np.isfinite(x) & np.isfinite(y)
+    domain = projection.domain
+    margin = 1e-6 * np.ptp(np.reshape(domain.bounds, (2, 2)), axis=0).max()
+    inside = np.zeros(len(points), dtype=bool)
+    inside[finite] = shapely.contains_xy(
+        domain.buffer(-margin), x[finite], y[finite]
+    )
+    starts = np.cumsum([0] + [len(line) for _, line in contours[:-1]])
+    on_map = np.logical_or.reduceat(inside, starts)
+
     return [
         (level, line)
-        for level, line in contours
-        if not projection.project_geometry(shapely.LineString(line), source).is_empty
+        for (level, line), certain in zip(contours, on_map)
+        if certain
+        or not projection.project_geometry(shapely.LineString(line), source).is_empty
     ]
 
 
