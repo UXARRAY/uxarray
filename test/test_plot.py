@@ -3,6 +3,7 @@ import xarray as xr
 import holoviews as hv
 import pytest
 import numpy as np
+import shapely
 
 import matplotlib
 matplotlib.use("Agg")
@@ -681,6 +682,25 @@ def test_contour_projected_lines_match_cartopy(gridpath, projection):
         for (level, line), (expected_level, expected_line) in zip(projected, expected):
             assert level == expected_level
             np.testing.assert_allclose(line, expected_line, rtol=1e-12)
+
+
+def test_contour_lines_on_far_side_are_dropped_without_cartopy():
+    """A line none of whose points can be projected is not on the map, as Cartopy decides, without asking Cartopy."""
+    from uxarray.plot.contour import _project_lines
+
+    projection = ccrs.Orthographic(0, 90)
+    far_side = np.column_stack([np.linspace(-170, 170, 50), np.full(50, -45.5)])
+    near_side = np.column_stack([np.linspace(-170, 170, 50), np.full(50, 45.5)])
+    assert not np.isfinite(projection.transform_points(ccrs.PlateCarree(), *far_side.T)).all(axis=1).any()
+    assert projection.project_geometry(shapely.LineString(far_side), ccrs.PlateCarree()).is_empty
+
+    def no_cartopy(*args, **kwargs):
+        raise AssertionError("the line was given to Cartopy")
+
+    projection.project_geometry = no_cartopy
+    projected, on_map = _project_lines([(-45.5, far_side), (45.5, near_side)], projection)
+    assert on_map.tolist() == [False, True]
+    assert [level for level, _ in projected] == [45.5]
 
 
 def test_contour_frame(gridpath):
