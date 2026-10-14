@@ -188,6 +188,30 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         self._uxgrid = ugrid_obj
 
     @property
+    def _grid_dims(self) -> set[str]:
+        """set of all grid dimensions associated with self.
+        This is a (possibly-empty) subset of {"n_face", "n_edge", "n_node"}.
+        """
+        return set(d for d in GRID_DIMS if d in self.dims)
+
+    @property
+    def _grid_dim(self) -> str:
+        """name of the single grid dimension associated with self.
+        This is "n_face", "n_edge", or "n_node" if exactly one is present in self.dims,
+        else raises DataCenteringError.
+        """
+        grid_dims = self._grid_dims
+        if len(grid_dims) == 1:
+            return grid_dims.pop()
+        else:
+            if len(grid_dims) == 0:
+                grid_dims = "none"
+            raise DataCenteringError(
+                f"Expected {type(self).__name__} with exactly 1 grid dimension, but got {grid_dims}, "
+                f"in self.dims={self.dims}. Known grid dimensions are: {GRID_DIMS}."
+            )
+
+    @property
     def data_mapping(self):
         """Returns which grid element a data variable is mapped to.
 
@@ -700,29 +724,35 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         return uxda
 
     def zonal_mean(self, lat=(-90, 90, 10), conservative: bool = False, **kwargs):
-        """Compute non-conservative or conservative averages of a face-centered variable along lines of constant latitude or latitude bands.
+        """Returns averages of face-centered variables along lines or bands of constant latitude.
 
-        A zonal mean in UXarray operates differently depending on the ``conservative`` flag:
+        The weighting method and the output size depend on the ``conservative`` flag:
 
-        - **Non-conservative**: Calculates the mean by sampling face values at specific latitude lines and weighting each contribution by the length of the line where each face intersects that latitude.
-        - **Conservative**: Preserves integral quantities by calculating the mean by sampling face values within latitude bands and weighting contributions by their area overlap with latitude bands.
+        - ``conservative=False``: weight contributions by each face's overlap with a given
+          line of constant latitude. ``lat`` indicates which lines to use.
+          (E.g., the default lat=(-90, 90, 10) produces a result with 19 latitudes,
+          -90, -80, ..., 90, corresponding to means at -90, -80, ..., 90 degrees.)
+        - ``conservative=True``: weight contributions by each face's overlap with a given
+          band of latitude. ``lat`` indicates the edges of the bands to use.
+          (E.g., the default lat=(-90, 90, 10) produces a result with 18 latitudes,
+          -85, -75, ..., 85, corresponding to means over the bands from
+          -90 to -80, -80 to -70, ..., and 80 to 90 degrees.)
+          Using ``conservative=True`` preserves integral quantities.
 
         Parameters
         ----------
-        lat : tuple, float, or array-like, default=(-90, 90, 10)
-            Latitude specification:
-                - tuple (start, end, step): For non-conservative, computes means at intervals of `step`.
-                For conservative, creates band edges via np.arange(start, end+step, step).
-                - float: Single latitude for non-conservative averaging
-                - array-like: For non-conservative, latitudes to sample. For conservative, band edges.
+        lat : int, float, tuple of length 3, list, or np.ndarray, default=(-90, 90, 10)
+            Latitudes at which to compute means, either as latitude lines (conservative=False)
+            or latitude band edges (conservative=True). If int or float, treated as [lat] instead.
+            If tuple of (start, end, step), treated as np.arange(start, end+step, step) instead.
         conservative : bool, default=False
             If True, performs conservative (area-weighted) zonal averaging over latitude bands.
             If False, performs non-conservative (intersection-weighted) averaging at latitude lines.
 
         Returns
         -------
-        UxDataArray
-            Contains zonal means with a new 'latitudes' dimension and corresponding coordinates.
+        xr.DataArray
+            Contains zonal means values, with a new 'latitudes' dimension and coordinates.
             Name will be original_name + '_zonal_mean' or 'zonal_mean' if unnamed.
 
         Examples
@@ -1084,53 +1114,45 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
     azimuthal_average = azimuthal_mean
 
     def weighted_mean(self, weights=None):
-        """Computes a weighted mean.
+        """Returns a weighted mean. If weights are not provided:
 
-        This function calculates the weighted mean of a variable,
-        using the specified `weights`. If no weights are provided, it will automatically select
-        appropriate weights based on whether the variable is face-centered or edge-centered. If
-        the variable is neither face nor edge-centered a warning is raised, and an unweighted mean is computed instead.
+        - For face-centered data, use face areas as weights (i.e., area-weighted mean).
+        - For edge-centered data, use edge lengths as weights.
+        - For node-centered data, crash with DataCenteringError.
+
+        If weights are provided, they are treated as weights along the grid dimension,
+        ("n_face", "n_edge", or "n_node") and must be 1D with appropriate length.
+
+        Mathematically equivalent to sum(self * weights) / sum(weights),
+        where the first sum is taken along the grid dimension.
 
         Parameters
         ----------
-        weights : np.ndarray or None, optional
-            The weights to use for the weighted mean calculation. If `None`, the function will
-            determine weights based on the variable's association:
-
-            - For face-centered variables: uses `self.uxgrid.face_areas.data`
-            - For edge-centered variables: uses `self.uxgrid.edge_node_distances.data`
-
-            If the variable is neither face-centered nor edge-centered, a warning is raised, and
-            an unweighted mean is computed instead. User-defined weights should match the shape
-            of the data variable's last dimension.
+        weights : array-like or None, optional
+            1D array of weights to apply along the data's grid dimension.
+            If None, use face areas, edge lengths, or crash, as described above.
+            If xr.DataArray, the dimension must match the data's grid dimension.
 
         Returns
         -------
         UxDataArray
             A new `UxDataArray` object representing the weighted mean of the input variable. The
-            result is attached to the same `uxgrid` attribute as the original variable.
+            result's `uxgrid` matches the input's uxgrid, even though the result does not have a
+            grid dimension anymore and the result's data does not lie on a grid. This can cause
+            issues with functionality like result.plot(); consider calling result.to_xarray() as
+            a workaround. (Might be updated in a future release to return xr.DataArray instead.)
 
         Example
         -------
         >>> weighted_mean = uxds["t2m"].weighted_mean()
 
-
         Raises
         ------
-        AssertionError
-            If user-defined `weights` are provided and the shape of `weights` does not match
-            the shape of the data variable's last dimension.
-
-        Warnings
-        --------
-        UserWarning
-            Raised when attempting to compute a weighted mean on a variable without associated
-            weights. An unweighted mean will be computed in this case.
-
-        Notes
-        -----
-        - The weighted mean is computed along the last dimension of the data variable, which is
-          assumed to be the geometry dimension (e.g., faces, edges, or nodes).
+        DataCenteringError (subclass of ValueError)
+            If the data is node-centered and no weights are provided.
+        DimensionError (subclass of ValueError)
+            If provided weights which are not 1D, or incompatible with the data due to
+            having wrong size or (if xr.DataArray) wrong dimension name.
         """
         if weights is None:
             if self._face_centered():
@@ -1138,23 +1160,39 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             elif self._edge_centered():
                 weights = self.uxgrid.edge_node_distances.data
             else:
-                warnings.warn(
-                    "Attempting to perform a weighted mean calculation on a variable that does not have"
-                    "associated weights. Weighted mean is only supported for face or edge centered "
-                    "variables. Performing an unweighted mean."
+                raise DataCenteringError(
+                    "weighted_mean() cannot automatically infer weights for node-centered data. "
+                    "Consider providing weights or re-centering the data first."
                 )
         else:
             # user-defined weights
-            assert weights.shape[-1] == self.shape[-1]
+            if not hasattr(weights, "ndim"):  # not yet numpy, xarray, dask, etc.
+                weights = np.asanyarray(weights)
+            if weights.ndim != 1:
+                raise DimensionError(f"Expected 1D weights, got ndim={weights.ndim}.")
+            if isinstance(weights, xr.DataArray):
+                if weights.dims[0] != self._grid_dim:
+                    raise DimensionError(
+                        f"Expected xr.DataArray weights dimension to match the data's grid dimension "
+                        f"({self._grid_dim!r}), but got weights with dimension {weights.dims[0]!r}."
+                    )
+                # if weights and self both have coords on grid dim, ensure exact alignment,
+                # otherwise xarray silently only keeps locations where coords agree.
+                try:
+                    self, weights = xr.align(self, weights, join="exact")
+                except xr.AlignmentError as err:
+                    raise DimensionError(
+                        f"For DataArray weights, expected alignment with data's grid dimension "
+                        f"({self._grid_dim!r}), but got mismatch in sizes and/or coords."
+                    ) from err
 
-        # compute the total weight
+        if not isinstance(weights, xr.DataArray):
+            # convert to xr.DataArray to ensure operations below align dims properly
+            weights = xr.DataArray(weights, dims=(self._grid_dim,))
+
         total_weight = weights.sum()
-
-        # compute the weighted mean, with an assumption on the index of dimension (last one is geometry)
-        weighted_mean = (self * weights).sum(axis=-1) / total_weight
-
-        # create a UxDataArray and return it
-        return UxDataArray(weighted_mean, uxgrid=self.uxgrid)
+        weighted_mean = (self * weights).sum(self._grid_dim) / total_weight
+        return type(self)(weighted_mean, uxgrid=self.uxgrid)
 
     def topological_mean(
         self,
