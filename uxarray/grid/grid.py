@@ -46,13 +46,13 @@ from uxarray.grid.coordinates import (
 )
 from uxarray.grid.dual import construct_dual
 from uxarray.grid.geometry import (
+    _compute_face_radii,
     _construct_boundary_edge_indices,
     _grid_to_matplotlib_linecollection,
     _grid_to_matplotlib_polycollection,
     _grid_to_polygon_geodataframe,
     _populate_antimeridian_face_indices,
     _populate_max_face_radius,
-    _compute_face_radii,
 )
 from uxarray.grid.intersections import (
     constant_lat_intersections_face_bounds,

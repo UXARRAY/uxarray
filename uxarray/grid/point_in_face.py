@@ -237,6 +237,7 @@ def _batch_point_in_face(
 
     return results, counts
 
+
 @njit(inline="always", cache=True)
 def _point_within_face_radius(point, face_center, face_radius):
     """True if point is within face_radius of face_center.
@@ -250,8 +251,11 @@ def _point_within_face_radius(point, face_center, face_radius):
     dist2 = _numba_dot3(diff, diff)
     return dist2 <= face_radius * face_radius
 
+
 @njit(cache=True, parallel=True)
-def _cull_candidates_by_radius(pts, flat_cands, offsets, face_x, face_y, face_z, face_radii):
+def _cull_candidates_by_radius(
+    pts, flat_cands, offsets, face_x, face_y, face_z, face_radii
+):
     """
     Keep only candidates where dist(point, face_center) <= face_radius.
 
@@ -285,7 +289,7 @@ def _cull_candidates_by_radius(pts, flat_cands, offsets, face_x, face_y, face_z,
     # count survivors per point
     new_lens = np.empty(n_pts, dtype=np.int64)
     for i in prange(n_pts):
-        new_lens[i] = np.count_nonzero(keep[offsets[i]:offsets[i + 1]])
+        new_lens[i] = np.count_nonzero(keep[offsets[i] : offsets[i + 1]])
 
     # build new offsets
     new_offsets = np.empty(n_pts + 1, dtype=np.int64)
