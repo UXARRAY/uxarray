@@ -386,17 +386,37 @@ class CrossSectionsPeakMem:
     track_peakmem_const_lat.unit = "bytes"
 
 
+# Great-circle radii in degrees. Mean element spacing is roughly 4.3 degrees at
+# 480km and 1.1 at 120km, so 5.0 is a few neighbors per face on the coarse mesh
+# and dozens on the fine one.
+NEIGHBORHOOD_RADIUS = 5.0
+
+# asv re-runs ``setup`` before every sample, about six times per benchmark
+# process, and the neighborhood setups (fixture, warmup reduction, radius
+# query) cost far more than the calls they time: ``NeighborhoodReduce.
+# time_reduce`` timed a 5ms kernel at 120km but took 27s, almost all setup. The
+# timed calls only read what setup builds, so it is built once per process.
+_prepared = {}
+
+
+def _once_per_process(key, build):
+    if key not in _prepared:
+        _prepared[key] = build()
+    return _prepared[key]
+
+
 class NeighborhoodBuild(DatasetBenchmark):
     """Construction cost of a ``Neighborhood``, split into its three stages.
 
     ``Neighborhood`` claims the neighbor query costs more than any reduction run
-    on it. ``r`` is a great-circle radius in degrees, against
-    a mean element spacing of roughly 4.3 degrees at 480km and 1.1 at 120km, so
-    the smallest radius here is near self-only on the coarser mesh.
+    on it. The timings skip r=15 (over a second per call at 120km); the
+    ``track_*`` benchmarks skip r=1, where they barely move.
     """
 
     param_names = DatasetBenchmark.param_names + ['r']
-    params = DatasetBenchmark.params + [[1.0, 5.0, 15.0]]
+    params = DatasetBenchmark.params + [[1.0, NEIGHBORHOOD_RADIUS]]
+    # asv reads ``params`` from the method before the class.
+    _track_params = DatasetBenchmark.params + [[NEIGHBORHOOD_RADIUS, 15.0]]
 
     def setup(self, resolution, r):
         super().setup(resolution)
@@ -420,6 +440,7 @@ class NeighborhoodBuild(DatasetBenchmark):
         nb = Neighborhood(self.uxgrid, r=r, on="face centers")
         return nb._flat.nbytes + nb._starts.nbytes + nb._counts.nbytes
 
+    track_nbytes_neighbors.params = _track_params
     track_nbytes_neighbors.unit = "bytes"
 
     def track_peakmem_build(self, resolution, r):
@@ -427,6 +448,7 @@ class NeighborhoodBuild(DatasetBenchmark):
         return peak_allocated(
             lambda: Neighborhood(self.uxgrid, r=r, on="face centers"))
 
+    track_peakmem_build.params = _track_params
     track_peakmem_build.unit = "bytes"
 
     def track_mean_neighbors(self, resolution, r):
@@ -434,6 +456,7 @@ class NeighborhoodBuild(DatasetBenchmark):
         nb = Neighborhood(self.uxgrid, r=r, on="face centers")
         return round(float(nb.n_neighbors.mean()), 2)
 
+    track_mean_neighbors.params = _track_params
     track_mean_neighbors.unit = "elements"
 
 
@@ -453,7 +476,7 @@ class NeighborhoodReduce(DatasetBenchmark):
     param_names = DatasetBenchmark.param_names + ['reduction']
     params = DatasetBenchmark.params + [['mean', 'median']]
 
-    radius = 15.0
+    radius = NEIGHBORHOOD_RADIUS
 
     @staticmethod
     def _run(neighborhood, reduction):
@@ -465,6 +488,17 @@ class NeighborhoodReduce(DatasetBenchmark):
         return getattr(neighborhood, reduction)()
 
     def setup(self, resolution, reduction):
+        self.uxds, self.nb = _once_per_process(
+            ('NeighborhoodReduce', resolution, reduction),
+            lambda: self._prepare(resolution, reduction))
+        # The grid caches one ball tree, and ``time_dataset_reduce`` leaves it
+        # on edges. Put back the face tree a fresh setup leaves, so every sample
+        # rebuilds the same trees.
+        self.uxds.uxgrid.get_ball_tree(coordinates="face centers",
+                                       coordinate_system="spherical",
+                                       distance_metric="haversine")
+
+    def _prepare(self, resolution, reduction):
         super().setup(resolution)
         uxgrid = self.uxds.uxgrid
 
@@ -488,7 +522,7 @@ class NeighborhoodReduce(DatasetBenchmark):
         # locations now so the first timed call is not the one that pays.
         _, _, _ = uxgrid.node_lon, uxgrid.edge_lon, uxgrid.face_lon
 
-        self.nb = self.uxds[data_var].neighborhood(r=self.radius)
+        return self.uxds, self.uxds[data_var].neighborhood(r=self.radius)
 
     def time_reduce(self, resolution, reduction):
         """The kernel alone: the query was paid for in ``setup``."""
@@ -521,9 +555,14 @@ class NeighborhoodDask(DatasetBenchmark):
     params = DatasetBenchmark.params + [['numpy', 'time_chunks', 'grid_chunks']]
 
     n_time = 12
-    radius = 5.0
+    radius = NEIGHBORHOOD_RADIUS
 
     def setup(self, resolution, chunking):
+        self.uxds, self.nb = _once_per_process(
+            ('NeighborhoodDask', resolution, chunking),
+            lambda: self._prepare(resolution, chunking))
+
+    def _prepare(self, resolution, chunking):
         super().setup(resolution)
         grid, data = file_path_dict[self.params[0][0]]
         _ = ux.open_dataset(grid, data)[data_var].neighborhood(r=1.0).mean()
@@ -540,15 +579,16 @@ class NeighborhoodDask(DatasetBenchmark):
 
         # Built here, so these measure the reduction and the graph it runs
         # through rather than the query.
-        self.nb = uxda.neighborhood(r=self.radius)
+        nb = uxda.neighborhood(r=self.radius)
 
         # One reduction here too, to warm the dask graph path -- and, for
         # 'grid_chunks', to let the rechunk warning through exactly once...
-        _ = self.nb.mean().compute()
+        _ = nb.mean().compute()
 
         # ...then silence the repeats.
         warnings.filterwarnings('ignore', category=UserWarning,
                                 message='Rechunking')
+        return self.uxds, nb
 
     def time_mean(self, resolution, chunking):
         _ = self.nb.mean().compute()
