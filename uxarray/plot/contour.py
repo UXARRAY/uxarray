@@ -178,33 +178,84 @@ def _contour_levels(values: np.ndarray, levels: int | Sequence[float]) -> np.nda
 def _interpolated_contours(
     values: np.ndarray, uxgrid: Grid, dim: str, levels: np.ndarray
 ) -> list[tuple[float, np.ndarray]]:
-    """Contour lines from linear interpolation on a triangulation of the grid."""
-    _raise_hint_if_optional_deps_missing("matplotlib")
-    from matplotlib.figure import Figure
-    from matplotlib.tri import Triangulation
+    """Contour lines from linear interpolation on a triangulation of the grid.
 
+    Inside each triangle that a level crosses, the line runs between the points
+    where the level crosses two of its edges. Each point is known by its edge,
+    which the triangles on either side share, so the pieces are joined into
+    lines by their edges.
+    """
     lon, lat, triangles, index = _triangulation(uxgrid, dim)
     values = values[index]
 
     # Triangles with a missing value at a corner cannot be contoured
     finite = np.isfinite(values)
-    triangles = triangles[finite[triangles].all(axis=1)]
+    triangles = np.ascontiguousarray(
+        triangles[finite[triangles].all(axis=1)], dtype=INT_DTYPE
+    )
     if len(triangles) == 0 or len(levels) == 0:
         return []
 
-    # The contours are computed on an axes that is never displayed
-    ax = Figure().add_subplot()
-    contour_set = ax.tricontour(
-        Triangulation(lon, lat, triangles), np.where(finite, values, 0.0), levels=levels
-    )
+    n_corner = len(values)
+    contours = []
+    for level in levels:
+        # Each crossed edge as a single number, from its two corners
+        edges = _crossed_edges(triangles, values, float(level), n_corner)
+        if len(edges) == 0:
+            continue
+        crossed, edge_at = np.unique(edges, return_inverse=True)
+        edge_nodes, offsets = _join_segments(edge_at[0::2], edge_at[1::2])
 
-    return [
-        (float(level), part)
-        for level, lines in zip(contour_set.levels, contour_set.allsegs)
-        for line in lines
-        if len(line) > 1
-        for part in _split_at_antimeridian(line)
-    ]
+        # The point where the level crosses each edge
+        first, second = np.divmod(crossed, n_corner)
+        fraction = (level - values[first]) / (values[second] - values[first])
+        x = lon[first] + fraction * (lon[second] - lon[first])
+        y = lat[first] + fraction * (lat[second] - lat[first])
+        points = np.column_stack([x[edge_nodes], y[edge_nodes]])
+        contours.extend(_split_lines_at_antimeridian(float(level), points, offsets))
+    return contours
+
+
+@njit(cache=True, nogil=True)
+def _crossed_edges(triangles, values, level, n_corner):
+    """The edges where a level crosses each triangle that it crosses, two per
+    triangle, each given by its corners ``first < second`` as
+    ``first * n_corner + second``. A corner is above the level if its value is
+    greater than it."""
+    n_crossed = 0
+    for t in range(triangles.shape[0]):
+        a, b, c = triangles[t, 0], triangles[t, 1], triangles[t, 2]
+        above = values[a] > level
+        if (values[b] > level) != above or (values[c] > level) != above:
+            n_crossed += 1
+
+    edges = np.empty(2 * n_crossed, dtype=np.int64)
+    k = 0
+    for t in range(triangles.shape[0]):
+        a, b, c = triangles[t, 0], triangles[t, 1], triangles[t, 2]
+        for first, second in ((a, b), (b, c), (c, a)):
+            if (values[first] > level) != (values[second] > level):
+                if first > second:
+                    first, second = second, first
+                edges[k] = first * n_corner + second
+                k += 1
+    return edges
+
+
+def _split_lines_at_antimeridian(
+    level: float, points: np.ndarray, offsets: np.ndarray
+) -> list[tuple[float, np.ndarray]]:
+    """Splits lines stored one after the other, which start at ``offsets[:-1]``,
+    where they run past -180 or 180 degrees of longitude."""
+    starts, ends = offsets[:-1], offsets[1:]
+    crosses = (np.minimum.reduceat(points[:, 0], starts) < -180.0) | (
+        np.maximum.reduceat(points[:, 0], starts) > 180.0
+    )
+    contours = []
+    for line, crossing in zip(np.split(points, ends[:-1]), crosses):
+        parts = _split_at_antimeridian(line) if crossing else [line]
+        contours.extend((level, part) for part in parts)
+    return contours
 
 
 def _join_segments(start: np.ndarray, end: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -326,19 +377,12 @@ def _edge_contours(
         if len(line_nodes) == 0:
             continue
 
-        # The lines are processed together, as one array of points
-        starts, ends = offsets[:-1], offsets[1:]
+        # The lines are processed together, as one array of points. Unwrapped,
+        # a line that crosses the antimeridian runs past 180 degrees
         points = np.column_stack(
-            [_unwrap_lines(lon[line_nodes], starts), lat[line_nodes]]
+            [_unwrap_lines(lon[line_nodes], offsets[:-1]), lat[line_nodes]]
         )
-
-        # Unwrapped, a line that crosses the antimeridian runs past 180 degrees
-        crosses = (np.minimum.reduceat(points[:, 0], starts) < -180.0) | (
-            np.maximum.reduceat(points[:, 0], starts) > 180.0
-        )
-        for line, crossing in zip(np.split(points, ends[:-1]), crosses):
-            parts = _split_at_antimeridian(line) if crossing else [line]
-            contours.extend((float(level), part) for part in parts)
+        contours.extend(_split_lines_at_antimeridian(float(level), points, offsets))
     return contours
 
 

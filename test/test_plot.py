@@ -687,6 +687,40 @@ def test_contour_data_not_on_grid(gridpath):
     plt.close("all")
 
 
+def test_contour_interpolated_matches_matplotlib(gridpath, datasetpath):
+    """The interpolated lines are the segments Matplotlib's tricontour gives on the same triangles."""
+    from matplotlib.tri import Triangulation
+    from uxarray.plot.contour import _interpolated_contours, _split_at_antimeridian, _spatial_values, _triangulation
+
+    geoflow = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
+    cases = [
+        (_face_latitude(ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))), [-30.5, 10.5, 45.5]),
+        (geoflow["v1"].isel(time=0, meshLayers=0), [-12.0, -6.0, 6.0, 12.0]),
+    ]
+
+    def segments(lines):
+        # the ends of each segment of non-zero length, in either order
+        out = []
+        for level, line in lines:
+            for start, end in zip(line[:-1], line[1:]):
+                if not np.allclose(start, end, rtol=0, atol=1e-9):
+                    out.append(sorted([(level, *start), (level, *end)]))
+        return np.array(out).reshape(-1, 6)
+
+    for uxda, levels in cases:
+        values, dim = _spatial_values(uxda)
+        lon, lat, triangles, index = _triangulation(uxda.uxgrid, dim)
+        contour_set = plt.figure().add_subplot().tricontour(Triangulation(lon, lat, triangles), values[index], levels=levels)
+        expected = segments([(level, part) for level, lines in zip(levels, contour_set.allsegs)
+                             for line in lines if len(line) > 1 for part in _split_at_antimeridian(line)])
+        found = segments(_interpolated_contours(values, uxda.uxgrid, dim, np.array(levels)))
+
+        assert len(found) == len(expected)
+        distance = np.abs(found[:, None, :] - expected[None, :, :]).max(axis=2)
+        assert distance.min(axis=1).max() < 1e-9 and distance.min(axis=0).max() < 1e-9
+    plt.close("all")
+
+
 def test_contour_faces_with_repeated_nodes(gridpath):
     """Faces padded by repeating a node do not give triangles that Matplotlib cannot contour."""
     from uxarray.plot.contour import _triangulation
