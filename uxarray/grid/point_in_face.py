@@ -315,9 +315,13 @@ def _point_in_face_query(
     """
     Find grid faces that contain given Cartesian point(s) on the unit sphere.
 
-    This function first uses a SciPy k-d tree (in Cartesian space) to cull
-    candidate faces within the maximum face‐radius, then calls the Numba‐
-    accelerated winding‐number tester in parallel.
+    Follows these steps:
+    (1) Cull candidate faces using a SciPy k-d tree (in Cartesian space),
+        checking whether the point is within `max_face_radius` of each face's center
+    (2) Maybe cull candidate faces further by checking whether the point is within
+        each face's radius of the face center. This cull has a nontrivial cost,
+        so it is gated to only run if there are many candidates.
+    (3) call the Numba‐accelerated winding‐number tester in parallel.
 
     Parameters
     ----------
@@ -359,16 +363,34 @@ def _point_in_face_query(
 
     # Cull by face radius: a face can only contain a point if
     # the point is within the face's radius of the face's center.
-    radii = source_grid.compute_face_radii().values * SAFETY
-    flat_cands, offs = _cull_candidates_by_radius(
-        pts,
-        flat_cands,
-        offs,
-        source_grid.face_x.values,
-        source_grid.face_y.values,
-        source_grid.face_z.values,
-        radii,
-    )
+
+    # This cull has a nontrivial cost, but helps if there are "many" candidates,
+    # so gate it accordingly. There are two gates here:
+    # (A) Only run if there are more than N candidates per point on average;
+    # This is a telltale sign of a variable-resolution grid (many faces' radii
+    # are smaller than max_face_radius), where this cull is more likely to help.
+    THRESH_CANDS_PER_POINT = 10
+    # (B) Only run if number of candidates / n_face > some threshold.
+    # compute_face_radii() cost scales with n_face, so the cull may be too costly
+    # if there are only a few candidates relative to n_faces.
+    THRESH_CANDS_PER_FACE = 1.0
+    # (Condition (B) could be removed if compute_face_radii() results are cached.)
+    # (Tune these numbers empirically to optimize further if needed.)
+    n_cands_per_point = len(flat_cands) / len(pts)
+    n_cands_per_face = len(flat_cands) / source_grid.n_face
+    if (n_cands_per_point > THRESH_CANDS_PER_POINT) and (
+        n_cands_per_face > THRESH_CANDS_PER_FACE
+    ):
+        radii = source_grid.compute_face_radii().values * SAFETY
+        flat_cands, offs = _cull_candidates_by_radius(
+            pts,
+            flat_cands,
+            offs,
+            source_grid.face_x.values,
+            source_grid.face_y.values,
+            source_grid.face_z.values,
+            radii,
+        )
 
     # Perform the batch winding‐number test
     return _batch_point_in_face(
