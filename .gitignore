@@ -164,3 +164,6 @@ benchmarks/env
 benchmarks/results
 benchmarks/html
 benchmarks/_io_cache
+# Generated per shard by benchmarks/helpers/_partition.py --shard
+benchmarks/asv.conf*.shard*.json
+benchmarks/results.shard*
