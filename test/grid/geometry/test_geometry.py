@@ -6,7 +6,7 @@ import uxarray as ux
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _normalize_xyz
 from uxarray.grid.geometry import haversine_distance, _pole_point_inside_polygon_cartesian
-from uxarray.grid.point_in_face import _face_contains_point
+from uxarray.grid.point_in_face import _point_in_face_from_grid
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array
 
 
@@ -114,25 +114,14 @@ def test_cache_and_override_geodataframe(gridpath):
 
 
 def test_face_at_antimeridian():
-    """Test the function `point_in_face`, where the face crosses the antimeridian"""
+    """Test the function `_point_in_face`, where the face crosses the antimeridian"""
 
     # Generate a face crossing the antimeridian
     vertices_lonlat = [[350, 60.0], [350, 10.0], [50.0, 10.0], [50.0, 60.0]]
     vertices_lonlat = np.array(vertices_lonlat)
     point = np.array(_lonlat_rad_to_xyz(np.deg2rad(25), np.deg2rad(30)))
-
-    # Create the grid and face edges
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes_array(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
-
-    assert _face_contains_point(faces_edges_cartesian[0], point)
+    assert _point_in_face_from_grid(point, grid, fidx=0)
 
 
 def test_face_at_pole():
@@ -141,21 +130,9 @@ def test_face_at_pole():
     # Generate a face that is at a pole
     vertices_lonlat = [[10.0, 90.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
     vertices_lonlat = np.array(vertices_lonlat)
-
     point = np.array(_lonlat_rad_to_xyz(np.deg2rad(25), np.deg2rad(30)))
-
-    # Create the grid and face edges
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes_array(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
-
-    assert _face_contains_point(faces_edges_cartesian[0], point)
+    assert _point_in_face_from_grid(point, grid, fidx=0)
 
 
 def test_face_normal_face():
@@ -166,19 +143,8 @@ def test_face_normal_face():
     vertices_lonlat = [[10.0, 60.0], [10.0, 10.0], [50.0, 10.0], [50.0, 60.0]]
     vertices_lonlat = np.array(vertices_lonlat)
     point = np.array(_lonlat_rad_to_xyz(np.deg2rad(25), np.deg2rad(30)))
-
-    # Create the grid and face edges
     grid = ux.Grid.from_face_vertices(vertices_lonlat, latlon=True)
-    faces_edges_cartesian = _get_cartesian_face_edge_nodes_array(
-        grid.face_node_connectivity.values,
-        grid.n_face,
-        grid.n_max_face_edges,
-        grid.node_x.values,
-        grid.node_y.values,
-        grid.node_z.values,
-    )
-
-    assert _face_contains_point(faces_edges_cartesian[0], point)
+    assert _point_in_face_from_grid(point, grid, fidx=0)
 
 
 def test_haversine_distance_creation():
@@ -213,7 +179,7 @@ def test_periodic_elements_geodataframe(gridpath):
 
 
 def test_geodataframe_crashes_when_nnode_equals_nface():
-    """Ensure UxDataArray.to_geodataframe() crashes for non-face_centered data, even if n_node==n_face.
+    """Ensure UxDataArray.to_geodataframe() crashes for non-face-centered data, even if n_node==n_face.
     regression test for issue #1616.
     """
     # Below is a visualization of the example here, with ni node i, fj face j:
@@ -260,6 +226,6 @@ def test_geodataframe_crashes_when_nnode_equals_nface():
     # make array of values, convert to uxarray
     vals = xr.DataArray([100,200,300,400,500,600], dims=['n_node'])
     uxarr = ux.UxDataArray(vals, uxgrid=uxgrid)
-    # ensure to_geodataframe crashes for non-face_centered data, even if n_node==n_face
+    # ensure to_geodataframe crashes for non-face-centered data, even if n_node==n_face
     with pytest.raises(ValueError):
         uxarr.to_geodataframe()

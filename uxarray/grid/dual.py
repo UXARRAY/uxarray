@@ -61,7 +61,7 @@ def construct_dual(grid):
     return new_node_face_connectivity
 
 
-@njit(cache=True, parallel=True)
+@njit(cache=True, parallel=True, nogil=True)
 def construct_faces(
     valid_node_indices,
     n_edges,

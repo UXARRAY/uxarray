@@ -38,3 +38,10 @@ class GridsMismatchError(ValueError):
 
 class YacNotAvailableError(RuntimeError):
     """Raised when the YAC backend is requested but unavailable."""
+
+
+# # # ----- Miscellaneous Errors ----- # # #
+
+
+class OptionalDependencyNotFoundError(ModuleNotFoundError):
+    """indicates functionality relies on a not-yet-installed optional dependency."""

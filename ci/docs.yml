@@ -34,7 +34,7 @@ dependencies:
     - hvplot
     - holoviews
     - geoviews
-    - cartopy
+    - cartopy<0.26   # cartopy 0.26.0 breaks some geoviews plots; see issue #1780.
     - pandas
     - geocat-datafiles
     - spatialpandas

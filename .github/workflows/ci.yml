@@ -119,3 +119,47 @@ jobs:
               cd docs
               echo 'nb_execution_mode = "off"' >> conf.py
               make linkcheck
+
+  test-optional-deps:
+    # Ensures can install with various combinations of optional dependencies,
+    # and that some corresponding tests pass or crash appropriately.
+    # Just a single machine and single Python version should be good enough,
+    # the goal here is to spot-check that optional deps work as expected,
+    # not to run an exhaustive set of tests with each combination of deps.
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7
+
+      - name: setup-python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: no optional deps
+        run: |
+          python -m venv "$RUNNER_TEMP/venv-none"
+          source "$RUNNER_TEMP/venv-none/bin/activate"
+          python -m pip install "." pytest
+          python -m pytest test_optional_deps/test_installed_with_no_opts.py
+
+      - name: geo only
+        run: |
+          python -m venv "$RUNNER_TEMP/venv-geo"
+          source "$RUNNER_TEMP/venv-geo/bin/activate"
+          python -m pip install ".[geo]" pytest
+          python -m pytest test_optional_deps/test_installed_with_geo.py
+
+      - name: viz only
+        run: |
+          python -m venv "$RUNNER_TEMP/venv-viz"
+          source "$RUNNER_TEMP/venv-viz/bin/activate"
+          python -m pip install ".[viz]" pytest
+          python -m pytest test_optional_deps/test_installed_with_viz.py
+
+      - name: viz and geo
+        run: |
+          python -m venv "$RUNNER_TEMP/venv-viz_and_geo"
+          source "$RUNNER_TEMP/venv-viz_and_geo/bin/activate"
+          python -m pip install ".[viz,geo]" pytest
+          python -m pytest test_optional_deps/test_installed_with_viz_and_geo.py

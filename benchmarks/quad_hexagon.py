@@ -1,14 +1,12 @@
-import os
-from pathlib import Path
-
 import uxarray as ux
+
+from .helpers._fixtures import QUAD_HEXAGON_DATASET
 from .helpers._memsize import dataset_nbytes, grid_nbytes
 from .helpers._peakmem import peak_allocated
 
-current_path = Path(os.path.dirname(os.path.realpath(__file__))).parents[0]
-
-grid_path = current_path / "test" / "meshfiles" / "ugrid" / "quad-hexagon" / "grid.nc"
-data_path = current_path / "test" / "meshfiles" / "ugrid" / "quad-hexagon" / "data.nc"
+# Opening these files is what this module measures, so it reads them for real
+# every time; only the paths come from the shared registry.
+grid_path, data_path = QUAD_HEXAGON_DATASET
 
 
 class QuadHexagon:

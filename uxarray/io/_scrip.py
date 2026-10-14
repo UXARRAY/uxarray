@@ -3,6 +3,7 @@ from typing import Any, Sequence
 import numpy as np
 import polars as pl
 import xarray as xr
+from numba import njit
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
@@ -38,6 +39,296 @@ def _values_in_degrees(data_array):
     return values
 
 
+def _dedup_scrip_nodes_eager(corner_lon, corner_lat):
+    """Find unique SCRIP corner coordinates using a NumPy lexicographic sort.
+
+    This eager implementation is used whenever the corner arrays are not
+    Dask-backed.
+
+    Parameters
+    ----------
+    corner_lon, corner_lat : numpy.ndarray
+        Flattened (``grid_size * grid_corners``,) corner coordinates.
+
+    Returns
+    -------
+    unq_lon, unq_lat, unq_inv : numpy.ndarray
+        Unique node coordinates in lexicographic ``(lon, lat)`` order and,
+        for every input corner, the index into ``unq_lon``/``unq_lat`` of
+        the node it maps to.
+    """
+    # Multi-key dedup by sorting, not by hashing.
+    #
+    # A Polars hash-join is the faster tool for this in general -- hashing is
+    # O(N) against the O(N log N) of a sort, and that is why the join was
+    # written here first. What it costs is space: the join must hold the
+    # corner table, a hash table keyed on every row of it, and the joined
+    # result, all live at the same time. np.lexsort trades the asymptotically
+    # better time for a bounded, predictable footprint -- an argsort plus two
+    # gathers, working on index arrays rather than building a new index
+    # structure.
+    #
+    # That trade is worth taking here because a SCRIP corner table is the
+    # largest thing in the file and the reason large meshes fail to open at
+    # all: the mesh this was written for has 3.6 billion corner rows, where
+    # "slower but it finishes" beats "faster if it fits". Measured on a
+    # 4M-face / 48M-corner grid, peak RSS for the whole open is 13.9 GiB with
+    # the join and 3.6 GiB with the sort, at roughly twice the wall time.
+    #
+    # np.unique(axis=0) is the third obvious spelling and is worse than
+    # either: it builds an (n, 2) copy and compares rows as records.
+    #
+    # The dask path below keeps a hash-based shuffle instead, and should: it
+    # never holds the whole table, so it is not paying the cost this sort
+    # avoids. Sorting there measured *worse* -- 191 GiB against 118 GiB on the
+    # 3.6-billion-row table -- because lexsort must materialize what the
+    # shuffle deliberately streams.
+    if corner_lon.shape[0] == 0:
+        # A grid with no faces (e.g. an empty sub-grid of a multi-grid file)
+        # has no nodes; the run detection below needs a first element.
+        return corner_lon[:0], corner_lat[:0], np.empty(0, dtype=INT_DTYPE)
+
+    order = np.lexsort((corner_lat, corner_lon))
+    sorted_lon = corner_lon[order]
+    sorted_lat = corner_lat[order]
+
+    # First element of each run of equal (lon, lat) pairs.
+    is_new = np.empty(order.shape[0], dtype=bool)
+    is_new[0] = True
+    np.logical_or(
+        sorted_lon[1:] != sorted_lon[:-1],
+        sorted_lat[1:] != sorted_lat[:-1],
+        out=is_new[1:],
+    )
+    # NaN != NaN, so the comparison above makes every NaN corner (a decoded
+    # _FillValue) its own node. Treat NaN as equal to NaN, as the dask path
+    # does.
+    if np.isnan(sorted_lon[-1]) or np.isnan(np.min(sorted_lat)):
+        same_lon = (sorted_lon[1:] == sorted_lon[:-1]) | (
+            np.isnan(sorted_lon[1:]) & np.isnan(sorted_lon[:-1])
+        )
+        same_lat = (sorted_lat[1:] == sorted_lat[:-1]) | (
+            np.isnan(sorted_lat[1:]) & np.isnan(sorted_lat[:-1])
+        )
+        np.logical_not(same_lon & same_lat, out=is_new[1:])
+        del same_lon, same_lat
+
+    unq_lon = sorted_lon[is_new]
+    unq_lat = sorted_lat[is_new]
+    # Free the two full-length sorted copies before allocating the two
+    # full-length id arrays below, so they are never live at the same time.
+    del sorted_lon, sorted_lat
+
+    # Running count of distinct pairs gives each sorted row its node id;
+    # scattering through `order` puts those ids back in input order. Counted
+    # in place.
+    ids = np.cumsum(is_new, dtype=INT_DTYPE)
+    del is_new
+    ids -= 1
+    unq_inv = np.empty_like(ids)
+    unq_inv[order] = ids
+
+    return unq_lon, unq_lat, unq_inv
+
+
+@njit(cache=True, inline="always")
+def _lt_nan_last(a, b):
+    """``a < b`` in numpy's sort order, which places NaN after every number."""
+    return a < b or (b != b and a == a)
+
+
+@njit(cache=True, inline="always")
+def _eq_nan(a, b):
+    """``a == b``, except that NaN equals NaN, as it does in the dedup."""
+    return a == b or (a != a and b != b)
+
+
+@njit(cache=True, nogil=True)
+def _search_sorted_pairs(sorted_lon, sorted_lat, lon, lat, out):
+    """Binary-search each ``(lon[i], lat[i])`` in a table sorted by (lon, lat).
+
+    Writes the matching row of the table into ``out[i]``, or -1 if the pair
+    is absent, and returns how many pairs were absent.
+    """
+    n = sorted_lon.shape[0]
+    missing = 0
+    for i in range(lon.shape[0]):
+        x = lon[i]
+        y = lat[i]
+        lo = 0
+        hi = n
+        while lo < hi:
+            mid = (lo + hi) // 2
+            mid_lon = sorted_lon[mid]
+            if _lt_nan_last(mid_lon, x) or (
+                _eq_nan(mid_lon, x) and _lt_nan_last(sorted_lat[mid], y)
+            ):
+                lo = mid + 1
+            else:
+                hi = mid
+        if lo < n and _eq_nan(sorted_lon[lo], x) and _eq_nan(sorted_lat[lo], y):
+            out[i] = lo
+        else:
+            out[i] = -1
+            missing += 1
+    return missing
+
+
+def _lookup_node_ids(lon_block, lat_block, lookup):
+    """Map one block of corner coordinates to their unique-node ids.
+
+
+    Parameters
+    ----------
+    lon_block, lat_block : numpy.ndarray
+        One block of corner coordinates.
+    lookup : tuple of numpy.ndarray
+        ``(unq_lon, unq_lat)``, one entry per unique node, sorted
+        lexicographically by (lon, lat) with NaN last
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+    unq_lon, unq_lat = lookup
+
+    # A binary search per corner against the sorted table: O(block * log
+    # n_unique), allocating nothing beyond the answer. A per-block hash join
+    # looks like the O(block) choice, but it hashes the *table* side.
+    #
+    # Per lookup the search is the slower of the two -- 1.5x the hash join on
+    # a 24M-corner production slice -- and it leans on the corner table being
+    # spatially ordered, since consecutive searches then land in cache-warm
+    # neighborhoods. That holds widely rather than by luck: a SCRIP corner
+    # table is written in face order, and mesh generators number faces by
+    # locality (lat-lon row-major, cubed-sphere panel order, MPAS space
+    # filling curves), so consecutive faces share corners by construction.
+    # Measured as the mean jump between consecutive lookups over the sorted
+    # table, normalized by its length (1/3 is the random baseline): 0.0001 on
+    # the CONUS RRM grid at five offsets, 0.0003 on a 74M-corner ESMF mesh,
+    # 0.0007-0.0028 on regular lat-lon, 0.02-0.08 on MPAS SFC and FESOM.
+    # Nothing tested came close to random, and randomizing the corners costs
+    # the search 3x. Even then the join is only 2.1x ahead per lookup, which
+    # the whole-open numbers swamp: the join rebuilds a hash table of every
+    # unique node for each block, so the complete open is 2x slower and 5.2x
+    # larger with it.
+    ids = np.empty(lon_block.shape[0], dtype=INT_DTYPE)
+    missing = _search_sorted_pairs(unq_lon, unq_lat, lon_block, lat_block, ids)
+
+    # A corner absent from the unique table has no valid id. Catch it rather
+    # than let the two halves of the dedup disagree silently.
+    if missing:
+        raise GridInvalidError(
+            "a SCRIP corner is absent from the unique-node table; the dedup "
+            "and the lookup disagree."
+        )
+    return ids
+
+
+def _dedup_scrip_nodes_dask(corner_lon, corner_lat):
+    """Find unique SCRIP corner coordinates without materializing the full
+    corner table, for dask-backed corner arrays (i.e. the grid was opened
+    with ``chunks=``).
+
+    Real meshes share most corners between adjacent faces, so the set of
+    *unique* nodes is far smaller than the full *corner* table (which has
+    one row per face-corner, duplicated at every shared vertex). This
+    exploits that:
+
+    1. ``dask.dataframe``'s shuffle-based ``drop_duplicates`` finds the
+       unique ``(lon, lat)`` pairs, processing the corner table
+       partition-by-partition (spilling to disk as needed) rather than
+       requiring it resident in memory all at once, as the Polars path
+       does. Only this small unique-node table is computed eagerly here.
+       The shuffle method is left to dask. An earlier version pinned it to
+       "disk" on the strength of a 17.9 vs 12.1 GiB measurement, but that
+       comparison was between dask's default and an explicit method, not
+       between the two methods: the pin was set through ``dask.config``,
+       which ``drop_duplicates`` overrides, so the "disk" arm of it was
+       never actually a disk shuffle. Measured once the method is passed
+       as an argument and so takes effect, disk loses on both axes -- on
+       the full 300M-face/3.6B-corner CONUS RRM grid, disk ran 315.5 s at
+       86.8 GiB against tasks' 249.1 s at 85.4 GiB, for byte-identical
+       connectivity; at 12M faces locally, 2.71 s/7.01 GiB against
+       2.25 s/6.54 GiB. Dask's own default matches tasks to within noise.
+    2. The inverse index -- which unique node each of the (many) original
+       corners maps to -- is built by broadcasting that small table back
+       across the corner array's own blocks with ``map_blocks`` (not
+       ``dask.dataframe.map_partitions``, whose output has unknown chunk
+       sizes -- ``map_blocks`` preserves the input's known chunk structure
+       exactly), and is returned as a dask array, not computed here. It
+       stays lazy through the rest of ``_to_ugrid`` and is only
+       materialized when something downstream (e.g. writing the grid to
+       disk) actually needs it.
+
+    Parameters
+    ----------
+    corner_lon, corner_lat : dask.array.Array
+        Flattened (``grid_size * grid_corners``,) corner coordinates.
+
+    Returns
+    -------
+    unq_lon, unq_lat : numpy.ndarray
+        Unique node coordinates.
+    unq_inv : dask.array.Array
+        For every input corner, the index into ``unq_lon``/``unq_lat`` of
+        the node it maps to.
+    """
+    import dask
+    import dask.array as dask_array
+    import dask.dataframe as dd
+
+    coords = dask_array.stack([corner_lon, corner_lat], axis=1)
+    ddf = dd.from_dask_array(coords, columns=["lon", "lat"])
+
+    # A method the caller configured is passed through as an argument, since
+    # drop_duplicates prefers an order-preserving shuffle and otherwise
+    # overrides a dask.config setting rather than honoring it. With nothing
+    # configured, dask chooses: its default matched the best measured method
+    # at every scale tested, and it picks p2p under a distributed client.
+    shuffle_method = dask.config.get("dataframe.shuffle.method", None)
+    kwargs = {} if shuffle_method is None else {"shuffle_method": shuffle_method}
+
+    unique_pairs = (
+        ddf.drop_duplicates(subset=["lon", "lat"], keep="first", **kwargs)
+        .compute()
+        .reset_index(drop=True)
+    )
+    # Drop the parent DataFrame as soon as the two columns are extracted.
+    # "Small" is relative: on a 226M-face grid the unique-node table is
+    # 3.4 GiB, so holding it past its last use is not free.
+    unq_lon = unique_pairs["lon"].to_numpy()
+    unq_lat = unique_pairs["lat"].to_numpy()
+    del unique_pairs
+
+    # drop_duplicates returns the table in hash-partition order; the lookup
+    # binary-searches it, so sort it once here. Sorting by (lon, lat) also
+    # numbers the nodes exactly as the eager path does. Polars rather than
+    # np.lexsort because it sorts on every core: the same order (NaN last),
+    # 0.12 s against 2.5 s at 8M unique nodes, for no measurable extra peak.
+    order = (
+        pl.DataFrame({"lon": unq_lon, "lat": unq_lat})
+        .select(pl.arg_sort_by("lon", "lat"))
+        .to_series()
+        .to_numpy()
+    )
+    unq_lon = unq_lon[order]
+    unq_lat = unq_lat[order]
+    del order
+
+    # The same two arrays serve as node coordinates and as the lookup, so
+    # the graph holds no extra copy of the unique-node table.
+    unq_inv = dask_array.map_blocks(
+        _lookup_node_ids,
+        corner_lon,
+        corner_lat,
+        lookup=(unq_lon, unq_lat),
+        dtype=INT_DTYPE,
+    )
+
+    return unq_lon, unq_lat, unq_inv
+
+
 def _to_ugrid(in_ds, out_ds):
     """If input dataset (``in_ds``) file is an unstructured SCRIP file,
     function will reassign SCRIP variables to UGRID conventions in output file
@@ -51,34 +342,38 @@ def _to_ugrid(in_ds, out_ds):
         # Create node_lon & node_lat variables from grid_corner_lat/lon
         # Turn latitude and longitude scrip arrays into 1D
         # Convert to degrees if needed
-        # materialized here: fed to polars and numpy fancy-indexing below
-        corner_lat = np.asarray(_values_in_degrees(in_ds["grid_corner_lat"])).ravel()
-        corner_lon = np.asarray(_values_in_degrees(in_ds["grid_corner_lon"])).ravel()
+        corner_lat_raw = _values_in_degrees(in_ds["grid_corner_lat"]).ravel()
+        corner_lon_raw = _values_in_degrees(in_ds["grid_corner_lon"]).ravel()
 
-        # Use Polars to find unique coordinate pairs
-        df = pl.DataFrame({"lon": corner_lon, "lat": corner_lat}).with_row_count(
-            "original_index"
-        )
+        # Import Dask only when this SCRIP path needs to distinguish lazy arrays;
+        # importing it at module load noticeably slows ``import uxarray``.
+        import dask.array as dask_array
 
-        # Get unique rows (first occurrence). This preserves the order in which they appear.
-        unique_df = df.unique(subset=["lon", "lat"], keep="first")
-
-        # unq_ind: The indices of the unique rows in the original array
-        unq_ind = unique_df["original_index"].to_numpy().astype(INT_DTYPE)
-
-        # To get the inverse index (unq_inv): map each original row back to its unique row index.
-        # Add a unique_id to the unique_df which will serve as the "inverse" mapping.
-        unique_df = unique_df.with_row_count("unique_id")
-
-        # Join original df with unique_df to find out which unique_id corresponds to each row
-        df_joined = df.join(
-            unique_df.drop("original_index"), on=["lon", "lat"], how="left"
-        )
-        unq_inv = df_joined["unique_id"].to_numpy().astype(INT_DTYPE)
-
-        # Extract unique lon and lat values using unq_ind
-        unq_lon = corner_lon[unq_ind]
-        unq_lat = corner_lat[unq_ind]
+        lat_lazy = isinstance(corner_lat_raw, dask_array.Array)
+        lon_lazy = isinstance(corner_lon_raw, dask_array.Array)
+        if lat_lazy or lon_lazy:
+            # Lazily opened (chunks= was passed to open_grid): dedup without
+            # ever materializing the full corner table. One variable can
+            # already be in memory (e.g. a Dataset whose corner_lat was
+            # .load()ed); give it the other's chunks, or map_blocks would pass
+            # it whole to every block and pair corners with the wrong
+            # latitudes.
+            if not lat_lazy:
+                corner_lat_raw = dask_array.from_array(
+                    corner_lat_raw, chunks=corner_lon_raw.chunks
+                )
+            if not lon_lazy:
+                corner_lon_raw = dask_array.from_array(
+                    corner_lon_raw, chunks=corner_lat_raw.chunks
+                )
+            unq_lon, unq_lat, unq_inv = _dedup_scrip_nodes_dask(
+                corner_lon_raw, corner_lat_raw
+            )
+        else:
+            # Eagerly opened: unchanged Polars-based path.
+            corner_lat = np.asarray(corner_lat_raw)
+            corner_lon = np.asarray(corner_lon_raw)
+            unq_lon, unq_lat, unq_inv = _dedup_scrip_nodes_eager(corner_lon, corner_lat)
 
         # Reshape face nodes array into original shape for use in 'face_node_connectivity'
         unq_inv = np.reshape(unq_inv, (len(in_ds.grid_size), len(in_ds.grid_corners)))
