@@ -547,7 +547,7 @@ class UxDataArrayPlotAccessor:
         method: str | None = None,
         backend: str | None = None,
         projection=None,
-        labels: bool = True,
+        labels: bool | float = True,
         hover: bool = True,
         **kwargs,
     ):
@@ -581,9 +581,11 @@ class UxDataArrayPlotAccessor:
         projection : ccrs.Projection, optional
             The map projection to use. Pass the same projection as the plot the
             contours are overlaid on.
-        labels : bool, default=True
+        labels : bool or float, default=True
             Whether the lines are labeled with their level. Each level is labeled
-            at the middle of its longest lines.
+            at the middle of its longest lines. A number between 0 and 1 labels
+            that fraction of the levels, spread evenly from the lowest one:
+            ``0.5`` labels every second level. ``0`` is the same as ``False``.
         hover : bool, default=True
             Whether the level of a line is shown when the pointer is over it. This
             applies to the Bokeh backend; Matplotlib plots are static images.
@@ -607,7 +609,8 @@ class UxDataArrayPlotAccessor:
         DimensionError (subclass of ValueError)
             If the data has more than one dimension that is not of length 1.
         ValueError
-            If an option in ``**kwargs`` is not an option of the lines.
+            If an option in ``**kwargs`` is not an option of the lines, or if
+            ``labels`` is not ``True``, ``False`` or a number between 0 and 1.
 
         Notes
         -----
@@ -645,9 +648,11 @@ class UxDataArrayPlotAccessor:
             _apply_options,
             _compute_contours,
             _drop_lines_outside_projection,
+            _label_fraction,
             _label_points,
         )
 
+        label_fraction = _label_fraction(labels)
         plotting_backend.assign(backend)
 
         contours = _compute_contours(self._uxda, levels=levels, method=method)
@@ -664,7 +669,7 @@ class UxDataArrayPlotAccessor:
             {"x": line[:, 0], "y": line[:, 1], level_name: level}
             for level, line in contours
         ]
-        label_x, label_y, label_text = _label_points(contours)
+        label_x, label_y, label_text = _label_points(contours, label_fraction)
         label_data = {"x": label_x, "y": label_y, "text": label_text}
 
         if projection is not None:
@@ -683,7 +688,7 @@ class UxDataArrayPlotAccessor:
         lines = _apply_options(lines, kwargs)
         if projection is not None:
             lines = lines.opts(projection=projection)
-        if not labels:
+        if label_fraction == 0:
             return lines
 
         # the labels sit just above the lines, in their color if they have a single one

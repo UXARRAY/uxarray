@@ -283,14 +283,33 @@ def _drop_lines_outside_projection(
     ]
 
 
+def _label_fraction(labels: bool | float) -> float:
+    """The fraction of the levels to label, from the ``labels`` argument."""
+    if isinstance(labels, bool):
+        return 1.0 if labels else 0.0
+    try:
+        fraction = float(labels)
+    except (TypeError, ValueError):
+        fraction = np.nan
+    # NaN fails this test as well
+    if not 0.0 <= fraction <= 1.0:
+        raise ValueError(
+            "labels must be True, False or a fraction of the levels between 0 and 1, "
+            f"but got {labels!r}"
+        )
+    return fraction
+
+
 def _label_points(
     contours: list[tuple[float, np.ndarray]],
+    fraction: float = 1.0,
 ) -> tuple[list[float], list[float], list[str]]:
     """Positions and text of the labels of contour lines.
 
     Each level is labeled at the middle of its longest lines: the longest one,
     and up to ``_MAX_LABELS_PER_LEVEL - 1`` more that are not short compared
-    with the extent of all the lines.
+    with the extent of all the lines. With a ``fraction`` below 1, only that
+    share of the levels is labeled, spread evenly from the lowest one.
 
     Returns
     -------
@@ -304,6 +323,13 @@ def _label_points(
         return x, y, text
 
     extent = np.ptp(np.concatenate([line for _, line in contours]), axis=0).max()
+
+    # a level is labeled where the running count of labels, fraction per level, steps up:
+    # 0.5 labels the lowest level and every second one after it
+    levels = np.unique([level for level, _ in contours])
+    count = np.floor(np.arange(-1, len(levels)) * fraction + 1e-9)
+    labeled = set(levels[np.diff(count) > 0].tolist())
+
     middles = defaultdict(list)
     for level, line in contours:
         steps = np.hypot(*np.diff(line, axis=0).T)
@@ -312,6 +338,8 @@ def _label_points(
         middles[level].append((distance[-1], *middle))
 
     for level, found in middles.items():
+        if level not in labeled:
+            continue
         found.sort(reverse=True)
         for rank, (length, lon, lat) in enumerate(found[:_MAX_LABELS_PER_LEVEL]):
             if rank == 0 or length >= _MIN_LABELED_LENGTH * extent:

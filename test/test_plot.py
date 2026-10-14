@@ -508,6 +508,15 @@ def test_contour_labels(gridpath):
     # without labels, the lines alone are returned
     assert isinstance(uxda.plot.contour(levels=levels, labels=False), hv.Contours)
 
+    # a fraction labels that share of the levels, spread evenly from the lowest
+    five_levels = [-60.5, -30.5, 0.5, 30.5, 60.5]
+    labels = uxda.plot.contour(levels=five_levels, labels=0.5).get(1)
+    assert sorted(set(labels.dimension_values("text")), key=float) == ["-60.5", "0.5", "60.5"]
+    assert isinstance(uxda.plot.contour(levels=levels, labels=0), hv.Contours)
+    for bad in (1.5, -0.5, "half"):
+        with pytest.raises(ValueError, match="labels"):
+            uxda.plot.contour(levels=levels, labels=bad)
+
 
 def test_contour_options(gridpath):
     """Options have one spelling on both backends, and Bokeh shows the level of a line on hover."""
