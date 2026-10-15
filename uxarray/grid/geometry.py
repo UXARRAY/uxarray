@@ -1069,35 +1069,6 @@ def _populate_max_face_radius(grid):
     face_y = grid.face_y.values
     face_z = grid.face_z.values
 
-    # Get the max distance
-    max_distance = calculate_max_face_radius(
-        face_node_connectivity,
-        node_x,
-        node_y,
-        node_z,
-        face_x,
-        face_y,
-        face_z,
-    )
-
-    return max_distance
-
-
-@njit(cache=True, parallel=True, nogil=True)
-def calculate_max_face_radius(
-    face_node_connectivity: np.ndarray,
-    node_x: np.ndarray,
-    node_y: np.ndarray,
-    node_z: np.ndarray,
-    face_x: np.ndarray,
-    face_y: np.ndarray,
-    face_z: np.ndarray,
-) -> float:
-    """returns max face radius across all faces, with face radius is defined as
-    the maximum distance from the face center to any of its nodes.
-    """
-    n_faces = face_node_connectivity.shape[0]
-
     face_radii2 = _compute_face_radii(
         face_node_connectivity,
         node_x,
@@ -1107,16 +1078,9 @@ def calculate_max_face_radius(
         face_y,
         face_z,
         squared=True,
+        # (square root below, instead of on every face, for efficiency)
     )
-
-    # now do a simple serial reduction
-    global_max2 = 0.0
-    for i in range(n_faces):
-        if face_radii2[i] > global_max2:
-            global_max2 = face_radii2[i]
-
-    # one sqrt at the end
-    return math.sqrt(global_max2)
+    return np.sqrt(np.max(face_radii2))
 
 
 @njit(cache=True, parallel=True, nogil=True)
