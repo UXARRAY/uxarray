@@ -1,5 +1,6 @@
 """Regression tests for opening ensemble members with a shared Grid."""
 
+from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
@@ -17,6 +18,16 @@ class TestGridReuse(TestCase):
         """Create a synthetic tetrahedral grid and two independent members."""
         self.directory = TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
+        # Grid conversion and UxDataset construction can lose the source
+        # Dataset's close callback. Keep the actual backend owners alive and
+        # close them before removing files, including on Windows.
+        for name in ("open_dataset", "open_mfdataset"):
+            opener = getattr(xr, name)
+            patcher = patch.object(
+                xr, name, side_effect=partial(self._open_source, opener)
+            )
+            patcher.start()
+            self.addCleanup(patcher.stop)
         self.grid_path = Path(self.directory.name) / "grid.nc"
         # Equal node and face counts ensure source names, rather than sizes,
         # distinguish node-centered and face-centered variables after reuse.
@@ -59,6 +70,12 @@ class TestGridReuse(TestCase):
             path = Path(self.directory.name) / f"member_{i}.nc"
             member.to_netcdf(path)
             self.paths.append(path)
+
+    def _open_source(self, opener, *args, **kwargs):
+        """Retain the original xarray resource owner without changing file I/O."""
+        source = opener(*args, **kwargs)
+        self.addCleanup(source.close)
+        return source
 
     def assert_grid_unchanged(self):
         """Opening data must not alter the shared grid or its source mapping."""
