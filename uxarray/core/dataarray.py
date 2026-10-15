@@ -1857,7 +1857,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                     "Use scale_by_radius=True/False to control the units, "
                     "or set result.attrs['units'] manually to set the units attribute after the call."
                 ),
-                DeprecationWarning,
+                FutureWarning,
             )
             kw_unused.pop("units")
         if len(kw_unused) > 0:
