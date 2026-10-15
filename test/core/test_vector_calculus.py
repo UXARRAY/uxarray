@@ -275,6 +275,7 @@ class TestDivergenceQuadHex:
         # Create two components for vector field (using same data for simplicity in test)
         u_component = uxds['t2m']
         v_component = uxds['t2m'].rename("vname")
+        # (used .rename() to check below the result name/attrs when input names differ)
 
         div_da = u_component.divergence(v_component)
 
@@ -569,6 +570,7 @@ class TestCurlQuadHex:
         # Create two components for vector field (using same data for simplicity in test)
         u_component = uxds['t2m']
         v_component = uxds['t2m'].rename("vname")
+        # (used .rename() to check below the result name/attrs when input names differ)
 
         curl_da = u_component.curl(v_component)
 
