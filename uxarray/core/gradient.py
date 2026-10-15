@@ -204,11 +204,12 @@ def _compute_gradient(data, scale_by_radius=True, **kw_apply_ufunc):
                 stacklevel=2,
             )
 
-    base_units = data.attrs.get("units", "")
-    if scale_by_radius and has_sphere_radius:
-        grad_units = f"{base_units}/m" if base_units else "1/m"
-    else:
-        grad_units = f"{base_units}/rad" if base_units else "1/rad"
+    base_units = data.attrs.get("units", "1")
+    if "/" in base_units:  # put in (), e.g. (m/s)/m, not m/s/m.
+        base_units = f"({base_units})"
+    was_scaled = scale_by_radius and has_sphere_radius
+    denom_units = "m" if was_scaled else "rad"
+    grad_units = f"{base_units}/{denom_units}"
 
     # Zonal
     grad_zonal_da = grad_zonal.rename("zonal_gradient")

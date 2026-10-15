@@ -14,14 +14,37 @@ class TestGradientQuadHex:
     def test_gradient_output_format(self, gridpath, datasetpath):
         """Tests the output format of gradient functionality"""
         uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
+        uxarr = uxds['t2m']
 
-        grad_ds = uxds['t2m'].gradient()
+        grad = uxarr.gradient()
+        VARS = ["zonal_gradient", "meridional_gradient"]
 
-        assert isinstance(grad_ds, ux.UxDataset)
-        assert "zonal_gradient" in grad_ds
-        assert "meridional_gradient" in grad_ds
-        assert "gradient" in grad_ds.attrs
-        assert uxds['t2m'].sizes == grad_ds.sizes
+        assert isinstance(grad, ux.UxDataset)
+        assert VARS[0] in grad
+        assert VARS[1] in grad
+        assert grad.attrs["gradient"] == True
+        assert uxds["t2m"].sizes == grad.sizes
+
+        # units attr checks:
+        assert uxarr.attrs["units"] == "K"
+        assert grad[VARS[0]].attrs["units"] == "K/m"
+        assert grad[VARS[1]].attrs["units"] == "K/m"
+        grad_no_scaling = uxarr.gradient(scale_by_radius=False)
+        assert grad_no_scaling[VARS[0]].attrs["units"] == "K/rad"
+        assert grad_no_scaling[VARS[1]].attrs["units"] == "K/rad"
+        uxarr_no_units = uxarr.copy()
+        uxarr_no_units.attrs.pop("units")
+        grad_no_units_yes_scaling = uxarr_no_units.gradient()
+        assert grad_no_units_yes_scaling[VARS[0]].attrs["units"] == "1/m"
+        assert grad_no_units_yes_scaling[VARS[1]].attrs["units"] == "1/m"
+        grad_no_units_no_scaling = uxarr_no_units.gradient(scale_by_radius=False)
+        assert grad_no_units_no_scaling[VARS[0]].attrs["units"] == "1/rad"
+        assert grad_no_units_no_scaling[VARS[1]].attrs["units"] == "1/rad"
+        uxarr_ratio_units = uxarr.assign_attrs({"units": "K/s"})
+        grad_ratio_units = uxarr_ratio_units.gradient()
+        assert grad_ratio_units[VARS[0]].attrs["units"] == "(K/s)/m"
+        assert grad_ratio_units[VARS[1]].attrs["units"] == "(K/s)/m"
+
 
     def test_gradient_all_boundary_faces(self, gridpath, datasetpath):
         """Quad hexagon grid has 4 faces, all touching the boundary.
@@ -262,8 +285,21 @@ class TestDivergenceQuadHex:
         assert div_da.attrs["description"].startswith("Divergence of vector field")
         assert u_component.sizes == div_da.sizes
 
+        # units attr checks:
         assert u_component.attrs["units"] == "K"
         assert div_da.attrs["units"] == "K/m"
+        div_da_no_scaling = u_component.divergence(v_component, scale_by_radius=False)
+        assert div_da_no_scaling.attrs["units"] == "K/rad"
+        u_no_units = u_component.copy()
+        u_no_units.attrs.pop("units")
+        div_da_no_units_yes_scaling = u_no_units.divergence(v_component)
+        assert div_da_no_units_yes_scaling.attrs["units"] == "1/m"
+        div_da_no_units_no_scaling = u_no_units.divergence(v_component, scale_by_radius=False)
+        assert div_da_no_units_no_scaling.attrs["units"] == "1/rad"
+        u_ratio_units = u_component.assign_attrs({"units": "K/s"})
+        div_da_ratio_units = u_ratio_units.divergence(v_component)
+        assert div_da_ratio_units.attrs["units"] == "(K/s)/m"
+
 
     def test_divergence_input_validation(self, gridpath, datasetpath):
         """Tests input validation for divergence method"""
@@ -543,8 +579,21 @@ class TestCurlQuadHex:
         assert curl_da.attrs["description"].startswith("Curl of vector field")
         assert u_component.sizes == curl_da.sizes
 
+        # units attr checks
         assert u_component.attrs["units"] == "K"
         assert curl_da.attrs["units"] == "K/m"
+        curl_da_no_scaling = u_component.curl(v_component, scale_by_radius=False)
+        assert curl_da_no_scaling.attrs["units"] == "K/rad"
+        u_no_units = u_component.copy()
+        u_no_units.attrs.pop("units")
+        curl_da_no_units_yes_scaling = u_no_units.curl(v_component)
+        assert curl_da_no_units_yes_scaling.attrs["units"] == "1/m"
+        curl_da_no_units_no_scaling = u_no_units.curl(v_component, scale_by_radius=False)
+        assert curl_da_no_units_no_scaling.attrs["units"] == "1/rad"
+        u_ratio_units = u_component.assign_attrs({"units": "K/s"})
+        curl_da_ratio_units = u_ratio_units.curl(v_component)
+        assert curl_da_ratio_units.attrs["units"] == "(K/s)/m"
+
 
     def test_curl_input_validation(self, gridpath, datasetpath):
         """Tests input validation for curl method"""
