@@ -369,7 +369,7 @@ def _compute_gradients_on_faces(
     face_lon,
     normal_lon,
     normal_lat,
-    output_dtype = np.float64,
+    output_dtype=np.float64,
 ):
     """
     Computes horizontal gradients on faces averaged over the cell constructed from connecting the centroids of the faces which share a common node with the face.
