@@ -660,13 +660,18 @@ class UxDataArrayPlotAccessor:
             _raise_hint_if_optional_deps_missing("cartopy", "geoviews")
             contours = _drop_lines_outside_projection(contours, projection)
 
-        level_name = self._uxda.name if self._uxda.name is not None else "level"
+        # The level has a fixed name, so data named "x" or "y" cannot replace a
+        # coordinate; the name of the data is what hover and the colorbar show.
+        name = self._uxda.name
+        level_dim = hv.Dimension("level", label="level" if name is None else str(name))
+        if kwargs.get("color") == level_dim.label:
+            kwargs["color"] = level_dim.name
         kdims = [
             hv.Dimension("x", label="Longitude"),
             hv.Dimension("y", label="Latitude"),
         ]
         paths = [
-            {"x": line[:, 0], "y": line[:, 1], level_name: level}
+            {"x": line[:, 0], "y": line[:, 1], level_dim.name: level}
             for level, line in contours
         ]
         label_x, label_y, label_text = _label_points(contours, label_fraction)
@@ -677,10 +682,10 @@ class UxDataArrayPlotAccessor:
             import geoviews as gv
 
             crs = ccrs.PlateCarree()
-            lines = gv.Contours(paths, kdims=kdims, vdims=[level_name], crs=crs)
+            lines = gv.Contours(paths, kdims=kdims, vdims=[level_dim], crs=crs)
             text = gv.Labels(label_data, kdims=kdims, vdims=["text"], crs=crs)
         else:
-            lines = hv.Contours(paths, kdims=kdims, vdims=[level_name])
+            lines = hv.Contours(paths, kdims=kdims, vdims=[level_dim])
             text = hv.Labels(label_data, kdims=kdims, vdims=["text"])
 
         if hover and "hover" not in kwargs.get("tools", []):
@@ -693,7 +698,7 @@ class UxDataArrayPlotAccessor:
 
         # the labels sit just above the lines, in their color if they have a single one
         color = kwargs.get("color")
-        color = color if isinstance(color, str) and color != level_name else "black"
+        color = color if isinstance(color, str) and color != level_dim.name else "black"
         if hv.Store.current_backend == "bokeh":
             text = text.opts(
                 text_color=color, text_font_size="8pt", text_baseline="bottom"

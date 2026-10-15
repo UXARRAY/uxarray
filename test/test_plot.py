@@ -405,7 +405,7 @@ def test_contour_face_centered(gridpath, datasetpath, method):
         lines, labels = contours
         assert isinstance(lines, hv.Contours) and isinstance(labels, hv.Labels)
         assert len(lines.data) > 0
-        assert lines.vdims[0].name == "psi"
+        assert lines.vdims[0].name == "level" and lines.vdims[0].label == "psi"
 
         hv.renderer(backend).get_plot(uxds['psi'].plot(backend=backend) * contours)
 
@@ -516,6 +516,59 @@ def test_contour_labels(gridpath):
     for bad in (1.5, -0.5, "half"):
         with pytest.raises(ValueError, match="labels"):
             uxda.plot.contour(levels=levels, labels=bad)
+
+
+@pytest.mark.parametrize("name", ["x", "y"])
+def test_contour_data_named_like_a_coordinate(gridpath, name):
+    """Data named "x" or "y" gives the same lines as any other name, and hover shows its name."""
+    uxda = _face_latitude(ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug")))
+    levels = [-30.5, 10.5]
+
+    expected = _contour_lines(uxda.plot.contour(levels=levels, backend="bokeh"))
+    contours = uxda.rename(name).plot.contour(levels=levels, backend="bokeh")
+    lines = _contour_lines(contours)
+
+    assert len(lines) == len(expected)
+    for (level, x, y), (expected_level, expected_x, expected_y) in zip(lines, expected):
+        assert level == expected_level
+        np.testing.assert_array_equal(x, expected_x)
+        np.testing.assert_array_equal(y, expected_y)
+
+    tools = hv.renderer("bokeh").get_plot(contours.get(0)).state.tools
+    tooltips = [tool.tooltips for tool in tools if type(tool).__name__ == "HoverTool"][0]
+    assert name in [label for label, _ in tooltips]
+
+
+def test_contour_triangles_of_dented_faces(gridpath):
+    """Dented faces are split into triangles that stay inside them, also when no corner can see
+    the whole face, and on the dual cells of a FESOM mesh, some of which are dented."""
+    from uxarray.plot.contour import _fan_triangles, _wrap_longitude
+
+    def areas(lon, lat, triangles):
+        x, y = lon[triangles], lat[triangles]
+        return 0.5 * ((x[:, 1] - x[:, 0]) * (y[:, 2] - y[:, 0]) - (x[:, 2] - x[:, 0]) * (y[:, 1] - y[:, 0]))
+
+    # a dart, whose first corner cannot see the corner in the dent; and a C shape, where
+    # no corner can see every other one
+    for corners in ([(0, 0), (4, 0), (4, 4), (2, 1), (0, 4)], [(0, 0), (5, 0), (5, 1), (1, 1), (1, 2), (5, 2), (5, 3), (0, 3)]):
+        lon, lat = np.array(corners, dtype=float).T
+        triangles = _fan_triangles(np.arange(len(lon))[None, :], np.array([len(lon)]), lon, lat)
+        face = 0.5 * np.sum(lon * np.roll(lat, -1) - np.roll(lon, -1) * lat)
+        assert len(triangles) == len(lon) - 2
+        assert np.all(areas(lon, lat, triangles) * np.sign(face) > 0)
+        np.testing.assert_allclose(areas(lon, lat, triangles).sum(), face)
+
+    # on the dual of a FESOM mesh, the triangles cover the faces exactly once (with a fan from
+    # every face's first corner they covered 2.8% more, where they reached outside dented faces)
+    dual = ux.open_grid(gridpath("fesom", "soufflet-netcdf", "grid.nc")).get_dual()
+    connectivity, counts = dual.face_node_connectivity.values, dual.n_nodes_per_face.values
+    lon, lat = _wrap_longitude(dual.node_lon.values), dual.node_lat.values
+    triangles = _fan_triangles(connectivity, counts, lon, lat)
+    face_area = sum(
+        abs(np.sum(lon[nodes] * np.roll(lat[nodes], -1) - np.roll(lon[nodes], -1) * lat[nodes])) / 2
+        for nodes in (connectivity[face, : counts[face]] for face in range(dual.n_face))
+    )
+    np.testing.assert_allclose(np.abs(areas(lon, lat, triangles)).sum(), face_area)
 
 
 def test_contour_options(gridpath):

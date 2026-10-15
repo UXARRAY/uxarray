@@ -17,6 +17,7 @@ from difflib import get_close_matches
 from typing import TYPE_CHECKING, Sequence
 
 import numpy as np
+from numba import njit
 
 from uxarray.errors import DataCenteringError, DimensionError
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
@@ -56,16 +57,123 @@ def _wrap_longitude(lon: np.ndarray) -> np.ndarray:
     return (lon + 180.0) % 360.0 - 180.0
 
 
-def _fan_triangles(
-    face_node_connectivity: np.ndarray, n_nodes_per_face: np.ndarray
+@njit(cache=True)
+def _fan_corners(
+    face_node_connectivity: np.ndarray,
+    n_nodes_per_face: np.ndarray,
+    lon: np.ndarray,
+    lat: np.ndarray,
 ) -> np.ndarray:
-    """Splits each face into triangles that share the face's first node."""
+    """For each face, the position of a corner that can see every other corner, so that
+    a fan of triangles from it covers the face exactly. 0 is tried first; -1 means that
+    no corner can. Faces that touch or contain a pole, or have no area, keep 0: a pole is
+    one point drawn at an arbitrary longitude, so their shape in longitude and latitude
+    says nothing about dents."""
+    corners = np.zeros(len(n_nodes_per_face), dtype=np.int64)
+    for face in range(len(n_nodes_per_face)):
+        n = n_nodes_per_face[face]
+        if n < 4:
+            continue
+        x = np.empty(n)
+        y = np.empty(n)
+        first = face_node_connectivity[face, 0]
+        at_pole = False
+        for k in range(n):
+            node = face_node_connectivity[face, k]
+            dx = lon[node] - lon[first]
+            x[k] = dx - 360.0 * np.floor(dx / 360.0 + 0.5)
+            y[k] = lat[node]
+            at_pole = at_pole or abs(lat[node]) >= 89.999
+        if at_pole or x.max() - x.min() >= 180.0:
+            continue
+        area = 0.0
+        for k in range(n):
+            area += x[k] * y[(k + 1) % n] - x[(k + 1) % n] * y[k]
+        if not np.isfinite(area) or area == 0.0:
+            continue
+        corners[face] = -1
+        for corner in range(n):
+            sees_all = True
+            for k in range(1, n - 1):
+                a, b = (corner + k) % n, (corner + k + 1) % n
+                turn = (x[a] - x[corner]) * (y[b] - y[corner]) - (x[b] - x[corner]) * (
+                    y[a] - y[corner]
+                )
+                # a triangle that turns the other way than the face lies outside it
+                if turn * area < 0.0 and abs(turn) > 1e-9 * abs(area):
+                    sees_all = False
+                    break
+            if sees_all:
+                corners[face] = corner
+                break
+    return corners
+
+
+def _ear_clipping(x: np.ndarray, y: np.ndarray) -> list[tuple[int, int, int]]:
+    """Triangles of a simple polygon, as positions of its corners."""
+
+    def turn(a, b, c):
+        return (x[b] - x[a]) * (y[c] - y[a]) - (x[c] - x[a]) * (y[b] - y[a])
+
+    orientation = np.sign(np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y))
+    left = list(range(len(x)))
     triangles = []
-    for k in range(1, face_node_connectivity.shape[1] - 1):
-        has_triangle = n_nodes_per_face > k + 1
-        triangles.append(
-            face_node_connectivity[has_triangle][:, [0, k, k + 1]],
-        )
+    while len(left) > 3:
+        for k in range(len(left)):
+            a, b, c = left[k - 1], left[k], left[(k + 1) % len(left)]
+            if turn(a, b, c) * orientation <= 0:
+                continue
+            others = [m for m in left if m not in (a, b, c)]
+            if any(
+                turn(a, b, m) * orientation >= 0
+                and turn(b, c, m) * orientation >= 0
+                and turn(c, a, m) * orientation >= 0
+                for m in others
+            ):
+                continue
+            triangles.append((a, b, c))
+            del left[k]
+            break
+        else:
+            break
+    if len(left) == 3:
+        triangles.append(tuple(left))
+    return triangles
+
+
+def _fan_triangles(
+    face_node_connectivity: np.ndarray,
+    n_nodes_per_face: np.ndarray,
+    lon: np.ndarray,
+    lat: np.ndarray,
+) -> np.ndarray:
+    """Splits each face into triangles that share one of its corners."""
+    # A fan from one corner covers a face exactly only if that corner can see every other
+    # corner. Every convex face is like that, but dented faces occur, mostly among the
+    # cells of the dual mesh of irregular meshes (FESOM-style ocean meshes, overlap meshes).
+    # A fan from the wrong corner puts triangles outside the face, and the lines there are
+    # interpolated from the wrong values. Such faces are fanned from a corner that sees the
+    # whole face, or ear-clipped when no corner does. Faces whose first corner works, nearly
+    # all of them, are split as before; finding the others is one compiled pass.
+    corners = _fan_corners(face_node_connectivity, n_nodes_per_face, lon, lat)
+    connectivity = face_node_connectivity
+    moved = corners > 0
+    if moved.any():
+        n = np.maximum(n_nodes_per_face[moved], 1)[:, None]
+        columns = (np.arange(connectivity.shape[1]) + corners[moved][:, None]) % n
+        connectivity = connectivity.copy()
+        connectivity[moved] = np.take_along_axis(connectivity[moved], columns, axis=1)
+
+    fan = corners >= 0
+    triangles = []
+    for k in range(1, connectivity.shape[1] - 1):
+        has_triangle = fan & (n_nodes_per_face > k + 1)
+        triangles.append(connectivity[has_triangle][:, [0, k, k + 1]])
+    for face in np.flatnonzero(~fan):
+        nodes = face_node_connectivity[face, : n_nodes_per_face[face]]
+        x = lon[nodes] - 360.0 * np.round((lon[nodes] - lon[nodes[0]]) / 360.0)
+        clipped = np.array(_ear_clipping(x, lat[nodes]), dtype=np.int64).reshape(-1, 3)
+        triangles.append(nodes[clipped])
     if not triangles:
         return np.empty((0, 3), dtype=face_node_connectivity.dtype)
     return np.concatenate(triangles)
@@ -97,7 +205,7 @@ def _triangulation(
     lon = _wrap_longitude(source.node_lon.values)
     lat = source.node_lat.values
     triangles = _fan_triangles(
-        source.face_node_connectivity.values, source.n_nodes_per_face.values
+        source.face_node_connectivity.values, source.n_nodes_per_face.values, lon, lat
     )
     index = np.arange(len(lon))
 
