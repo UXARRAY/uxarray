@@ -311,7 +311,7 @@ def _apply_1dfunc_with_grid_core_dim(
         *xarrays,
         input_core_dims=input_core_dims,
         output_core_dims=output_core_dims,
-        vectorize=True,
+        vectorize=True,  # intentionally ignored input `vectorize`; see docstring.
         **kw_apply_ufunc,
     )
     # convert back to uxarray objects, and (style) restore original dims order.
