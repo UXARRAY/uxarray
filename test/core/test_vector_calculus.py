@@ -1007,6 +1007,18 @@ class TestMoreThan1D:
         assert np.allclose(ratio.max('n_face')['zonal_gradient'], times + 0 * levels, atol=0, rtol=1e-9)
         assert np.allclose(ratio.min('n_face')['meridional_gradient'], times + 0 * levels, atol=0, rtol=1e-9)
         assert np.allclose(ratio.max('n_face')['meridional_gradient'], times + 0 * levels, atol=0, rtol=1e-9)
+        # ensure chunked input stays chunked and produces correct results
+        # TODO: uncomment these lines after fixing issue #1798.
+        # arrc = arr.chunk({'time': 2, 'level': -1})
+        # resultc = arrc.gradient()
+        # assert resultc['zonal_gradient'].chunks == arrc.chunks
+        # assert resultc['meridional_gradient'].chunks == arrc.chunks
+        # assert resultc.compute().equals(result)
+        # ensure complex values are allowed :)
+        arrj = arr * 1j
+        resultj = arrj.gradient()
+        assert np.allclose(resultj['zonal_gradient'].imag, result['zonal_gradient'], atol=0, rtol=1e-9)
+        assert np.allclose(resultj['meridional_gradient'].imag, result['meridional_gradient'], atol=0, rtol=1e-9)
 
     def test_curl_more_than_1d(self):
         ds0 = ux.tutorial.open_dataset('outCSne30-vortex')
@@ -1039,6 +1051,18 @@ class TestMoreThan1D:
         arr.isel(time=1, level=0).curl(arr)
         arr.curl(arr0.assign_coords(time=9))
         arr0.assign_coords(level="nonexistent_level").curl(arr)
+        # ensure chunked input stays chunked and produces correct results
+        # (just doing a sanity check in the arr.curl(arr0) case)
+        # TODO: uncomment these lines after fixing issue #1798.
+        # arrc = arr.chunk({'time': 2, 'level': -1})
+        # resultc = arrc.curl(arr0)
+        # assert resultc.chunks == arrc.chunks
+        # assert resultc.compute().equals(resultA)
+        # ensure complex values are allowed :)
+        arrj = arr * 1j
+        arr0j = arr0 * 1j
+        resultj = arrj.curl(arr0j)
+        assert np.allclose(resultj.imag, resultA, atol=0, rtol=1e-9)
 
     def test_divergence_more_than_1d(self):
         ds0 = ux.tutorial.open_dataset('outCSne30-vortex')
@@ -1071,6 +1095,18 @@ class TestMoreThan1D:
         arr.isel(time=1, level=0).divergence(arr)
         arr.divergence(arr0.assign_coords(time=9))
         arr0.assign_coords(level="nonexistent_level").divergence(arr)
+        # ensure chunked input stays chunked and produces correct results
+        # (just doing a sanity check in the arr.divergence(arr0) case)
+        # TODO: uncomment these lines after fixing issue #1798.
+        # arrc = arr.chunk({'time': 2, 'level': -1})
+        # resultc = arrc.divergence(arr0)
+        # assert resultc.chunks == arrc.chunks
+        # assert resultc.compute().equals(resultA)
+        # ensure complex values are allowed :)
+        arrj = arr * 1j
+        arr0j = arr0 * 1j
+        resultj = arrj.divergence(arr0j)
+        assert np.allclose(resultj.imag, resultA, atol=0, rtol=1e-9)
 
     def test_scalar_dot_gradient_more_than_1d(self):
         ds0 = ux.tutorial.open_dataset('outCSne30-vortex')
@@ -1114,3 +1150,19 @@ class TestMoreThan1D:
                 assert resultE.isel(time=it, level=il).equals(arr_it_il_gradE)
                 assert resultF.isel(time=it, level=il).equals(arr_it_il_gradF)
                 assert resultG.isel(time=it, level=il).equals(arr_it_il_gradG)
+        # ensure chunked input stays chunked and produces correct results
+        # (just doing a sanity check in the arr.scalardotgradient(arr0, arr0) case)
+        # TODO: uncomment these lines after fixing issue #1798.
+        # arrc = arr.chunk({'time': 2, 'level': -1})
+        # resultc = arrc.scalardotgradient(arr0, arr0)
+        # assert resultc.chunks == arrc.chunks
+        # assert resultc.compute().equals(resultA)
+        # ensure complex values are allowed :)
+        # case 1: (u*1j).scalardotgradient(v*1j, q).imag == (u.scalardotgradient(v, q))
+        # case 2: (u).scalardotgradient(v, q*1j).imag == (u.scalardotgradient(v, q))
+        arrj = arr * 1j
+        arr0j = arr0 * 1j
+        resultj1 = arrj.scalardotgradient(arr0j, arr0)
+        resultj2 = arr.scalardotgradient(arr0, arr0j)
+        assert np.allclose(resultj1.imag, resultA, atol=0, rtol=1e-9)
+        assert np.allclose(resultj2.imag, resultA, atol=0, rtol=1e-9)

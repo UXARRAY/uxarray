@@ -235,6 +235,7 @@ def _apply_1dfunc_with_grid_core_dim(
     kwargs=None,
     n_outputs=1,
     vectorize=True,
+    dask="parallelized",
     **kw_apply_ufunc,
 ):
     """Return the results of applying f across uxarrays, like apply_ufunc
@@ -265,6 +266,11 @@ def _apply_1dfunc_with_grid_core_dim(
         apply_ufunc(vectorize=True), because f is expected to operate on 1D arrays.
         If f is already vectorized to handle more dimensions, use xr.apply_ufunc
         or some other solution; using vectorize=True is slow, in general.
+    dask : str
+        passed to :meth:`xr.apply_ufunc` to control dask behavior. Default is "parallelized".
+        If inputs are chunked, `dask` is not "forbidden", and `output_dtypes` is not provided,
+        raises a warning with helpful instructions (i.e., to provide `output_dtypes`) because
+        the following error will likely occur: ValueError: `dtype` inference failed in `apply_gufunc`.
     additional kwargs are passed to xr.apply_ufunc.
     """
     # misc. checks
@@ -305,6 +311,19 @@ def _apply_1dfunc_with_grid_core_dim(
     result_grid = uxarrays[0].uxgrid
     result_dims = uxarrays[0].dims
     xarrays = [arr.to_xarray() for arr in uxarrays]
+    # make a helpful warning if chunked but didn't supply output_dtypes
+    if any(xarr.chunks is not None for xarr in xarrays):
+        if dask != "forbidden":
+            if "output_dtypes" not in kw_apply_ufunc:
+                warnings.warn(
+                    f"Input uxarray objects are chunked while calling {f.__name__}, "
+                    "with dask!='forbidden', but `output_dtypes` was not provided. "
+                    "If this causes a ValueError: `dtype` inference failed in `apply_gufunc`, "
+                    "that most likely indicates an implementation error in the function which "
+                    "called _apply_1dfunc_with_grid_core_dim, but failed to supply output_dyptes "
+                    "to it; that function should be updated accordingly."
+                )
+
     # actually do the calculations:
     result = xr.apply_ufunc(
         f_wrapped,
@@ -312,6 +331,7 @@ def _apply_1dfunc_with_grid_core_dim(
         input_core_dims=input_core_dims,
         output_core_dims=output_core_dims,
         vectorize=True,  # intentionally ignored input `vectorize`; see docstring.
+        dask=dask,
         **kw_apply_ufunc,
     )
     # convert back to uxarray objects, and (style) restore original dims order.

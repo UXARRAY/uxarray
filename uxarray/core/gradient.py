@@ -100,6 +100,9 @@ def _compute_gradient(data, scale_by_radius=True, **kw_apply_ufunc):
     kwargs like dask="parallelized" and output_dtypes=[float, float].
     """
     uxgrid = data.uxgrid
+    # determine output dtype; necessary if inputs are parallelized.
+    output_dtype = np.result_type(data.dtype, np.float64)
+    kw_apply_ufunc.setdefault("output_dtypes", [output_dtype, output_dtype])
 
     if data._face_centered():
         face_coords = np.array(
@@ -139,6 +142,7 @@ def _compute_gradient(data, scale_by_radius=True, **kw_apply_ufunc):
                 face_lon,
                 normal_lon,
                 normal_lat,
+                output_dtype,
             ),
             n_outputs=2,
             **kw_apply_ufunc,
@@ -365,6 +369,7 @@ def _compute_gradients_on_faces(
     face_lon,
     normal_lon,
     normal_lat,
+    output_dtype = np.float64,
 ):
     """
     Computes horizontal gradients on faces averaged over the cell constructed from connecting the centroids of the faces which share a common node with the face.
@@ -398,9 +403,8 @@ def _compute_gradients_on_faces(
         two np.ndarray: (n_face,) for zonal_grad & meridional_grad
 
     """
-
-    gradient_zonal = np.empty(n_face)
-    gradient_meridional = np.empty(n_face)
+    gradient_zonal = np.empty(n_face, dtype=output_dtype)
+    gradient_meridional = np.empty(n_face, dtype=output_dtype)
 
     n_face_nodes = face_node_connectivity.shape[1]
     n_node_edges = node_edge_connectivity.shape[1]
