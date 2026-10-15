@@ -234,7 +234,6 @@ def _apply_1dfunc_with_grid_core_dim(
     other_args=None,
     kwargs=None,
     n_outputs=1,
-    vectorize=True,
     dask="parallelized",
     **kw_apply_ufunc,
 ):
@@ -261,17 +260,19 @@ def _apply_1dfunc_with_grid_core_dim(
     n_outputs : int
         number of outputs from f, and from this function.
         If 1, this function returns a single UxDataArray; if >1, returns a tuple of UxDataArrays.
-    vectorize : bool
-        must be True. Included here to emphasize this is like using
-        apply_ufunc(vectorize=True), because f is expected to operate on 1D arrays.
-        If f is already vectorized to handle more dimensions, use xr.apply_ufunc
-        or some other solution; using vectorize=True is slow, in general.
     dask : str
         passed to :meth:`xr.apply_ufunc` to control dask behavior. Default is "parallelized".
         If inputs are chunked, `dask` is not "forbidden", and `output_dtypes` is not provided,
         raises a warning with helpful instructions (i.e., to provide `output_dtypes`) because
         the following error will likely occur: ValueError: `dtype` inference failed in `apply_gufunc`.
     additional kwargs are passed to xr.apply_ufunc.
+
+    Notes
+    -----
+    If additional kwargs include "vectorize" but bool(vectorize)==False, will crash with ValueError.
+    This is because this function must use apply_ufunc(vectorize=True), because f is expected
+    to operate on 1D arrays. If f is already vectorized to handle more dimensions, use xr.apply_ufunc
+    or some other solution; using vectorize=True is slow, in general.
     """
     # misc. checks
     if len(uxarrays) == 0:
@@ -289,6 +290,7 @@ def _apply_1dfunc_with_grid_core_dim(
                 f"Expected all input uxarray objects to have the same uxgrid, "
                 f"but uxarrays[0].uxgrid != uxarrays[{i}].uxgrid."
             )
+    vectorize = kw_apply_ufunc.pop("vectorize", True)
     if not vectorize:
         raise ValueError(
             "Expected vectorize=True, because f is expected to operate on 1D arrays."
@@ -330,7 +332,7 @@ def _apply_1dfunc_with_grid_core_dim(
         *xarrays,
         input_core_dims=input_core_dims,
         output_core_dims=output_core_dims,
-        vectorize=True,  # intentionally ignored input `vectorize`; see docstring.
+        vectorize=vectorize,
         dask=dask,
         **kw_apply_ufunc,
     )
