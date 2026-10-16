@@ -25,3 +25,12 @@ repos:
     - id: ruff-format
       name: format with ruff
       types_or: [ python, pyi, jupyter ]
+
+- repo: local
+  hooks:
+    - id: clean-numba-cache
+      name: clear stale numba caches
+      entry: python ci/clean_numba_cache.py
+      language: python
+      files: ^uxarray/(utils/(computing|numba_math)|grid/(angles|arcs|area|coordinates|geometry|intersections|point_in_face|utils))\.py$
+      pass_filenames: false
