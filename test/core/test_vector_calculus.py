@@ -273,8 +273,10 @@ class TestDivergenceQuadHex:
         uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
         # Create two components for vector field (using same data for simplicity in test)
+        # (Flipped sign of second array's data as requested by reviewers in PR 1823. But,
+        # to be clear, the array's values should not affect this test's results in any way.)
         u_component = uxds['t2m']
-        v_component = uxds['t2m'].rename("vname")
+        v_component = -uxds['t2m'].rename("vname")
         # (used .rename() to check below the result name/attrs when input names differ)
 
         div_da = u_component.divergence(v_component)
@@ -568,8 +570,10 @@ class TestCurlQuadHex:
         uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
         # Create two components for vector field (using same data for simplicity in test)
+        # (Flipped sign of second array's data as requested by reviewers in PR 1823. But,
+        # to be clear, the array's values should not affect this test's results in any way.)
         u_component = uxds['t2m']
-        v_component = uxds['t2m'].rename("vname")
+        v_component = -uxds['t2m'].rename("vname")
         # (used .rename() to check below the result name/attrs when input names differ)
 
         curl_da = u_component.curl(v_component)
