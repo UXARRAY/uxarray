@@ -69,13 +69,16 @@ def _fan_corners(
     no corner can. Faces that touch or contain a pole, or have no area, keep 0: a pole is
     one point drawn at an arbitrary longitude, so their shape in longitude and latitude
     says nothing about dents."""
-    corners = np.zeros(len(n_nodes_per_face), dtype=np.int64)
-    for face in range(len(n_nodes_per_face)):
+    n_faces = len(n_nodes_per_face)
+    corners = np.zeros(n_faces, dtype=np.int64)
+    # create x and y buffers only once, to avoid allocating many tiny numpy arrays
+    max_n_nodes_per_face = n_nodes_per_face.max()
+    x = np.empty(max_n_nodes_per_face)
+    y = np.empty(max_n_nodes_per_face)
+    for face in range(n_faces):
         n = n_nodes_per_face[face]
         if n < 4:
-            continue
-        x = np.empty(n)
-        y = np.empty(n)
+            continue  # all triangles are convex :)
         first = face_node_connectivity[face, 0]
         at_pole = False
         for k in range(n):
@@ -84,7 +87,7 @@ def _fan_corners(
             x[k] = dx - 360.0 * np.floor(dx / 360.0 + 0.5)
             y[k] = lat[node]
             at_pole = at_pole or abs(lat[node]) >= 89.999
-        if at_pole or x.max() - x.min() >= 180.0:
+        if at_pole or x[:n].max() - x[:n].min() >= 180.0:
             continue
         area = 0.0
         for k in range(n):
