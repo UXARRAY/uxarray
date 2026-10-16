@@ -163,8 +163,13 @@ def _face_area_from_quadrature(x, y, z, dG, dW, is_gaussian, latitude_adjusted_a
                 # Calculate the correction term
                 correction = _area_correction(node1, node2)
 
-                # Check if the longitude is increasing in the northern hemisphere or decreasing in the southern hemisphere
-                if (z_sign > 0 and lon_diff > 0) or (z_sign < 0 and lon_diff < 0):
+                # The great-circle arc between two points on a parallel bulges
+                # poleward of it. For a counterclockwise face, a westward edge in
+                # the northern hemisphere (eastward in the southern) has the face
+                # on its equatorward side, so the bulge lies outside the face and
+                # the great-circle area overcounts it; the opposite direction
+                # undercounts it.
+                if (z_sign > 0 and lon_diff < 0) or (z_sign < 0 and lon_diff > 0):
                     correction = -correction
 
                 total_correction += correction
