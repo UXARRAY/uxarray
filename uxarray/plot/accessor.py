@@ -554,8 +554,7 @@ class UxDataArrayPlotAccessor:
         """Generate a contour line plot.
 
         The contour lines are computed on the unstructured grid itself, without
-        regridding the data, and are returned as HoloViews elements that can be
-        overlaid on other plots with ``*``.
+        regridding the data.
 
         See examples in :doc:`/examples/visualization/contour-demos`.
 
@@ -580,7 +579,7 @@ class UxDataArrayPlotAccessor:
             Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         projection : ccrs.Projection, optional
             The map projection to use. Pass the same projection as the plot the
-            contours are overlaid on.
+            contours are overlaid on, if one was used for a plot below.
         labels : bool or float, default=True
             Whether the lines are labeled with their level. Each level is labeled
             at the middle of its longest lines. A number between 0 and 1 labels

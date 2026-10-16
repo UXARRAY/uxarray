@@ -1,15 +1,3 @@
-"""Contour lines for data on an unstructured grid, without regridding.
-
-Two methods are provided:
-
-- ``"interpolated"``: the data is treated as values at the corners of a
-  triangulation of the grid (the grid's own faces for node-centered data, its
-  dual mesh for face-centered data) and contoured with linear interpolation
-  inside each triangle.
-- ``"edges"``: a contour is made of the grid edges that separate faces above a
-  level from faces at or below it. No interpolation is done.
-"""
-
 from __future__ import annotations
 
 from collections import defaultdict
