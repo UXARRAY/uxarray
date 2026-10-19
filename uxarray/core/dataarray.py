@@ -1657,7 +1657,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 "meridional_gradient": grad_meridional_da,
             },
             uxgrid=self.uxgrid,
-            attrs={"gradient": True},
+            attrs={"derivative": "gradient"},
             coords=self.coords,
         )
 
@@ -1768,7 +1768,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         attrs = {
             "long_name": f"Curl of ({self.name}, {other.name})",
             "units": grad_u_meridional.attrs["units"],
-            "curl": True,
+            "derivative": "curl",
             "description": (
                 "Curl of vector field computed as ∂v/∂x - ∂u/∂y + u·tan(φ)/a, "
                 "with u, x zonal; v, y meridional; φ=latitude; a=sphere radius."
@@ -1897,7 +1897,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         attrs = {
             "long_name": f"Divergence of ({self.name}, {other.name})",
             "units": grad_u_zonal.attrs["units"],
-            "divergence": True,
+            "derivative": "divergence",
             "description": (
                 "Divergence of vector field computed as ∂u/∂x + ∂v/∂y - v·tan(φ)/a, "
                 "with u, x zonal; v, y meridional; φ=latitude; a=sphere radius."
@@ -1981,7 +1981,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         attrs = {
             "long_name": f"Scalar dot gradient: ({self.name}, {v.name}) dot grad({q.name})",
             # "units": ... no promises about units yet; would need to consider units of u, v, and q...
-            "scalardotgradient": True,
+            "derivative": "scalardotgradient",
             "description": (
                 "Dot product of vector field (u, v) with the gradient of scalar field q, "
                 "computed as u * (dq/dx) + v * (dq/dy), with u, x zonal; v, y meridional."

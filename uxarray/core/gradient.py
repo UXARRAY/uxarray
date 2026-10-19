@@ -112,7 +112,7 @@ def _compute_gradient(
         If False, just include units attribute. (False by default to avoid confusion if
         called externally as part of a different method. This adopts the stance that
         attributes should only be included if you are confident that they are appropriate.)
-        If True, also include "gradient" (set to True), "long_name", and "description".
+        If True, also include {"derivative": "gradient"}, "long_name", and "description".
     _keep_value_defining_attrs: bool, default False
         whether to keep value-defining attributes (like "standard_name", "long_name",
         "valid_min", "scale_factor"). Likely to produce misleading attributes when True,
@@ -249,13 +249,13 @@ def _compute_gradient(
     if _with_gradient_attrs:
         zonal_grad_attrs = {
             "long_name": f"Zonal gradient of {data.name}",
-            "gradient": True,
+            "derivative": "gradient",
             "description": f"Zonal component of gradient of {data.name}",
         }
         grad_zonal_da = grad_zonal_da.assign_attrs(zonal_grad_attrs)
         meridional_grad_attrs = {
             "long_name": f"Meridional gradient of {data.name}",
-            "gradient": True,
+            "derivative": "gradient",
             "description": f"Meridional component of gradient of {data.name}",
         }
         grad_meridional_da = grad_meridional_da.assign_attrs(meridional_grad_attrs)

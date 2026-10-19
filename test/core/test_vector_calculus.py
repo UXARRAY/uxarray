@@ -23,7 +23,7 @@ class TestGradientQuadHex:
         assert isinstance(grad, ux.UxDataset)
         assert VARS[0] in grad
         assert VARS[1] in grad
-        assert grad.attrs["gradient"] == True
+        assert grad.attrs["derivative"] == "gradient"
         assert uxds["t2m"].sizes == grad.sizes
         assert grad["zonal_gradient"].attrs["long_name"] == "Zonal gradient of t2m"
         assert grad["meridional_gradient"].attrs["long_name"] == "Meridional gradient of t2m"
@@ -308,7 +308,7 @@ class TestDivergenceQuadHex:
 
         assert isinstance(div_da, ux.UxDataArray)
         assert div_da.name == "divergence_t2m_vname"
-        assert div_da.attrs["divergence"] == True
+        assert div_da.attrs["derivative"] == "divergence"
         assert div_da.attrs["long_name"] == "Divergence of (t2m, vname)"
         assert div_da.attrs["description"].startswith("Divergence of vector field")
         assert u_component.sizes == div_da.sizes
@@ -390,7 +390,7 @@ class TestScalarDotGradientQuadHex:
         result = u.scalardotgradient(v, q)
         assert isinstance(result, ux.UxDataArray)
         assert result.name == "scalardotgradient_t2m_vname_qname"
-        assert result.attrs["scalardotgradient"] == True
+        assert result.attrs["derivative"] == "scalardotgradient"
         assert result.attrs["long_name"] == "Scalar dot gradient: (t2m, vname) dot grad(qname)"
         assert result.attrs["description"].startswith("Dot product of vector field (u, v) with")
         assert u.sizes == result.sizes
@@ -661,7 +661,7 @@ class TestCurlQuadHex:
 
         assert isinstance(curl_da, ux.UxDataArray)
         assert curl_da.name == f"curl_t2m_vname"
-        assert curl_da.attrs["curl"] == True
+        assert curl_da.attrs["derivative"] == "curl"
         assert curl_da.attrs["long_name"] == f"Curl of (t2m, vname)"
         assert curl_da.attrs["description"].startswith("Curl of vector field")
         assert u_component.sizes == curl_da.sizes
