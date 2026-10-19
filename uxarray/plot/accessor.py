@@ -687,12 +687,9 @@ class UxDataArrayPlotAccessor:
 
             # The lines are already projected, so the area of the grid is projected
             # as GeoViews projects the extents of an element in longitude and latitude
+            extents = project_extents(extents, ccrs.PlateCarree(), projection)
             lines = _projected_contours()(
-                paths,
-                kdims=kdims,
-                vdims=[level_dim],
-                crs=projection,
-                extents=project_extents(extents, ccrs.PlateCarree(), projection),
+                paths, kdims=kdims, vdims=[level_dim], crs=projection, extents=extents
             )
             text = gv.Labels(
                 label_data, kdims=kdims, vdims=["text"], crs=ccrs.PlateCarree()
@@ -709,6 +706,9 @@ class UxDataArrayPlotAccessor:
         defaults = {"padding": 0}
         if projection is not None:
             defaults["data_aspect"] = 1
+            # HoloViews frames the projected lines by their data, which reach closer
+            # to the antimeridian than the shaded faces, unless the area is a limit
+            defaults.update(xlim=extents[0::2], ylim=extents[1::2])
         else:
             defaults.update(width=700, height=300)
         kwargs = {**defaults, **kwargs}

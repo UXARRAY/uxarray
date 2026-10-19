@@ -735,6 +735,26 @@ def test_contour_frame(gridpath):
     assert ranges(shading * uxda.plot.contour(levels=[-30.5, 30.5], backend="bokeh")) == ranges(shading)
 
 
+def test_contour_frame_with_lines_at_the_edge_of_the_map(gridpath):
+    """Projected lines that reach closer to the edge of the map than the shaded faces do not
+    widen the frame of the shaded plot, alone or overlaid."""
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
+    lon, lat = np.radians(uxgrid.face_lon.values), np.radians(uxgrid.face_lat.values)
+    uxda = ux.UxDataArray(xr.DataArray(np.sin(2 * lat) * np.cos(3 * lon), dims="n_face", name="wave"), uxgrid=uxgrid)
+    projection = ccrs.Robinson()
+
+    def ranges(element):
+        figure = hv.renderer("bokeh").get_plot(element).state
+        return figure.x_range.start, figure.x_range.end, figure.y_range.start, figure.y_range.end
+
+    shading = uxda.plot(projection=projection, backend="bokeh")
+    contours = uxda.plot.contour(levels=[-0.6, -0.2, 0.2, 0.6], projection=projection, backend="bokeh")
+    # the lines do reach past the shaded faces
+    assert np.nanmax(np.abs(contours.get(0).dimension_values("x"))) > max(np.abs(ranges(shading)[:2]))
+    np.testing.assert_allclose(ranges(contours), ranges(shading), rtol=1e-12)
+    np.testing.assert_allclose(ranges(shading * contours), ranges(shading), rtol=1e-12)
+
+
 def test_contour_missing_values(gridpath):
     """Faces without data are left out instead of raising."""
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
