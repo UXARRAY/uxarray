@@ -23,7 +23,7 @@ from uxarray.core.utils import (
 from uxarray.errors import DimensionError, GridInvalidError
 from uxarray.formatting_html import dataset_repr
 from uxarray.grid import Grid
-from uxarray.grid.dual import construct_dual
+from uxarray.grid.dual import _dual_face_indices, construct_dual
 from uxarray.grid.neighbors import DatasetNeighborhood
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
@@ -959,8 +959,12 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
                 Warning,
             )
 
-        # Get dual mesh node face connectivity
-        dual_node_face_conn = construct_dual(grid=self.uxgrid)
+        # Get dual mesh node face connectivity and the primal nodes represented
+        # by its faces.
+        dual_face_indices = _dual_face_indices(self.uxgrid)
+        dual_node_face_conn = construct_dual(
+            grid=self.uxgrid, valid_node_indices=dual_face_indices
+        )
 
         # Construct dual mesh
         dual = self.uxgrid.from_topology(
@@ -977,11 +981,15 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
 
         # For each data array in the dataset, reconstruct the data array with the dual mesh
         for var in self.data_vars:
+            data = self[var]
+            if "n_node" in data.dims:
+                data = data.isel(n_node=dual_face_indices, ignore_grid=True)
+
             # Get correct dimensions for the dual
-            dims = [dim_map.get(dim, dim) for dim in self[var].dims]
+            dims = [dim_map.get(dim, dim) for dim in data.dims]
 
             # Construct the new data array
-            uxda = UxDataArray(uxgrid=dual, data=self[var].data, dims=dims, name=var)
+            uxda = UxDataArray(uxgrid=dual, data=data.data, dims=dims, name=var)
 
             # Add data array to dataset
             dataset[var] = uxda

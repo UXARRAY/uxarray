@@ -96,11 +96,9 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
     degrees and is converted to a chord via ``2*sin(tol/2)`` before the KDTree
     query; here the default ``ERROR_TOLERANCE`` is already that chord radius.
 
-    Points at the geographic poles are never merged with one another: longitude is
-    singular there, and grid files (e.g. SCRIP cube-sphere) commonly give each face
-    touching a pole its own arbitrary-but-meaningful longitude for that corner, which
-    downstream lat/lon bounds and zonal-weight code relies on staying distinct per
-    face even though the xyz location is identical.
+    At the geographic poles, only exactly equal XYZ rows are merged. Distinct
+    floating representations remain separate because they can encode a face's
+    locally meaningful pole longitude.
     """
     from scipy.sparse import coo_matrix
     from scipy.sparse.csgraph import connected_components
@@ -109,12 +107,24 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
     n_points = len(points_xyz)
     canonical = np.arange(n_points, dtype=INT_DTYPE)
 
+    if not np.isfinite(points_xyz).all():
+        raise ValueError("Node XYZ coordinates must contain only finite values.")
+    norms = np.hypot(np.hypot(points_xyz[:, 0], points_xyz[:, 1]), points_xyz[:, 2])
+    if np.any(norms == 0.0):
+        raise ValueError("Node XYZ coordinates must be non-zero vectors.")
+
     # ``tolerance`` is a chord radius (see the ``query_pairs`` call below), so it
     # cannot be used directly as a deviation of |z| from 1. For a point at
     # colatitude t from the pole, 1 - |z| = 1 - cos(t) = 2*sin(t/2)**2 = chord**2/2.
     pole_mask = np.isclose(
         np.abs(points_xyz[:, 2]), 1.0, rtol=0.0, atol=tolerance**2 / 2
     )
+    pole_indices = np.flatnonzero(pole_mask)
+    if len(pole_indices) > 1:
+        _, first_indices, inverse = np.unique(
+            points_xyz[pole_indices], axis=0, return_index=True, return_inverse=True
+        )
+        canonical[pole_indices] = pole_indices[first_indices[inverse]]
     mergeable_indices = np.flatnonzero(~pole_mask)
 
     if len(mergeable_indices) < 2:
@@ -166,6 +176,8 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
 def _find_duplicate_node_map(node_lon, node_lat, tolerance=ERROR_TOLERANCE):
     """Map duplicate (within ``tolerance`` on the unit sphere) node indices to the
     lowest-indexed node sharing their location."""
+    node_lon = np.asarray(node_lon, dtype=np.float64)
+    node_lat = np.asarray(node_lat, dtype=np.float64)
     points_xyz = np.column_stack(
         _lonlat_rad_to_xyz(np.deg2rad(node_lon), np.deg2rad(node_lat))
     )

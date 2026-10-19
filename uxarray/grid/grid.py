@@ -190,15 +190,16 @@ class Grid:
         # ``merge_coincident_nodes`` is internal: it is set to False only where
         # uxarray builds a grid out of another grid's already-canonical data, so
         # the search is not paid again on nodes that cannot need it.
-        # Formats listed in ``_SPECS_WITHOUT_COINCIDENT_NODES`` index faces into an
-        # already-unique vertex list, so the search cannot find anything to merge
-        # and is skipped -- it is the dominant cost of opening a large grid of
-        # those formats (an argsort over every node), paid for a guaranteed
-        # no-op.
-        if merge_coincident_nodes and not _spec_guarantees_unique_nodes(
-            source_grid_spec
-        ):
-            grid_ds = _merge_coincident_grid_ds_nodes(grid_ds)
+        # Internally generated formats known to have unique vertices skip the
+        # search. File-backed formats are checked regardless of their usual layout.
+        duplicate_node_map = None
+        if merge_coincident_nodes:
+            if _spec_guarantees_unique_nodes(source_grid_spec):
+                duplicate_node_map = {}
+            else:
+                grid_ds, duplicate_node_map = _merge_coincident_grid_ds_nodes(
+                    grid_ds, return_duplicate_map=True
+                )
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict or {}
@@ -261,9 +262,9 @@ class Grid:
         # flag to track if coordinates are normalized
         self._normalized = None
 
-        # cached map of coincident node indices to their canonical node, keyed
-        # off the node coordinates, which do not change after construction
-        self._duplicate_node_map = None
+        # Cached map of coincident node indices to their canonical node. Reuse
+        # the construction-time search instead of repeating it in dual/tree paths.
+        self._duplicate_node_map = duplicate_node_map
 
         # flag to ensure projected-grid warning fires only once per instance
         self._projected_warning_issued = False

@@ -6,6 +6,7 @@ from numba import njit, prange
 
 from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
+from uxarray.errors import GridInvalidError
 from uxarray.grid.utils import (
     _build_pair_index,
     _count_unique_in_bucket,
@@ -538,6 +539,7 @@ def _collapse_repeated_face_corners(face_node_connectivity, canonical_values):
     a row, e.g. a quad (A, P, P, B) at a merged pole -- a triangle stored as
     a 4-column row with one corner repeated. This pads it back down to
     (A, P, B, FILL) so it is treated as the triangle it actually is.
+    Nonconsecutive repeats are invalid; collapsed pole rows are preserved.
 
     Only rows containing a value in ``canonical_values`` (nodes that
     absorbed at least one duplicate) are inspected, since no other row can
@@ -562,10 +564,21 @@ def _collapse_repeated_face_corners(face_node_connectivity, canonical_values):
 
         corners = row[:n_valid]
         keep = corners != np.roll(corners, 1)
+        compacted = corners[keep]
+        n_distinct = len(np.unique(compacted))
+        if n_distinct < 3:
+            # Some SCRIP/OASIS grids intentionally encode collapsed pole rows.
+            # Leave those rows unchanged rather than turning a valid file into
+            # a construction error; downstream code already handles them.
+            continue
+        if n_distinct != len(compacted):
+            raise GridInvalidError(
+                f"Face {row_index} has nonconsecutive repeated corners after "
+                "coincident-node merging."
+            )
         if keep.all():
             continue
 
-        compacted = corners[keep]
         new_row = np.full_like(row, INT_FILL_VALUE)
         new_row[: len(compacted)] = compacted
         face_node_connectivity[row_index] = new_row
@@ -589,22 +602,10 @@ _DERIVED_CONNECTIVITY_TO_INVALIDATE = (
     "node_face_connectivity",
 )
 
-# Formats whose node list is, by construction, an already-unique set of vertices
-# that faces index into -- so no two node indices can name the same location and
-# the coincident search cannot find anything to merge.
-#
-# MPAS stores nVertices once in lonVertex/latVertex (or xVertex/yVertex/zVertex)
-# and verticesOnCell indexes into it; a vertex shared by three cells is stored
-# once and referenced three times. HEALPix node positions are generated
-# analytically from the pixelization, not read from a file.
-#
-# This is a property of the format, not of any one file: it is what lets the
-# search be skipped rather than merely observed to find nothing. Formats that
-# store per-face corners instead (SCRIP's (n_face, n_corner) grid_corner_lon,
-# Exodus, GEOS-CS) inherently repeat shared corners and must still be searched.
-# UGRID is deliberately absent: it permits either layout, and geoflow-small is a
-# real UGRID file in the test suite with 2150 duplicate nodes.
-_SPECS_WITHOUT_COINCIDENT_NODES = frozenset({"MPAS", "HEALPix"})
+# Formats whose node list is generated internally as an already-unique set.
+# File formats are not listed: even when their usual layout stores shared
+# vertices once, malformed or nonstandard files can still contain coincidences.
+_SPECS_WITHOUT_COINCIDENT_NODES = frozenset({"HEALPix"})
 
 
 def _spec_guarantees_unique_nodes(source_grid_spec):
@@ -618,7 +619,9 @@ def _spec_guarantees_unique_nodes(source_grid_spec):
     return source_grid_spec in _SPECS_WITHOUT_COINCIDENT_NODES
 
 
-def _merge_coincident_grid_ds_nodes(grid_ds, tolerance=ERROR_TOLERANCE):
+def _merge_coincident_grid_ds_nodes(
+    grid_ds, tolerance=ERROR_TOLERANCE, return_duplicate_map=False
+):
     """Canonicalize coincident (within ``tolerance``) node indices in a raw grid
     dataset's connectivity, before it is wrapped in a ``Grid``.
 
@@ -633,23 +636,44 @@ def _merge_coincident_grid_ds_nodes(grid_ds, tolerance=ERROR_TOLERANCE):
     from uxarray.grid.validation import _coincident_node_canonical_indices
 
     if "face_node_connectivity" not in grid_ds:
-        return grid_ds
+        return (grid_ds, {}) if return_duplicate_map else grid_ds
 
-    if {"node_x", "node_y", "node_z"} <= set(grid_ds.variables):
+    required = ["face_node_connectivity"]
+    if "node_lon" in grid_ds and "node_lat" in grid_ds:
+        required.extend(["node_lon", "node_lat"])
+    else:
+        required.extend(["node_x", "node_y", "node_z"])
+    if any(
+        name in grid_ds and getattr(grid_ds[name].data, "chunks", None) is not None
+        for name in required
+    ):
+        # Preserve lazy readers such as chunked SCRIP. Canonicalization needs a
+        # global spatial search and is deferred until a duplicate-aware operation
+        # explicitly requests the map.
+        return (grid_ds, None) if return_duplicate_map else grid_ds
+
+    if "node_lon" in grid_ds and "node_lat" in grid_ds:
+        node_lon = np.asarray(grid_ds["node_lon"].values, dtype=np.float64)
+        node_lat = np.asarray(grid_ds["node_lat"].values, dtype=np.float64)
+        points_xyz = np.column_stack(
+            _lonlat_rad_to_xyz(np.deg2rad(node_lon), np.deg2rad(node_lat))
+        )
+    elif {"node_x", "node_y", "node_z"} <= set(grid_ds.variables):
         points_xyz = np.column_stack(
             (
                 grid_ds["node_x"].values,
                 grid_ds["node_y"].values,
                 grid_ds["node_z"].values,
             )
-        )
-    elif "node_lon" in grid_ds and "node_lat" in grid_ds:
-        points_xyz = np.column_stack(
-            _lonlat_rad_to_xyz(
-                np.deg2rad(grid_ds["node_lon"].values),
-                np.deg2rad(grid_ds["node_lat"].values),
-            )
-        )
+        ).astype(np.float64, copy=False)
+        if not np.isfinite(points_xyz).all():
+            raise ValueError("Node XYZ coordinates must contain only finite values.")
+        norms = np.hypot(np.hypot(points_xyz[:, 0], points_xyz[:, 1]), points_xyz[:, 2])
+        if np.any(norms == 0.0):
+            # Cartesian face-vertex inputs may use the origin in a planar
+            # geometry, where spherical coincidence matching is not defined.
+            return (grid_ds, {}) if return_duplicate_map else grid_ds
+        points_xyz /= norms[:, np.newaxis]
     else:
         # Defensive: Grid construction validates minimum UGRID (node_lon,
         # node_lat, face_node_connectivity) before reaching here, so this is
@@ -663,7 +687,7 @@ def _merge_coincident_grid_ds_nodes(grid_ds, tolerance=ERROR_TOLERANCE):
             "reference coincident nodes.",
             RuntimeWarning,
         )
-        return grid_ds
+        return (grid_ds, {}) if return_duplicate_map else grid_ds
 
     n_node = points_xyz.shape[0]
     canonical = _coincident_node_canonical_indices(points_xyz, tolerance)
@@ -676,7 +700,7 @@ def _merge_coincident_grid_ds_nodes(grid_ds, tolerance=ERROR_TOLERANCE):
         # the ``_NODE_INDEX_CONNECTIVITY_TO_REMAP`` remap, the face-ring collapse
         # and the ``_DERIVED_CONNECTIVITY_TO_INVALIDATE`` drop -- only runs when
         # duplicates were actually found.
-        return grid_ds
+        return (grid_ds, {}) if return_duplicate_map else grid_ds
 
     grid_ds = grid_ds.copy()
 
@@ -725,6 +749,14 @@ def _merge_coincident_grid_ds_nodes(grid_ds, tolerance=ERROR_TOLERANCE):
         if name in grid_ds:
             grid_ds = grid_ds.drop_vars(name)
 
+    if "n_edge" in grid_ds.dims:
+        grid_ds = grid_ds.drop_dims("n_edge")
+
+    if "n_nodes_per_face" in grid_ds:
+        grid_ds = grid_ds.drop_vars("n_nodes_per_face")
+
+    if return_duplicate_map:
+        return grid_ds, duplicate_node_map
     return grid_ds
 
 
