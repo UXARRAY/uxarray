@@ -390,7 +390,14 @@ def _contour_lines(contours):
     if isinstance(contours, hv.Overlay):
         contours = contours.get(0)
     name = contours.vdims[0].name
-    return [(float(np.atleast_1d(p[name])[0]), np.asarray(p["x"]), np.asarray(p["y"])) for p in contours.data]
+    lines = []
+    # each path holds the lines of one level, separated by NaN
+    for p in contours.data:
+        level, x, y = float(np.atleast_1d(p[name])[0]), np.asarray(p["x"]), np.asarray(p["y"])
+        breaks = np.flatnonzero(np.isnan(x))
+        lines += [(level, xs, ys) for xs, ys in zip(np.split(x, breaks), np.split(y, breaks))]
+    # np.split keeps the NaN at the start of every line after the first
+    return [(level, x[np.isfinite(x)], y[np.isfinite(y)]) for level, x, y in lines]
 
 
 @pytest.mark.parametrize("method", ["interpolated", "edges"])
@@ -428,6 +435,8 @@ def test_contour_levels(gridpath, datasetpath):
     for method in ["interpolated", "edges"]:
         contours = uxds['psi'].plot.contour(levels=[0.6, 0.9, 1.2, 99.0], method=method)
         assert {level for level, _, _ in _contour_lines(contours)} == {0.6, 0.9, 1.2}
+        # one path per level, holding all the lines of that level
+        assert len(contours.get(0).data) == 3
         assert _contour_lines(uxds['psi'].plot.contour(levels=[99.0], method=method)) == []
 
         # an integer asks for a number of levels, which then fall inside the data range
@@ -490,6 +499,20 @@ def test_contour_edges_follow_grid(gridpath, grid):
     cut = between & (np.abs(lon[:, 0] - lon[:, 1]) > 180) & (np.abs(lon) < 180).all(axis=1)
     assert n_cut_ends == 2 * np.count_nonzero(cut)
     assert n_segments == np.count_nonzero(between) + np.count_nonzero(cut)
+
+
+def test_contour_join_segments():
+    """Segments are joined into lines, open lines first from one of their ends, then closed loops."""
+    from uxarray.plot.contour import _join_segments
+
+    # a closed loop 0-1-2, and an open line 5-6-7 given in reverse
+    nodes, offsets = _join_segments(np.array([0, 1, 2, 6, 7]), np.array([1, 2, 0, 5, 6]))
+    assert [line.tolist() for line in np.split(nodes, offsets[1:-1])] == [[5, 6, 7], [0, 1, 2, 0]]
+    assert offsets.tolist() == [0, 3, 7]
+
+    # no segments give no lines
+    nodes, offsets = _join_segments(np.array([], dtype=int), np.array([], dtype=int))
+    assert len(nodes) == 0 and offsets.tolist() == [0]
 
 
 def test_contour_labels(gridpath):
@@ -607,6 +630,26 @@ def test_contour_projection(gridpath):
         contours = uxda.plot.contour(levels=levels, method=method, projection=ccrs.Orthographic(0, 90), backend="matplotlib")
         assert 0 < len(_contour_lines(contours)) < n_lines
         hv.renderer("matplotlib").get_plot(contours)
+
+
+@pytest.mark.parametrize("projection", [
+    ccrs.Orthographic(0, 90), ccrs.PlateCarree(central_longitude=180), ccrs.LambertConformal(), ccrs.Robinson(-150)
+])
+def test_contour_projection_drops_same_lines_as_projecting_each(gridpath, projection):
+    """Lines found on the map from their points alone are the lines whose projection is not empty."""
+    import shapely
+    from uxarray.plot.contour import _compute_contours, _drop_lines_outside_projection
+
+    uxda = _face_latitude(ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug")))
+    for method in ["interpolated", "edges"]:
+        contours = _compute_contours(uxda, levels=[-45.5, 0.5, 10.5, 45.5], method=method)
+        expected = [
+            line for _, line in contours
+            if not projection.project_geometry(shapely.LineString(line), ccrs.PlateCarree()).is_empty
+        ]
+        kept = [line for _, line in _drop_lines_outside_projection(contours, projection)]
+        assert len(kept) == len(expected)
+        assert all(a is b for a, b in zip(kept, expected))
 
 
 def test_contour_frame(gridpath):

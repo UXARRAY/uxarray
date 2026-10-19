@@ -595,8 +595,8 @@ class UxDataArrayPlotAccessor:
         Returns
         -------
         contours : hv.Overlay, hv.Contours or gv.Contours
-            The contour lines, one path per line with the contour level as its
-            value, overlaid with their labels. With ``labels=False`` the lines
+            The contour lines, one path per level with the level as its value
+            and its lines separated by NaN, overlaid with their labels. With ``labels=False`` the lines
             alone: an ``hv.Contours``, or a ``gv.Contours`` if a ``projection`` is
             given.
 
@@ -650,6 +650,7 @@ class UxDataArrayPlotAccessor:
             _grid_extents,
             _label_fraction,
             _label_points,
+            _paths_by_level,
         )
 
         label_fraction = _label_fraction(labels)
@@ -670,10 +671,7 @@ class UxDataArrayPlotAccessor:
             hv.Dimension("x", label="Longitude"),
             hv.Dimension("y", label="Latitude"),
         ]
-        paths = [
-            {"x": line[:, 0], "y": line[:, 1], level_dim.name: level}
-            for level, line in contours
-        ]
+        paths = _paths_by_level(contours, level_dim.name)
         label_x, label_y, label_text = _label_points(contours, label_fraction)
         label_data = {"x": label_x, "y": label_y, "text": label_text}
         extents = _grid_extents(self._uxda.uxgrid)
