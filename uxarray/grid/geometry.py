@@ -13,8 +13,7 @@ from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import (
     gca_gca_intersection,
 )
-from uxarray.grid.point_in_face import _face_contains_point
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.grid.point_in_face import _point_in_face
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 POLE_POINTS_XYZ = {
@@ -470,8 +469,10 @@ def _grid_to_matplotlib_polycollection(
     # Handle unsupported configuration: splitting periodic elements with projection
     if periodic_elements == "split" and projection is not None:
         raise ValueError(
-            "Explicitly projecting lines is not supported. Please pass in your projection "
-            "using the 'transform' parameter"
+            'Must not provide `projection` when periodic_elements=="split", '
+            "while attempting to create matplotlib polycollection. "
+            "Consider using the 'transform' kwarg instead.\n"
+            f"(Got projection={projection})"
         )
 
     # Correct the central longitude and build polygon shells
@@ -741,6 +742,7 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
 
     if pole != 1 and pole != -1:
         raise ValueError("Pole must be 1 (North) or -1 (South)")
+        # (numba complains about f-strings, so don't put `pole` value in message.)
 
     # Define constants within the function
     pole_point_xyz = np.empty(3, dtype=np.float64)
@@ -862,7 +864,11 @@ def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
         return ((north_intersections + south_intersections) % 2) != 0
 
     else:
-        raise ValueError("Invalid pole point query.")
+        # (location will always be 1, -1, or 0 from _classify_polygon_location,
+        #  so it should always be handled by cases above.)
+        raise AssertionError(
+            "Internal coding/implementation error: invalid `location`."
+        )
 
 
 @njit(cache=True)
@@ -1253,20 +1259,14 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
                 polygon_xyz[i + 2],
             )
 
-            # Get the triangle in terms of its edges for the `point_in_face` check
-            face_edge = _get_cartesian_face_edge_nodes(
-                face_idx=0,
-                face_node_connectivity=np.array([[0, 1, 2]]),
-                n_edges_per_face=np.array([3]),
-                node_x=np.array([node_0[0], node_1[0], node_2[0]], dtype=np.float64),
-                node_y=np.array([node_0[1], node_1[1], node_2[1]], dtype=np.float64),
-                node_z=np.array([node_0[2], node_1[2], node_2[2]], dtype=np.float64),
-            )
+            node_x = np.array([node_0[0], node_1[0], node_2[0]], dtype=np.float64)
+            node_y = np.array([node_0[1], node_1[1], node_2[1]], dtype=np.float64)
+            node_z = np.array([node_0[2], node_1[2], node_2[2]], dtype=np.float64)
+            nodes_idx = np.array([0, 1, 2])
 
             # Check to see if the point lies within the current triangle
-            contains_point = _face_contains_point(
-                face_edge,
-                point_xyz,
+            contains_point = _point_in_face(
+                point_xyz, nodes_idx, node_x, node_y, node_z
             )
 
             # If the point is in the current triangle, get the weights for that triangle
@@ -1296,8 +1296,10 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
 
                 return weights, nodes
 
-        # If the point doesn't reside in the polygon, raise an error
-        raise ValueError("Point does not reside in polygon")
+        raise ValueError(
+            "Point does not reside in polygon, during "
+            "barycentric_coordinates_cartesian(polygon_xyz, point_xyz)"
+        )  # (can't do str(float) in numba --> can't include numbers here.)
 
 
 @njit(cache=True)
