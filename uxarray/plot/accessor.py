@@ -547,15 +547,14 @@ class UxDataArrayPlotAccessor:
         method: str | None = None,
         backend: str | None = None,
         projection=None,
-        labels: bool = True,
+        labels: bool | float = True,
         hover: bool = True,
         **kwargs,
     ):
         """Generate a contour line plot.
 
         The contour lines are computed on the unstructured grid itself, without
-        regridding the data, and are returned as HoloViews elements that can be
-        overlaid on other plots with ``*``.
+        regridding the data.
 
         See examples in :doc:`/examples/visualization/contour-demos`.
 
@@ -580,10 +579,12 @@ class UxDataArrayPlotAccessor:
             Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
         projection : ccrs.Projection, optional
             The map projection to use. Pass the same projection as the plot the
-            contours are overlaid on.
-        labels : bool, default=True
+            contours are overlaid on, if one was used for a plot below.
+        labels : bool or float, default=True
             Whether the lines are labeled with their level. Each level is labeled
-            at the middle of its longest lines.
+            at the middle of its longest lines. A number between 0 and 1 labels
+            that fraction of the levels, spread evenly from the lowest one:
+            ``0.5`` labels every second level. ``0`` is the same as ``False``.
         hover : bool, default=True
             Whether the level of a line is shown when the pointer is over it. This
             applies to the Bokeh backend; Matplotlib plots are static images.
@@ -607,7 +608,8 @@ class UxDataArrayPlotAccessor:
         DimensionError (subclass of ValueError)
             If the data has more than one dimension that is not of length 1.
         ValueError
-            If an option in ``**kwargs`` is not an option of the lines.
+            If an option in ``**kwargs`` is not an option of the lines, or if
+            ``labels`` is not ``True``, ``False`` or a number between 0 and 1.
 
         Notes
         -----
@@ -645,10 +647,13 @@ class UxDataArrayPlotAccessor:
             _apply_options,
             _compute_contours,
             _drop_lines_outside_projection,
+            _grid_extents,
+            _label_fraction,
             _label_points,
             _paths_by_level,
         )
 
+        label_fraction = _label_fraction(labels)
         plotting_backend.assign(backend)
 
         contours = _compute_contours(self._uxda, levels=levels, method=method)
@@ -656,37 +661,57 @@ class UxDataArrayPlotAccessor:
             _raise_hint_if_optional_deps_missing("cartopy", "geoviews")
             contours = _drop_lines_outside_projection(contours, projection)
 
-        level_name = self._uxda.name if self._uxda.name is not None else "level"
+        # The level has a fixed name, so data named "x" or "y" cannot replace a
+        # coordinate; the name of the data is what hover and the colorbar show.
+        name = self._uxda.name
+        level_dim = hv.Dimension("level", label="level" if name is None else str(name))
+        if kwargs.get("color") == level_dim.label:
+            kwargs["color"] = level_dim.name
         kdims = [
             hv.Dimension("x", label="Longitude"),
             hv.Dimension("y", label="Latitude"),
         ]
-        paths = _paths_by_level(contours, level_name)
-        label_x, label_y, label_text = _label_points(contours)
+        paths = _paths_by_level(contours, level_dim.name)
+        label_x, label_y, label_text = _label_points(contours, label_fraction)
         label_data = {"x": label_x, "y": label_y, "text": label_text}
+        extents = _grid_extents(self._uxda.uxgrid)
 
         if projection is not None:
             import cartopy.crs as ccrs
             import geoviews as gv
 
             crs = ccrs.PlateCarree()
-            lines = gv.Contours(paths, kdims=kdims, vdims=[level_name], crs=crs)
+            lines = gv.Contours(
+                paths, kdims=kdims, vdims=[level_dim], crs=crs, extents=extents
+            )
             text = gv.Labels(label_data, kdims=kdims, vdims=["text"], crs=crs)
         else:
-            lines = hv.Contours(paths, kdims=kdims, vdims=[level_name])
+            lines = hv.Contours(paths, kdims=kdims, vdims=[level_dim], extents=extents)
             text = hv.Labels(label_data, kdims=kdims, vdims=["text"])
+
+        # On their own, the lines get the frame that .plot() gives the data: the area of
+        # the grid (set as the extents of the lines) with no margin, and equal axis
+        # scaling on a map (otherwise a world map is squeezed into HoloViews' default
+        # 300 x 300 frame) or 700 x 300 without a projection. Overlaid on a shaded plot
+        # that comes first, its frame is kept; options passed here win over both.
+        defaults = {"padding": 0}
+        if projection is not None:
+            defaults["data_aspect"] = 1
+        else:
+            defaults.update(width=700, height=300)
+        kwargs = {**defaults, **kwargs}
 
         if hover and "hover" not in kwargs.get("tools", []):
             kwargs["tools"] = [*kwargs.get("tools", []), "hover"]
         lines = _apply_options(lines, kwargs)
         if projection is not None:
             lines = lines.opts(projection=projection)
-        if not labels:
+        if label_fraction == 0:
             return lines
 
         # the labels sit just above the lines, in their color if they have a single one
         color = kwargs.get("color")
-        color = color if isinstance(color, str) and color != level_name else "black"
+        color = color if isinstance(color, str) and color != level_dim.name else "black"
         if hv.Store.current_backend == "bokeh":
             text = text.opts(
                 text_color=color, text_font_size="8pt", text_baseline="bottom"

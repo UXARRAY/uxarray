@@ -1,15 +1,3 @@
-"""Contour lines for data on an unstructured grid, without regridding.
-
-Two methods are provided:
-
-- ``"interpolated"``: the data is treated as values at the corners of a
-  triangulation of the grid (the grid's own faces for node-centered data, its
-  dual mesh for face-centered data) and contoured with linear interpolation
-  inside each triangle.
-- ``"edges"``: a contour is made of the grid edges that separate faces above a
-  level from faces at or below it. No interpolation is done.
-"""
-
 from __future__ import annotations
 
 from collections import defaultdict
@@ -58,16 +46,123 @@ def _wrap_longitude(lon: np.ndarray) -> np.ndarray:
     return (lon + 180.0) % 360.0 - 180.0
 
 
-def _fan_triangles(
-    face_node_connectivity: np.ndarray, n_nodes_per_face: np.ndarray
+@njit(cache=True)
+def _fan_corners(
+    face_node_connectivity: np.ndarray,
+    n_nodes_per_face: np.ndarray,
+    lon: np.ndarray,
+    lat: np.ndarray,
 ) -> np.ndarray:
-    """Splits each face into triangles that share the face's first node."""
+    """For each face, the position of a corner that can see every other corner, so that
+    a fan of triangles from it covers the face exactly. 0 is tried first; -1 means that
+    no corner can. Faces that touch or contain a pole, or have no area, keep 0: a pole is
+    one point drawn at an arbitrary longitude, so their shape in longitude and latitude
+    says nothing about dents."""
+    corners = np.zeros(len(n_nodes_per_face), dtype=np.int64)
+    for face in range(len(n_nodes_per_face)):
+        n = n_nodes_per_face[face]
+        if n < 4:
+            continue
+        x = np.empty(n)
+        y = np.empty(n)
+        first = face_node_connectivity[face, 0]
+        at_pole = False
+        for k in range(n):
+            node = face_node_connectivity[face, k]
+            dx = lon[node] - lon[first]
+            x[k] = dx - 360.0 * np.floor(dx / 360.0 + 0.5)
+            y[k] = lat[node]
+            at_pole = at_pole or abs(lat[node]) >= 89.999
+        if at_pole or x.max() - x.min() >= 180.0:
+            continue
+        area = 0.0
+        for k in range(n):
+            area += x[k] * y[(k + 1) % n] - x[(k + 1) % n] * y[k]
+        if not np.isfinite(area) or area == 0.0:
+            continue
+        corners[face] = -1
+        for corner in range(n):
+            sees_all = True
+            for k in range(1, n - 1):
+                a, b = (corner + k) % n, (corner + k + 1) % n
+                turn = (x[a] - x[corner]) * (y[b] - y[corner]) - (x[b] - x[corner]) * (
+                    y[a] - y[corner]
+                )
+                # a triangle that turns the other way than the face lies outside it
+                if turn * area < 0.0 and abs(turn) > 1e-9 * abs(area):
+                    sees_all = False
+                    break
+            if sees_all:
+                corners[face] = corner
+                break
+    return corners
+
+
+def _ear_clipping(x: np.ndarray, y: np.ndarray) -> list[tuple[int, int, int]]:
+    """Triangles of a simple polygon, as positions of its corners."""
+
+    def turn(a, b, c):
+        return (x[b] - x[a]) * (y[c] - y[a]) - (x[c] - x[a]) * (y[b] - y[a])
+
+    orientation = np.sign(np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y))
+    left = list(range(len(x)))
     triangles = []
-    for k in range(1, face_node_connectivity.shape[1] - 1):
-        has_triangle = n_nodes_per_face > k + 1
-        triangles.append(
-            face_node_connectivity[has_triangle][:, [0, k, k + 1]],
-        )
+    while len(left) > 3:
+        for k in range(len(left)):
+            a, b, c = left[k - 1], left[k], left[(k + 1) % len(left)]
+            if turn(a, b, c) * orientation <= 0:
+                continue
+            others = [m for m in left if m not in (a, b, c)]
+            if any(
+                turn(a, b, m) * orientation >= 0
+                and turn(b, c, m) * orientation >= 0
+                and turn(c, a, m) * orientation >= 0
+                for m in others
+            ):
+                continue
+            triangles.append((a, b, c))
+            del left[k]
+            break
+        else:
+            break
+    if len(left) == 3:
+        triangles.append(tuple(left))
+    return triangles
+
+
+def _fan_triangles(
+    face_node_connectivity: np.ndarray,
+    n_nodes_per_face: np.ndarray,
+    lon: np.ndarray,
+    lat: np.ndarray,
+) -> np.ndarray:
+    """Splits each face into triangles that share one of its corners."""
+    # A fan from one corner covers a face exactly only if that corner can see every other
+    # corner. Every convex face is like that, but dented faces occur, mostly among the
+    # cells of the dual mesh of irregular meshes (FESOM-style ocean meshes, overlap meshes).
+    # A fan from the wrong corner puts triangles outside the face, and the lines there are
+    # interpolated from the wrong values. Such faces are fanned from a corner that sees the
+    # whole face, or ear-clipped when no corner does. Faces whose first corner works, nearly
+    # all of them, are split as before; finding the others is one compiled pass.
+    corners = _fan_corners(face_node_connectivity, n_nodes_per_face, lon, lat)
+    connectivity = face_node_connectivity
+    moved = corners > 0
+    if moved.any():
+        n = np.maximum(n_nodes_per_face[moved], 1)[:, None]
+        columns = (np.arange(connectivity.shape[1]) + corners[moved][:, None]) % n
+        connectivity = connectivity.copy()
+        connectivity[moved] = np.take_along_axis(connectivity[moved], columns, axis=1)
+
+    fan = corners >= 0
+    triangles = []
+    for k in range(1, connectivity.shape[1] - 1):
+        has_triangle = fan & (n_nodes_per_face > k + 1)
+        triangles.append(connectivity[has_triangle][:, [0, k, k + 1]])
+    for face in np.flatnonzero(~fan):
+        nodes = face_node_connectivity[face, : n_nodes_per_face[face]]
+        x = lon[nodes] - 360.0 * np.round((lon[nodes] - lon[nodes[0]]) / 360.0)
+        clipped = np.array(_ear_clipping(x, lat[nodes]), dtype=np.int64).reshape(-1, 3)
+        triangles.append(nodes[clipped])
     if not triangles:
         return np.empty((0, 3), dtype=face_node_connectivity.dtype)
     return np.concatenate(triangles)
@@ -99,7 +194,7 @@ def _triangulation(
     lon = _wrap_longitude(source.node_lon.values)
     lat = source.node_lat.values
     triangles = _fan_triangles(
-        source.face_node_connectivity.values, source.n_nodes_per_face.values
+        source.face_node_connectivity.values, source.n_nodes_per_face.values, lon, lat
     )
     index = np.arange(len(lon))
 
@@ -355,6 +450,35 @@ def _unwrap_lines(lon: np.ndarray, starts: np.ndarray) -> np.ndarray:
     return lon - 360.0 * shift
 
 
+def _grid_extents(uxgrid: Grid) -> tuple[float, float, float, float]:
+    """The area of the grid as (west, south, east, north), in degrees."""
+    lon, lat = uxgrid.node_lon.values, uxgrid.node_lat.values
+    west, east = float(np.nanmin(lon)), float(np.nanmax(lon))
+    south, north = float(np.nanmin(lat)), float(np.nanmax(lat))
+    if east - west > 350.0:  # all the way around the globe
+        west, east = -180.0, 180.0
+        # A face around a pole need not have a node there; its corners then go once
+        # around the pole. Only the faces at the northernmost and southernmost nodes
+        # can be such a face.
+        connectivity = uxgrid.face_node_connectivity.values
+        n_nodes = uxgrid.n_nodes_per_face.values
+        for sign, extreme in ((1.0, north), (-1.0, south)):
+            if abs(extreme) >= 90.0 - 1e-9:
+                continue  # a node at the pole
+            nodes = np.flatnonzero(sign * lat >= sign * extreme - 1e-9)
+            for face in np.flatnonzero(np.isin(connectivity, nodes).any(axis=1)):
+                corners = lon[connectivity[face, : n_nodes[face]]]
+                turns = (
+                    np.diff(np.append(corners, corners[0])) + 180.0
+                ) % 360.0 - 180.0
+                if abs(turns.sum()) > 180.0:
+                    north, south = (90.0, south) if sign > 0 else (north, -90.0)
+                    break
+    # In the single precision of the polygons that .plot() shades, so that the lines never
+    # widen the area of a shaded plot they are overlaid on.
+    return tuple(float(np.float32(value)) for value in (west, south, east, north))
+
+
 def _drop_lines_outside_projection(
     contours: list[tuple[float, np.ndarray]], projection
 ) -> list[tuple[float, np.ndarray]]:
@@ -411,14 +535,33 @@ def _paths_by_level(
     return paths
 
 
+def _label_fraction(labels: bool | float) -> float:
+    """The fraction of the levels to label, from the ``labels`` argument."""
+    if isinstance(labels, bool):
+        return 1.0 if labels else 0.0
+    try:
+        fraction = float(labels)
+    except (TypeError, ValueError):
+        fraction = np.nan
+    # NaN fails this test as well
+    if not 0.0 <= fraction <= 1.0:
+        raise ValueError(
+            "labels must be True, False or a fraction of the levels between 0 and 1, "
+            f"but got {labels!r}"
+        )
+    return fraction
+
+
 def _label_points(
     contours: list[tuple[float, np.ndarray]],
+    fraction: float = 1.0,
 ) -> tuple[list[float], list[float], list[str]]:
     """Positions and text of the labels of contour lines.
 
     Each level is labeled at the middle of its longest lines: the longest one,
     and up to ``_MAX_LABELS_PER_LEVEL - 1`` more that are not short compared
-    with the extent of all the lines.
+    with the extent of all the lines. With a ``fraction`` below 1, only that
+    share of the levels is labeled, spread evenly from the lowest one.
 
     Returns
     -------
@@ -435,6 +578,12 @@ def _label_points(
     points = np.concatenate([line for _, line in contours])
     extent = np.ptp(points, axis=0).max()
 
+    # a level is labeled where the running count of labels, fraction per level, steps up:
+    # 0.5 labels the lowest level and every second one after it
+    levels = np.unique(line_levels)
+    count = np.floor(np.arange(-1, len(levels)) * fraction + 1e-9)
+    labeled = set(levels[np.diff(count) > 0].tolist())
+
     # The length of every line, from the steps between the points of all of them
     counts = np.array([len(line) for _, line in contours])
     ends = np.cumsum(counts)
@@ -444,6 +593,8 @@ def _label_points(
 
     # Only the middles of the lines that are labeled are found
     for level in dict.fromkeys(line_levels):
+        if level not in labeled:
+            continue
         at_level = np.flatnonzero(line_levels == level)
         longest = at_level[np.argsort(-lengths[at_level], kind="stable")]
         for rank, i in enumerate(longest[:_MAX_LABELS_PER_LEVEL]):

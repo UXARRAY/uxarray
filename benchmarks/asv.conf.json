@@ -128,12 +128,18 @@
         // Belt to that brace: if TBB is ever unavailable, pick the other
         // fork-safe layer rather. ``forksafe`` raises if no fork-safe layer
         // exists at all.
-        "env_nobuild": {"NUMBA_THREADING_LAYER": ["forksafe"]}
+        // BLAS is pinned so numpy does not compete with numba for cores.
+        "env_nobuild": {
+            "NUMBA_THREADING_LAYER": ["forksafe"],
+            "OMP_NUM_THREADS": ["1"],
+            "MKL_NUM_THREADS": ["1"],
+            "OPENBLAS_NUM_THREADS": ["1"]
+        }
     },
 
 
+    // No ``python -m build``: its output went to {build_dir}/dist, unused.
     "build_command": [
-        "python -m build",
         "python -mpip wheel --no-deps --no-build-isolation --no-index -w {build_cache_dir} {build_dir}"
     ],
 
