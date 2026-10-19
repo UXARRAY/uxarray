@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 import uxarray as ux
+from uxarray.conventions.attrs import _VALUE_DESCRIBING_ATTRS
 import xarray as xr
 import numpy.testing as nt
 
@@ -24,6 +25,10 @@ class TestGradientQuadHex:
         assert VARS[1] in grad
         assert grad.attrs["gradient"] == True
         assert uxds["t2m"].sizes == grad.sizes
+        assert grad["zonal_gradient"].attrs["long_name"] == "Zonal gradient of t2m"
+        assert grad["meridional_gradient"].attrs["long_name"] == "Meridional gradient of t2m"
+        assert grad["zonal_gradient"].attrs["description"].startswith("Zonal component")
+        assert grad["meridional_gradient"].attrs["description"].startswith("Meridional component")
 
         # units attr checks:
         assert uxarr.attrs["units"] == "K"
@@ -44,6 +49,26 @@ class TestGradientQuadHex:
         grad_ratio_units = uxarr_ratio_units.gradient()
         assert grad_ratio_units[VARS[0]].attrs["units"] == "(K/s)/m"
         assert grad_ratio_units[VARS[1]].attrs["units"] == "(K/s)/m"
+
+        # other attrs checks - spot check that value-describing attrs get removed:
+        uxarr_with_more_attrs = uxarr.copy()
+        uxarr_with_more_attrs.attrs["missing_value"] = -1e7
+        uxarr_with_more_attrs.attrs["non-value-describing-attr"] = "wow what a cool attr"
+        grad_with_more_attrs = uxarr_with_more_attrs.gradient()
+        assert "missing_value" not in grad_with_more_attrs[VARS[0]].attrs
+        assert "missing_value" not in grad_with_more_attrs[VARS[1]].attrs
+        assert "non-value-describing-attr" in grad_with_more_attrs[VARS[0]].attrs
+        assert "non-value-describing-attr" in grad_with_more_attrs[VARS[1]].attrs
+
+        # more comprehensive check that value-describing attrs get removed:
+        for attr in _VALUE_DESCRIBING_ATTRS:
+            uxarr_with_more_attrs.attrs[attr] = "test"
+        grad_with_more_attrs = uxarr_with_more_attrs.gradient()
+        for attr in _VALUE_DESCRIBING_ATTRS:
+            if attr in ("long_name", "units", "description"):
+                continue  # gradient defines these; see above!
+            assert attr not in grad_with_more_attrs[VARS[0]].attrs
+            assert attr not in grad_with_more_attrs[VARS[1]].attrs
 
 
     def test_gradient_all_boundary_faces(self, gridpath, datasetpath):
@@ -302,6 +327,18 @@ class TestDivergenceQuadHex:
         u_ratio_units = u_component.assign_attrs({"units": "K/s"})
         div_da_ratio_units = u_ratio_units.divergence(v_component)
         assert div_da_ratio_units.attrs["units"] == "(K/s)/m"
+
+        # other attrs checks - spot check that value-describing attrs get removed
+        # (gradient output format test has more comprehensive checks):
+        u_with_more_attrs = u_component.copy()
+        u_with_more_attrs.attrs["valid_max"] = 0.0
+        u_with_more_attrs.attrs["some_other_attr"] = 100.0
+        v_with_more_attrs = v_component.copy()
+        v_with_more_attrs.attrs["add_offset"] = 7.0
+        div_with_more_attrs = u_with_more_attrs.divergence(v_with_more_attrs)
+        assert "valid_max" not in div_with_more_attrs.attrs
+        assert "add_offset" not in div_with_more_attrs.attrs
+        assert "some_other_attr" in div_with_more_attrs.attrs
 
 
     def test_divergence_input_validation(self, gridpath, datasetpath):
@@ -599,6 +636,18 @@ class TestCurlQuadHex:
         u_ratio_units = u_component.assign_attrs({"units": "K/s"})
         curl_da_ratio_units = u_ratio_units.curl(v_component)
         assert curl_da_ratio_units.attrs["units"] == "(K/s)/m"
+
+        # other attrs checks - spot check that value-describing attrs get removed
+        # (gradient output format test has more comprehensive checks):
+        u_with_more_attrs = u_component.copy()
+        u_with_more_attrs.attrs["valid_min"] = 0.0
+        u_with_more_attrs.attrs["random attr"] = 100.0
+        v_with_more_attrs = v_component.copy()
+        v_with_more_attrs.attrs["standard_name"] = "standard name for v component"
+        curl_with_more_attrs = u_with_more_attrs.curl(u_with_more_attrs)
+        assert "valid_min" not in curl_with_more_attrs.attrs
+        assert "standard_name" not in curl_with_more_attrs.attrs
+        assert "random attr" in curl_with_more_attrs.attrs
 
 
     def test_curl_input_validation(self, gridpath, datasetpath):

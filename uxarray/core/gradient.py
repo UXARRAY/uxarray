@@ -4,6 +4,7 @@ import numpy as np
 from numba import njit, prange
 
 from uxarray.constants import INT_FILL_VALUE
+from uxarray.conventions.attrs import _drop_value_describing_attrs
 from uxarray.core.utils import _apply_1dfunc_with_grid_core_dim
 from uxarray.errors import DataCenteringError
 
@@ -91,13 +92,31 @@ def _check_node_on_boundary_and_gather_node_neighbors(
     return bool_bdy, node_neighbors[0:num_node_neighbors]
 
 
-def _compute_gradient(data, scale_by_radius=True, **kw_apply_ufunc):
+def _compute_gradient(
+    data,
+    scale_by_radius=True,
+    *,
+    _with_gradient_attrs=False,
+    _keep_value_defining_attrs=False,
+    **kw_apply_ufunc,
+):
     """returns (zonal_gradient, meridional_gradient) as UxDataArrays, which are the
     zonal and meridional components of the gradient of the input UxDataArray.
 
     kw_apply_ufunc get passed to apply_ufunc for a function which takes `data` as input,
     and outputs grad_zonal, grad_meridional. E.g. it may be appropriate to provide
     kwargs like dask="parallelized" and output_dtypes=[float, float].
+
+    _with_gradient_attrs: bool
+        whether to add gradient-specific attributes to the output UxDataArrays.
+        If False, just include units attribute. (False by default to avoid confusion if
+        called externally as part of a different method. This adopts the stance that
+        attributes should only be included if you are confident that they are appropriate.)
+        If True, also include "gradient" (set to True), "long_name", and "description".
+    _keep_value_defining_attrs: bool, default False
+        whether to keep value-defining attributes (like "standard_name", "long_name",
+        "valid_min", "scale_factor"). Likely to produce misleading attributes when True,
+        and also possibly data loss on netcdf read-back, so this is False by default.
     """
     uxgrid = data.uxgrid
     # determine output dtype; necessary if inputs are parallelized.
@@ -217,11 +236,29 @@ def _compute_gradient(data, scale_by_radius=True, **kw_apply_ufunc):
 
     # Zonal
     grad_zonal_da = grad_zonal.rename("zonal_gradient")
-    grad_zonal_da.attrs["units"] = grad_units
-
-    # Meridional
     grad_meridional_da = grad_meridional.rename("meridional_gradient")
+
+    # attrs bookkeeping
+    if not _keep_value_defining_attrs:
+        grad_zonal_da = _drop_value_describing_attrs(grad_zonal_da)
+        grad_meridional_da = _drop_value_describing_attrs(grad_meridional_da)
+
+    grad_zonal_da.attrs["units"] = grad_units
     grad_meridional_da.attrs["units"] = grad_units
+
+    if _with_gradient_attrs:
+        zonal_grad_attrs = {
+            "long_name": f"Zonal gradient of {data.name}",
+            "gradient": True,
+            "description": f"Zonal component of gradient of {data.name}",
+        }
+        grad_zonal_da = grad_zonal_da.assign_attrs(zonal_grad_attrs)
+        meridional_grad_attrs = {
+            "long_name": f"Meridional gradient of {data.name}",
+            "gradient": True,
+            "description": f"Meridional component of gradient of {data.name}",
+        }
+        grad_meridional_da = grad_meridional_da.assign_attrs(meridional_grad_attrs)
 
     return grad_zonal_da, grad_meridional_da
 
