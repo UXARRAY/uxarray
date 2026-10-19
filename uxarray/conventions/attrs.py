@@ -4,20 +4,34 @@
 # and thus should probably be dropped by default for a derived quantity.
 _VALUE_DESCRIBING_ATTRS = [
     # What the quantity is
-    "standard_name", "long_name", "units", "units_metadata",
+    "standard_name",
+    "long_name",
+    "units",
+    "units_metadata",
     # Valid/observed values (may cause masking on netcdf read-back)
-    "valid_min", "valid_max", "valid_range", "actual_range",
+    "valid_min",
+    "valid_max",
+    "valid_range",
+    "actual_range",
     # Missing-data sentinels
-    "_FillValue", "missing_value",
+    "_FillValue",
+    "missing_value",
     # Packing / scaling
-    "scale_factor", "add_offset", "_Unsigned",
+    "scale_factor",
+    "add_offset",
+    "_Unsigned",
     # Categorical flags
-    "flag_values", "flag_masks", "flag_meanings",
+    "flag_values",
+    "flag_masks",
+    "flag_meanings",
     # Provenance tied to the input's values
-    "cell_methods", "ancillary_variables", "standard_error_multiplier",
+    "cell_methods",
+    "ancillary_variables",
+    "standard_error_multiplier",
     # might also consider "description" and "comment",
     # but not including those here yet.
 ]
+
 
 def _drop_value_describing_attrs(obj):
     """returns obj but with value-describing attrs removed from obj.attrs.
