@@ -39,10 +39,10 @@ def _drop_value_describing_attrs(obj):
     else returns a copy of obj with modified attrs dict.
 
     obj: xarray.DataArray, xarray.Dataset, or subclass.
-        must have obj.attrs, and obj.copy().
+        must have obj.attrs, and must be able to call obj.copy(deep=False).
     """
     new_attrs = {k: v for k, v in obj.attrs.items() if k not in _VALUE_DESCRIBING_ATTRS}
     if len(new_attrs) != len(obj.attrs):
-        obj = obj.copy()
+        obj = obj.copy(deep=False)
         obj.attrs = new_attrs
     return obj

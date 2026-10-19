@@ -1971,6 +1971,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         )
         result = (u_aligned * grad_q_zonal) + (v_aligned * grad_q_meridional)
 
+        # drop any value-describing attrs which might be incorrect after taking a derivative
+        # (also intentionally drops units attr from gradient; result units != grad(q) units,
+        # because u and v may carry units of their own)
+        result = _drop_value_describing_attrs(result)
+
         # bookkeeping for name & attrs
         result = result.rename(f"scalardotgradient_{self.name}_{v.name}_{q.name}")
         attrs = {

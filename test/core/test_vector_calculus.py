@@ -375,6 +375,50 @@ class TestDivergenceMPASOcean:
         assert np.isfinite(div_field.values).any()
 
 
+class TestScalarDotGradientQuadHex:
+
+    def test_scalardotgradient_output_format(self):
+        """test the output format of scalardotgradient functionality"""
+        uxds = ux.tutorial.open_dataset("quad-hexagon")
+
+        # Create two components for vector field, and one scalar field
+        # (using similar data for all cases for simplicity in test).
+        u = uxds['t2m']
+        v = -uxds['t2m'].rename("vname")
+        q = 7 * uxds['t2m'].rename("qname")
+
+        result = u.scalardotgradient(v, q)
+        assert isinstance(result, ux.UxDataArray)
+        assert result.name == "scalardotgradient_t2m_vname_qname"
+        assert result.attrs["scalardotgradient"] == True
+        assert result.attrs["long_name"] == "Scalar dot gradient: (t2m, vname) dot grad(qname)"
+        assert result.attrs["description"].startswith("Dot product of vector field (u, v) with")
+        assert u.sizes == result.sizes
+
+        # result should not have units attr currently;
+        # replace this with assertions about expected units, if implemented.
+        assert "units" not in result.attrs
+
+        # other attrs checks - spot check that value-describing attrs get removed
+        # (gradient output format test has more comprehensive checks):
+        u_with_more_attrs = u.copy()
+        u_with_more_attrs.attrs["valid_range"] = (0.0, 10.0)
+        u_with_more_attrs.attrs["some_other_attr"] = 100.0
+        v_with_more_attrs = v.copy()
+        v_with_more_attrs.attrs["cell_methods"] = "unknown"
+        v_with_more_attrs.attrs["another_attr"] = 200.0
+        q_with_more_attrs = q.copy()
+        q_with_more_attrs.attrs["flag_values"] = [0, 1]
+        q_with_more_attrs.attrs["yet_another_attr"] = 300.0
+        result_with_more_attrs = u_with_more_attrs.scalardotgradient(v_with_more_attrs, q_with_more_attrs)
+        assert "valid_range" not in result_with_more_attrs.attrs
+        assert "some_other_attr" in result_with_more_attrs.attrs
+        assert "cell_methods" not in result_with_more_attrs.attrs
+        assert "another_attr" in result_with_more_attrs.attrs
+        assert "flag_values" not in result_with_more_attrs.attrs
+        assert "yet_another_attr" in result_with_more_attrs.attrs
+
+
 class TestScalarDotGradientMPASOcean:
 
     def test_scalardotgradient_uses_known_gradient_components(
