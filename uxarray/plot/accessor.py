@@ -647,6 +647,7 @@ class UxDataArrayPlotAccessor:
             _apply_options,
             _compute_contours,
             _drop_lines_outside_projection,
+            _grid_extents,
             _label_fraction,
             _label_points,
         )
@@ -675,17 +676,32 @@ class UxDataArrayPlotAccessor:
         ]
         label_x, label_y, label_text = _label_points(contours, label_fraction)
         label_data = {"x": label_x, "y": label_y, "text": label_text}
+        extents = _grid_extents(self._uxda.uxgrid)
 
         if projection is not None:
             import cartopy.crs as ccrs
             import geoviews as gv
 
             crs = ccrs.PlateCarree()
-            lines = gv.Contours(paths, kdims=kdims, vdims=[level_dim], crs=crs)
+            lines = gv.Contours(
+                paths, kdims=kdims, vdims=[level_dim], crs=crs, extents=extents
+            )
             text = gv.Labels(label_data, kdims=kdims, vdims=["text"], crs=crs)
         else:
-            lines = hv.Contours(paths, kdims=kdims, vdims=[level_dim])
+            lines = hv.Contours(paths, kdims=kdims, vdims=[level_dim], extents=extents)
             text = hv.Labels(label_data, kdims=kdims, vdims=["text"])
+
+        # On their own, the lines get the frame that .plot() gives the data: the area of
+        # the grid (set as the extents of the lines) with no margin, and equal axis
+        # scaling on a map (otherwise a world map is squeezed into HoloViews' default
+        # 300 x 300 frame) or 700 x 300 without a projection. Overlaid on a shaded plot
+        # that comes first, its frame is kept; options passed here win over both.
+        defaults = {"padding": 0}
+        if projection is not None:
+            defaults["data_aspect"] = 1
+        else:
+            defaults.update(width=700, height=300)
+        kwargs = {**defaults, **kwargs}
 
         if hover and "hover" not in kwargs.get("tools", []):
             kwargs["tools"] = [*kwargs.get("tools", []), "hover"]

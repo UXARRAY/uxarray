@@ -609,6 +609,38 @@ def test_contour_projection(gridpath):
         hv.renderer("matplotlib").get_plot(contours)
 
 
+def test_contour_frame(gridpath):
+    """Lines alone get the frame of .plot(): equal axis scaling on a map, 700 x 300 without a
+    projection. Overlaid on a shaded plot, the shaded plot's frame and area are kept."""
+    from bokeh.models import Plot
+
+    uxda = _face_latitude(ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc")))
+    projection = ccrs.Robinson()
+
+    def frame(element):
+        figure = list(hv.renderer("bokeh").get_plot(element).state.select({"type": Plot}))[0]
+        return figure.frame_width or figure.width, figure.frame_height or figure.height, figure.match_aspect
+
+    shading = uxda.plot(projection=projection, backend="bokeh")
+    contours = uxda.plot.contour(levels=[-30.5, 30.5], projection=projection, backend="bokeh")
+    width, height, equal = frame(contours)
+    assert equal and height == frame(shading)[1]
+    assert abs(width - frame(shading)[0]) <= 0.02 * frame(shading)[0]
+    assert frame(shading * contours) == frame(shading)
+
+    assert frame(uxda.plot.contour(levels=[-30.5, 30.5], backend="bokeh"))[:2] == (700, 300)
+    assert frame(uxda.plot.contour(levels=[-30.5, 30.5], backend="bokeh", width=500))[0] == 500
+
+    # nor do the lines widen the shaded area, whose polygons are in single precision
+    def ranges(element):
+        figure = hv.renderer("bokeh").get_plot(element).state
+        return figure.x_range.start, figure.x_range.end, figure.y_range.start, figure.y_range.end
+
+    uxda = _face_latitude(ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc")))
+    shading = uxda.plot(backend="bokeh")
+    assert ranges(shading * uxda.plot.contour(levels=[-30.5, 30.5], backend="bokeh")) == ranges(shading)
+
+
 def test_contour_missing_values(gridpath):
     """Faces without data are left out instead of raising."""
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))

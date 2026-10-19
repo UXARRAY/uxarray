@@ -362,6 +362,35 @@ def _edge_contours(
     return contours
 
 
+def _grid_extents(uxgrid: Grid) -> tuple[float, float, float, float]:
+    """The area of the grid as (west, south, east, north), in degrees."""
+    lon, lat = uxgrid.node_lon.values, uxgrid.node_lat.values
+    west, east = float(np.nanmin(lon)), float(np.nanmax(lon))
+    south, north = float(np.nanmin(lat)), float(np.nanmax(lat))
+    if east - west > 350.0:  # all the way around the globe
+        west, east = -180.0, 180.0
+        # A face around a pole need not have a node there; its corners then go once
+        # around the pole. Only the faces at the northernmost and southernmost nodes
+        # can be such a face.
+        connectivity = uxgrid.face_node_connectivity.values
+        n_nodes = uxgrid.n_nodes_per_face.values
+        for sign, extreme in ((1.0, north), (-1.0, south)):
+            if abs(extreme) >= 90.0 - 1e-9:
+                continue  # a node at the pole
+            nodes = np.flatnonzero(sign * lat >= sign * extreme - 1e-9)
+            for face in np.flatnonzero(np.isin(connectivity, nodes).any(axis=1)):
+                corners = lon[connectivity[face, : n_nodes[face]]]
+                turns = (
+                    np.diff(np.append(corners, corners[0])) + 180.0
+                ) % 360.0 - 180.0
+                if abs(turns.sum()) > 180.0:
+                    north, south = (90.0, south) if sign > 0 else (north, -90.0)
+                    break
+    # In the single precision of the polygons that .plot() shades, so that the lines never
+    # widen the area of a shaded plot they are overlaid on.
+    return tuple(float(np.float32(value)) for value in (west, south, east, north))
+
+
 def _drop_lines_outside_projection(
     contours: list[tuple[float, np.ndarray]], projection
 ) -> list[tuple[float, np.ndarray]]:
