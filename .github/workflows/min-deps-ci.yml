@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v10.2.0  # setup-uv doesn't publish major-version tags
+        uses: astral-sh/setup-uv@v10.3.0  # setup-uv doesn't publish major-version tags
 
       - name: Create environment
         run: |
