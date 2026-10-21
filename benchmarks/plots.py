@@ -45,14 +45,24 @@ class PlotHealpix:
         del self.data
         plt.close()
 
+    def _doit(self, **kwargs):
+        """helper to call arr.plot() and render the result, but first removing any cached gdf,
+        to ensure the plot is from a "cold" start for the given zoom level.
+        ("cold" i.e. no cached gdf, but not fully cold; numba routines have been compiled,
+        and holoviews imports have occurred. E.g., this corresponds to calling plot not for the
+        first time ever in a notebook, but for the first time on the given array.)
+        """
+        self.data.uxgrid._gdf_cached_parameters["gdf"] = None  # defeat the cache
+        plot_obj = self.data.plot(**kwargs)
+        RENDERER.get_plot(plot_obj)
+
     def time_default_plot(self, zoom):
         """time taken to call arr.plot() with default inputs"""
-        plot_obj = self.data.plot()
-        RENDERER.get_plot(plot_obj)
+        self._doit()
 
     def track_peakmem_default_plot(self, zoom):
         """High-water allocation of calling arr.plot() with default inputs"""
         with numba_threads(1):
-            return peak_allocated(lambda: RENDERER.get_plot(self.data.plot()))
+            return peak_allocated(lambda: self._doit())
 
     track_peakmem_default_plot.units = "bytes"
