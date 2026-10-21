@@ -234,7 +234,7 @@ def _apply_1dfunc_with_grid_core_dim(
     other_args=None,
     kwargs=None,
     n_outputs=1,
-    vectorize=True,
+    dask="parallelized",
     **kw_apply_ufunc,
 ):
     """Return the results of applying f across uxarrays, like apply_ufunc
@@ -260,12 +260,18 @@ def _apply_1dfunc_with_grid_core_dim(
     n_outputs : int
         number of outputs from f, and from this function.
         If 1, this function returns a single UxDataArray; if >1, returns a tuple of UxDataArrays.
-    vectorize : bool
-        If True (default), f receives 1D arrays and is looped over all other
-        dims, like apply_ufunc(vectorize=True); this is slow, in general.
-        If False, f receives arrays of shape (..., n_grid), with grid_dim last,
-        and must handle the leading dims itself.
+    dask : str
+        passed to :meth:`xr.apply_ufunc` to control dask behavior. Default is "parallelized".
+        If inputs are chunked, `dask` is not "forbidden", and `output_dtypes` is not provided,
+        raises a warning with helpful instructions (i.e., to provide `output_dtypes`) because
+        the following error will likely occur: ValueError: `dtype` inference failed in `apply_gufunc`.
     additional kwargs are passed to xr.apply_ufunc.
+
+    Notes
+    -----
+    By default f receives 1D arrays and is looped over all other dims, like
+    apply_ufunc(vectorize=True); this is slow, in general. Pass vectorize=False if f
+    handles arrays of shape (..., n_grid) itself, with grid_dim last.
     """
     # misc. checks
     if len(uxarrays) == 0:
@@ -283,6 +289,7 @@ def _apply_1dfunc_with_grid_core_dim(
                 f"Expected all input uxarray objects to have the same uxgrid, "
                 f"but uxarrays[0].uxgrid != uxarrays[{i}].uxgrid."
             )
+    vectorize = kw_apply_ufunc.pop("vectorize", True)
     # misc. bookkeeping
     if other_args is None:
         other_args = ()
@@ -301,6 +308,19 @@ def _apply_1dfunc_with_grid_core_dim(
     result_grid = uxarrays[0].uxgrid
     result_dims = uxarrays[0].dims
     xarrays = [arr.to_xarray() for arr in uxarrays]
+    # make a helpful warning if chunked but didn't supply output_dtypes
+    if any(xarr.chunks is not None for xarr in xarrays):
+        if dask != "forbidden":
+            if "output_dtypes" not in kw_apply_ufunc:
+                warnings.warn(
+                    f"Input uxarray objects are chunked while calling {f.__name__}, "
+                    "with dask!='forbidden', but `output_dtypes` was not provided. "
+                    "If this causes a ValueError: `dtype` inference failed in `apply_gufunc`, "
+                    "that most likely indicates an implementation error in the function which "
+                    "called _apply_1dfunc_with_grid_core_dim, but failed to supply output_dyptes "
+                    "to it; that function should be updated accordingly."
+                )
+
     # actually do the calculations:
     result = xr.apply_ufunc(
         f_wrapped,
@@ -308,6 +328,7 @@ def _apply_1dfunc_with_grid_core_dim(
         input_core_dims=input_core_dims,
         output_core_dims=output_core_dims,
         vectorize=vectorize,
+        dask=dask,
         **kw_apply_ufunc,
     )
     # convert back to uxarray objects, and (style) restore original dims order.

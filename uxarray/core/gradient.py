@@ -4,6 +4,7 @@ import numpy as np
 from numba import njit, prange
 
 from uxarray.constants import INT_FILL_VALUE
+from uxarray.conventions.attrs import _drop_value_describing_attrs
 from uxarray.core.utils import _apply_1dfunc_with_grid_core_dim
 from uxarray.errors import DataCenteringError
 
@@ -92,18 +93,35 @@ def _check_node_on_boundary_and_gather_node_neighbors(
 
 
 def _compute_gradient(
-    data, scale_by_radius=True, components=("zonal", "meridional"), **kw_apply_ufunc
+    data,
+    scale_by_radius=True,
+    *,
+    components=("zonal", "meridional"),
+    _with_gradient_attrs=False,
+    _keep_value_defining_attrs=False,
+    **kw_apply_ufunc,
 ):
     """returns (zonal_gradient, meridional_gradient) as UxDataArrays, which are the
     zonal and meridional components of the gradient of the input UxDataArray.
 
-    components selects which of "zonal" and "meridional" to compute; they are
-    returned in the order given, always as a tuple (e.g. curl() only needs ∂v/∂x
-    and ∂u/∂y, so it asks for one component of each).
-
     kw_apply_ufunc get passed to apply_ufunc for a function which takes `data` as input,
     and outputs grad_zonal, grad_meridional. E.g. it may be appropriate to provide
     kwargs like dask="parallelized" and output_dtypes=[float, float].
+
+    components: tuple of str, default ("zonal", "meridional")
+        which of "zonal" and "meridional" to compute; they are returned in the order
+        given, always as a tuple (e.g. curl() only needs dv/dx and du/dy, so it asks
+        for one component of each).
+    _with_gradient_attrs: bool
+        whether to add gradient-specific attributes to the output UxDataArrays.
+        If False, just include units attribute. (False by default to avoid confusion if
+        called externally as part of a different method. This adopts the stance that
+        attributes should only be included if you are confident that they are appropriate.)
+        If True, also include {"derivative": "gradient"}, "long_name", and "description".
+    _keep_value_defining_attrs: bool, default False
+        whether to keep value-defining attributes (like "standard_name", "long_name",
+        "valid_min", "scale_factor"). Likely to produce misleading attributes when True,
+        and also possibly data loss on netcdf read-back, so this is False by default.
     """
     uxgrid = data.uxgrid
     components = tuple(components)
@@ -112,6 +130,9 @@ def _compute_gradient(
             "components must be a non-empty subset of ('zonal', 'meridional'); "
             f"got {components!r}"
         )
+    # determine output dtype; necessary if inputs are parallelized.
+    output_dtype = np.result_type(data.dtype, np.float64)
+    kw_apply_ufunc.setdefault("output_dtypes", [output_dtype] * len(components))
 
     if data._face_centered():
         operators = dict(zip(("zonal", "meridional"), _face_gradient_operator(uxgrid)))
@@ -120,8 +141,13 @@ def _compute_gradient(
         def _kernel(values):
             # values: (..., n_face). The gradient is linear in the data, so every
             # slice shares one precomputed operator: one sparse product each.
+            # The weights are float64, so the product is computed in float64
+            # (or complex128) whatever the input precision.
             flat = values.reshape(-1, values.shape[-1]).T
-            grads = tuple((w @ flat).T.reshape(values.shape) for w in selected)
+            grads = tuple(
+                (w @ flat).T.reshape(values.shape).astype(output_dtype, copy=False)
+                for w in selected
+            )
             return grads if len(grads) > 1 else grads[0]
 
         grads = _apply_1dfunc_with_grid_core_dim(
@@ -194,16 +220,31 @@ def _compute_gradient(
                 stacklevel=2,
             )
 
-    base_units = data.attrs.get("units", "")
-    if scale_by_radius and has_sphere_radius:
-        grad_units = f"{base_units}/m" if base_units else "1/m"
-    else:
-        grad_units = f"{base_units}/rad" if base_units else "1/rad"
+    base_units = data.attrs.get("units", "1")
+    if "/" in base_units:  # put in (), e.g. (m/s)/m, not m/s/m.
+        base_units = f"({base_units})"
+    was_scaled = scale_by_radius and has_sphere_radius
+    denom_units = "m" if was_scaled else "rad"
+    grad_units = f"{base_units}/{denom_units}"
 
     results = []
     for component, grad in zip(components, grads):
         grad_da = grad.rename(f"{component}_gradient")
+
+        # attrs bookkeeping
+        if not _keep_value_defining_attrs:
+            grad_da = _drop_value_describing_attrs(grad_da)
         grad_da.attrs["units"] = grad_units
+
+        if _with_gradient_attrs:
+            label = component.capitalize()  # "Zonal" / "Meridional"
+            grad_da = grad_da.assign_attrs(
+                {
+                    "long_name": f"{label} gradient of {data.name}",
+                    "derivative": "gradient",
+                    "description": f"{label} component of gradient of {data.name}",
+                }
+            )
         results.append(grad_da)
     return tuple(results)
 

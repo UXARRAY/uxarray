@@ -12,6 +12,7 @@ from xarray.core.options import OPTIONS
 from xarray.core.utils import UncachedAccessor
 
 from uxarray.constants import GRID_DIMS
+from uxarray.conventions.attrs import _drop_value_describing_attrs
 from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.arithmetic import UxSupportsArithmetic
 from uxarray.core.gradient import (
@@ -1615,6 +1616,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             the result caries per-radian units: [u units]/radian.
             (e.g. result has units of (m/s)/rad if u represents velocity).
 
+            CAUTION: this scaling does not account for any radius increases
+            due to vertical levels; it simply divides by ``uxgrid.sphere_radius``.
+
         Returns
         -------
         gradient: UxDataset
@@ -1641,7 +1645,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         # Compute the zonal and meridional gradient components of the stored data variable
         grad_zonal_da, grad_meridional_da = _compute_gradient(
-            self, scale_by_radius=scale_by_radius
+            self,
+            scale_by_radius=scale_by_radius,
+            _with_gradient_attrs=True,
         )
 
         # Create a dataset containing both gradient components
@@ -1651,7 +1657,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 "meridional_gradient": grad_meridional_da,
             },
             uxgrid=self.uxgrid,
-            attrs={"gradient": True},
+            attrs={"derivative": "gradient"},
             coords=self.coords,
         )
 
@@ -1683,6 +1689,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
             the result caries per-radian units: [u units]/radian.
             (e.g. result has units of (m/s)/rad if u represents velocity).
+
+            CAUTION: this scaling does not account for any radius increases
+            due to vertical levels; it simply divides by ``uxgrid.sphere_radius``.
 
         Returns
         -------
@@ -1747,7 +1756,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         # valid on a plane; on the sphere it costs a factor of two on
         # solid-body rotation. When the derivatives have been divided by the
         # radius the term carries the same 1/a factor.
-        metric = self * np.tan(np.deg2rad(self.uxgrid.face_lat.drop_attrs()))
+        u_without_value_attrs = _drop_value_describing_attrs(self)
+        lat_without_attrs = self.uxgrid.face_lat.drop_attrs()
+        metric = u_without_value_attrs * np.tan(np.deg2rad(lat_without_attrs))
         if scale_by_radius and self.uxgrid.sphere_radius != 1.0:
             metric = metric / self.uxgrid.sphere_radius
         result = grad_v_zonal - grad_u_meridional + metric
@@ -1757,7 +1768,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         attrs = {
             "long_name": f"Curl of ({self.name}, {other.name})",
             "units": grad_u_meridional.attrs["units"],
-            "curl": True,
+            "derivative": "curl",
             "description": (
                 "Curl of vector field computed as ∂v/∂x - ∂u/∂y + u·tan(φ)/a, "
                 "with u, x zonal; v, y meridional; φ=latitude; a=sphere radius."
@@ -1792,6 +1803,10 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
             the result caries per-radian units: [u units]/radian.
             (e.g. result has units of (m/s)/rad if u represents velocity).
+
+            CAUTION: this scaling does not account for any radius increases
+            due to vertical levels; it simply divides by ``uxgrid.sphere_radius``.
+
         **kw_unused
             Currently unused; passing passing "units" will emit a DeprecationWarning,
             while passing anything else will raise a TypeError.
@@ -1847,7 +1862,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                     "Use scale_by_radius=True/False to control the units, "
                     "or set result.attrs['units'] manually to set the units attribute after the call."
                 ),
-                DeprecationWarning,
+                FutureWarning,
             )
             kw_unused.pop("units")
         if len(kw_unused) > 0:
@@ -1870,7 +1885,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         # For divergence: div(V) = ∂u/∂x + ∂v/∂y - v·tan(φ)/a
         # The trailing term is the spherical metric term, the companion
         # of the one in curl(). Omitting it is only valid on a plane.
-        metric = other * np.tan(np.deg2rad(self.uxgrid.face_lat.drop_attrs()))
+        v_without_value_attrs = _drop_value_describing_attrs(other)
+        lat_without_attrs = self.uxgrid.face_lat.drop_attrs()
+        metric = v_without_value_attrs * np.tan(np.deg2rad(lat_without_attrs))
         if scale_by_radius and self.uxgrid.sphere_radius != 1.0:
             metric = metric / self.uxgrid.sphere_radius
         result = grad_u_zonal + grad_v_meridional - metric
@@ -1880,7 +1897,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         attrs = {
             "long_name": f"Divergence of ({self.name}, {other.name})",
             "units": grad_u_zonal.attrs["units"],
-            "divergence": True,
+            "derivative": "divergence",
             "description": (
                 "Divergence of vector field computed as ∂u/∂x + ∂v/∂y - v·tan(φ)/a, "
                 "with u, x zonal; v, y meridional; φ=latitude; a=sphere radius."
@@ -1954,12 +1971,17 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         )
         result = (u_aligned * grad_q_zonal) + (v_aligned * grad_q_meridional)
 
+        # drop any value-describing attrs which might be incorrect after taking a derivative
+        # (also intentionally drops units attr from gradient; result units != grad(q) units,
+        # because u and v may carry units of their own)
+        result = _drop_value_describing_attrs(result)
+
         # bookkeeping for name & attrs
         result = result.rename(f"scalardotgradient_{self.name}_{v.name}_{q.name}")
         attrs = {
             "long_name": f"Scalar dot gradient: ({self.name}, {v.name}) dot grad({q.name})",
             # "units": ... no promises about units yet; would need to consider units of u, v, and q...
-            "scalardotgradient": True,
+            "derivative": "scalardotgradient",
             "description": (
                 "Dot product of vector field (u, v) with the gradient of scalar field q, "
                 "computed as u * (dq/dx) + v * (dq/dy), with u, x zonal; v, y meridional."
