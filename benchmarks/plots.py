@@ -65,4 +65,4 @@ class PlotHealpix:
         with numba_threads(1):
             return peak_allocated(lambda: self._doit())
 
-    track_peakmem_default_plot.units = "bytes"
+    track_peakmem_default_plot.unit = "bytes"
