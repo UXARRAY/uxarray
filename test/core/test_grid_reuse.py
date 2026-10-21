@@ -357,6 +357,168 @@ class TestGridReuse(TestCase):
         )
         self.assertEqual(grid._source_dims_dict, source_dims)
 
+    def test_structured_grid_accepts_canonical_node_and_edge_members(self):
+        """Canonical node and edge data have no source axes left to flatten."""
+        grid = ux.Grid.from_structured(
+            lon=xr.DataArray([0.0, 20.0, 40.0, 60.0], dims="x"),
+            lat=xr.DataArray([-30.0, 0.0, 30.0], dims="y"),
+        )
+        # n_edge lazily creates connectivity; snapshot the intended cache first.
+        counts = {"n_node": grid.n_node, "n_edge": grid.n_edge}
+        source_dims = grid._source_dims_dict.copy()
+        snapshot = grid._ds.copy(deep=True)
+        for dimension, size in counts.items():
+            members = [
+                xr.Dataset({"value": (dimension, np.arange(size) + i)})
+                for i in range(2)
+            ]
+            member_snapshots = [member.copy(deep=True) for member in members]
+            paths = []
+            for i, member in enumerate(members):
+                path = Path(self.directory.name) / f"structured_{dimension}_{i}.nc"
+                member.to_netcdf(path)
+                paths.append(path)
+            cases = (
+                [("dataset", member, member.value.values) for member in members]
+                + [
+                    ("file", path, member.value.values)
+                    for path, member in zip(paths, members)
+                ]
+                + [
+                    (
+                        "multiple",
+                        paths,
+                        np.stack([member.value.values for member in members]),
+                    )
+                ]
+            )
+            chunks = {dimension: 2}
+            expected_chunks = (2,) * (size // 2) + ((1,) if size % 2 else ())
+            for case_index, (kind, source, expected) in enumerate(cases):
+                with self.subTest(
+                    dimension=dimension, kind=kind, case_index=case_index
+                ):
+                    if kind == "multiple":
+                        result = ux.open_mfdataset(
+                            grid,
+                            source,
+                            combine="nested",
+                            concat_dim="member",
+                            chunks=chunks,
+                        )
+                        expected_dims = ("member", dimension)
+                    else:
+                        result = ux.open_dataset(grid, source, chunks=chunks)
+                        expected_dims = (dimension,)
+                    self.addCleanup(result.close)
+                    self.assertIs(result.uxgrid, grid)
+                    self.assertEqual(result.value.dims, expected_dims)
+                    self.assertIsInstance(result.value.data, da.Array)
+                    all_chunks = (expected_chunks,)
+                    if kind == "multiple":
+                        all_chunks = ((1, 1),) + all_chunks
+                    self.assertEqual(result.value.chunks, all_chunks)
+                    np.testing.assert_array_equal(result.value.compute(), expected)
+                    self.assertEqual(chunks, {dimension: 2})
+                    self.assertEqual(grid._source_dims_dict, source_dims)
+                    xr.testing.assert_identical(grid._ds, snapshot)
+                    for original, saved in zip(members, member_snapshots):
+                        xr.testing.assert_identical(original, saved)
+        # Reuse after canonical data must still flatten ordinary face members.
+        native = xr.Dataset({"temperature": (("y", "x"), np.arange(12).reshape(3, 4))})
+        result = ux.open_dataset(grid, native)
+        self.assertIs(result.uxgrid, grid)
+        self.assertEqual(result.temperature.dims, ("n_face",))
+        np.testing.assert_array_equal(result.temperature, np.arange(12))
+        self.assertEqual(grid._source_dims_dict, source_dims)
+        xr.testing.assert_identical(grid._ds, snapshot)
+
+    def test_overlapping_chunk_aliases_read_only_requested_values(self):
+        """Alias translation is independent of order and newly created keys."""
+        members = [
+            member.assign(velocity=("n_face", np.arange(4) + i))
+            for i, member in enumerate(self.members)
+        ]
+        member_snapshots = [member.copy(deep=True) for member in members]
+        paths = []
+        for i, member in enumerate(members):
+            path = Path(self.directory.name) / f"overlapping_alias_{i}.nc"
+            member.to_netcdf(path)
+            paths.append(path)
+        for source_dims in (
+            {"n_face": "n_node", "cells": "n_face"},
+            {"cells": "n_face", "n_face": "n_node"},
+        ):
+            grid = ux.Grid.from_topology(
+                node_lon=self.grid.node_lon.values,
+                node_lat=self.grid.node_lat.values,
+                face_node_connectivity=self.grid.face_node_connectivity.values,
+                dims_dict=source_dims.copy(),
+            )
+            snapshot = grid._ds.copy(deep=True)
+            for requested in (
+                {"n_face": 2, "n_node": 1, "time": 1},
+                {"n_node": 1, "time": 1},
+            ):
+                original_chunks = requested.copy()
+                expected_face_chunks = (2, 2) if "n_face" in requested else (4,)
+                cases = (
+                    [("dataset", member, member) for member in members]
+                    + [("file", path, member) for path, member in zip(paths, members)]
+                    + [("multiple", paths, None)]
+                )
+                for case_index, (kind, source, member) in enumerate(cases):
+                    with self.subTest(
+                        source_dims=source_dims,
+                        requested=requested,
+                        kind=kind,
+                        case_index=case_index,
+                    ):
+                        if kind == "multiple":
+                            result = ux.open_mfdataset(
+                                grid,
+                                source,
+                                combine="nested",
+                                concat_dim="member",
+                                chunks=requested,
+                            )
+                            temperature = np.stack(
+                                [m.temperature.values for m in members]
+                            )
+                            velocity = np.stack([m.velocity.values for m in members])
+                            temperature_dims = ("member", "time", "n_face")
+                            velocity_dims = ("member", "n_node")
+                        else:
+                            result = ux.open_dataset(grid, source, chunks=requested)
+                            temperature = member.temperature.values
+                            velocity = member.velocity.values
+                            temperature_dims = ("time", "n_face")
+                            velocity_dims = ("n_node",)
+                        self.addCleanup(result.close)
+                        self.assertIs(result.uxgrid, grid)
+                        self.assertEqual(result.temperature.dims, temperature_dims)
+                        self.assertEqual(result.velocity.dims, velocity_dims)
+                        self.assertIsInstance(result.temperature.data, da.Array)
+                        self.assertIsInstance(result.velocity.data, da.Array)
+                        temperature_chunks = ((1, 1, 1), expected_face_chunks)
+                        velocity_chunks = ((1, 1, 1, 1),)
+                        if kind == "multiple":
+                            temperature_chunks = ((1, 1),) + temperature_chunks
+                            velocity_chunks = ((1, 1),) + velocity_chunks
+                        self.assertEqual(result.temperature.chunks, temperature_chunks)
+                        self.assertEqual(result.velocity.chunks, velocity_chunks)
+                        np.testing.assert_array_equal(
+                            result.temperature.compute(), temperature
+                        )
+                        np.testing.assert_array_equal(
+                            result.velocity.compute(), velocity
+                        )
+                        self.assertEqual(requested, original_chunks)
+                        self.assertEqual(grid._source_dims_dict, source_dims)
+                        xr.testing.assert_identical(grid._ds, snapshot)
+                        for original, saved in zip(members, member_snapshots):
+                            xr.testing.assert_identical(original, saved)
+
     def test_existing_grid_file_and_dataset_inputs(self):
         """Previously supported grid inputs still construct equivalent grids."""
         for grid_source in (self.grid_path, self.grid_ds):

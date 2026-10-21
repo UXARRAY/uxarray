@@ -630,8 +630,9 @@ def _map_dataset_to_ugrid(ds, grid):
     source_dims = grid._source_dims_dict.copy()
     if grid.source_grid_spec == "Structured":
         lon_dim, lat_dim = source_dims["n_face"]
-        if "n_face" in ds.dims and lon_dim not in ds.dims and lat_dim not in ds.dims:
-            # This member is already flattened onto the structured Grid.
+        if lon_dim not in ds.dims and lat_dim not in ds.dims:
+            # No source spatial axes remain to flatten, including members
+            # located only on canonical nodes or edges.
             return ds
     # Already-standardized dimensions must not be inferred by size: nodes and
     # faces can have equal counts. Preserve any explicit source mapping.
@@ -659,10 +660,11 @@ def _get_grid(
         if isinstance(chunks, dict):
             # Keep the caller's options and the shared Grid unchanged. Match
             # UGRID chunk keys to the data's source dimensions without grid I/O.
+            requested_chunks = chunks
             chunks = chunks.copy()
             for source_dim, ugrid_dim in grid_filename_or_obj._source_dims_dict.items():
-                if isinstance(ugrid_dim, str) and ugrid_dim in chunks:
-                    chunks[source_dim] = chunks[ugrid_dim]
+                if isinstance(ugrid_dim, str) and ugrid_dim in requested_chunks:
+                    chunks[source_dim] = requested_chunks[ugrid_dim]
         return grid_filename_or_obj, chunks
 
     if "latlon" in kwargs:
