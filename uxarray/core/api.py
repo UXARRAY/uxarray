@@ -670,7 +670,8 @@ def asuxarray(
     """Return obj as a UxDataArray or UxDataset, with the provided uxgrid.
 
     If obj is already a UxDataArray or UxDataset, it is returned unchanged,
-    after confirming that its uxgrid matches the provided uxgrid.
+    after confirming that its uxgrid matches the provided uxgrid
+    (unless obj's uxgrid is None, in which case it is set to the provided uxgrid).
     If obj is an xr.DataArray or xr.Dataset, convert to the corresponding uxarray type.
     If obj is any other type, raise TypeError.
 
@@ -694,7 +695,9 @@ def asuxarray(
         UxDataset if the input was an xr.Dataset or UxDataset.
     """
     if isinstance(obj, (UxDataArray, UxDataset)):
-        if obj.uxgrid != uxgrid:
+        if obj._uxgrid is None:
+            obj.uxgrid = uxgrid
+        elif obj.uxgrid != uxgrid:
             raise GridsMismatchError(
                 "provided obj and uxgrid with unequal grids, "
                 "obj.uxgrid != uxgrid, during asuxarray(obj, uxgrid)."
