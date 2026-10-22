@@ -124,7 +124,7 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
         _, first_indices, inverse = np.unique(
             points_xyz[pole_indices], axis=0, return_index=True, return_inverse=True
         )
-        canonical[pole_indices] = pole_indices[first_indices[inverse]]
+        canonical[pole_indices] = pole_indices[first_indices[inverse.ravel()]]
     mergeable_indices = np.flatnonzero(~pole_mask)
 
     if len(mergeable_indices) < 2:
