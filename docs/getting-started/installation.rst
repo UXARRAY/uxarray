@@ -6,11 +6,12 @@ Installation
 ============
 
 UXarray itself is a pure Python package, but its dependencies are not.
-The easiest way to get everything installed is to use conda or pip.
+The easiest way to get everything installed is to use
+`conda <https://docs.conda.io/en/latest/>`_ or pip.
 
 .. admonition:: Conda versus Pip
 
-    Conda installs UXarray with all optional dependencies.
+    Conda installs UXarray with all optional dependencies by default.
     Pip installs only the minimal required dependencies by default, but it
     is also easy to include any/all optional dependencies too, if desired.
 
@@ -23,6 +24,23 @@ To install UXarray with its recommended dependencies using the conda command lin
 .. code-block:: bash
 
    conda install -c conda-forge uxarray
+
+
+Conda also provides a lightweight installation option with **only required dependencies**:
+
+.. code-block:: bash
+
+   conda install -c conda-forge uxarray-base
+
+
+For an installation including **only some optional dependencies**,
+consider using one of the following recipes:
+
+- ``conda install -c conda-forge uxarray-with-geo`` includes geospatial packages (e.g. geopandas, healpix)
+- ``conda install -c conda-forge uxarray-with-viz`` includes plotting packages (e.g. matplotlib, hvplot)
+
+The full list of dependencies in these recipes agrees with those of
+the "geo" and "viz" extras in the following section.
 
 
 Installing with pip
