@@ -89,6 +89,37 @@ def test_structured_variable_order_preserves_face_index():
         xr.testing.assert_identical(mapped0[name], mapped1[name])
 
 
+@pytest.mark.parametrize("square", [False, True])
+@pytest.mark.parametrize("transpose", [False, True])
+def test_structured_explicit_mapping_with_renamed_dimensions(square, transpose):
+    """Explicit mappings may use names unlike the Grid's source dimensions."""
+    lon = xr.DataArray([0.0, 20.0, 40.0], dims="x")
+    lat = xr.DataArray([-10.0, 20.0, 50.0] if square else [-10.0, 50.0], dims="y")
+    grid = ux.Grid.from_structured(lon=lon, lat=lat)
+    ds = xr.Dataset({"field": 2.0 * lat + lon}).rename({"x": "column", "y": "row"})
+    if transpose:
+        ds = ds.transpose("column", "row")
+    original = ds.copy(deep=True)
+    grid_data = grid._ds.copy(deep=True)
+    source_dims = grid._source_dims_dict.copy()
+    mapping = {"n_face": ("column", "row")}
+
+    mapped = ux.UxDataset.from_xarray(ds, uxgrid=grid, ugrid_dims=mapping)
+
+    assert mapped.uxgrid is grid
+    assert grid.source_grid_spec == "Structured"
+    assert grid._source_dims_dict == source_dims == {"n_face": ("x", "y")}
+    assert mapping == {"n_face": ("column", "row")}
+    xr.testing.assert_identical(grid._ds, grid_data)
+    xr.testing.assert_identical(ds, original)
+    # Recover each face's physical center independently of dimension stacking.
+    nodes = grid.face_node_connectivity.values
+    face_lon = grid.node_lon.values[nodes].mean(axis=1)
+    face_lat = grid.node_lat.values[nodes].mean(axis=1)
+    assert mapped.field.dims == ("n_face",)
+    np.testing.assert_allclose(mapped.field.values, 2.0 * face_lat + face_lon)
+
+
 @pytest.mark.parametrize("transpose", [False, True])
 def test_structured_netcdf_face_selection(tmp_path, transpose):
     """Read a member file, attach the same Grid, and select the correct face."""
@@ -112,7 +143,7 @@ def test_structured_missing_source_dimension_raises(missing):
     ds = _structured_dataset()
     grid = ux.Grid.from_structured(lon=ds.x, lat=ds.y)
     ds = ds.isel({dim: 0 for dim in ("x", "y") if missing in (dim, "both")})
-    with pytest.raises(DimensionError, match="source spatial dimensions"):
+    with pytest.raises(DimensionError, match="selected mapping's spatial dimensions"):
         ux.UxDataset.from_xarray(ds, uxgrid=grid)
 
 
@@ -121,5 +152,5 @@ def test_structured_coordinate_name_mapping_mismatch_raises():
     ds = _structured_dataset().rename_vars({"x": "longitude", "y": "latitude"})
     # Grid.from_dataset currently records coordinate names rather than dimension
     # names for this input. Correcting that metadata is separate from GH1828.
-    with pytest.raises(DimensionError, match="source spatial dimensions"):
+    with pytest.raises(DimensionError, match="selected mapping's spatial dimensions"):
         ux.UxDataset.from_structured(ds)

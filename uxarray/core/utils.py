@@ -64,7 +64,7 @@ def _map_dims_to_ugrid(
         lon_name, lat_name = _source_dims_dict["n_face"]
         if lon_name not in ds.dims or lat_name not in ds.dims:
             raise DimensionError(
-                "Structured data must contain the Grid's source spatial "
+                "Structured data must contain the selected mapping's spatial "
                 f"dimensions {lon_name!r} and {lat_name!r}; got {tuple(ds.dims)!r}."
             )
         # Structured Grid faces are latitude-major, longitude-minor. The source
