@@ -2,6 +2,13 @@ import os
 import subprocess
 import sys
 
+import numpy as np
+import pytest
+from numba import njit
+from numba.core.errors import TypingError
+
+from uxarray.grid.coordinates import _construct_face_centroids
+
 _CODE = """
 from concurrent.futures import ThreadPoolExecutor
 
@@ -33,3 +40,16 @@ def test_parallel_kernels_called_from_a_thread_pool():
         env={**os.environ, "NUMBA_THREADING_LAYER": "workqueue"},
     )
     assert result.returncode == 0, result.stderr
+
+
+@njit
+def _jitted_caller(*args):
+    return _construct_face_centroids(*args)
+
+
+def test_parallel_kernels_are_not_callable_from_jitted_code():
+    """The guard is Python, so numba cannot type a call to it: misuse fails
+    loudly at compile time rather than skipping the guard."""
+    nodes = np.zeros(3)
+    with pytest.raises(TypingError, match="Untyped global name"):
+        _jitted_caller(nodes, nodes, nodes, np.zeros((1, 3), np.int64), np.full(1, 3))

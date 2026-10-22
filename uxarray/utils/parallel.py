@@ -45,7 +45,8 @@ def numba_pool():
 
 def parallel_njit(func):
     """``@njit(cache=True, parallel=True, nogil=True)``, called under
-    :func:`numba_pool`. Only for kernels Python calls directly."""
+    :func:`numba_pool`. Only for kernels Python calls directly: jitted callers
+    fail to type it. The numba dispatcher is ``.kernel``."""
     kernel = njit(cache=True, parallel=True, nogil=True)(func)
 
     @functools.wraps(func)
@@ -53,4 +54,5 @@ def parallel_njit(func):
         with numba_pool():
             return kernel(*args, **kwargs)
 
+    call.kernel = kernel
     return call
