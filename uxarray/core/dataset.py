@@ -332,7 +332,10 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
             ``Grid`` object representing an unstructured grid. If a grid is not provided, the source ds will be
             parsed to see if a ``Grid`` can be constructed.
         ugrid_dims: dict, optional
-            A dictionary mapping dataset dimensions to UGRID dimensions.
+            A dictionary describing the mapping between dataset and UGRID dimensions.
+            For structured grids, for example, ``{"n_face": ("x", "y")}`` uses
+            the UGRID dimension as the key and the dataset's longitude and
+            latitude dimensions as the tuple value, in that order.
 
         Returns
         -------
