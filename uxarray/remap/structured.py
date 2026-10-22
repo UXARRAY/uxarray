@@ -162,15 +162,14 @@ def _reshape_array_to_rectilinear(
 
 def _reshape_to_rectilinear(obj, spec: RectilinearGridSpec):
     """Convert flattened ``n_face`` remap output to lat/lon-shaped xarray."""
+    from uxarray.core.api import asxarray
 
     if isinstance(obj, xr.DataArray):
         return _reshape_array_to_rectilinear(obj, spec)
 
-    if isinstance(obj, xr.Dataset):
-        xr_obj = obj
-    elif hasattr(obj, "to_xarray"):
-        xr_obj = obj.to_xarray()
-    else:
+    try:
+        xr_obj = asxarray(obj)
+    except TypeError:  # (obj is not yet a Dataset)
         xr_obj = xr.Dataset(obj)
     data_vars = {
         name: _reshape_array_to_rectilinear(da, spec)
