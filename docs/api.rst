@@ -568,6 +568,7 @@ Azimuthal aggregations apply an aggregation (i.e. averaging) along circles of co
    :toctree: generated/
 
    UxDataArray.azimuthal_mean
+   UxDataset.azimuthal_mean
 
 
 Neighborhood
@@ -630,6 +631,9 @@ Zonal Average
    UxDataArray.zonal_average
    UxDataArray.zonal_mean
    UxDataArray.zonal_anomaly
+   UxDataset.zonal_average
+   UxDataset.zonal_mean
+   UxDataset.zonal_anomaly
 
 
 Weighted
@@ -638,6 +642,7 @@ Weighted
    :toctree: generated/
 
    UxDataArray.weighted_mean
+   UxDataset.weighted_mean
 
 
 Spherical Geometry
