@@ -596,9 +596,10 @@ class UxDataArrayPlotAccessor:
         -------
         contours : hv.Overlay, hv.Contours or gv.Contours
             The contour lines, one path per level with the level as its value
-            and its lines separated by NaN, overlaid with their labels. With ``labels=False`` the lines
-            alone: an ``hv.Contours``, or a ``gv.Contours`` if a ``projection`` is
-            given.
+            and its lines separated by NaN, overlaid with their labels. With
+            ``labels=False`` the lines alone: an ``hv.Contours``, or a
+            ``gv.Contours`` if a ``projection`` is given. Those lines are already
+            in the coordinates of the projection, which is their ``crs``.
 
         Raises
         ------
@@ -646,20 +647,23 @@ class UxDataArrayPlotAccessor:
         from uxarray.plot.contour import (
             _apply_options,
             _compute_contours,
-            _drop_lines_outside_projection,
             _grid_extents,
             _label_fraction,
             _label_points,
             _paths_by_level,
+            _project_lines,
+            _projected_contours,
         )
 
         label_fraction = _label_fraction(labels)
         plotting_backend.assign(backend)
 
         contours = _compute_contours(self._uxda, levels=levels, method=method)
+        labeled = contours
         if projection is not None:
             _raise_hint_if_optional_deps_missing("cartopy", "geoviews")
-            contours = _drop_lines_outside_projection(contours, projection)
+            contours, on_map = _project_lines(contours, projection)
+            labeled = [line for line, shown in zip(labeled, on_map) if shown]
 
         # The level has a fixed name, so data named "x" or "y" cannot replace a
         # coordinate; the name of the data is what hover and the colorbar show.
@@ -672,19 +676,24 @@ class UxDataArrayPlotAccessor:
             hv.Dimension("y", label="Latitude"),
         ]
         paths = _paths_by_level(contours, level_dim.name)
-        label_x, label_y, label_text = _label_points(contours, label_fraction)
+        label_x, label_y, label_text = _label_points(labeled, label_fraction)
         label_data = {"x": label_x, "y": label_y, "text": label_text}
         extents = _grid_extents(self._uxda.uxgrid)
 
         if projection is not None:
             import cartopy.crs as ccrs
             import geoviews as gv
+            from geoviews.util import project_extents
 
-            crs = ccrs.PlateCarree()
-            lines = gv.Contours(
-                paths, kdims=kdims, vdims=[level_dim], crs=crs, extents=extents
+            # The lines are already projected, so the area of the grid is projected
+            # as GeoViews projects the extents of an element in longitude and latitude
+            extents = project_extents(extents, ccrs.PlateCarree(), projection)
+            lines = _projected_contours()(
+                paths, kdims=kdims, vdims=[level_dim], crs=projection, extents=extents
             )
-            text = gv.Labels(label_data, kdims=kdims, vdims=["text"], crs=crs)
+            text = gv.Labels(
+                label_data, kdims=kdims, vdims=["text"], crs=ccrs.PlateCarree()
+            )
         else:
             lines = hv.Contours(paths, kdims=kdims, vdims=[level_dim], extents=extents)
             text = hv.Labels(label_data, kdims=kdims, vdims=["text"])
@@ -697,6 +706,9 @@ class UxDataArrayPlotAccessor:
         defaults = {"padding": 0}
         if projection is not None:
             defaults["data_aspect"] = 1
+            # HoloViews frames the projected lines by their data, which reach closer
+            # to the antimeridian than the shaded faces, unless the area is a limit
+            defaults.update(xlim=extents[0::2], ylim=extents[1::2])
         else:
             defaults.update(width=700, height=300)
         kwargs = {**defaults, **kwargs}
