@@ -16,6 +16,7 @@ from uxarray.constants import (
 )
 from uxarray.errors import DimensionError
 from uxarray.grid.validation import _live_node_indices
+from uxarray.utils.parallel import parallel_njit
 
 
 class KDTree:
@@ -1387,7 +1388,7 @@ def _reduce_rows(data, flat, starts, counts, op, param, out):
         _reduce_row(data[r], flat, starts, counts, op, param, out[r], buffer)
 
 
-@njit(cache=True, nogil=True, parallel=True)
+@parallel_njit
 def _reduce_rows_parallel(data, flat, starts, counts, op, param, out):
     """Reduces the rows of the 2-D ``data`` in parallel, for in-memory arrays."""
     widest = _widest(counts)
