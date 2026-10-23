@@ -7,8 +7,6 @@ operations return UxDataArray/UxDataset objects with preserved uxgrid.
 
 from typing import Any
 
-import xarray as xr
-
 # Mapping of method names to their accessor classes
 DATASET_ACCESSOR_METHODS = {
     "groupby": "UxDatasetGroupByAccessor",
@@ -181,15 +179,9 @@ class UxDataArrayGroupByAccessor(BaseAccessor):
 
     def _process_result(self, result):
         """Process method results to preserve uxgrid."""
-        if isinstance(result, xr.DataArray):
-            from uxarray.core.dataarray import UxDataArray
+        from uxarray.core.api import asuxarray
 
-            return UxDataArray(result, uxgrid=self._uxgrid)
-        elif isinstance(result, xr.Dataset):
-            from uxarray.core.dataset import UxDataset
-
-            return UxDataset(result, uxgrid=self._uxgrid)
-        return result
+        return asuxarray(result, uxgrid=self._uxgrid)
 
     def __repr__(self):
         return f"UxDataArrayGroupBy({repr(self._xr_obj)})"
@@ -200,17 +192,11 @@ class UxDatasetGroupByAccessor(BaseAccessor):
 
     def _process_result(self, result):
         """Process method results to preserve uxgrid."""
-        if isinstance(result, xr.Dataset):
-            from uxarray.core.dataset import UxDataset
+        from uxarray.core.api import asuxarray
 
-            return UxDataset(
-                result, uxgrid=self._uxgrid, source_datasets=self._source_datasets
-            )
-        elif isinstance(result, xr.DataArray):
-            from uxarray.core.dataarray import UxDataArray
-
-            return UxDataArray(result, uxgrid=self._uxgrid)
-        return result
+        return asuxarray(
+            result, uxgrid=self._uxgrid, source_datasets=self._source_datasets
+        )
 
     def __repr__(self):
         return f"UxDatasetGroupBy({repr(self._xr_obj)})"
