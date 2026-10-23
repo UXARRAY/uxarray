@@ -14,6 +14,7 @@ from xarray.core.utils import UncachedAccessor
 from uxarray.constants import GRID_DIMS
 from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.arithmetic import UxSupportsArithmetic
+from uxarray.core.azimuthal import _compute_azimuthal_mean
 from uxarray.core.gradient import (
     _calculate_edge_face_difference,
     _calculate_edge_node_difference,
@@ -994,6 +995,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         Only supported for face-centered data variables. Candidate faces are determined
         using bounding circles - for radii = [r1, r2, r3, ...] faces whose centers lie at distance d,
         r2 < d <= r3 are included in calculations for r3.
+
+        Dask-backed data is reduced lazily, with the faces inside ``outer_radius``
+        gathered into a single ``n_face`` chunk.
         """
         from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
@@ -1009,8 +1013,6 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 f"outer_radius must be a positive scalar during azimuthal_mean(); got outer_radius={outer_radius}"
             )
 
-        kdtree = self.uxgrid._get_scipy_kd_tree()
-
         lon_deg, lat_deg = map(float, np.asarray(center_coord))
         center_xyz = np.array(
             _lonlat_rad_to_xyz(np.deg2rad(lon_deg), np.deg2rad(lat_deg))
@@ -1020,37 +1022,12 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         radii_rad = np.deg2rad(radii_deg)
         chord_radii = 2.0 * np.sin(radii_rad / 2.0)
 
-        faces_processed = np.array([], dtype=np.int_)
-        means = np.full(
-            (radii_deg.size, *self.to_xarray().isel(drop=True, n_face=0).shape), np.nan
-        )
-        hit_count = np.zeros_like(radii_deg, dtype=np.int_)
+        means, hit_count = _compute_azimuthal_mean(self, center_xyz, chord_radii)
 
-        for ii, r_chord in enumerate(chord_radii):
-            # indices of faces within the bounding circle for this radius
-            within = np.array(
-                kdtree.query_ball_point(center_xyz, r_chord), dtype=np.int_
-            )
-            if within.size:
-                within.sort()
-
-            # include only the new ring: r_(i-1) < d <= r_i
-            faces_in_bin = np.setdiff1d(within, faces_processed, assume_unique=True)
-            hit_count[ii] = faces_in_bin.size
-
-            if hit_count[ii] == 0:
-                continue
-
-            faces_processed = within  # cumulative set for next iteration
-
-            tpose = self.isel(n_face=faces_in_bin).transpose(..., "n_face")
-            means[ii, ...] = tpose.weighted_mean().data
-
-        # swap the leading 'radius' axis into the former n_face position
+        # 'radius' takes the former n_face position
         face_axis = self.dims.index("n_face")
         dims = list(self.dims)
         dims[face_axis] = "radius"
-        means = np.moveaxis(means, 0, face_axis)
 
         hit_count = xr.DataArray(
             data=hit_count, dims="radius", coords={"radius": radii_deg}
