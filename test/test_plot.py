@@ -444,6 +444,21 @@ def test_contour_levels(gridpath, datasetpath):
         assert 1 <= len(levels) <= 6
         assert uxds['psi'].min() < min(levels) and max(levels) < uxds['psi'].max()
 
+        # a level given twice is drawn once
+        once = _contour_lines(uxds['psi'].plot.contour(levels=[0.9], method=method))
+        twice = _contour_lines(uxds['psi'].plot.contour(levels=[0.9, 0.9], method=method))
+        assert len(twice) == len(once)
+        assert all(np.array_equal(a[1], b[1]) and np.array_equal(a[2], b[2]) for a, b in zip(once, twice))
+
+    # a level at the smallest value: "edges" draws the line around the faces at that value
+    # (here the faces outside a band of latitude), "interpolated" draws nothing
+    uxgrid = uxds.uxgrid
+    inside = (np.abs(uxgrid.face_lat.values) < 30).astype(float)
+    mask = ux.UxDataArray(xr.DataArray(inside, dims="n_face", name="mask"), uxgrid=uxgrid)
+    assert {level for level, _, _ in _contour_lines(mask.plot.contour(levels=[0.0], method="edges"))} == {0.0}
+    assert _contour_lines(mask.plot.contour(levels=[0.0], method="interpolated")) == []
+    assert _contour_lines(mask.plot.contour(levels=[1.0], method="edges")) == []
+
 
 # the first grid has nodes on the antimeridian, the second has cells that cross it
 GLOBAL_GRIDS = [("ugrid", "outCSne30", "outCSne30.ug"), ("mpas", "QU", "mesh.QU.1920km.151026.nc")]
@@ -696,6 +711,11 @@ def test_contour_missing_values(gridpath):
 
         # no data at all gives no lines
         assert _contour_lines((uxda * np.nan).plot.contour(method=method)) == []
+
+    # nor does a grid whose dual has no faces to split into triangles
+    two_faces = _face_latitude(ux.open_grid(gridpath("scrip", "scrip_radians", "scrip_radians_grid.nc")))
+    assert two_faces.uxgrid.get_dual().n_face == 0
+    assert _contour_lines(two_faces.plot.contour(method="interpolated")) == []
 
 
 def test_contour_invalid_input(gridpath, datasetpath):

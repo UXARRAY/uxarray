@@ -43,6 +43,8 @@ def _spatial_values(uxda: UxDataArray) -> tuple[np.ndarray, str]:
 
 
 def _wrap_longitude(lon: np.ndarray) -> np.ndarray:
+    """Longitudes moved into [-180, 180), the range the lines are drawn in. Grids
+    store them in either [0, 360) or [-180, 180)."""
     return (lon + 180.0) % 360.0 - 180.0
 
 
@@ -57,9 +59,14 @@ def _fan_corners(
     a fan of triangles from it covers the face exactly. 0 is tried first; -1 means that
     no corner can. Faces that touch or contain a pole, or have no area, keep 0: a pole is
     one point drawn at an arbitrary longitude, so their shape in longitude and latitude
-    says nothing about dents."""
+    says nothing about dents.
+
+    Used by ``_fan_triangles`` to find the few dented faces among all the faces of a
+    grid, which is why it is compiled."""
     n_faces = len(n_nodes_per_face)
     corners = np.zeros(n_faces, dtype=np.int64)
+    if n_faces == 0:  # e.g. the dual of a grid of two faces; .max() needs a face
+        return corners
     # create x and y buffers only once, to avoid allocating many tiny numpy arrays
     max_n_nodes_per_face = n_nodes_per_face.max()
     x = np.empty(max_n_nodes_per_face)
@@ -102,7 +109,13 @@ def _fan_corners(
 
 
 def _ear_clipping(x: np.ndarray, y: np.ndarray) -> list[tuple[int, int, int]]:
-    """Triangles of a simple polygon, as positions of its corners."""
+    """Triangles of a simple polygon, as positions of its corners.
+
+    Used by ``_fan_triangles`` for the rare dented faces in which no corner can see
+    every other corner (a C-shaped face, for example), so that no fan of triangles
+    covers them. It cuts off one "ear" at a time: three corners in a row whose triangle
+    turns the same way as the polygon and holds no other corner. Plain Python is fast
+    enough, as it only runs on those faces."""
 
     def turn(a, b, c):
         return (x[b] - x[a]) * (y[c] - y[a]) - (x[c] - x[a]) * (y[b] - y[a])
@@ -139,7 +152,9 @@ def _fan_triangles(
     lon: np.ndarray,
     lat: np.ndarray,
 ) -> np.ndarray:
-    """Splits each face into triangles that share one of its corners."""
+    """Splits each face into triangles that share one of its corners.
+
+    Used by ``_triangulation``: Matplotlib contours data on triangles only."""
     # A fan from one corner covers a face exactly only if that corner can see every other
     # corner. Every convex face is like that, but dented faces occur, mostly among the
     # cells of the dual mesh of irregular meshes (FESOM-style ocean meshes, overlap meshes).
@@ -226,7 +241,11 @@ def _triangulation(
 def _split_at_antimeridian(line: np.ndarray) -> list[np.ndarray]:
     """Splits a line whose longitudes run past -180 or 180 degrees into the
     parts on either side of the antimeridian, each with longitudes in
-    [-180, 180]."""
+    [-180, 180].
+
+    A line that crosses the antimeridian is found in longitudes that run past 180
+    degrees, so that it stays in one piece; drawn that way, it would leave the map.
+    Both methods use it."""
     lon = line[:, 0]
     if lon.min() >= -180.0 and lon.max() <= 180.0:
         return [line]
@@ -244,11 +263,15 @@ def _split_at_antimeridian(line: np.ndarray) -> list[np.ndarray]:
     return parts
 
 
-def _contour_levels(values: np.ndarray, levels: int | Sequence[float]) -> np.ndarray:
+def _contour_levels(
+    values: np.ndarray, levels: int | Sequence[float], keep_min: bool = False
+) -> np.ndarray:
     """Returns the contour levels that fall inside the range of the data.
 
     An integer requests roughly that many levels at "nice" values, chosen the
-    way Matplotlib chooses them.
+    way Matplotlib chooses them. Given levels are sorted, and a level given twice
+    is used once. With ``keep_min``, a given level equal to the smallest value is
+    kept: the method "edges" draws a line there, around the faces at that value.
     """
     finite = values[np.isfinite(values)]
     if finite.size == 0:
@@ -268,7 +291,9 @@ def _contour_levels(values: np.ndarray, levels: int | Sequence[float]) -> np.nda
                 "levels must be an integer or a one-dimensional sequence of values, "
                 f"but got {levels!r}"
             )
-        levels = np.sort(np.asarray(levels, dtype=float))
+        levels = np.unique(np.asarray(levels, dtype=float))
+        if keep_min:
+            return levels[(levels >= vmin) & (levels < vmax)]
 
     return levels[(levels > vmin) & (levels < vmax)]
 
@@ -276,7 +301,12 @@ def _contour_levels(values: np.ndarray, levels: int | Sequence[float]) -> np.nda
 def _interpolated_contours(
     values: np.ndarray, uxgrid: Grid, dim: str, levels: np.ndarray
 ) -> list[tuple[float, np.ndarray]]:
-    """Contour lines from linear interpolation on a triangulation of the grid."""
+    """Contour lines from linear interpolation on a triangulation of the grid.
+
+    The method ``"interpolated"``. The data values sit at the corners of the triangles
+    from ``_triangulation``, and Matplotlib's ``tricontour`` draws each line straight
+    across every triangle it passes, where the values change linearly. The lines are
+    smooth but do not follow the edges of the grid."""
     _raise_hint_if_optional_deps_missing("matplotlib")
     from matplotlib.figure import Figure
     from matplotlib.tri import Triangulation
@@ -309,6 +339,10 @@ def _join_segments(start: np.ndarray, end: np.ndarray) -> tuple[np.ndarray, np.n
     """Joins segments, given by the indices of their two end nodes, into
     continuous lines.
 
+    Used by the method ``"edges"``, which finds each contour line as separate grid
+    edges in no particular order. Joined, a line is drawn as one path and gets one
+    label, and its length can be measured to place that label.
+
     Returns
     -------
     nodes : np.ndarray
@@ -326,6 +360,9 @@ def _join_segments(start: np.ndarray, end: np.ndarray) -> tuple[np.ndarray, np.n
 
 @njit(cache=True, nogil=True)
 def _join_segments_kernel(start, end):
+    """The compiled part of ``_join_segments``: lists the segments at each node,
+    then walks from node to node through unused segments. Open lines are walked from
+    one of their ends, so that each comes out in one piece."""
     n_segment = start.size
 
     # The nodes are numbered in the order they first appear, which is the order
@@ -443,7 +480,11 @@ def _edge_contours(
 def _unwrap_lines(lon: np.ndarray, starts: np.ndarray) -> np.ndarray:
     """Removes the jumps of 360 degrees from the longitudes of several lines
     stored one after the other, which begin at ``starts``. Each line is
-    unwrapped on its own, as by ``np.unwrap(..., period=360)``."""
+    unwrapped on its own, as by ``np.unwrap(..., period=360)``.
+
+    Used by the method ``"edges"``: a line along grid edges that crosses the
+    antimeridian jumps from 180 to -180 degrees, and is drawn across the whole map
+    unless it is unwrapped and then split with ``_split_at_antimeridian``."""
     step = np.diff(lon)
     # The whole turns that bring each step into [-180, 180]
     turns = np.where(np.abs(step) < 180.0, 0.0, np.round(step / 360.0))
@@ -454,7 +495,10 @@ def _unwrap_lines(lon: np.ndarray, starts: np.ndarray) -> np.ndarray:
 
 
 def _grid_extents(uxgrid: Grid) -> tuple[float, float, float, float]:
-    """The area of the grid as (west, south, east, north), in degrees."""
+    """The area of the grid as (west, south, east, north), in degrees.
+
+    Used as the extents of the lines, so that contours shown on their own cover the
+    same area as ``.plot()`` of the same data, not just the area of the lines."""
     lon, lat = uxgrid.node_lon.values, uxgrid.node_lat.values
     west, east = float(np.nanmin(lon)), float(np.nanmax(lon))
     south, north = float(np.nanmin(lat)), float(np.nanmax(lat))
@@ -662,10 +706,12 @@ def _compute_contours(
         )
 
     values, dim = _spatial_values(uxda)
-    levels = _contour_levels(values, levels)
-
     if method is None:
         method = "edges" if dim == "n_face" else "interpolated"
+
+    # A level at the smallest value separates the faces at that value from the others,
+    # but an interpolated line there would only touch the data at single points
+    levels = _contour_levels(values, levels, keep_min=method == "edges")
 
     if method == "edges":
         if dim != "n_face":

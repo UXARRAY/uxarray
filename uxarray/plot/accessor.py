@@ -563,7 +563,7 @@ class UxDataArrayPlotAccessor:
         levels : int or sequence of float, default=7
             If an integer, roughly that many contour levels are chosen at round
             values within the range of the data. If a sequence, contour lines are
-            drawn at those values.
+            drawn at those values; a value given twice gets one set of lines.
         method : str, optional
             How the contour lines are computed. Defaults to "edges" for
             face-centered data and "interpolated" for node-centered data.
