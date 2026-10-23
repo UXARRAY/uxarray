@@ -606,6 +606,17 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
     def to_xarray(self) -> xr.DataArray:
         return xr.DataArray(self)
 
+    def map_blocks(self, func, args=(), kwargs=None, template=None):
+        """Apply a function to each block of this UxDataArray, keeping the
+        grid attached to each block and to the result.
+
+        Equivalent to ``ux.map_blocks(func, self, args, kwargs, template)``;
+        see :py:func:`uxarray.map_blocks` for details.
+        """
+        from uxarray.core.parallel import map_blocks
+
+        return map_blocks(func, self, args, kwargs, template)
+
     def astype(self, dtype, **kw_super):
         """Copy of this uxarray object, with data cast to a specified type.
         Leaves coordinate dtype unchanged.

@@ -4,7 +4,7 @@ import copy
 import os
 import warnings
 from html import escape
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Hashable, Mapping, Optional, Sequence
 
 import numpy as np
 import xarray as xr
@@ -1767,9 +1767,30 @@ class Grid:
             self._ds["max_face_radius"] = _populate_max_face_radius(self)
         return self._ds["max_face_radius"]
 
-    def chunk(self, n_node="auto", n_edge="auto", n_face="auto"):
+    @property
+    def chunks(self) -> Mapping[Hashable, tuple[int, ...]]:
+        """Mapping from dimension name to block lengths for this grid's variables.
+
+        Only dask-backed variables contribute; an empty mapping means the grid
+        holds no dask arrays. Mirrors :py:attr:`xarray.Dataset.chunks`, so it
+        raises ``ValueError`` if two variables are chunked differently along the
+        same dimension.
+
+        See Also
+        --------
+        Grid.chunk
+        """
+        return self._ds.chunksizes
+
+    def chunk(
+        self,
+        n_node="auto",
+        n_edge="auto",
+        n_face="auto",
+        inplace: bool | None = None,
+    ):
         """Converts all arrays to dask arrays with given chunks across grid
-        dimensions in-place.
+        dimensions.
 
         Non-dask arrays will be converted to dask arrays. Dask arrays will be chunked to the given chunk size.
 
@@ -1819,21 +1840,50 @@ class Grid:
 
             -1 or None as a blocksize indicate the size of the corresponding
             dimension.
+
+        inplace : bool, optional
+            If ``False``, return a new chunked ``Grid`` and leave this one
+            unchanged. If ``True``, chunk this grid in place and return ``None``.
+            Leaving it unset currently behaves like ``True`` and emits a
+            ``FutureWarning``: the default will become ``False`` in a future release.
+
+        Returns
+        -------
+        Grid or None
+            The chunked grid when ``inplace=False``, otherwise ``None``.
         """
+        if inplace is None:
+            warnings.warn(
+                "Grid.chunk() currently chunks the grid in place and returns None. "
+                "In a future release it will return a new chunked Grid and leave this "
+                "one unchanged. Pass inplace=False for the new behaviour, or "
+                "inplace=True to keep the current one.",
+                FutureWarning,
+                stacklevel=2,
+            )
+            inplace = True
 
-        grid_var_names = self.coordinates | self.connectivity | self.descriptors
+        dim_chunks = {"n_node": n_node, "n_edge": n_edge, "n_face": n_face}
+        chunked_vars = {}
+        for var_name in self.coordinates | self.connectivity | self.descriptors:
+            grid_var = self._ds[var_name]
+            # the first grid dimension present decides the chunking, in n_node, n_edge, n_face order
+            grid_dim = next((dim for dim in dim_chunks if dim in grid_var.dims), None)
+            chunks = {grid_dim: dim_chunks[grid_dim]} if grid_dim else {}
+            chunked_vars[var_name] = grid_var.chunk(chunks=chunks)
 
-        for var_name in grid_var_names:
-            grid_var = getattr(self, var_name)
+        if inplace:
+            for var_name, grid_var in chunked_vars.items():
+                setattr(self, var_name, grid_var)
+            return None
 
-            if "n_node" in grid_var.dims:
-                setattr(self, var_name, grid_var.chunk(chunks={"n_node": n_node}))
-            elif "n_edge" in grid_var.dims:
-                setattr(self, var_name, grid_var.chunk(chunks={"n_edge": n_edge}))
-            elif "n_face" in grid_var.dims:
-                setattr(self, var_name, grid_var.chunk(chunks={"n_face": n_face}))
-            else:
-                setattr(self, var_name, grid_var.chunk())
+        chunked = copy.copy(self)
+        # give the copy its own caches, so filling one grid's cache never touches the other's
+        for attr_name, value in vars(chunked).items():
+            if isinstance(value, dict):
+                setattr(chunked, attr_name, dict(value))
+        chunked._ds = self._ds.assign(chunked_vars)
+        return chunked
 
     def get_ball_tree(
         self,
@@ -2359,7 +2409,7 @@ class Grid:
         # Using np.issubdtype to check if the type is float
         # if not (int etc.), convert to float, this is to avoid numba errors
         x, y, z = (
-            arr.astype(float) if not np.issubdtype(arr[0], np.floating) else arr
+            arr.astype(float) if not np.issubdtype(arr.dtype, np.floating) else arr
             for arr in (x, y, z)
         )
 
@@ -2378,7 +2428,7 @@ class Grid:
             latitude_adjusted_area,
         )
 
-        min_jacobian = np.min(self._face_jacobian)
+        min_jacobian = np.min(self._face_jacobian, initial=np.inf)
 
         if min_jacobian < 0:
             _where_neg = np.where(self._face_jacobian < 0)[0]
