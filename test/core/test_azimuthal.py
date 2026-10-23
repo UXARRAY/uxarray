@@ -1,8 +1,10 @@
 import dask.array as da
 import numpy as np
+import pytest
 import xarray as xr
 
 import uxarray as ux
+from uxarray.core.azimuthal import _ring_membership
 
 
 def test_gaussian(gridpath, datasetpath):
@@ -142,3 +144,56 @@ def test_dask_lazy_and_matches_numpy(gridpath, datasetpath):
     assert lazy.chunks[lazy.get_axis_num("time")] == (1, 1)
     np.testing.assert_array_equal(lazy_hits, eager_hits)
     np.testing.assert_allclose(lazy.values, eager.values, rtol=1e-14, equal_nan=True)
+
+
+def _per_radius_rings(kdtree, center_xyz, chord_radii):
+    """The original ring assignment: one kd-tree query per radius."""
+    faces, ring_ids = [], []
+    processed = np.array([], dtype=np.int_)
+    for i, r_chord in enumerate(chord_radii):
+        within = np.sort(
+            np.array(kdtree.query_ball_point(center_xyz, r_chord), dtype=np.int_)
+        )
+        ring = np.setdiff1d(within, processed, assume_unique=True)
+        if ring.size:
+            processed = within
+        faces.append(ring)
+        ring_ids.append(np.full(ring.size, i))
+    return np.concatenate(faces), np.concatenate(ring_ids)
+
+
+@pytest.mark.parametrize(
+    "outer_radius, radius_step", [(2, 0.1), (60, 1), (250, 10), (360, 3)]
+)
+def test_ring_membership_matches_per_radius_queries(
+    gridpath, outer_radius, radius_step
+):
+    from uxarray.grid.coordinates import _lonlat_rad_to_xyz
+
+    uxgrid = ux.open_grid(gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"))
+    kdtree = uxgrid._get_scipy_kd_tree()
+    radii = np.arange(0.0, outer_radius + radius_step, radius_step)
+    chord_radii = 2.0 * np.sin(np.deg2rad(radii) / 2.0)
+
+    for lon, lat in [(45, 0), (44.7, 0.6), (-45, 0)]:
+        center = np.array(_lonlat_rad_to_xyz(np.deg2rad(lon), np.deg2rad(lat)))
+        expected = _per_radius_rings(kdtree, center, chord_radii)
+        actual = _ring_membership(kdtree, center, chord_radii)
+        np.testing.assert_array_equal(actual[0], expected[0])
+        np.testing.assert_array_equal(actual[1], expected[1])
+
+
+def test_ring_membership_ties_on_ring_edges(gridpath):
+    """Radii exactly at face distances, where the kd-tree's pruning rounding decides."""
+    uxgrid = ux.open_grid(gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"))
+    kdtree = uxgrid._get_scipy_kd_tree()
+    rng = np.random.default_rng(0)
+
+    for _ in range(200):
+        center = kdtree.data[rng.integers(uxgrid.n_face)].copy()
+        offsets = kdtree.data[rng.integers(uxgrid.n_face, size=5)] - center
+        chord_radii = np.sort(np.append(np.sqrt((offsets * offsets).sum(axis=1)), 0.0))
+        expected = _per_radius_rings(kdtree, center, chord_radii)
+        actual = _ring_membership(kdtree, center, chord_radii)
+        np.testing.assert_array_equal(actual[0], expected[0])
+        np.testing.assert_array_equal(actual[1], expected[1])

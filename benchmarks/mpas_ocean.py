@@ -334,9 +334,10 @@ class AzimuthalAverage(DatasetBenchmark):
         _ = self.uxds.uxgrid._get_scipy_kd_tree()
 
     def time_azimuthal_average(self, resolution):
-        # 21 rings around an equatorial Atlantic point, ocean on every oQU mesh
+        # 61 rings around an equatorial Atlantic point, ocean on every oQU mesh.
+        # Wide enough that the ring faces, not per-call overhead, set the cost.
         self.uxds[data_var].azimuthal_mean(
-            center_coord=(-30, 0), outer_radius=20, radius_step=1
+            center_coord=(-30, 0), outer_radius=60, radius_step=1
         )
 
 
