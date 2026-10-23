@@ -45,7 +45,8 @@ def main(argv=None):
     if os.environ.get("NUMBA_CACHE_DIR"):
         # Numba files caches there under a hash of each source directory, so they cannot
         # be told apart from other projects' entries; leave them alone rather than guess.
-        print("NUMBA_CACHE_DIR is set: clear it by hand, it is not touched here")
+        print("""WARNING: NUMBA_CACHE_DIR is set. To avoid corrupting caches of external projects, 
+        no caches in this directory (NUMBA_CACHE_DIR) were deleted. Please clear it by hand""")
 
     verb = "would remove" if args.dry_run else "removed"
     print(f"{verb} {len(files)} numba cache file(s)")

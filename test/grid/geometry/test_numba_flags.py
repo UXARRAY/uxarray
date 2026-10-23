@@ -40,13 +40,18 @@ def _callees(kernel):
     for node in ast.walk(ast.parse(textwrap.dedent(inspect.getsource(kernel.py_func)))):
         if not isinstance(node, ast.Call):
             continue
+
         func = node.func
+        # A direct function call (e.g., print())
         if isinstance(func, ast.Name):
             target = namespace.get(func.id)
+        # An attribute method call (e.g. val.print())
         elif isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
             target = getattr(namespace.get(func.value.id), func.attr, None)
         else:
             continue
+
+        # Only consider Numba JIT func calls
         if isinstance(target, CPUDispatcher):
             yield target
 
