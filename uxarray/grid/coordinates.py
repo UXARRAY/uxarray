@@ -51,7 +51,9 @@ def _xyz_to_lonlat_rad_no_norm(
     Returns
     -------
     lon : float
-        Longitude in radians
+        Longitude in radians, in [0, 2*pi]. Nominally [0, 2*pi), but a
+        longitude within rounding of 0 from below comes out as exactly 2*pi.
+        Poles get 0.
     lat: float
         Latitude in radians
     """
@@ -93,7 +95,9 @@ def _xyz_to_lonlat_rad(
     Returns
     -------
     lon : np.ndarray | float
-        Longitude in radians
+        Longitude in radians, in [0, 2*pi]. Nominally [0, 2*pi), but a
+        longitude within rounding of 0 from below comes out as exactly 2*pi.
+        Poles get 0.
     lat: np.ndarray | float
         Latitude in radians
     """
@@ -138,7 +142,9 @@ def _xyz_to_lonlat_deg(
     Returns
     -------
     lon : np.ndarray | float
-        Longitude in degrees
+        Longitude in degrees, in [-180, 180): 180 comes out as -180, and poles
+        get 0. Not ``np.rad2deg`` of ``_xyz_to_lonlat_rad``, which returns
+        [0, 2*pi].
     lat: np.ndarray | float
         Latitude in degrees
     """
