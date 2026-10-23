@@ -7,6 +7,7 @@ import xarray as xr
 from numba import njit, prange
 
 from uxarray.errors import DataCenteringError
+from uxarray.utils.parallel import parallel_njit
 
 if TYPE_CHECKING:
     from uxarray.core.dataarray import UxDataArray
@@ -158,7 +159,7 @@ def _barycentric_weights(point_xyz, dual, data_size, source_grid):
     return all_weights, all_indices
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _calculate_weights(
     valid_idxs,
     point_xyz,

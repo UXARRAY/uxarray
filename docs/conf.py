@@ -234,6 +234,7 @@ nb_execution_excludepatterns = [
     "3_75km_mpas.ipynb",
     "e3sm-calc-workflow.ipynb",
     "e3sm-load-viz.ipynb",
+    "mpas-hurricane-maria-contours.ipynb",
     "parallel-load-ux-with-dask.ipynb",
 ]
 
