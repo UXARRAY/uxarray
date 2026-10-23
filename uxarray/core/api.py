@@ -12,7 +12,7 @@ import xarray as xr
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.dataset import UxDataset
 from uxarray.core.utils import (
-    _map_dims_to_ugrid,
+    _map_dataset_to_ugrid,
     _open_dataset_with_fallback,
     match_chunks_to_ugrid,
 )
@@ -625,27 +625,10 @@ def open_mfdataset(
     return UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
 
 
-def _map_dataset_to_ugrid(ds, grid):
-    """Map member dimensions without modifying the Grid's source mapping."""
-    source_dims = grid._source_dims_dict.copy()
-    if grid.source_grid_spec == "Structured":
-        lon_dim, lat_dim = source_dims["n_face"]
-        if lon_dim not in ds.dims and lat_dim not in ds.dims:
-            # No source spatial axes remain to flatten, including members
-            # located only on canonical nodes or edges.
-            return ds
-    # Already-standardized dimensions must not be inferred by size: nodes and
-    # faces can have equal counts. Preserve any explicit source mapping.
-    for dim in ("n_face", "n_node", "n_edge"):
-        if dim in ds.dims:
-            source_dims.setdefault(dim, dim)
-    return _map_dims_to_ugrid(ds, source_dims, grid)
-
-
 def _get_grid(
     grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
 ):
-    """Utility function to validate the input parameters and return a Grid."""
+    """Validate input parameters and return the ``(grid, chunks)`` tuple."""
     if isinstance(grid_filename_or_obj, Grid):
         if use_dual:
             raise ValueError(

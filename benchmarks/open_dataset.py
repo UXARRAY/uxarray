@@ -1,4 +1,4 @@
-"""Opening synthetic ensemble data with a rebuilt or reusable grid."""
+"""Opening synthetic data with file, Dataset, or existing Grid inputs."""
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -9,7 +9,7 @@ import xarray as xr
 import uxarray as ux
 
 
-class OpenDatasetGridReuse:
+class OpenDataset:
     param_names = ["grid_input", "data_input"]
     params = [["file", "dataset", "grid"], ["file", "dataset"]]
 

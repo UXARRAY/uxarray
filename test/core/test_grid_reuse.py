@@ -526,6 +526,7 @@ class TestGridReuse(TestCase):
             self.addCleanup(result.close)
             self.addCleanup(result.uxgrid._ds.close)
             self.assertIsNot(result.uxgrid, self.grid)
+            self.assertEqual(result.uxgrid, self.grid)
             self.assertEqual(result.temperature.dims, ("time", "n_face"))
             self.assertEqual(result.temperature.chunks[-1], (2, 2))
             np.testing.assert_array_equal(
