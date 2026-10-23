@@ -1,7 +1,8 @@
-import pytest
-import uxarray as ux
+import dask.array as da
 import numpy as np
+import xarray as xr
 
+import uxarray as ux
 
 
 def test_gaussian(gridpath, datasetpath):
@@ -66,3 +67,78 @@ def test_zero_hit_counts(gridpath, datasetpath):
     assert np.all(hit_counts == 0)
 
     print(res)
+
+
+def _reference_azimuthal_mean(uxda, center_coord, outer_radius, radius_step):
+    """Per-ring float64 oracle: nansum(x * area) / sum(area) over each ring."""
+    from uxarray.grid.coordinates import _lonlat_rad_to_xyz
+
+    kdtree = uxda.uxgrid._get_scipy_kd_tree()
+    lon, lat = np.deg2rad(center_coord)
+    center = np.array(_lonlat_rad_to_xyz(lon, lat))
+    radii = np.arange(0.0, outer_radius + radius_step, radius_step)
+    chords = 2.0 * np.sin(np.deg2rad(radii) / 2.0)
+
+    areas = uxda.uxgrid.face_areas.values.astype(np.float64)
+    values = uxda.transpose(..., "n_face").values.astype(np.float64)
+    out = np.full(values.shape[:-1] + (radii.size,), np.nan)
+    previous = set()
+    for i, chord in enumerate(chords):
+        within = set(kdtree.query_ball_point(center, chord))
+        ring = np.array(sorted(within - previous), dtype=int)
+        previous = within
+        if ring.size:
+            out[..., i] = (
+                np.nansum(values[..., ring] * areas[ring], axis=-1) / areas[ring].sum()
+            )
+    return out
+
+
+def _multi_dim(uxds):
+    """(n_face, time) data with the grid dim first and a few NaNs."""
+    stacked = (
+        xr.concat(
+            [uxds["gaussian"].to_xarray(), uxds["inverse_gaussian"].to_xarray()],
+            dim="time",
+        )
+        .transpose("n_face", "time")
+        .copy()
+    )
+    stacked[[3, 50, 120], 1] = np.nan
+    return ux.UxDataArray(stacked.assign_coords(time=[10, 20]), uxgrid=uxds.uxgrid)
+
+
+def test_matches_reference(gridpath, datasetpath):
+    uxds = ux.open_dataset(
+        gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+        datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc"),
+    )
+    uxda = _multi_dim(uxds)
+
+    res = uxda.azimuthal_mean(center_coord=(45, 0), outer_radius=2, radius_step=0.25)
+
+    assert res.dims == ("radius", "time")
+    np.testing.assert_array_equal(res["time"], [10, 20])
+    expected = _reference_azimuthal_mean(uxda, (45, 0), 2, 0.25)
+    np.testing.assert_allclose(
+        res.transpose("time", "radius").values, expected, rtol=1e-12
+    )
+
+
+def test_dask_lazy_and_matches_numpy(gridpath, datasetpath):
+    uxds = ux.open_dataset(
+        gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+        datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc"),
+    )
+    uxda = _multi_dim(uxds)
+    kwargs = dict(
+        center_coord=(45, 0), outer_radius=2, radius_step=0.25, return_hit_counts=True
+    )
+
+    eager, eager_hits = uxda.azimuthal_mean(**kwargs)
+    lazy, lazy_hits = uxda.chunk(n_face=50, time=1).azimuthal_mean(**kwargs)
+
+    assert isinstance(lazy.data, da.Array)
+    assert lazy.chunks[lazy.get_axis_num("time")] == (1, 1)
+    np.testing.assert_array_equal(lazy_hits, eager_hits)
+    np.testing.assert_allclose(lazy.values, eager.values, rtol=1e-14, equal_nan=True)

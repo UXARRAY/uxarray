@@ -326,6 +326,20 @@ class ZonalAverage(DatasetBenchmark):
         self.uxds['bottomDepth'].zonal_mean(lat=(-45, 45, lat_step))
 
 
+class AzimuthalAverage(DatasetBenchmark):
+    def setup(self, resolution, *args, **kwargs):
+        super().setup(resolution, *args, **kwargs)
+        # Grid caches, so only the per-ring reduction is timed
+        _ = self.uxds.uxgrid.face_areas
+        _ = self.uxds.uxgrid._get_scipy_kd_tree()
+
+    def time_azimuthal_average(self, resolution):
+        # 21 rings around an equatorial Atlantic point, ocean on every oQU mesh
+        self.uxds[data_var].azimuthal_mean(
+            center_coord=(-30, 0), outer_radius=20, radius_step=1
+        )
+
+
 class ZonalAveragePeakMem:
     """Peak memory of a cold-start non-conservative zonal-mean sweep.
     Uses a fresh interpreter per sample."""
