@@ -104,13 +104,16 @@ def test_no_fastmath(kernels):
         name for name, kernel in eft.items() if kernel.targetoptions.get("fastmath")
     ]
     # Also scan the source, for kernels the import walk can't see: nested ones and the
-    # ``two_prod`` variant not selected on this machine.
+    # ``two_prod`` variant not selected on this machine. Only a literal ``False`` is known
+    # to be safe; anything else (``True``, a flag set, a variable) is flagged.
     for module in {kernel.py_func.__module__ for kernel in eft.values()}:
         tree = ast.parse(Path(sys.modules[module].__file__).read_text())
         offenders += [
             f"{module}:{node.lineno}"
             for node in ast.walk(tree)
-            if isinstance(node, ast.keyword) and node.arg == "fastmath"
+            if isinstance(node, ast.keyword)
+            and node.arg == "fastmath"
+            and not (isinstance(node.value, ast.Constant) and node.value.value is False)
         ]
     assert not offenders, (
         f"fastmath would cancel the EFT error terms: {sorted(offenders)}"
