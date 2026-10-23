@@ -787,9 +787,11 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         Parameters
         ----------
         quadrature_rule : str, optional
-            Quadrature rule to use. Defaults to "triangular".
+            Quadrature rule used to compute the face areas, one of
+            ``"triangular"`` (default) or ``"gaussian"``. Forwarded to
+            :meth:`UxDataArray.integrate`.
         order : int, optional
-            Order of quadrature rule. Defaults to 4.
+            Order of the quadrature rule. Defaults to 4.
 
         Returns
         -------

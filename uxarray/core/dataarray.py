@@ -641,21 +641,31 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         return result
 
     def integrate(
-        self, quadrature_rule: str | None = "triangular", order: int | None = 4
+        self, quadrature_rule: str = "triangular", order: int = 4
     ) -> UxDataArray:
         """Computes the integral of a data variable.
 
         Parameters
         ----------
         quadrature_rule : str, optional
-            Quadrature rule to use. Defaults to "triangular".
+            Quadrature rule used to compute the face areas, one of
+            ``"triangular"`` (default) or ``"gaussian"``. See
+            :meth:`~uxarray.Grid.compute_face_areas` for what these mean and
+            which orders each supports.
         order : int, optional
-            Order of quadrature rule. Defaults to 4.
+            Order of the quadrature rule. Defaults to 4.
 
         Returns
         -------
         uxda : UxDataArray
             UxDataArray containing the integrated data variable
+
+        Notes
+        -----
+        The default ``quadrature_rule="triangular"`` with ``order=4`` reuses the
+        cached :attr:`~uxarray.Grid.face_areas`. Any other combination computes
+        the areas fresh, which for a HEALPix grid integrates the polygonal face
+        representation rather than the theoretical equal pixel areas.
 
         Examples
         --------
@@ -664,20 +674,33 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
         >>> integral = uxds["psi"].integrate()
+
+        Integrate with a higher-order quadrature rule
+
+        >>> integral = uxds["psi"].integrate(order=8)
         """
         # TODO: support integration regardless of n_face dimension position,
         #    and remove the self.dims[-1] == "n_face" check.
         #    (uxarray/xarray features should be agnostic to dimension positions.)
         if self._face_centered() and self.dims[-1] == "n_face":
+            # The cached ``face_areas`` property always uses the default
+            # quadrature, and for HEALPix preserves theoretical equal areas, so
+            # reuse it there. Any other rule/order needs a fresh geometric
+            # computation for the request to actually take effect (issue #1599).
+            if quadrature_rule == "triangular" and order == 4:
+                face_areas = self.uxgrid.face_areas
+            else:
+                face_areas = self.uxgrid.compute_face_areas(
+                    quadrature_rule=quadrature_rule, order=order, as_uxarray=True
+                )
+
             # dot product between face areas and the face dimension of the data
             if isinstance(self.data, np.ndarray):
                 # eager data: a direct einsum avoids xr.dot's per-call overhead
-                integral = np.einsum(
-                    "i,...i", self.uxgrid.face_areas.values, self.values
-                )
+                integral = np.einsum("i,...i", face_areas.values, self.values)
             else:
                 # dask-backed data: xr.dot keeps the reduction lazy
-                integral = xr.dot(self, self.uxgrid.face_areas, dim="n_face")
+                integral = xr.dot(self, face_areas, dim="n_face")
 
         elif not self._face_centered():
             raise DataCenteringError(

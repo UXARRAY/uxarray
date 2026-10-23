@@ -20,6 +20,66 @@ def test_single_dim(gridpath):
     nt.assert_almost_equal(integral, 4 * np.pi)
 
 
+@pytest.mark.parametrize(
+    "quadrature_rule, order",
+    [("triangular", 1), ("triangular", 8), ("gaussian", 1), ("gaussian", 4)],
+)
+def test_integrate_honors_quadrature_kwargs(gridpath, quadrature_rule, order):
+    """``quadrature_rule``/``order`` must reach the area computation (issue #1599).
+
+    Before the fix these kwargs were accepted and silently ignored, so every
+    call returned the cached default-quadrature result.
+    """
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    uxda = ux.UxDataArray(
+        data=np.ones(uxgrid.n_face), dims=("n_face",), uxgrid=uxgrid, name="ones"
+    )
+
+    expected = np.einsum(
+        "i,...i",
+        uxgrid.compute_face_areas(quadrature_rule=quadrature_rule, order=order),
+        uxda.values,
+    )
+    got = uxda.integrate(quadrature_rule=quadrature_rule, order=order)
+
+    # Bit-exact: the same reduction over the same freshly computed areas.
+    nt.assert_array_equal(got.values, expected)
+    # ...and actually different from the cached default, or the kwarg did nothing.
+    assert float(got) != float(uxda.integrate())
+
+
+def test_integrate_default_uses_cached_face_areas(gridpath):
+    """The default rule/order must still reuse the cached ``face_areas``."""
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    uxda = ux.UxDataArray(
+        data=np.ones(uxgrid.n_face), dims=("n_face",), uxgrid=uxgrid, name="ones"
+    )
+
+    expected = np.einsum("i,...i", uxgrid.face_areas.values, uxda.values)
+    nt.assert_array_equal(uxda.integrate().values, expected)
+    nt.assert_array_equal(
+        uxda.integrate(quadrature_rule="triangular", order=4).values, expected
+    )
+
+
+def test_integrate_quadrature_kwargs_stay_lazy(gridpath):
+    """Non-default quadrature must not materialize dask-backed data."""
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    uxda = ux.UxDataArray(
+        data=np.ones(uxgrid.n_face), dims=("n_face",), uxgrid=uxgrid, name="ones"
+    ).chunk({"n_face": 100})
+
+    integral = uxda.integrate(order=8)
+
+    assert isinstance(integral.data, da.Array)
+    nt.assert_allclose(
+        float(integral.compute()),
+        float(uxda.compute().integrate(order=8)),
+        rtol=1e-12,
+        atol=0.0,
+    )
+
+
 def test_multi_dim(gridpath):
     """Integral with 3D data mapped to each face."""
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
