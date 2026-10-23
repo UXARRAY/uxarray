@@ -442,20 +442,6 @@ class TestScalarDotGradientMPASOcean:
             np.full(n_face, -0.5), dims=dims, uxgrid=uxds.uxgrid, name="v"
         )
 
-#         def mock_gradient(self):
-#             return ux.UxDataset(
-#                 {
-#                     "zonal_gradient": ux.UxDataArray(
-#                         np.full(n_face, 3.0), dims=dims, uxgrid=self.uxgrid
-#                     ),
-#                     "meridional_gradient": ux.UxDataArray(
-#                         np.full(n_face, -4.0), dims=dims, uxgrid=self.uxgrid
-#                     ),
-#                 },
-#                 uxgrid=self.uxgrid,
-#             )
-#
-#         monkeypatch.setattr(ux.UxDataArray, "gradient", mock_gradient)
         def mock_compute_gradient(data, scale_by_radius=True, **kw_apply_ufunc):
             zonal_gradient = ux.UxDataArray(
                 np.full(n_face, 3.0), dims=dims, uxgrid=data.uxgrid

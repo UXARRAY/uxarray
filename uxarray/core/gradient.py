@@ -120,8 +120,11 @@ def _compute_gradient(
     """
     uxgrid = data.uxgrid
     # determine output dtype; necessary if inputs are parallelized.
+    # also cast to that dtype, which would maybe happen implicitly anyway,
+    # but do it explicitly here to avoid any ambiguity / warnings later.
     output_dtype = np.result_type(data.dtype, np.float64)
     kw_apply_ufunc.setdefault("output_dtypes", [output_dtype, output_dtype])
+    data = data.astype(output_dtype, copy=False)
 
     if data._face_centered():
         face_coords = np.array(

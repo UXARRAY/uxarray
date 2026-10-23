@@ -322,7 +322,7 @@ def _apply_1dfunc_with_grid_core_dim(
                     "with dask!='forbidden', but `output_dtypes` was not provided. "
                     "If this causes a ValueError: `dtype` inference failed in `apply_gufunc`, "
                     "that most likely indicates an implementation error in the function which "
-                    "called _apply_1dfunc_with_grid_core_dim, but failed to supply output_dyptes "
+                    "called _apply_1dfunc_with_grid_core_dim, but failed to supply output_dtypes "
                     "to it; that function should be updated accordingly."
                 )
 
