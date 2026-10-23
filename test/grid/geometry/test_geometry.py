@@ -1,5 +1,7 @@
+import cartopy.crs as ccrs
 import numpy as np
 import pytest
+from spatialpandas.geometry import MultiPolygonArray
 import xarray as xr
 
 import uxarray as ux
@@ -110,7 +112,6 @@ def test_cache_and_override_geodataframe(gridpath):
 
     # gdf_f should be the same as gdf_c (cached)
     assert gdf_f is gdf_c
-
 
 
 def test_face_at_antimeridian():
@@ -229,3 +230,46 @@ def test_geodataframe_crashes_when_nnode_equals_nface():
     # ensure to_geodataframe crashes for non-face-centered data, even if n_node==n_face
     with pytest.raises(ValueError):
         uxarr.to_geodataframe()
+
+def test_build_multipolygon_array_matches_spatialpandas_multipolygon_array(monkeypatch):
+    """ensure _build_multipolygon_array is bit-for-bit equal to spatialpandas's MultiPolygonArray,
+    specifically as called from _build_geodataframe_with_antimeridian,
+    from inside to_geodataframe(), when periodic_elements="split",
+    with or without a projection.
+    """
+    import uxarray.grid.geometry  # will be monkeypatched below
+
+    called = []  # tracker to ensure the mock method was actually used
+    def mock_build_multipolygon_array(polygons, shells, antimeridian_face_indices):
+        """returns MultiPolygonArray(polygons), instead of using the
+        more efficient _build_multipolygon_array implementation.
+        """
+        called.append((polygons, shells, antimeridian_face_indices))
+        return MultiPolygonArray(polygons)
+
+    # produce a a nontrivial example; has some antimeridian-crossing faces
+    grid = ux.Grid.from_healpix(zoom=4)
+    arr = grid.compute_face_areas(as_uxarray=True) * np.arange(grid.n_face)
+    # assert there are actually some antimeridian-crossing faces
+    lon_min = grid.face_bounds_lon.isel(min_max=0)
+    lon_max = grid.face_bounds_lon.isel(min_max=1)
+    n_crosses = np.count_nonzero(lon_min > lon_max)
+    assert 0 < n_crosses < grid.n_face
+
+    # test cases with and without a projection
+    kws0 = dict(periodic_elements="split", engine="spatialpandas")
+    kws1 = dict(**kws0, projection=ccrs.Robinson(), project=False)
+    # (project=False because to_geodataframe() otherwise crashes,
+    # when periodic_elements="split" and projection is provided.)
+    result0_orig = arr.to_geodataframe(**kws0)
+    result1_orig = arr.to_geodataframe(**kws1)
+
+    # monkeypatch _build_multipolygon_array to use the mock method.
+    monkeypatch.setattr(uxarray.grid.geometry, "_build_multipolygon_array", mock_build_multipolygon_array)
+
+    result0_mock = arr.to_geodataframe(**kws0)
+    result1_mock = arr.to_geodataframe(**kws1)
+
+    assert len(called) == 2  # ensure mock method was actually called
+    assert result0_orig.equals(result0_mock)
+    assert result1_orig.equals(result1_mock)
