@@ -200,8 +200,10 @@ def _encode_exodus(ds, outfile=None):
     conn_nofill = []
 
     for row in ds["face_node_connectivity"].values:
-        # Find the index of the first fill value (-1)
-        fill_val_idx = np.where(row == -1)[0]
+        # Find the index of the first fill value. Padding is stored as
+        # INT_FILL_VALUE, not -1; matching on -1 never fires, so every face is
+        # treated as full width and the padding is written out as a node index.
+        fill_val_idx = np.where(row == INT_FILL_VALUE)[0]
 
         if fill_val_idx.size > 0:
             num_nodes = fill_val_idx[0]
