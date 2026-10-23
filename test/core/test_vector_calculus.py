@@ -50,6 +50,16 @@ class TestGradientQuadHex:
         assert grad_ratio_units[VARS[0]].attrs["units"] == "(K/s)/m"
         assert grad_ratio_units[VARS[1]].attrs["units"] == "(K/s)/m"
 
+        # other attrs checks - spot check for handling None names:
+        # use "unnamed_array" in long_name. (data_vars array names always come from
+        # keys (e.g. "zonal_gradient") regardless of the input array's name.)
+        uxarr_noname = uxarr.rename(None)
+        grad_noname = uxarr_noname.gradient()
+        assert grad_noname["zonal_gradient"].name == "zonal_gradient"
+        assert grad_noname["meridional_gradient"].name == "meridional_gradient"
+        assert grad_noname["zonal_gradient"].attrs["long_name"] == "Zonal gradient of unnamed_array"
+        assert grad_noname["meridional_gradient"].attrs["long_name"] == "Meridional gradient of unnamed_array"
+
         # other attrs checks - spot check that value-describing attrs get removed:
         uxarr_with_more_attrs = uxarr.copy()
         uxarr_with_more_attrs.attrs["missing_value"] = -1e7
@@ -328,6 +338,14 @@ class TestDivergenceQuadHex:
         div_da_ratio_units = u_ratio_units.divergence(v_component)
         assert div_da_ratio_units.attrs["units"] == "(K/s)/m"
 
+        # other attrs checks - spot check for handling None names:
+        # keep None in name, but use "unnamed_array" in long_name
+        u_noname = u_component.rename(None)
+        v_noname = v_component.rename(None)
+        div_da_noname = u_noname.divergence(v_noname)
+        assert div_da_noname.name == "divergence_None_None"
+        assert div_da_noname.attrs["long_name"] == "Divergence of (unnamed_array, unnamed_array)"
+
         # other attrs checks - spot check that value-describing attrs get removed
         # (gradient output format test has more comprehensive checks):
         u_with_more_attrs = u_component.copy()
@@ -398,6 +416,15 @@ class TestScalarDotGradientQuadHex:
         # result should not have units attr currently;
         # replace this with assertions about expected units, if implemented.
         assert "units" not in result.attrs
+
+        # other attrs checks - spot check for handling None names:
+        # keep None in name, but use "unnamed_array" in long_name
+        u_noname = u.rename(None)
+        v_noname = v.rename(None)
+        q_noname = q.rename(None)
+        result_noname = u_noname.scalardotgradient(v_noname, q_noname)
+        assert result_noname.name == "scalardotgradient_None_None_None"
+        assert result_noname.attrs["long_name"] == "Scalar dot gradient: (unnamed_array, unnamed_array) dot grad(unnamed_array)"
 
         # other attrs checks - spot check that value-describing attrs get removed
         # (gradient output format test has more comprehensive checks):
@@ -666,6 +693,14 @@ class TestCurlQuadHex:
         u_ratio_units = u_component.assign_attrs({"units": "K/s"})
         curl_da_ratio_units = u_ratio_units.curl(v_component)
         assert curl_da_ratio_units.attrs["units"] == "(K/s)/m"
+
+        # other attrs checks - spot check for handling None names:
+        # keep None in name, but use "unnamed_array" in long_name
+        u_noname = u_component.rename(None)
+        v_noname = v_component.rename(None)
+        curl_da_noname = u_noname.curl(v_noname)
+        assert curl_da_noname.name == "curl_None_None"
+        assert curl_da_noname.attrs["long_name"] == "Curl of (unnamed_array, unnamed_array)"
 
         # other attrs checks - spot check that value-describing attrs get removed
         # (gradient output format test has more comprehensive checks):

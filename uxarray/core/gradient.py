@@ -250,16 +250,17 @@ def _compute_gradient(
     grad_meridional_da.attrs["units"] = grad_units
 
     if _with_gradient_attrs:
+        longname = data.name if data.name is not None else "unnamed_array"
         zonal_grad_attrs = {
-            "long_name": f"Zonal gradient of {data.name}",
+            "long_name": f"Zonal gradient of {longname}",
             "derivative": "gradient",
-            "description": f"Zonal component of gradient of {data.name}",
+            "description": f"Zonal component of gradient of {longname}",
         }
         grad_zonal_da = grad_zonal_da.assign_attrs(zonal_grad_attrs)
         meridional_grad_attrs = {
-            "long_name": f"Meridional gradient of {data.name}",
+            "long_name": f"Meridional gradient of {longname}",
             "derivative": "gradient",
-            "description": f"Meridional component of gradient of {data.name}",
+            "description": f"Meridional component of gradient of {longname}",
         }
         grad_meridional_da = grad_meridional_da.assign_attrs(meridional_grad_attrs)
 

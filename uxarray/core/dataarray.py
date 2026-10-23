@@ -1765,8 +1765,10 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         # bookkeeping for name & attrs
         result = result.rename(f"curl_{self.name}_{other.name}")
+        self_longname = self.name if self.name is not None else "unnamed_array"
+        other_longname = other.name if other.name is not None else "unnamed_array"
         attrs = {
-            "long_name": f"Curl of ({self.name}, {other.name})",
+            "long_name": f"Curl of ({self_longname}, {other_longname})",
             "units": grad_u_meridional.attrs["units"],
             "derivative": "curl",
             "description": (
@@ -1894,8 +1896,10 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         # bookkeeping for name & attrs
         result = result.rename(f"divergence_{self.name}_{other.name}")
+        self_longname = self.name if self.name is not None else "unnamed_array"
+        other_longname = other.name if other.name is not None else "unnamed_array"
         attrs = {
-            "long_name": f"Divergence of ({self.name}, {other.name})",
+            "long_name": f"Divergence of ({self_longname}, {other_longname})",
             "units": grad_u_zonal.attrs["units"],
             "derivative": "divergence",
             "description": (
@@ -1978,8 +1982,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         # bookkeeping for name & attrs
         result = result.rename(f"scalardotgradient_{self.name}_{v.name}_{q.name}")
+        u_longname = self.name if self.name is not None else "unnamed_array"
+        v_longname = v.name if v.name is not None else "unnamed_array"
+        q_longname = q.name if q.name is not None else "unnamed_array"
         attrs = {
-            "long_name": f"Scalar dot gradient: ({self.name}, {v.name}) dot grad({q.name})",
+            "long_name": f"Scalar dot gradient: ({u_longname}, {v_longname}) dot grad({q_longname})",
             # "units": ... no promises about units yet; would need to consider units of u, v, and q...
             "derivative": "scalardotgradient",
             "description": (
