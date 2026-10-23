@@ -98,6 +98,43 @@ def test_get_dual(gridpath, datasetpath):
     assert len(uxds.data_vars) == len(dual.data_vars)
 
 
+def test_get_dual_aligns_node_data_with_retained_primal_nodes():
+    grid = ux.Grid.from_topology(
+        node_lon=np.array([-1.0, 0.0, 0.0, 1.0, 0.0]),
+        node_lat=np.array([0.0, -1.0, 0.0, 0.0, 1.0]),
+        face_node_connectivity=np.array(
+            [[2, 0, 1], [2, 1, 3], [2, 3, 4], [2, 4, 0]]
+        ),
+    )
+    node_data = np.arange(2 * 5 * 3).reshape(2, 5, 3)
+    face_data = np.arange(8).reshape(2, 4)
+    unrelated_data = np.array([10, 20])
+    uxds = UxDataset(
+        {
+            "node_data": (("time", "n_node", "level"), node_data),
+            "face_data": (("time", "n_face"), face_data),
+            "unrelated": (("time",), unrelated_data),
+        },
+        uxgrid=grid,
+    )
+
+    with pytest.warns(Warning, match="mesh is partial"):
+        dual_array = uxds["node_data"].get_dual()
+    with pytest.warns(Warning, match="mesh is partial"):
+        dual_dataset = uxds.get_dual()
+
+    assert dual_array.dims == ("time", "n_face", "level")
+    nt.assert_array_equal(dual_array.values, node_data[:, [2], :])
+    assert dual_array.sizes["n_face"] == dual_array.uxgrid.n_face == 1
+
+    assert dual_dataset["node_data"].dims == ("time", "n_face", "level")
+    nt.assert_array_equal(dual_dataset["node_data"].values, node_data[:, [2], :])
+    assert dual_dataset["face_data"].dims == ("time", "n_node")
+    nt.assert_array_equal(dual_dataset["face_data"].values, face_data)
+    assert dual_dataset["unrelated"].dims == ("time",)
+    nt.assert_array_equal(dual_dataset["unrelated"].values, unrelated_data)
+
+
 def _load_sel_subset(gridpath, datasetpath):
     grid_file = gridpath("ugrid", "outCSne30", "outCSne30.ug")
     data_file = datasetpath("ugrid", "outCSne30", "outCSne30_sel_timeseries.nc")
