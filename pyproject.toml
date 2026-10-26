@@ -59,11 +59,11 @@ geo = [
     "spatialpandas>=0.4.10",  # PolygonArray.from_exterior_coords() is new in 0.4.10.
 ]
 viz = [
-    "cartopy>=0.23,<0.26",  # cartopy 0.26.0 breaks some geoviews plots; see issue #1780.
+    "cartopy>=0.26.0",  # older releases break some plots with matplotlib>=3.11; see issue #1542.
     # (cartopy pin intentionally here but not in "geo" extras because geoviews is only in "viz".)
     "datashader",
-    "matplotlib>=3.8.4,<3.11",  # 3.11.0 breaks some plots (see issue #1542); older releases without a numpy<2 cap fail under numpy 2.
-    "geoviews>=1.11.0",  # older releases use np.NaN, removed in numpy 2. No upper pin; newer should support any cartopy; see holoviz/geoviews#884.
+    "matplotlib>=3.8.4",  # older releases without a numpy<2 cap fail under numpy 2.
+    "geoviews>=1.16.0",  # older releases break some plots with cartopy>=0.26.0; see issue #1780.
     "holoviews>=1.19.0",  # older releases import panel.depends.param_value_if_widget, which current panel removed.
     "hvplot>=0.8.3",  # older releases use param's .params(), removed in param 2.
 ]
