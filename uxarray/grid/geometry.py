@@ -15,6 +15,7 @@ from uxarray.grid.intersections import (
 )
 from uxarray.grid.point_in_face import _point_in_face
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
+from uxarray.utils.parallel import parallel_njit
 
 POLE_POINTS_XYZ = {
     "North": np.array([0.0, 0.0, 1.0]),
@@ -1140,7 +1141,7 @@ def _populate_max_face_radius(grid):
     return max_distance
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def calculate_max_face_radius(
     face_node_connectivity: np.ndarray,
     node_x: np.ndarray,
