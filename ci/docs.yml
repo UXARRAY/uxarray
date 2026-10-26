@@ -33,8 +33,8 @@ dependencies:
     - shapely
     - hvplot
     - holoviews
-    - geoviews>=1.16.0,  # older releases break some plots with cartopy>=0.26.0; see issue #1780.
-    - cartopy>=0.26.0,  # older releases break some plots with matplotlib>=3.11; see issue #1542.
+    - geoviews>=1.16.0  # older releases break some plots with cartopy>=0.26.0; see issue #1780.
+    - cartopy>=0.26.0  # older releases break some plots with matplotlib>=3.11; see issue #1542.
     - pandas
     - geocat-datafiles
     - spatialpandas

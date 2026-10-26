@@ -4,10 +4,10 @@ channels:
   - nodefaults
 dependencies:
   - antimeridian
-  - cartopy>=0.26.0,  # older releases break some plots with matplotlib>=3.11; see issue #1542.
+  - cartopy>=0.26.0  # older releases break some plots with matplotlib>=3.11; see issue #1542.
   - dask
   - datashader
-  - geoviews>=1.16.0,  # older releases break some plots with cartopy>=0.26.0; see issue #1780.
+  - geoviews>=1.16.0  # older releases break some plots with cartopy>=0.26.0; see issue #1780.
   - h5netcdf
   - hdf5
   - healpix
