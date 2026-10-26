@@ -29,7 +29,7 @@ For a lightweight installation with **only required dependencies**:
 
 
 For an installation including **only some optional dependencies**
-(plus required dependencies), consider using one of the following recipes:
+(plus all required dependencies), consider using one of the following recipes:
 
 - ``conda install -c conda-forge uxarray-with-geo`` includes geospatial packages (e.g. geopandas, healpix)
 - ``conda install -c conda-forge uxarray-with-viz`` includes plotting packages (e.g. matplotlib, hvplot)
@@ -55,7 +55,7 @@ For a lightweight installation with **only required dependencies**:
 
 
 For an installation including **only some optional dependencies**
-(plus required dependencies), consider using one of the following extras:
+(plus all required dependencies), consider using one of the following extras:
 
 - ``pip install "uxarray[dev]"`` includes development tools (e.g. pytest, ruff)
 - ``pip install "uxarray[geo]"`` includes geospatial packages (e.g. geopandas, healpix)
