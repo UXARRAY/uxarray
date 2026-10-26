@@ -1126,12 +1126,11 @@ class TestMoreThan1D:
         assert np.allclose(ratio.min('n_face')['meridional_gradient'], times + 0 * levels, atol=0, rtol=1e-9)
         assert np.allclose(ratio.max('n_face')['meridional_gradient'], times + 0 * levels, atol=0, rtol=1e-9)
         # ensure chunked input stays chunked and produces correct results
-        # TODO: uncomment these lines after fixing issue #1798.
-        # arrc = arr.chunk({'time': 2, 'level': -1})
-        # resultc = arrc.gradient()
-        # assert resultc['zonal_gradient'].chunks == arrc.chunks
-        # assert resultc['meridional_gradient'].chunks == arrc.chunks
-        # assert resultc.compute().equals(result)
+        arrc = arr.chunk({'time': 2, 'level': -1})
+        resultc = arrc.gradient()
+        assert resultc['zonal_gradient'].chunks == arrc.chunks
+        assert resultc['meridional_gradient'].chunks == arrc.chunks
+        assert resultc.compute().equals(result)
         # ensure complex values are allowed :)
         arrj = arr * 1j
         resultj = arrj.gradient()
@@ -1171,11 +1170,10 @@ class TestMoreThan1D:
         arr0.assign_coords(level="nonexistent_level").curl(arr)
         # ensure chunked input stays chunked and produces correct results
         # (just doing a sanity check in the arr.curl(arr0) case)
-        # TODO: uncomment these lines after fixing issue #1798.
-        # arrc = arr.chunk({'time': 2, 'level': -1})
-        # resultc = arrc.curl(arr0)
-        # assert resultc.chunks == arrc.chunks
-        # assert resultc.compute().equals(resultA)
+        arrc = arr.chunk({'time': 2, 'level': -1})
+        resultc = arrc.curl(arr0)
+        assert resultc.chunks == arrc.chunks
+        assert resultc.compute().equals(resultA)
         # ensure complex values are allowed :)
         arrj = arr * 1j
         arr0j = arr0 * 1j
@@ -1215,11 +1213,10 @@ class TestMoreThan1D:
         arr0.assign_coords(level="nonexistent_level").divergence(arr)
         # ensure chunked input stays chunked and produces correct results
         # (just doing a sanity check in the arr.divergence(arr0) case)
-        # TODO: uncomment these lines after fixing issue #1798.
-        # arrc = arr.chunk({'time': 2, 'level': -1})
-        # resultc = arrc.divergence(arr0)
-        # assert resultc.chunks == arrc.chunks
-        # assert resultc.compute().equals(resultA)
+        arrc = arr.chunk({'time': 2, 'level': -1})
+        resultc = arrc.divergence(arr0)
+        assert resultc.chunks == arrc.chunks
+        assert resultc.compute().equals(resultA)
         # ensure complex values are allowed :)
         arrj = arr * 1j
         arr0j = arr0 * 1j
@@ -1270,11 +1267,10 @@ class TestMoreThan1D:
                 assert resultG.isel(time=it, level=il).equals(arr_it_il_gradG)
         # ensure chunked input stays chunked and produces correct results
         # (just doing a sanity check in the arr.scalardotgradient(arr0, arr0) case)
-        # TODO: uncomment these lines after fixing issue #1798.
-        # arrc = arr.chunk({'time': 2, 'level': -1})
-        # resultc = arrc.scalardotgradient(arr0, arr0)
-        # assert resultc.chunks == arrc.chunks
-        # assert resultc.compute().equals(resultA)
+        arrc = arr.chunk({'time': 2, 'level': -1})
+        resultc = arrc.scalardotgradient(arr0, arr0)
+        assert resultc.chunks == arrc.chunks
+        assert resultc.compute().equals(resultA)
         # ensure complex values are allowed :)
         # case 1: (u*1j).scalardotgradient(v*1j, q).imag == (u.scalardotgradient(v, q))
         # case 2: (u).scalardotgradient(v, q*1j).imag == (u.scalardotgradient(v, q))
