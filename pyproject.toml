@@ -17,7 +17,7 @@ description = "Xarray extension for unstructured climate and global weather data
 license = {file = "LICENSE"}
 name = "uxarray"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"  # geoviews>=1.16.0 requires python >=3.12.
 
 # minimal dependencies start
 # Lower bounds are added only for a known failure with an older release; the
