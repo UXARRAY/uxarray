@@ -41,9 +41,9 @@ def test_monotone_profile(uxds, name, sign):
         center_coord=(45, 0), outer_radius=2, radius_step=0.5
     )
 
-    # gaussian decreases away from the center, inverse_gaussian increases
-    diffs = sign * res[1:].diff("radius").values
-    np.testing.assert_array_less(-1e-12, diffs[np.isfinite(diffs)])
+    # gaussian decreases away from the center, inverse_gaussian increases. Only
+    # the empty ring at radius 0 is NaN, so any other NaN fails the comparison.
+    np.testing.assert_array_less(-1e-12, sign * res[1:].diff("radius").values)
 
 
 @pytest.mark.parametrize("chunks", [None, {"n_face": 50, "time": 1}])
