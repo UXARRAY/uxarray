@@ -43,7 +43,7 @@ jobs:
           channels: conda-forge
           environment-file: ci/environment.yml
           miniforge-variant: Miniforge3
-          miniforge-version: latest
+          miniforge-version: "26.7.2-1"
 
       - name: conda_setup (ARM64)
         uses: conda-incubator/setup-miniconda@v4
