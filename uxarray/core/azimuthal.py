@@ -4,10 +4,6 @@ import numpy as np
 import xarray as xr
 from scipy import sparse
 
-# Squared chord distances are at most 4, so this is ~1000 ulps: well past the
-# kd-tree's rounding, yet faces this close to a ring's edge are rare
-_TIE_TOLERANCE = 1e-12
-
 
 def _compute_azimuthal_mean(uxda, center_xyz, chord_radii):
     """Computes area-weighted means over the rings between successive bounding circles.
@@ -31,10 +27,15 @@ def _compute_azimuthal_mean(uxda, center_xyz, chord_radii):
         shape=(n_radius, faces.size),
     )
 
-    ring_data = uxda.isel(n_face=faces, ignore_grid=True).to_xarray()
-    if ring_data.chunks is not None:
+    # Read the span of ring faces contiguously, then pick them out of it: a
+    # lazily backed (e.g. netCDF) variable reads fancy indices face by face
+    start, stop = (faces[0], faces[-1] + 1) if faces.size else (0, 0)
+    span = uxda.to_xarray().isel(n_face=slice(start, stop))
+    if span.chunks is None:
+        ring_data = span.load().isel(n_face=faces - start)
+    else:
         # the sparse multiply spans every ring face, so keep them in a single chunk
-        ring_data = ring_data.chunk({"n_face": -1})
+        ring_data = span.isel(n_face=faces - start).chunk({"n_face": -1})
 
     means = xr.apply_ufunc(
         _apply_ring_weights,
@@ -42,64 +43,42 @@ def _compute_azimuthal_mean(uxda, center_xyz, chord_radii):
         input_core_dims=[["n_face"]],
         output_core_dims=[["radius"]],
         dask="parallelized",
-        kwargs={"weights": weights, "empty": hit_count == 0},
+        kwargs={"weights": weights},
         output_dtypes=[np.result_type(weights.dtype, ring_data.dtype)],
-        dask_gufunc_kwargs={"output_sizes": {"radius": n_radius}},
+        # n_face is already one chunk; dask's rechunk divides by zero when it's empty
+        dask_gufunc_kwargs={
+            "output_sizes": {"radius": n_radius},
+            "allow_rechunk": False,
+        },
     )
 
     dims = ["radius" if dim == "n_face" else dim for dim in uxda.dims]
-    return means.transpose(*dims).data, hit_count
+    return means.transpose(*dims), hit_count
 
 
 def _ring_membership(kdtree, center_xyz, chord_radii):
     """Assigns each face to the first ring whose bounding circle holds it: r_(i-1) < d <= r_i.
 
-    Returns the faces and their ring indices, ordered by ring and then face.
+    Returns the faces, in ascending order, and their ring indices.
     """
     # The running max keeps the rings past a peak in chord length (radii
     # beyond 180 degrees) empty, as their circles add no faces
-    chord_bounds = np.maximum.accumulate(chord_radii)
-    chord_bounds = chord_bounds * chord_bounds
+    bounds = np.maximum.accumulate(chord_radii) ** 2
 
-    # One query at the outermost circle, then bin by squared chord distance,
-    # summed in the kd-tree's own order
+    # One padded query finds every candidate, so the tree's rounding can't drop
+    # faces on the outer circle; the squared distances alone then bin them
     faces = np.array(
-        kdtree.query_ball_point(center_xyz, chord_radii.max()), dtype=np.int_
+        kdtree.query_ball_point(
+            center_xyz, chord_radii.max() * (1 + 1e-9), return_sorted=True
+        ),
+        dtype=np.int_,
     )
-    diff = kdtree.data[faces] - center_xyz
-    dist2 = diff[:, 0] * diff[:, 0] + diff[:, 1] * diff[:, 1] + diff[:, 2] * diff[:, 2]
-    ring_ids = np.searchsorted(chord_bounds, dist2, side="left")
-    # the outer query has the final say on whether a face is in the outermost ring
-    outermost = np.searchsorted(chord_bounds, chord_bounds[-1], side="left")
-    ring_ids = np.minimum(ring_ids, outermost)
-
-    # The tree prunes whole nodes on distances that carry rounding of their
-    # own, so within an ulp or so of a circle it can disagree with
-    # dist2 <= r**2. Settle faces that close by asking the tree at that circle.
-    near_circle = np.full(faces.size, -1)
-    for circle in (ring_ids - 1, ring_ids):  # the circles just inside and outside
-        circle = np.clip(circle, 0, outermost)
-        # first circle of a plateau, where a face on that bound first enters
-        circle = np.searchsorted(chord_bounds, chord_bounds[circle], side="left")
-        near = np.abs(dist2 - chord_bounds[circle]) <= _TIE_TOLERANCE
-        near_circle[near] = circle[near]
-    # the outer query already settled the outermost circle
-    tied_circles = np.unique(
-        near_circle[(near_circle >= 0) & (near_circle < outermost)]
-    )
-    for circle in tied_circles:
-        tied = near_circle == circle
-        inside = np.isin(
-            faces[tied], kdtree.query_ball_point(center_xyz, chord_radii[circle])
-        )
-        next_circle = np.searchsorted(chord_bounds, chord_bounds[circle], side="right")
-        ring_ids[tied] = np.where(inside, circle, next_circle)
-
-    order = np.lexsort((faces, ring_ids))
-    return faces[order], ring_ids[order]
+    dist2 = ((kdtree.data[faces] - center_xyz) ** 2).sum(axis=1)
+    inside = dist2 <= bounds[-1]
+    return faces[inside], np.searchsorted(bounds, dist2[inside])
 
 
-def _apply_ring_weights(values, weights, empty):
+def _apply_ring_weights(values, weights):
     """Applies the sparse ring operator along the trailing (ring face) dimension."""
     # NaN faces add nothing to the weighted sum but still count toward the ring
     # area, matching the skipna sum of the former per-ring weighted_mean()
@@ -107,5 +86,5 @@ def _apply_ring_weights(values, weights, empty):
     # explicit leading size: -1 is ambiguous when no face falls in any ring
     flat = values.reshape(math.prod(values.shape[:-1]), values.shape[-1])
     means = (weights @ flat.T).T
-    means[:, empty] = np.nan
+    means[:, np.diff(weights.indptr) == 0] = np.nan  # empty rings
     return means.reshape(values.shape[:-1] + (weights.shape[0],))

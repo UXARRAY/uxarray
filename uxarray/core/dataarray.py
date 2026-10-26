@@ -1024,23 +1024,18 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         means, hit_count = _compute_azimuthal_mean(self, center_xyz, chord_radii)
 
-        # 'radius' takes the former n_face position
-        face_axis = self.dims.index("n_face")
-        dims = list(self.dims)
-        dims[face_axis] = "radius"
-
         hit_count = xr.DataArray(
             data=hit_count, dims="radius", coords={"radius": radii_deg}
         )
 
-        # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
+        # Assign coords from `self` to the result except those on n_face
         new_coords = _preserve_valid_coords(self, "n_face")
         # Add radii_deg to the resulting coords
         new_coords["radius"] = radii_deg
 
         uxda = xr.DataArray(
-            means,
-            dims=dims,
+            means.data,
+            dims=means.dims,
             coords=new_coords,
             name=self.name + "_azimuthal_mean"
             if self.name is not None
