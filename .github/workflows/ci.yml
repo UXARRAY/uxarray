@@ -87,7 +87,7 @@ jobs:
             cache-environment: true
             cache-environment-key: "linkcheck-${{env.TODAY}}"
             create-args: >-
-              python=3.11
+              python=3.12
 
         - name: retry environment set up if failed
           if: steps.link-env-setup.outcome == 'failure'
@@ -98,7 +98,7 @@ jobs:
             cache-environment: true
             cache-environment-key: "linkcheck-${{env.TODAY}}"
             create-args: >-
-              python=3.11
+              python=3.12
 
         - name: Install uxarray
           run: |

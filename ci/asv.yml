@@ -2,7 +2,7 @@ name: asv
 channels:
   - conda-forge
 dependencies:
-  - python=3.11
+  - python=3.12
   - cartopy>=0.26.0  # older releases break some plots with matplotlib>=3.11; see issue #1542.
   - dask
   - datashader
