@@ -6,7 +6,7 @@ from numba import njit, prange
 from uxarray.constants import INT_FILL_VALUE
 from uxarray.conventions.attrs import _drop_value_describing_attrs
 from uxarray.core.utils import _apply_1dfunc_with_grid_core_dim
-from uxarray.errors import DataCenteringError, DimensionError
+from uxarray.errors import DataCenteringError
 from uxarray.utils.parallel import parallel_njit
 
 
