@@ -320,7 +320,6 @@ def _build_geodataframe_with_antimeridian(
     _raise_hint_if_optional_deps_missing("geopandas", "spatialpandas")
     import geopandas
     import spatialpandas
-    from spatialpandas.geometry import MultiPolygonArray
 
     polygons = _build_corrected_shapely_polygons(
         polygon_shells, projected_polygon_shells, antimeridian_face_indices
@@ -330,7 +329,20 @@ def _build_geodataframe_with_antimeridian(
         gdf = geopandas.GeoDataFrame({"geometry": polygons})
     else:
         # Create a spatialpandas.GeoDataFrame
-        geometry = MultiPolygonArray(polygons)
+        # (MultiPolygonArray handles cases where polygons are split across the antimeridian.
+        # But, naively building MultiPolygonArray as:
+        #   geometry = MultiPolygonArray(polygons)
+        # is quite inefficient due to spatialpandas unwrapping every face, without incorporating
+        # the fact that only the antimeridian-crossing faces actually need any adjustment.
+        # The _build_multipolygon_array() helper provides a more efficient implementation.)
+        shells = (
+            projected_polygon_shells
+            if projected_polygon_shells is not None
+            else polygon_shells
+        )
+        geometry = _build_multipolygon_array(
+            polygons, shells, antimeridian_face_indices
+        )
         gdf = spatialpandas.GeoDataFrame({"geometry": geometry})
 
     return gdf
@@ -364,6 +376,51 @@ def _build_corrected_shapely_polygons(
         polygons[i] = corrected_polygons.pop()
 
     return polygons
+
+
+def _build_multipolygon_array(shapely_polygons, shells, antimeridian_face_indices):
+    """Builds a ``spatialpandas`` ``MultiPolygonArray`` without unwrapping every
+    face from shapely.
+
+    Faces that were not modified by the antimeridian correction are taken
+    directly from the ``shells`` array. Only the (few) corrected faces are read
+    back out of their shapely geometries.
+    """
+    _raise_hint_if_optional_deps_missing("spatialpandas")
+    from spatialpandas.geometry import MultiPolygonArray
+
+    # shapely stores coordinates as float64, so use float64 for every face
+    shells = shells.astype(np.float64)
+
+    # (n_face, n_nodes, 2) -> (n_face, n_nodes * 2), i.e. x0, y0, x1, y1, ...
+    n_face = shells.shape[0]
+    flat_rings = shells.reshape(n_face, -1)
+
+    # MultiPolygonArray input: multipolygon -> polygon -> ring -> flat coords.
+    # Every uncorrected face is one multipolygon with one polygon with one ring.
+    data = [[[ring]] for ring in flat_rings]
+
+    # shapely.polygons() closes any ring whose first/last points differ,
+    # so do the same here
+    not_closed = ~(shells[:, 0] == shells[:, -1]).all(axis=1)
+    for i in np.flatnonzero(not_closed):
+        data[i] = [[np.concatenate([flat_rings[i], flat_rings[i, :2]])]]
+
+    # corrected faces come from the shapely output, as before
+    for i in antimeridian_face_indices:
+        data[i] = _shapely_to_nested_coords(shapely_polygons[i])
+
+    return MultiPolygonArray(data)
+
+
+def _shapely_to_nested_coords(geometry):
+    """Converts a shapely Polygon or MultiPolygon into
+    ``[[exterior, *holes], ...]`` where each ring is a flat coordinate array."""
+    parts = geometry.geoms if hasattr(geometry, "geoms") else [geometry]
+    return [
+        [np.asarray(ring.coords).ravel() for ring in (part.exterior, *part.interiors)]
+        for part in parts
+    ]
 
 
 def _build_antimeridian_face_indices(shells_x, projection=None):
