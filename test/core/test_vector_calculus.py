@@ -49,6 +49,21 @@ class TestGradientQuadHex:
         grad_ratio_units = uxarr_ratio_units.gradient()
         assert grad_ratio_units[VARS[0]].attrs["units"] == "(K/s)/m"
         assert grad_ratio_units[VARS[1]].attrs["units"] == "(K/s)/m"
+        # blank units input should become 1/m or 1/rad, not "/m" or "/rad"
+        uxarr_blank_units = uxarr.assign_attrs({"units": ""})
+        grad_blank_units = uxarr_blank_units.gradient()
+        assert grad_blank_units[VARS[0]].attrs["units"] == "1/m"
+        assert grad_blank_units[VARS[1]].attrs["units"] == "1/m"
+        grad_blank_units_no_scaling = uxarr_blank_units.gradient(scale_by_radius=False)
+        assert grad_blank_units_no_scaling[VARS[0]].attrs["units"] == "1/rad"
+        assert grad_blank_units_no_scaling[VARS[1]].attrs["units"] == "1/rad"
+        # units of None, False, or 0 should become None/m, False/m, or 0/m, not 1/m.
+        # (similarly for rad, but just spot-checking m for brevity.)
+        for zero in [None, False, 0]:
+            uxarr_zero_units = uxarr.assign_attrs({"units": zero})
+            grad_zero_units = uxarr_zero_units.gradient()
+            assert grad_zero_units[VARS[0]].attrs["units"] == f"{zero}/m"
+            assert grad_zero_units[VARS[1]].attrs["units"] == f"{zero}/m"
 
         # other attrs checks - spot check for handling None names:
         # use "unnamed_array" in long_name. (data_vars array names always come from
@@ -337,6 +352,18 @@ class TestDivergenceQuadHex:
         u_ratio_units = u_component.assign_attrs({"units": "K/s"})
         div_da_ratio_units = u_ratio_units.divergence(v_component)
         assert div_da_ratio_units.attrs["units"] == "(K/s)/m"
+        # blank units input should become 1/m or 1/rad, not "/m" or "/rad"
+        u_blank_units = u_component.assign_attrs({"units": ""})
+        div_da_blank_units = u_blank_units.divergence(v_component)
+        assert div_da_blank_units.attrs["units"] == "1/m"
+        div_da_blank_units_no_scaling = u_blank_units.divergence(v_component, scale_by_radius=False)
+        assert div_da_blank_units_no_scaling.attrs["units"] == "1/rad"
+        # units of None, False, or 0 should become None/m, False/m, or 0/m, not 1/m.
+        # (similarly for rad, but just spot-checking m for brevity.)
+        for zero in [None, False, 0]:
+            u_zero_units = u_component.assign_attrs({"units": zero})
+            div_da_zero_units = u_zero_units.divergence(v_component)
+            assert div_da_zero_units.attrs["units"] == f"{zero}/m"
 
         # other attrs checks - spot check for handling None names:
         # keep None in name, but use "unnamed_array" in long_name
@@ -693,6 +720,18 @@ class TestCurlQuadHex:
         u_ratio_units = u_component.assign_attrs({"units": "K/s"})
         curl_da_ratio_units = u_ratio_units.curl(v_component)
         assert curl_da_ratio_units.attrs["units"] == "(K/s)/m"
+        # blank units input should become 1/m or 1/rad, not "/m" or "/rad"
+        u_blank_units = u_component.assign_attrs({"units": ""})
+        curl_da_blank_units = u_blank_units.curl(v_component)
+        assert curl_da_blank_units.attrs["units"] == "1/m"
+        curl_da_blank_units_no_scaling = u_blank_units.curl(v_component, scale_by_radius=False)
+        assert curl_da_blank_units_no_scaling.attrs["units"] == "1/rad"
+        # units of None, False, or 0 should become None/m, False/m, or 0/m, not 1/m.
+        # (similarly for rad, but just spot-checking m for brevity.)
+        for zero in [None, False, 0]:
+            u_zero_units = u_component.assign_attrs({"units": zero})
+            curl_da_zero_units = u_zero_units.curl(v_component)
+            assert curl_da_zero_units.attrs["units"] == f"{zero}/m"
 
         # other attrs checks - spot check for handling None names:
         # keep None in name, but use "unnamed_array" in long_name
