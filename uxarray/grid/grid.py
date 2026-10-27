@@ -2505,7 +2505,6 @@ class Grid:
         Setting ``periodic_elements='ignore'`` will compute the GeoDataFrame assuming no corrections are needed, which
         is best used for grids that do not initially include any periodic polygons.
 
-
         Parameters
         ----------
         periodic_elements : str, optional

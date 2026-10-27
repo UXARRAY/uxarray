@@ -160,12 +160,12 @@ class GradientColdStartRss:
 
 
 class GeoDataFrame(DatasetBenchmark):
-    param_names = DatasetBenchmark.param_names + ['exclude_antimeridian']
+    param_names = DatasetBenchmark.param_names + ['periodic_elements']
     repeat = SLOW_CALL_REPEAT
-    params = DatasetBenchmark.params + [[True, False]]
+    params = DatasetBenchmark.params + [["exclude", "split"]]
 
-    def time_to_geodataframe(self, resolution, exclude_antimeridian):
-        self.uxds[data_var].to_geodataframe(exclude_antimeridian=exclude_antimeridian)
+    def time_to_geodataframe(self, resolution, periodic_elements):
+        self.uxds[data_var].to_geodataframe(periodic_elements=periodic_elements)
 
 
 class ConnectivityConstruction(DatasetBenchmark):
