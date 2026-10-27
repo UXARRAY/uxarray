@@ -83,18 +83,28 @@ def kernels():
     assert NUMPY_ERROR_MODEL_KERNELS <= found.keys()  # else the checks pass vacuously
     return found
 
-
+# For each inlined caller kernel, look at the included/invoked callee subkernels and
+# filter out caller kernels that don't use numpy error model where at least one of
+# the callee subkernels uses the numpy error model. i.e., instances of
+# InlinedCallerKernelNotUsingNumpyErrorModel where CalleeSubKernelUsesNumpyErrorModel
 def test_numpy_error_model(kernels):
+    """Test that functions use error_model==numpy if it calls inline
+    functions with error_model == numpy.
+    """
+
     offenders = sorted(
         name
-        for name, (kernel, compiled) in kernels.items()
-        if compiled & NUMPY_ERROR_MODEL_KERNELS
-        and kernel.targetoptions.get("error_model") != "numpy"
+        for name, (kernel, is_compiled) in kernels.items()
+        if is_compiled & NUMPY_ERROR_MODEL_KERNELS # Compiled kernel is using numpy error model
+        and kernel.targetoptions.get("error_model") != "numpy" # ...but the current kernel is *not*!
     )
-    assert not offenders, f"need error_model='numpy' to mask inf/nan: {offenders}"
+    assert not offenders, (f"Missing error_model='numpy' in function decorations of : {offenders}. "
+                           f"Error model numpy is needed for some kernels used in these functions "
+                           f"(to avoid exceptions on inf/nan)")
 
 
 def test_no_fastmath(kernels):
+    """Test that functions don't use fastmath if they call inline functions"""
     eft = {
         name: kernel
         for name, (kernel, compiled) in kernels.items()
