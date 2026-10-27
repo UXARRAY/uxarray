@@ -234,8 +234,8 @@ def _compute_gradient(
     base_units = str(data.attrs.get("units", "1"))
     if "/" in base_units:  # put in (), e.g. (m/s)/m, not m/s/m.
         base_units = f"({base_units})"
-    if base_units == "":
-        base_units = "1"  # --> e.g., want result like "1/m", not "/m".
+    if base_units.strip() == "":
+        base_units = "1"  # --> e.g., want result like "1/m", not "/m" or "  /m"
     was_scaled = scale_by_radius and has_sphere_radius
     denom_units = "m" if was_scaled else "rad"
     grad_units = f"{base_units}/{denom_units}"
