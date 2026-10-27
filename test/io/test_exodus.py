@@ -37,11 +37,7 @@ def test_encode_exodus(gridpath):
 def test_encode_exodus_mixed_blocks():
     """Faces of different sizes go into separate, correctly typed blocks.
 
-    Exodus element blocks are homogeneous, so a mixed mesh has to be split by
-    face size. Padding is stored as INT_FILL_VALUE, so matching it against -1
-    never fires: every face is treated as full width, collapsing the mesh into a
-    single max-width block with the wrong element type and writing the padding
-    out as a node index.
+    Exodus element blocks are homogeneous, so a mixed mesh is split by face size.
     """
     uxgrid = ux.Grid.from_topology(
         node_lon=np.array([0.0, 10.0, 10.0, 0.0, 20.0]),
@@ -64,8 +60,7 @@ def test_encode_exodus_mixed_blocks():
     assert by_type["TRI"].shape == (2, 3)
     assert by_type["SHELL4"].shape == (1, 4)
 
-    # Exodus connectivity is 1-based, and every block is exactly as wide as its
-    # element type, so there is no padding left to write out.
+    # Exodus connectivity is 1-based
     for name in blocks:
         values = exo_ds[name].values
         assert values.min() >= 1, f"{name} holds an index below 1"
@@ -86,10 +81,6 @@ def test_mixed_exodus(gridpath):
 
     # Face node connectivity comparison
     assert np.array_equal(ugrid_load_saved.face_node_connectivity.values, uxgrid.face_node_connectivity.values)
-
-    # Exodus blocks are homogeneous, so a mixed mesh is regrouped by face size on
-    # write and comes back permuted. Compare the faces as a set for now; recording
-    # and restoring the original order is a separate fix.
     assert _face_rows(exodus_load_saved) == _face_rows(uxgrid)
 
     # Node coordinates comparison
