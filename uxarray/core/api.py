@@ -375,19 +375,19 @@ def open_dataset(
     grid_kwargs: dict[str, Any] | None = None,
     **kwargs: dict[str, Any],
 ) -> UxDataset:
-    """Wraps ``xarray.open_dataset()`` for loading in a dataset paired with a grid file.
+    """Wraps ``xarray.open_dataset()`` for loading data paired with an unstructured grid.
 
     Parameters
     ----------
     grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.Dataset | Grid
         Grid information for the ``UxDataset``. Strings and Path objects are interpreted as a path to a grid
-        file. Xarray Datasets assume that each member variable is in the UGRID conventions and will be used to
+        file. An ``xarray.Dataset`` containing grid information in a supported unstructured format is used to
         create a ``ux.Grid``. Similarly, a dictionary containing UGRID variables can be used to create a
         ``ux.Grid``. A path to a directory containing grid files (e.g. a FESOM2 ASCII grid) is also accepted,
         but only when ``filename_or_obj`` is provided; directory input is not supported in the single-argument
-        form below. An existing ``ux.Grid`` is attached directly, allowing its
-        topology and cached properties to be shared across datasets. A separate
-        ``filename_or_obj`` is required when passing a ``Grid``.
+        form below. An existing ``ux.Grid`` can be used directly, allowing its
+        topology and cached properties to be shared across datasets as long as
+        they conform to it.
     filename_or_obj : str | os.PathLike[Any] | xr.Dataset, optional
         String or Path object as a path to a netCDF file or an OpenDAP URL that
         stores the actual data set, or an already-open ``xarray.Dataset``. It
@@ -398,9 +398,11 @@ def open_dataset(
         the grid and also treated as data; all variables it contains, including
         grid variables, will be included as data.
     chunks : int, dict, 'auto' or None, default: None
-        If provided, used to load the data into dask arrays. With an existing
-        ``Grid``, this also applies to an already-open ``xarray.Dataset``
-        without modifying the input dataset.
+        If provided, used to load file-based data into dask arrays. For an
+        ``xarray.Dataset`` data input, this parameter is applied when
+        ``grid_filename_or_obj`` is an existing ``Grid``. In that case, the
+        chunks apply to the returned ``UxDataset``; the input dataset retains
+        its original dimensions, values, and chunking.
 
         - ``chunks="auto"`` will use dask ``auto`` chunking taking into account the
           engine preferred chunks.
@@ -411,9 +413,6 @@ def open_dataset(
           size, generally identical to the format's chunk size. If not available, a
           single chunk for all arrays.
 
-        For structured data that still has its original spatial dimensions,
-        use those names (such as ``lon`` and ``lat``) to chunk before
-        flattening. You can also rechunk the returned ``n_face`` dimension.
     chunk_grid : bool, default: True
         If valid chunks are passed in, determines whether to also apply the same
         chunks when constructing a ``Grid``. An existing ``Grid`` is reused
@@ -540,9 +539,9 @@ def open_mfdataset(
     Parameters
     ----------
     grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.Dataset | Grid
-        Strings and Path objects are interpreted as a path to a grid file. Xarray Datasets assume that
-        each member variable is in the UGRID conventions and will be used to create a ``ux.Grid``. Similarly, a dictionary
-        containing UGRID variables can be used to create a ``ux.Grid``. An existing
+        Strings and Path objects are interpreted as a path to a grid file. An ``xarray.Dataset`` containing
+        grid information in a supported unstructured format is used to create a ``ux.Grid``. Similarly, a
+        dictionary containing UGRID variables can be used to create a ``ux.Grid``. An existing
         ``ux.Grid`` is attached directly without reconstructing or modifying it.
     paths : string, required
         Either a string glob in the form ``"path/to/my/files/*.nc"`` or an explicit
@@ -559,9 +558,6 @@ def open_mfdataset(
           size, generally identical to the format's chunk size. If not available, a
           single chunk for all arrays.
 
-        For structured data that still has its original spatial dimensions,
-        use those names (such as ``lon`` and ``lat``) to chunk before
-        flattening. You can also rechunk the returned ``n_face`` dimension.
     chunk_grid : bool, default: True
         If valid chunks are passed in, determines whether to also apply the same
         chunks when constructing a ``Grid``. An existing ``Grid`` is reused
