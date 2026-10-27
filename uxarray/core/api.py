@@ -386,8 +386,7 @@ def open_dataset(
         ``ux.Grid``. A path to a directory containing grid files (e.g. a FESOM2 ASCII grid) is also accepted,
         but only when ``filename_or_obj`` is provided; directory input is not supported in the single-argument
         form below. An existing ``ux.Grid`` can be used directly, allowing its
-        topology and cached properties to be shared across datasets as long as
-        they conform to it.
+        topology and cached properties to be shared across datasets.
     filename_or_obj : str | os.PathLike[Any] | xr.Dataset, optional
         String or Path object as a path to a netCDF file or an OpenDAP URL that
         stores the actual data set, or an already-open ``xarray.Dataset``. It
