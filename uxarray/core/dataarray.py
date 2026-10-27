@@ -641,7 +641,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         return result
 
     def integrate(
-        self, quadrature_rule: str = "triangular", order: int = 4
+        self, quadrature_rule: str | None = "triangular", order: int | None = 4
     ) -> UxDataArray:
         """Computes the integral of a data variable.
 
@@ -651,9 +651,10 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             Quadrature rule used to compute the face areas, one of
             ``"triangular"`` (default) or ``"gaussian"``. See
             :meth:`~uxarray.Grid.compute_face_areas` for what these mean and
-            which orders each supports.
+            which orders each supports. ``None`` selects the default rule.
         order : int, optional
-            Order of the quadrature rule. Defaults to 4.
+            Order of the quadrature rule. Defaults to 4. ``None`` selects the
+            default order.
 
         Returns
         -------
@@ -682,6 +683,14 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         # TODO: support integration regardless of n_face dimension position,
         #    and remove the self.dims[-1] == "n_face" check.
         #    (uxarray/xarray features should be agnostic to dimension positions.)
+        # ``None`` has always meant "use the default" here: the kwargs were
+        # typed as optional and ignored, so a caller passing None got the
+        # default result. Keep that rather than start raising on it.
+        if quadrature_rule is None:
+            quadrature_rule = "triangular"
+        if order is None:
+            order = 4
+
         if self._face_centered() and self.dims[-1] == "n_face":
             # The cached ``face_areas`` property always uses the default
             # quadrature, and for HEALPix preserves theoretical equal areas, so

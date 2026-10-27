@@ -62,6 +62,29 @@ def test_integrate_default_uses_cached_face_areas(gridpath):
     )
 
 
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"quadrature_rule": None},
+        {"order": None},
+        {"quadrature_rule": None, "order": None},
+    ],
+)
+def test_integrate_none_means_default(gridpath, kwargs):
+    """``None`` keeps selecting the default rule/order.
+
+    Both kwargs were typed optional and ignored, so callers passing ``None``
+    got the default result. Honoring the kwargs must not turn that into an
+    error.
+    """
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    uxda = ux.UxDataArray(
+        data=np.ones(uxgrid.n_face), dims=("n_face",), uxgrid=uxgrid, name="ones"
+    )
+
+    nt.assert_array_equal(uxda.integrate(**kwargs).values, uxda.integrate().values)
+
+
 def test_integrate_quadrature_kwargs_stay_lazy(gridpath):
     """Non-default quadrature must not materialize dask-backed data."""
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
