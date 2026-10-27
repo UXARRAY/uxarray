@@ -1764,7 +1764,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         result = grad_v_zonal - grad_u_meridional + metric
 
         # bookkeeping for name & attrs
-        result = result.rename(f"curl_{self.name}_{other.name}")
+        result = result.rename("curl")
         self_longname = self.name if self.name is not None else "unnamed_array"
         other_longname = other.name if other.name is not None else "unnamed_array"
         attrs = {
@@ -1895,7 +1895,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         result = grad_u_zonal + grad_v_meridional - metric
 
         # bookkeeping for name & attrs
-        result = result.rename(f"divergence_{self.name}_{other.name}")
+        result = result.rename("divergence")
         self_longname = self.name if self.name is not None else "unnamed_array"
         other_longname = other.name if other.name is not None else "unnamed_array"
         attrs = {
@@ -1981,7 +1981,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         result = _drop_value_describing_attrs(result)
 
         # bookkeeping for name & attrs
-        result = result.rename(f"scalardotgradient_{self.name}_{v.name}_{q.name}")
+        result = result.rename("scalardotgradient")
         u_longname = self.name if self.name is not None else "unnamed_array"
         v_longname = v.name if v.name is not None else "unnamed_array"
         q_longname = q.name if q.name is not None else "unnamed_array"

@@ -333,7 +333,7 @@ class TestDivergenceQuadHex:
         div_da = u_component.divergence(v_component)
 
         assert isinstance(div_da, ux.UxDataArray)
-        assert div_da.name == "divergence_t2m_vname"
+        assert div_da.name == "divergence"
         assert div_da.attrs["derivative"] == "divergence"
         assert div_da.attrs["long_name"] == "Divergence of (t2m, vname)"
         assert div_da.attrs["description"].startswith("Divergence of vector field")
@@ -368,11 +368,11 @@ class TestDivergenceQuadHex:
             assert div_da_zero_units.attrs["units"] == f"{zero}/m"
 
         # other attrs checks - spot check for handling None names:
-        # keep None in name, but use "unnamed_array" in long_name
+        # use "unnamed_array" in long_name; keep name as "divergence"
         u_noname = u_component.rename(None)
         v_noname = v_component.rename(None)
         div_da_noname = u_noname.divergence(v_noname)
-        assert div_da_noname.name == "divergence_None_None"
+        assert div_da_noname.name == "divergence"
         assert div_da_noname.attrs["long_name"] == "Divergence of (unnamed_array, unnamed_array)"
 
         # other attrs checks - spot check that value-describing attrs get removed
@@ -436,7 +436,7 @@ class TestScalarDotGradientQuadHex:
 
         result = u.scalardotgradient(v, q)
         assert isinstance(result, ux.UxDataArray)
-        assert result.name == "scalardotgradient_t2m_vname_qname"
+        assert result.name == "scalardotgradient"
         assert result.attrs["derivative"] == "scalardotgradient"
         assert result.attrs["long_name"] == "Scalar dot gradient: (t2m, vname) dot grad(qname)"
         assert result.attrs["description"].startswith("Dot product of vector field (u, v) with")
@@ -447,12 +447,12 @@ class TestScalarDotGradientQuadHex:
         assert "units" not in result.attrs
 
         # other attrs checks - spot check for handling None names:
-        # keep None in name, but use "unnamed_array" in long_name
+        # use "unnamed_array" in long_name; keep name as "scalardotgradient"
         u_noname = u.rename(None)
         v_noname = v.rename(None)
         q_noname = q.rename(None)
         result_noname = u_noname.scalardotgradient(v_noname, q_noname)
-        assert result_noname.name == "scalardotgradient_None_None_None"
+        assert result_noname.name == "scalardotgradient"
         assert result_noname.attrs["long_name"] == "Scalar dot gradient: (unnamed_array, unnamed_array) dot grad(unnamed_array)"
 
         # other attrs checks - spot check that value-describing attrs get removed
@@ -515,7 +515,7 @@ class TestScalarDotGradientMPASOcean:
         nt.assert_allclose(result.values, expected, rtol=0.0, atol=0.0)
 
         assert isinstance(result, ux.UxDataArray)
-        assert result.name == "scalardotgradient_u_v_scalar"
+        assert result.name == "scalardotgradient"
         assert result.attrs["long_name"] == "Scalar dot gradient: (u, v) dot grad(scalar)"
         assert result.sizes == u_component.sizes
 
@@ -702,9 +702,9 @@ class TestCurlQuadHex:
         curl_da = u_component.curl(v_component)
 
         assert isinstance(curl_da, ux.UxDataArray)
-        assert curl_da.name == f"curl_t2m_vname"
+        assert curl_da.name == "curl"
         assert curl_da.attrs["derivative"] == "curl"
-        assert curl_da.attrs["long_name"] == f"Curl of (t2m, vname)"
+        assert curl_da.attrs["long_name"] == "Curl of (t2m, vname)"
         assert curl_da.attrs["description"].startswith("Curl of vector field")
         assert u_component.sizes == curl_da.sizes
 
@@ -737,11 +737,11 @@ class TestCurlQuadHex:
             assert curl_da_zero_units.attrs["units"] == f"{zero}/m"
 
         # other attrs checks - spot check for handling None names:
-        # keep None in name, but use "unnamed_array" in long_name
+        # use "unnamed_array" in long_name; keep name as "curl"
         u_noname = u_component.rename(None)
         v_noname = v_component.rename(None)
         curl_da_noname = u_noname.curl(v_noname)
-        assert curl_da_noname.name == "curl_None_None"
+        assert curl_da_noname.name == "curl"
         assert curl_da_noname.attrs["long_name"] == "Curl of (unnamed_array, unnamed_array)"
 
         # other attrs checks - spot check that value-describing attrs get removed
@@ -1006,8 +1006,7 @@ class TestCurlDyamondSubset:
         )
 
         # Check name
-        expected_name = f"curl_{u_component.name}_{v_component.name}"
-        assert curl_field.name == expected_name
+        assert curl_field.name == "curl"
 
         # Check that grid is preserved
         assert curl_field.uxgrid == u_component.uxgrid
