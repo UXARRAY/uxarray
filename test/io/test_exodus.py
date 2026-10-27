@@ -34,20 +34,25 @@ def test_encode_exodus(gridpath):
     assert exo_ds["connect1"].attrs["elem_type"] == "SHELL4"
     assert exo_ds["connect1"].shape == (uxgrid.n_face, 4)
 
-def test_encode_exodus_mixed_blocks():
+@pytest.mark.parametrize(
+    "fill_value", [None, INT_FILL_VALUE, -1], ids=["none", "INT_FILL_VALUE", "-1"]
+)
+def test_encode_exodus_mixed_blocks(fill_value):
     """Faces of different sizes go into separate, correctly typed blocks.
 
     Exodus element blocks are homogeneous, so a mixed mesh is split by face size.
     """
+    # With no fill_value given, the padding must already be INT_FILL_VALUE
+    pad = INT_FILL_VALUE if fill_value is None else fill_value
     uxgrid = ux.Grid.from_topology(
         node_lon=np.array([0.0, 10.0, 10.0, 0.0, 20.0]),
         node_lat=np.array([0.0, 0.0, 10.0, 10.0, 0.0]),
         face_node_connectivity=np.array([
             [0, 1, 2, 3],
-            [1, 4, 2, INT_FILL_VALUE],
-            [0, 3, 4, INT_FILL_VALUE],
+            [1, 4, 2, pad],
+            [0, 3, 4, pad],
         ]),
-        fill_value=INT_FILL_VALUE,
+        fill_value=fill_value,
     )
 
     exo_ds = uxgrid.to_xarray("Exodus")
