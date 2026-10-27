@@ -103,6 +103,29 @@ def test_integrate_quadrature_kwargs_stay_lazy(gridpath):
     )
 
 
+def test_dataset_integrate_quadrature_kwargs(gridpath, datasetpath):
+    uxds = ux.open_dataset(
+        gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+        datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc"),
+    )
+
+    got = uxds.integrate(quadrature_rule="gaussian", order=4)
+    expected = uxds["var2"].integrate(quadrature_rule="gaussian", order=4)
+
+    nt.assert_array_equal(got["var2"].values, expected.values)
+
+
+def test_dataset_integrate_bad_order_raises(gridpath, datasetpath):
+    # Used to come back as an empty dataset with every variable "skipped".
+    uxds = ux.open_dataset(
+        gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+        datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc"),
+    )
+
+    with pytest.raises(ValueError, match="Invalid order"):
+        uxds.integrate(order=3)
+
+
 def test_multi_dim(gridpath):
     """Integral with 3D data mapped to each face."""
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))

@@ -60,6 +60,21 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
 
 
+def _integration_face_areas(uxgrid, quadrature_rule, order):
+    """Face areas for ``integrate``; raises ValueError on a bad rule/order."""
+    # None meant default back when these kwargs were ignored; keep that.
+    if quadrature_rule is None:
+        quadrature_rule = "triangular"
+    if order is None:
+        order = 4
+    # The cached property is triangular/4 and keeps HEALPix equal areas.
+    if quadrature_rule == "triangular" and order == 4:
+        return uxgrid.face_areas
+    return uxgrid.compute_face_areas(
+        quadrature_rule=quadrature_rule, order=order, as_uxarray=True
+    )
+
+
 class UxDataArray(UxSupportsArithmetic, xr.DataArray):
     """Grid informed ``xarray.DataArray`` with an attached ``Grid`` accessor
     and grid-specific functionality.
@@ -680,27 +695,18 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         >>> integral = uxds["psi"].integrate(order=8)
         """
+        return self._integrate(quadrature_rule, order)
+
+    def _integrate(self, quadrature_rule, order, face_areas=None):
+        # face_areas lets UxDataset.integrate compute the areas once for all
+        # variables.
         # TODO: support integration regardless of n_face dimension position,
         #    and remove the self.dims[-1] == "n_face" check.
         #    (uxarray/xarray features should be agnostic to dimension positions.)
-        # ``None`` has always meant "use the default" here: the kwargs were
-        # typed as optional and ignored, so a caller passing None got the
-        # default result. Keep that rather than start raising on it.
-        if quadrature_rule is None:
-            quadrature_rule = "triangular"
-        if order is None:
-            order = 4
-
         if self._face_centered() and self.dims[-1] == "n_face":
-            # The cached ``face_areas`` property always uses the default
-            # quadrature, and for HEALPix preserves theoretical equal areas, so
-            # reuse it there. Any other rule/order needs a fresh geometric
-            # computation for the request to actually take effect (issue #1599).
-            if quadrature_rule == "triangular" and order == 4:
-                face_areas = self.uxgrid.face_areas
-            else:
-                face_areas = self.uxgrid.compute_face_areas(
-                    quadrature_rule=quadrature_rule, order=order, as_uxarray=True
+            if face_areas is None:
+                face_areas = _integration_face_areas(
+                    self.uxgrid, quadrature_rule, order
                 )
 
             # dot product between face areas and the face dimension of the data

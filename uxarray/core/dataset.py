@@ -13,7 +13,7 @@ from xarray.core.utils import UncachedAccessor
 
 from uxarray.constants import GRID_DIMS
 from uxarray.core.arithmetic import UxSupportsArithmetic
-from uxarray.core.dataarray import UxDataArray
+from uxarray.core.dataarray import UxDataArray, _integration_face_areas
 from uxarray.core.utils import (
     _map_dims_to_ugrid,
     _open_dataset_with_fallback,
@@ -814,10 +814,16 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         integrated_vars = {}
         skipped = []
 
+        # Outside the loop so a bad rule/order raises instead of being
+        # reported as skipped variables, and areas are computed once.
+        face_areas = None
+        if any(uxda._face_centered() for uxda in self.values()):
+            face_areas = _integration_face_areas(self.uxgrid, quadrature_rule, order)
+
         for name, uxda in self.items():
             try:
-                integrated_vars[name] = uxda.integrate(
-                    quadrature_rule=quadrature_rule, order=order
+                integrated_vars[name] = uxda._integrate(
+                    quadrature_rule, order, face_areas=face_areas
                 )
             except ValueError:
                 # Variable is not mapped to the grid (or its location is not
