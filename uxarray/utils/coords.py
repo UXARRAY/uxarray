@@ -180,7 +180,7 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
                     raise DimensionError(
                         f"The indexer's dimension ({the_dim!r}) already exists as a scalar "
                         f"coordinate in the {type(uxarray_obj).__name__} object being indexed."
-                    )  #
+                    )
                 coords = indexer.swap_dims({the_dim: "n_face"}).coords
             else:
                 # remove any 1D coords (but keep scalar coords).
