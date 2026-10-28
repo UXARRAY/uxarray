@@ -2355,7 +2355,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
     @classmethod
     def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
         """
-        Converts a ``xarray.DataArray`` into a ``uxarray.UxDataset`` paired with a user-defined ``Grid``
+        Converts a ``xarray.DataArray`` into a ``uxarray.UxDataArray`` paired with a user-defined ``Grid``
 
         Parameters
         ----------
@@ -2369,7 +2369,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         Returns
         -------
         cls
-            A ``ux.UxDataArray`` with data from the ``xr.DataArray` paired with a ``ux.Grid``
+            A ``ux.UxDataArray`` with data from the ``xr.DataArray`` paired with a ``ux.Grid``
         """
         if ugrid_dims is None:
             ugrid_dims = uxgrid._source_dims_dict
