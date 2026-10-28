@@ -4,7 +4,10 @@ import numpy as np
 from numba import njit, prange
 
 from uxarray.constants import INT_FILL_VALUE
-from uxarray.errors import DataCenteringError, DimensionError
+from uxarray.conventions.attrs import _drop_value_describing_attrs
+from uxarray.core.utils import _apply_1dfunc_with_grid_core_dim
+from uxarray.errors import DataCenteringError
+from uxarray.utils.parallel import parallel_njit
 
 
 def _calculate_edge_face_difference(d_var, edge_faces, n_edge):
@@ -90,17 +93,39 @@ def _check_node_on_boundary_and_gather_node_neighbors(
     return bool_bdy, node_neighbors[0:num_node_neighbors]
 
 
-def _compute_gradient(data, scale_by_radius=True):
-    from uxarray import UxDataArray
+def _compute_gradient(
+    data,
+    scale_by_radius=True,
+    *,
+    _with_gradient_attrs=False,
+    _keep_value_defining_attrs=False,
+    **kw_apply_ufunc,
+):
+    """returns (zonal_gradient, meridional_gradient) as UxDataArrays, which are the
+    zonal and meridional components of the gradient of the input UxDataArray.
 
+    kw_apply_ufunc get passed to apply_ufunc for a function which takes `data` as input,
+    and outputs grad_zonal, grad_meridional. E.g. it may be appropriate to provide
+    kwargs like dask="parallelized" and output_dtypes=[float, float].
+
+    _with_gradient_attrs: bool
+        whether to add gradient-specific attributes to the output UxDataArrays.
+        If False, just include units attribute. (False by default to avoid confusion if
+        called externally as part of a different method. This adopts the stance that
+        attributes should only be included if you are confident that they are appropriate.)
+        If True, also include {"derivative": "gradient"}, "long_name", and "description".
+    _keep_value_defining_attrs: bool, default False
+        whether to keep value-defining attributes (like "standard_name", "long_name",
+        "valid_min", "scale_factor"). Likely to produce misleading attributes when True,
+        and also possibly data loss on netcdf read-back, so this is False by default.
+    """
     uxgrid = data.uxgrid
-
-    if data.ndim > 1:
-        raise DimensionError(
-            "gradient() computation currently only supports 1-dimensional data; "
-            f"got data.dims={data.dims}. Consider reducing dimensionality along non-grid dimensions, "
-            "e.g. by applying something like .isel(time=0), .sel(lev=500), or .mean('Time')."
-        )
+    # determine output dtype; necessary if inputs are parallelized.
+    # also cast to that dtype, which would maybe happen implicitly anyway,
+    # but do it explicitly here to avoid any ambiguity / warnings later.
+    output_dtype = np.result_type(data.dtype, np.float64)
+    kw_apply_ufunc.setdefault("output_dtypes", [output_dtype, output_dtype])
+    data = data.astype(output_dtype, copy=False)
 
     if data._face_centered():
         face_coords = np.array(
@@ -126,17 +151,24 @@ def _compute_gradient(data, scale_by_radius=True):
             ]
         ).T
 
-        grad_zonal, grad_meridional = _compute_gradients_on_faces(
-            data.values,
-            uxgrid.n_face,
-            face_coords,
-            uxgrid.edge_face_connectivity.values,
-            uxgrid.face_node_connectivity.values,
-            uxgrid.node_edge_connectivity.values,
-            face_lat,
-            face_lon,
-            normal_lon,
-            normal_lat,
+        grad_zonal, grad_meridional = _apply_1dfunc_with_grid_core_dim(
+            _compute_gradients_on_faces,
+            "n_face",
+            data,
+            other_args=(
+                uxgrid.n_face,
+                face_coords,
+                uxgrid.edge_face_connectivity.values,
+                uxgrid.face_node_connectivity.values,
+                uxgrid.node_edge_connectivity.values,
+                face_lat,
+                face_lon,
+                normal_lon,
+                normal_lat,
+                output_dtype,
+            ),
+            n_outputs=2,
+            **kw_apply_ufunc,
         )
 
     # TODO: Add support for this after merging face-centered implementation
@@ -199,23 +231,41 @@ def _compute_gradient(data, scale_by_radius=True):
                 stacklevel=2,
             )
 
-    base_units = data.attrs.get("units", "")
-    if scale_by_radius and has_sphere_radius:
-        grad_units = f"{base_units}/m" if base_units else "1/m"
-    else:
-        grad_units = f"{base_units}/rad" if base_units else "1/rad"
+    base_units = str(data.attrs.get("units", "1"))
+    if "/" in base_units:  # put in (), e.g. (m/s)/m, not m/s/m.
+        base_units = f"({base_units})"
+    if base_units.strip() == "":
+        base_units = "1"  # --> e.g., want result like "1/m", not "/m" or "  /m"
+    was_scaled = scale_by_radius and has_sphere_radius
+    denom_units = "m" if was_scaled else "rad"
+    grad_units = f"{base_units}/{denom_units}"
 
     # Zonal
-    grad_zonal_da = UxDataArray(
-        data=grad_zonal, name="zonal_gradient", dims=data.dims, uxgrid=uxgrid
-    )
-    grad_zonal_da.attrs["units"] = grad_units
+    grad_zonal_da = grad_zonal.rename("zonal_gradient")
+    grad_meridional_da = grad_meridional.rename("meridional_gradient")
 
-    # Meridional
-    grad_meridional_da = UxDataArray(
-        data=grad_meridional, name="meridional_gradient", dims=data.dims, uxgrid=uxgrid
-    )
+    # attrs bookkeeping
+    if not _keep_value_defining_attrs:
+        grad_zonal_da = _drop_value_describing_attrs(grad_zonal_da)
+        grad_meridional_da = _drop_value_describing_attrs(grad_meridional_da)
+
+    grad_zonal_da.attrs["units"] = grad_units
     grad_meridional_da.attrs["units"] = grad_units
+
+    if _with_gradient_attrs:
+        longname = data.name if data.name is not None else "unnamed_array"
+        zonal_grad_attrs = {
+            "long_name": f"Zonal gradient of {longname}",
+            "derivative": "gradient",
+            "description": f"Zonal component of gradient of {longname}",
+        }
+        grad_zonal_da = grad_zonal_da.assign_attrs(zonal_grad_attrs)
+        meridional_grad_attrs = {
+            "long_name": f"Meridional gradient of {longname}",
+            "derivative": "gradient",
+            "description": f"Meridional component of gradient of {longname}",
+        }
+        grad_meridional_da = grad_meridional_da.assign_attrs(meridional_grad_attrs)
 
     return grad_zonal_da, grad_meridional_da
 
@@ -351,7 +401,7 @@ def _dual_cell_area(sx, sy, sz, angles, n):
     return np.abs(area)
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _compute_gradients_on_faces(
     data,
     n_face,
@@ -363,6 +413,7 @@ def _compute_gradients_on_faces(
     face_lon,
     normal_lon,
     normal_lat,
+    output_dtype=np.float64,
 ):
     """
     Computes horizontal gradients on faces averaged over the cell constructed from connecting the centroids of the faces which share a common node with the face.
@@ -396,9 +447,8 @@ def _compute_gradients_on_faces(
         two np.ndarray: (n_face,) for zonal_grad & meridional_grad
 
     """
-
-    gradient_zonal = np.empty(n_face)
-    gradient_meridional = np.empty(n_face)
+    gradient_zonal = np.empty(n_face, dtype=output_dtype)
+    gradient_meridional = np.empty(n_face, dtype=output_dtype)
 
     n_face_nodes = face_node_connectivity.shape[1]
     n_node_edges = node_edge_connectivity.shape[1]
