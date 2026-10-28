@@ -469,12 +469,12 @@ def open_dataset(
                 "in ux.open_dataset(grid_filename_or_obj, filename_or_obj=None)."
             )
 
-        uxgrid, _ = _get_grid(ds, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs)
+        uxgrid, _ = _get_grid(ds, chunks, chunk_grid, use_dual, grid_kwargs)
         filename_or_obj = grid_filename_or_obj
     else:
         # Construct a Grid, validate parameters, and correct chunks
         uxgrid, corrected_chunks = _get_grid(
-            grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
+            grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs
         )
 
         # Load the data as a Xarray Dataset
@@ -567,7 +567,11 @@ def open_mfdataset(
 
     # Construct a Grid, validate parameters, and correct chunks
     uxgrid, corrected_chunks = _get_grid(
-        grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
+        grid_filename_or_obj,
+        chunks,
+        chunk_grid,
+        use_dual,
+        grid_kwargs,
     )
 
     # Load the data as a Xarray Dataset
@@ -581,17 +585,13 @@ def open_mfdataset(
 
 
 def _get_grid(
-    grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
+    grid_filename_or_obj,
+    chunks,
+    chunk_grid,
+    use_dual,
+    grid_kwargs,
 ):
     """Utility function to validate the input parameters and return a Grid."""
-    if "latlon" in kwargs:
-        warn(
-            "'latlon is no longer a supported parameter",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        grid_kwargs["latlon"] = kwargs["latlon"]
-
     grid_kwargs["data_chunks"] = chunks
     grid_kwargs["chunk_grid"] = chunk_grid
     grid_kwargs["return_chunks"] = True

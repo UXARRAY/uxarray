@@ -5,7 +5,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numba import njit, prange
 
-from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import (
+    ERROR_TOLERANCE,
+    INT_DTYPE,
+    INT_FILL_VALUE,
+    POINT_IN_FACE_CULL_THRESHOLDS,
+)
 from uxarray.grid.arcs import point_within_gca
 from uxarray.grid.utils import _small_angle_of_2_vectors
 from uxarray.utils.numba_math import (
@@ -15,6 +20,7 @@ from uxarray.utils.numba_math import (
     _numba_norm3,
     _numba_sub3,
 )
+from uxarray.utils.parallel import parallel_njit
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike
@@ -177,7 +183,7 @@ def _set_faces_containing_point(
     return count
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _batch_point_in_face(
     points: np.ndarray,
     flat_candidate_indices: np.ndarray,
@@ -238,15 +244,90 @@ def _batch_point_in_face(
     return results, counts
 
 
+@njit(inline="always", cache=True)
+def _point_within_face_radius(point, face_center, face_radius):
+    """True if point is within face_radius of face_center.
+
+    point, face_center: iterables of length 3
+        the (x,y,z) coordinates of the point and face center
+    face_radius: float
+        the maximum distance from face center to any point on the face
+    """
+    diff = _numba_sub3(point, face_center)
+    dist2 = _numba_dot3(diff, diff)
+    return dist2 <= face_radius * face_radius
+
+
+@parallel_njit
+def _cull_candidates_by_radius(
+    pts, flat_cands, offsets, face_x, face_y, face_z, face_radii
+):
+    """
+    Keep only candidates where dist(point, face_center) <= face_radius.
+
+    Returns new flat candidates and new offsets.
+
+    Parameters
+    ----------
+    pts : np.ndarray, shape (n_pts, 3)
+        Cartesian coordinates of query points.
+    flat_cands : np.ndarray, shape (total_candidates,)
+        Flattened array of all candidate face indices across points.
+    offsets : np.ndarray, shape (n_pts + 1,)
+        Offsets into `flat_cands` marking each point’s slice.
+    face_x, face_y, face_z : np.ndarray, shape (n_faces,)
+        Cartesian coordinates of face centers.
+    face_radii : np.ndarray, shape (n_faces,)
+        Maximum distance from face center to any point on the face.
+    """
+    n_pts = pts.shape[0]
+
+    # figure out which faces to keep:
+    keep = np.zeros(flat_cands.shape[0], dtype=np.bool_)
+    for i in prange(n_pts):
+        point = pts[i]
+        for k in range(offsets[i], offsets[i + 1]):
+            f = flat_cands[k]
+            face_center = (face_x[f], face_y[f], face_z[f])
+            face_radius = face_radii[f]
+            keep[k] = _point_within_face_radius(point, face_center, face_radius)
+
+    # count survivors per point
+    new_lens = np.empty(n_pts, dtype=np.int64)
+    for i in prange(n_pts):
+        new_lens[i] = np.count_nonzero(keep[offsets[i] : offsets[i + 1]])
+
+    # build new offsets
+    new_offsets = np.empty(n_pts + 1, dtype=np.int64)
+    new_offsets[0] = 0
+    for i in range(n_pts):  # cheap serial cumsum
+        new_offsets[i + 1] = new_offsets[i] + new_lens[i]
+
+    # build new flat candidates
+    new_flat = np.empty(new_offsets[n_pts], dtype=np.int64)
+    for i in prange(n_pts):
+        w = new_offsets[i]
+        for k in range(offsets[i], offsets[i + 1]):
+            if keep[k]:
+                new_flat[w] = flat_cands[k]
+                w += 1
+
+    return new_flat, new_offsets
+
+
 def _point_in_face_query(
     source_grid: Grid, points: ArrayLike
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Find grid faces that contain given Cartesian point(s) on the unit sphere.
 
-    This function first uses a SciPy k-d tree (in Cartesian space) to cull
-    candidate faces within the maximum face‐radius, then calls the Numba‐
-    accelerated winding‐number tester in parallel.
+    Follows these steps:
+    (1) Cull candidate faces using a SciPy k-d tree (in Cartesian space),
+        checking whether the point is within `max_face_radius` of each face's center
+    (2) Maybe cull candidate faces further by checking whether the point is within
+        each face's radius of the face center. This cull has a nontrivial cost,
+        so it is gated to only run if there are many candidates.
+    (3) call the Numba‐accelerated winding‐number tester in parallel.
 
     Parameters
     ----------
@@ -267,12 +348,16 @@ def _point_in_face_query(
     counts : np.ndarray, shape (n_points,)
         Number of valid face‐hits per point.
     """
+    SAFETY = 1.05
+
     pts = np.asarray(points, dtype=np.float64)
     if pts.ndim == 1:
         pts = pts[np.newaxis, :]
-    # Cull with k-d tree
+
+    # Cull with k-d tree: a face can only contain a point if
+    # the point is within max_face_radius of the face's center.
     kdt = source_grid._get_scipy_kd_tree()
-    radius = source_grid.max_face_radius * 1.05
+    radius = source_grid.max_face_radius * SAFETY
     cand_lists = kdt.query_ball_point(x=pts, r=radius, workers=-1)
 
     # Prepare flattened candidates and offsets
@@ -281,6 +366,30 @@ def _point_in_face_query(
     offs = np.empty(len(lens) + 1, dtype=np.int64)
     offs[0] = 0
     np.cumsum(lens, out=offs[1:])
+
+    # Cull by face radius: a face can only contain a point if
+    # the point is within the face's radius of the face's center.
+
+    # The cull has a nontrivial cost, so for efficiency, gate it to only run if there
+    # are "many" candidates, i.e. large (A) n_cands / n_points, and large (B) n_cands / n_face.
+    # Large (A) ratio happens in variable-resolution grids (many faces' radii < max_face_radius).
+    # Small (B) indicates not enough candidates to make up for compute_face_radii() cost, which
+    # scales with n_face. (Could remove gate (B) if compute_face_radii() result was cached.)
+    n_cands_per_point = len(flat_cands) / len(pts)
+    n_cands_per_face = len(flat_cands) / source_grid.n_face
+    if (n_cands_per_point > POINT_IN_FACE_CULL_THRESHOLDS["CANDS_PER_POINT"]) and (
+        n_cands_per_face > POINT_IN_FACE_CULL_THRESHOLDS["CANDS_PER_FACE"]
+    ):
+        radii = source_grid.compute_face_radii().values * SAFETY
+        flat_cands, offs = _cull_candidates_by_radius(
+            pts,
+            flat_cands,
+            offs,
+            source_grid.face_x.values,
+            source_grid.face_y.values,
+            source_grid.face_z.values,
+            radii,
+        )
 
     # Perform the batch winding‐number test
     return _batch_point_in_face(

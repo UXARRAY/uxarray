@@ -12,6 +12,7 @@ from uxarray.grid.utils import (
     _search_bucket,
     _sort_bucket,
 )
+from uxarray.utils.parallel import parallel_njit
 
 
 def close_face_nodes(face_node_connectivity, n_face, n_max_face_nodes):
@@ -302,7 +303,7 @@ def _emit_bucket_edges(
         face_edge_flat[half_edge_slot[i]] = edge_idx
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _build_edge_node_connectivity(face_node_connectivity, n_nodes_per_face, n_node):
     """Constructs the ``edge_node_connectivity`` variable, which represents the indices of the two nodes that make up
     each edge. Additionally, the ``face_edge_connectivity`` is derived during construction,  which represents the
@@ -456,7 +457,7 @@ def _populate_face_edge_connectivity(grid):
     )
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _build_face_edge_connectivity(
     face_node_connectivity, n_nodes_per_face, edge_node_connectivity, n_node
 ):
