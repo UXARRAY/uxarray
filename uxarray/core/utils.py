@@ -37,7 +37,7 @@ def _open_dataset_with_fallback(filename_or_obj, chunks=None, **kwargs):
     try:
         # Try opening with xarray's default read engine
         return xr.open_dataset(filename_or_obj, chunks=chunks, **kwargs)
-    except Exception as default_engine_error:
+    except Exception as default_engine_error:  # noqa: BLE001
         # If it fails, use the "netcdf4" engine as backup
         # Extract engine from kwargs to prevent duplicate parameter error
         engine = kwargs.pop("engine", "netcdf4")

@@ -41,7 +41,7 @@ try:
         return sig, codegen
 
     _FMA_INTRINSIC_OK = True
-except Exception:  # pragma: no cover - toolchain without intrinsic support
+except Exception:  # noqa: BLE001  # pragma: no cover - toolchain without intrinsic support
     _FMA_INTRINSIC_OK = False
 
 
@@ -127,7 +127,7 @@ def _validate_fma(n_samples=2000) -> bool:
             if pf != pv or ef != ev:
                 return False
         return True
-    except Exception:  # pragma: no cover
+    except Exception:  # noqa: BLE001  # pragma: no cover
         return False
 
 

@@ -65,7 +65,7 @@ class HoloviewsBackend:
             try:
                 shell.enable_matplotlib(gui)
                 return
-            except Exception:
+            except Exception:  # noqa: BLE001, S110 - fall back to the pyplot path below
                 pass
 
         _raise_hint_if_optional_deps_missing("matplotlib")
