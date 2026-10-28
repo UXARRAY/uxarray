@@ -160,12 +160,12 @@ class GradientColdStartRss:
 
 
 class GeoDataFrame(DatasetBenchmark):
-    param_names = DatasetBenchmark.param_names + ['exclude_antimeridian']
+    param_names = DatasetBenchmark.param_names + ['periodic_elements']
     repeat = SLOW_CALL_REPEAT
-    params = DatasetBenchmark.params + [[True, False]]
+    params = DatasetBenchmark.params + [["exclude", "split"]]
 
-    def time_to_geodataframe(self, resolution, exclude_antimeridian):
-        self.uxds[data_var].to_geodataframe(exclude_antimeridian=exclude_antimeridian)
+    def time_to_geodataframe(self, resolution, periodic_elements):
+        self.uxds[data_var].to_geodataframe(periodic_elements=periodic_elements)
 
 
 class ConnectivityConstruction(DatasetBenchmark):
@@ -284,7 +284,7 @@ class CrossSections(DatasetBenchmark):
 
     def time_const_lat(self, resolution, lat_step):
         for lat in self.lats:
-            self.uxgrid.cross_section.constant_latitude(lat)
+            self.uxgrid.subset.constant_latitude(lat)
 
 
 class PointInPolygon(CachedFixtures):
@@ -383,7 +383,7 @@ class CrossSectionsPeakMem:
             uxgrid = ux.open_grid(file_path_dict[resolution][0])
             uxgrid.normalize_cartesian_coordinates()
             uxgrid.bounds
-            uxgrid.cross_section.constant_latitude(0.0)
+            uxgrid.subset.constant_latitude(0.0)
 
     setup_cache.timeout = 1800
 
@@ -395,7 +395,7 @@ class CrossSectionsPeakMem:
             "uxgrid.normalize_cartesian_coordinates()\n"
             "uxgrid.bounds\n"
             f"for lat in np.arange(-45, 45, {lat_step}):\n"
-            "    uxgrid.cross_section.constant_latitude(lat)\n"
+            "    uxgrid.subset.constant_latitude(lat)\n"
         )
 
     track_peakmem_const_lat.unit = "bytes"
