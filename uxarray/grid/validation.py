@@ -88,7 +88,7 @@ def _find_duplicate_nodes(grid):
     # Iterate through the list and track occurrences
     for index, tpl in enumerate(lonlat_t):
         if tpl in occurrences:
-            occurrences[tpl].append((INT_DTYPE(index)))
+            occurrences[tpl].append(INT_DTYPE(index))
         else:
             occurrences[tpl] = [INT_DTYPE(index)]
 

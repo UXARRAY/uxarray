@@ -772,7 +772,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                         UserWarning,
                         stacklevel=2,
                     )
-                num_points = int(round((end - start) / step)) + 1
+                num_points = round((end - start) / step) + 1
                 latitudes = np.linspace(start, end, num_points)
                 latitudes = np.clip(latitudes, -90, 90)
             elif isinstance(lat, (float, int)):
@@ -821,7 +821,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                         UserWarning,
                         stacklevel=2,
                     )
-                num_points = int(round((end - start) / step)) + 1
+                num_points = round((end - start) / step) + 1
                 edges = np.linspace(start, end, num_points)
                 edges = np.clip(edges, -90, 90)
             elif isinstance(lat, (list, np.ndarray)):
@@ -920,7 +920,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 raise ValueError(
                     f"Expected step>0 when lat=(min_lat, max_lat, step); got step={step}"
                 )
-            num_points = int(round((end - start) / step)) + 1
+            num_points = round((end - start) / step) + 1
             edges = np.linspace(start, end, num_points)
             edges = np.clip(edges, -90, 90)
         elif isinstance(lat, (list, np.ndarray)):
