@@ -5,7 +5,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numba import njit, prange
 
-from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import (
+    ERROR_TOLERANCE,
+    INT_DTYPE,
+    INT_FILL_VALUE,
+    POINT_IN_FACE_CULL_THRESHOLDS,
+)
 from uxarray.grid.arcs import point_within_gca
 from uxarray.grid.utils import _small_angle_of_2_vectors
 from uxarray.utils.numba_math import (
@@ -365,22 +370,15 @@ def _point_in_face_query(
     # Cull by face radius: a face can only contain a point if
     # the point is within the face's radius of the face's center.
 
-    # This cull has a nontrivial cost, but helps if there are "many" candidates,
-    # so gate it accordingly. There are two gates here:
-    # (A) Only run if there are more than N candidates per point on average;
-    # This is a telltale sign of a variable-resolution grid (many faces' radii
-    # are smaller than max_face_radius), where this cull is more likely to help.
-    THRESH_CANDS_PER_POINT = 10
-    # (B) Only run if number of candidates / n_face > some threshold.
-    # compute_face_radii() cost scales with n_face, so the cull may be too costly
-    # if there are only a few candidates relative to n_faces.
-    THRESH_CANDS_PER_FACE = 1.0
-    # (Condition (B) could be removed if compute_face_radii() results are cached.)
-    # (Tune these numbers empirically to optimize further if needed.)
+    # The cull has a nontrivial cost, so for efficiency, gate it to only run if there
+    # are "many" candidates, i.e. large (A) n_cands / n_points, and large (B) n_cands / n_face.
+    # Large (A) ratio happens in variable-resolution grids (many faces' radii < max_face_radius).
+    # Small (B) indicates not enough candidates to make up for compute_face_radii() cost, which
+    # scales with n_face. (Could remove gate (B) if compute_face_radii() result was cached.)
     n_cands_per_point = len(flat_cands) / len(pts)
     n_cands_per_face = len(flat_cands) / source_grid.n_face
-    if (n_cands_per_point > THRESH_CANDS_PER_POINT) and (
-        n_cands_per_face > THRESH_CANDS_PER_FACE
+    if (n_cands_per_point > POINT_IN_FACE_CULL_THRESHOLDS["CANDS_PER_POINT"]) and (
+        n_cands_per_face > POINT_IN_FACE_CULL_THRESHOLDS["CANDS_PER_FACE"]
     ):
         radii = source_grid.compute_face_radii().values * SAFETY
         flat_cands, offs = _cull_candidates_by_radius(
