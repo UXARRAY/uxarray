@@ -68,4 +68,42 @@ def test_no_numba_kernels_built_on_import():
     assert result.returncode == 0, result.stderr
 
 
+def test_py_typed_marker_is_installed(tmp_path):
+    """Test that the PEP 561 ``py.typed`` marker ships with the package.
+
+    uxarray annotates its public API, but a type checker is only allowed to
+    use those annotations if the package declares itself typed by shipping an
+    (empty) ``py.typed`` file. Without it, mypy and pyright silently treat
+    every uxarray import as ``Any``, and ``--strict`` users get an error on
+    ``import uxarray``.
+
+    This asserts against the *installed* package rather than the source tree,
+    since only the installed package can catch a packaging regression.
+
+    The import is done in a subprocess run from a directory other than the
+    repository root. ``python -m pytest`` prepends the current directory to
+    ``sys.path``, so running it from the root would import ``uxarray/`` from
+    the source tree, where the marker is always present, and the test would
+    pass even if the build config had dropped it.
+    """
+    code = (
+        "import pathlib, uxarray; "
+        "p = pathlib.Path(uxarray.__file__).parent / 'py.typed'; "
+        "print(p); "
+        "raise SystemExit(0 if p.is_file() else 1)"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+    )
+    assert result.returncode == 0, (
+        f"PEP 561 marker missing from the installed package at "
+        f"{result.stdout.strip()}. Type checkers will ignore uxarray's "
+        "annotations. See [tool.setuptools.package-data] in pyproject.toml "
+        f"and MANIFEST.in.\n{result.stderr}"
+    )
+
+
 # TODO: similar tests for cartopy, holoviews, and other optional deps.

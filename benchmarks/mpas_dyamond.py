@@ -42,4 +42,4 @@ class Bounds(BaseGridBenchmark):
 class GeoDataFrame(BaseGridBenchmark):
     @skip_benchmark_if(not DYAMOND_AVAILABLE)
     def time_to_geodataframe(self, resolution):
-        self.uxgrid.to_geodataframe(exclude_antimeridian=True)
+        self.uxgrid.to_geodataframe(periodic_elements="exclude")
