@@ -223,11 +223,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
     def to_geodataframe(
         self,
-        periodic_elements: str | None = "exclude",
+        periodic_elements: str = "exclude",
         projection=None,
-        cache: bool | None = True,
-        override: bool | None = False,
-        engine: str | None = "spatialpandas",
+        cache: bool = True,
+        override: bool = False,
+        engine: str = "spatialpandas",
         project: bool = True,
     ):
         """Constructs a ``GeoDataFrame`` consisting of polygons representing
@@ -317,11 +317,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
     def to_polycollection(
         self,
-        periodic_elements: Optional[str] = "exclude",
+        periodic_elements: str = "exclude",
         projection: Optional[ccrs.Projection] = None,
-        return_indices: Optional[bool] = False,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
+        return_indices: bool = False,
+        cache: bool = True,
+        override: bool = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
@@ -1992,7 +1992,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         result = result.assign_attrs(attrs)
         return result
 
-    def difference(self, destination: str | None = "edge"):
+    def difference(self, destination: str = "edge"):
         """Computes the absolute difference of a data variable.
 
         The difference for a face-centered data variable can be computed on each edge using the ``edge_face_connectivity``,
