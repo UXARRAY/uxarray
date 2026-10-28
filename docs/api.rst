@@ -405,6 +405,7 @@ UxDataArray
    UxDataArray.plot
    UxDataArray.plot.polygons
    UxDataArray.plot.points
+   UxDataArray.plot.contour
    UxDataArray.plot.line
    UxDataArray.plot.scatter
 

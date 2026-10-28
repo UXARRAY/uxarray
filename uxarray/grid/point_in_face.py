@@ -15,6 +15,7 @@ from uxarray.utils.numba_math import (
     _numba_norm3,
     _numba_sub3,
 )
+from uxarray.utils.parallel import parallel_njit
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike
@@ -177,7 +178,7 @@ def _set_faces_containing_point(
     return count
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _batch_point_in_face(
     points: np.ndarray,
     flat_candidate_indices: np.ndarray,
