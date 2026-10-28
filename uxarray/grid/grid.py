@@ -734,15 +734,15 @@ class Grid:
 
         coord_heading = "Grid Coordinates (Spherical):\n"
         coords_str = ""
-        for coord_name in list(
-            [coord for coord in ugrid.SPHERICAL_COORDS if coord in self._ds]
-        ):
+        for coord_name in [
+            coord for coord in ugrid.SPHERICAL_COORDS if coord in self._ds
+        ]:
             coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         coords_str += "Grid Coordinates (Cartesian):\n"
-        for coord_name in list(
-            [coord for coord in ugrid.CARTESIAN_COORDS if coord in self._ds]
-        ):
+        for coord_name in [
+            coord for coord in ugrid.CARTESIAN_COORDS if coord in self._ds
+        ]:
             coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         connectivity_heading = "Grid Connectivity Variables:\n"
@@ -753,9 +753,9 @@ class Grid:
 
         descriptors_heading = "Grid Descriptor Variables:\n"
         descriptors_str = ""
-        for descriptor_name in list(
-            [desc for desc in descriptors.DESCRIPTOR_NAMES if desc in self._ds]
-        ):
+        for descriptor_name in [
+            desc for desc in descriptors.DESCRIPTOR_NAMES if desc in self._ds
+        ]:
             descriptors_str += (
                 f"  * {descriptor_name}: {getattr(self, descriptor_name).shape}\n"
             )
@@ -840,7 +840,7 @@ class Grid:
         """Names of all unstructured grid dimensions."""
         from uxarray.conventions.ugrid import DIM_NAMES
 
-        return set([dim for dim in DIM_NAMES if dim in self._ds.dims])
+        return {dim for dim in DIM_NAMES if dim in self._ds.dims}
 
     @property
     def sizes(self) -> dict:
@@ -855,23 +855,23 @@ class Grid:
             SPHERICAL_COORD_NAMES,
         )
 
-        return set(
-            [coord for coord in SPHERICAL_COORD_NAMES if coord in self._ds]
-        ).union(set([coord for coord in CARTESIAN_COORD_NAMES if coord in self._ds]))
+        return {coord for coord in SPHERICAL_COORD_NAMES if coord in self._ds}.union(
+            {coord for coord in CARTESIAN_COORD_NAMES if coord in self._ds}
+        )
 
     @property
     def connectivity(self) -> set:
         """Names of all connectivity variables."""
         from uxarray.conventions.ugrid import CONNECTIVITY_NAMES
 
-        return set([conn for conn in CONNECTIVITY_NAMES if conn in self._ds])
+        return {conn for conn in CONNECTIVITY_NAMES if conn in self._ds}
 
     @property
     def descriptors(self) -> set:
         """Names of all descriptor variables."""
         from uxarray.conventions.descriptors import DESCRIPTOR_NAMES
 
-        return set([desc for desc in DESCRIPTOR_NAMES if desc in self._ds])
+        return {desc for desc in DESCRIPTOR_NAMES if desc in self._ds}
 
     @property
     def attrs(self) -> dict:

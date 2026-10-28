@@ -27,15 +27,13 @@ def _grid_sections(grid, max_items_collapse=15):
             UserWarning,
         )
         return []
-    cartesian_coordinates = list(
-        [coord for coord in ugrid.CARTESIAN_COORDS if coord in grid._ds]
-    )
-    spherical_coordinates = list(
-        [coord for coord in ugrid.SPHERICAL_COORDS if coord in grid._ds]
-    )
-    descriptor = list(
-        [desc for desc in descriptors.DESCRIPTOR_NAMES if desc in grid._ds]
-    )
+    cartesian_coordinates = [
+        coord for coord in ugrid.CARTESIAN_COORDS if coord in grid._ds
+    ]
+    spherical_coordinates = [
+        coord for coord in ugrid.SPHERICAL_COORDS if coord in grid._ds
+    ]
+    descriptor = [desc for desc in descriptors.DESCRIPTOR_NAMES if desc in grid._ds]
     connectivity = grid.connectivity
 
     sections = [xrfm.dim_section(grid._ds)]
