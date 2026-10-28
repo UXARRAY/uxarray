@@ -80,8 +80,8 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
 
     # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
     __slots__ = (
-        "_uxgrid",
         "_source_datasets",
+        "_uxgrid",
     )
 
     def __init__(

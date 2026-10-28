@@ -5,9 +5,9 @@ from .weights import RemapWeights, clear_remap_weights_cache, load_remap_weights
 
 __all__ = (
     "RemapWeights",
-    "load_remap_weights",
-    "clear_remap_weights_cache",
     "_apply_weights",
-    "_nearest_neighbor_remap",
     "_inverse_distance_weighted_remap",
+    "_nearest_neighbor_remap",
+    "clear_remap_weights_cache",
+    "load_remap_weights",
 )

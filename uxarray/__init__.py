@@ -25,17 +25,17 @@ except Exception:
 
 
 __all__ = (
-    "open_grid",
-    "open_dataset",
-    "open_mfdataset",
-    "open_multigrid",
-    "list_grid_names",
-    "concat",
-    "tutorial",
-    "UxDataset",
-    "UxDataArray",
     "INT_DTYPE",
     "INT_FILL_VALUE",
     "Grid",
+    "UxDataArray",
+    "UxDataset",
+    "concat",
     "errors",
+    "list_grid_names",
+    "open_dataset",
+    "open_grid",
+    "open_mfdataset",
+    "open_multigrid",
+    "tutorial",
 )
