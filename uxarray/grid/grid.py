@@ -149,8 +149,8 @@ class Grid:
     --------
 
     >>> import uxarray as ux
-    >>> grid_path = "/path/to/grid.nc"
-    >>> data_path = "/path/to/data.nc"
+    >>> grid_path = ux.tutorial.file_path("outCSne30-vortex", "grid")
+    >>> data_path = ux.tutorial.file_path("outCSne30-vortex", "data")
 
     1. Open a grid file with `uxarray.open_grid()`:
 
@@ -160,7 +160,8 @@ class Grid:
     `uxarray.open_dataset()`, then access the ``Grid``.:
 
     >>> uxds = ux.open_dataset(grid_path, data_path)
-    >>> uxds.uxgrid
+    >>> uxds.uxgrid.n_face
+    5400
     """
 
     def __init__(
@@ -368,7 +369,9 @@ class Grid:
         Examples
         --------
         >>> import uxarray as ux
-        >>> grid = ux.Grid.from_file("path/to/file.shp", backend="geopandas")
+        >>> grid = ux.Grid.from_file(
+        ...     "path/to/file.shp", backend="geopandas"
+        ... )  # doctest: +SKIP
 
         Note
         ----
@@ -501,11 +504,14 @@ class Grid:
 
         Examples
         --------
+        >>> import numpy as np
         >>> import uxarray as ux
-        >>> node_lon, node_lat, face_node_connectivity, fill_value = ...
-        >>> uxgrid = ux.Grid.from_ugrid(
-        ...     node_lon, node_lat, face_node_connectivity, fill_value
-        ... )
+        >>> node_lon = np.array([0.0, 1.0, 1.0, 0.0])
+        >>> node_lat = np.array([0.0, 0.0, 1.0, 1.0])
+        >>> face_node_connectivity = np.array([[0, 1, 2], [0, 2, 3]])
+        >>> uxgrid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
+        >>> uxgrid.n_face
+        2
         """
 
         if dims_dict is None:
@@ -702,11 +708,11 @@ class Grid:
         None
             This method constructs the face_lon and face_lat attributes for the grid object.
 
-        Usage
-        -----
+        Examples
+        --------
         >>> import uxarray as ux
-        >>> uxgrid = ux.open_grid("GRID_FILE_NAME")
-        >>> face_lat = uxgrid.construct_face_center(method="welzl")
+        >>> uxgrid = ux.tutorial.open_grid("outCSne30")
+        >>> uxgrid.construct_face_centers(method="welzl")
         """
         if method == "cartesian average":
             _populate_face_centroids(self, repopulate=True)
@@ -784,7 +790,10 @@ class Grid:
 
         Examples
         --------
-        >>> uxgrid["face_node_connectivity"]
+        >>> import uxarray as ux
+        >>> uxgrid = ux.tutorial.open_grid("quad-hexagon")
+        >>> uxgrid["face_node_connectivity"].shape
+        (4, 6)
         """
         return getattr(self, item)
 
@@ -1924,9 +1933,7 @@ class Grid:
         """
         return Neighborhood(self, r=r, on=on)
 
-    def _get_scipy_kd_tree(
-        self, coordinates: str = "face", reconstruct: bool = False
-    ):
+    def _get_scipy_kd_tree(self, coordinates: str = "face", reconstruct: bool = False):
         """
         Build or retrieve a KDTree for efficient nearest-neighbor searches on grid points.
 
@@ -2056,7 +2063,7 @@ class Grid:
         Open a grid from a file path:
 
         >>> import uxarray as ux
-        >>> uxgrid = ux.open_grid("grid_filename.nc")
+        >>> uxgrid = ux.tutorial.open_grid("outCSne30")
 
         Obtain SpatialHash instance:
 
@@ -3079,15 +3086,18 @@ class Grid:
         Examples
         --------
 
+        >>> import uxarray as ux
+        >>> uxgrid = ux.tutorial.open_grid("outCSne30")
+
         Query a single spherical point
 
         >>> face_indices, counts = uxgrid.get_faces_containing_point(points=(0.0, 0.0))
 
         Query a single Cartesian point
 
-         >>> face_indices, counts = uxgrid.get_faces_containing_point(
-         ...     points=[0.0, 0.0, 1.0]
-         ... )
+        >>> face_indices, counts = uxgrid.get_faces_containing_point(
+        ...     points=[0.0, 0.0, 1.0]
+        ... )
 
         Query multiple points at once
 

@@ -464,11 +464,13 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         Rasterize data onto the GeoAxes
 
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
         >>> raster = uxds["psi"].to_raster(ax=ax)
 
         Use :meth:`~cartopy.mpl.geoaxes.GeoAxes.imshow` to visualize the raster
 
-        >>> ax.imshow(raster, origin="lower", extent=ax.get_xlim() + ax.get_ylim())
+        >>> _ = ax.imshow(raster, origin="lower", extent=ax.get_xlim() + ax.get_ylim())
 
         """
         _raise_hint_if_optional_deps_missing("cartopy")
@@ -658,7 +660,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         Open a UXarray dataset and compute the integral
 
         >>> import uxarray as ux
-        >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
         >>> integral = uxds["psi"].integrate()
         """
         # TODO: support integration regardless of n_face dimension position,
@@ -723,17 +725,25 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         Examples
         --------
-        # Non-conservative averaging from -90° to 90° at 10° intervals by default
-        >>> uxds["var"].zonal_mean()
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
 
-        # Single latitude (non-conservative) over 30° latitude
-        >>> uxds["var"].zonal_mean(lat=30.0)
+        Non-conservative averaging from -90° to 90° at 10° intervals by default
 
-        # Conservative averaging over latitude bands
-        >>> uxds["var"].zonal_mean(lat=(-60, 60, 10), conservative=True)
+        >>> dict(uxds["psi"].zonal_mean().sizes)
+        {'latitudes': 19}
 
-        # Conservative with explicit band edges
-        >>> uxds["var"].zonal_mean(lat=[-90, -30, 0, 30, 90], conservative=True)
+        Single latitude (non-conservative) over 30° latitude
+
+        >>> zm = uxds["psi"].zonal_mean(lat=30.0)
+
+        Conservative averaging over latitude bands
+
+        >>> zm = uxds["psi"].zonal_mean(lat=(-60, 60, 10), conservative=True)
+
+        Conservative with explicit band edges
+
+        >>> zm = uxds["psi"].zonal_mean(lat=[-90, -30, 0, 30, 90], conservative=True)
 
         Notes
         -----
@@ -899,8 +909,10 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         Examples
         --------
-        >>> uxds["var"].zonal_anomaly()
-        >>> uxds["var"].zonal_anomaly(lat=(-60, 60, 5), conservative=True)
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
+        >>> anom = uxds["psi"].zonal_anomaly()
+        >>> anom = uxds["psi"].zonal_anomaly(lat=(-60, 60, 5), conservative=True)
 
         See Also
         --------
@@ -979,11 +991,16 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         Examples
         --------
-        # Range from 0° to 5° at 0.5° intervals, around the central point lon,lat=10,50
-        >>> az = uxds["var"].azimuthal_mean(
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
+
+        Range from 0° to 5° at 0.5° intervals, around the central point lon,lat=10,50
+
+        >>> az = uxds["psi"].azimuthal_mean(
         ...     center_coord=(10, 50), outer_radius=5.0, radius_step=0.5
         ... )
-        >>> az.plot(title="Azimuthal Mean")
+        >>> dict(az.sizes)
+        {'radius': 11}
 
         Notes
         -----
@@ -1108,6 +1125,8 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         Example
         -------
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("quad-hexagon")
         >>> weighted_mean = uxds["t2m"].weighted_mean()
 
 
@@ -1634,7 +1653,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         Example
         -------
-        >>> uxds["var"].gradient()
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
+        >>> grad = uxds["psi"].gradient(scale_by_radius=False)
+        >>> list(grad.data_vars)
+        ['zonal_gradient', 'meridional_gradient']
         """
         from uxarray import UxDataset
 
@@ -1702,9 +1725,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         Example
         -------
-        >>> u_component = uxds["u_wind"]
-        >>> v_component = uxds["v_wind"]
-        >>> curl_field = u_component.curl(v_component)
+        >>> u_component = uxds["u_wind"]  # doctest: +SKIP
+        >>> v_component = uxds["v_wind"]  # doctest: +SKIP
+        >>> curl_field = u_component.curl(v_component)  # doctest: +SKIP
         """
         # Input validation
         if not isinstance(other, UxDataArray):
@@ -1822,9 +1845,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         Example
         -------
-        >>> u_component = uxds["u_wind"]  # First component of vector field
-        >>> v_component = uxds["v_wind"]  # Second component of vector field
-        >>> div_field = u_component.divergence(v_component)
+        >>> u_component = uxds["u_wind"]  # doctest: +SKIP
+        >>> v_component = uxds["v_wind"]  # doctest: +SKIP
+        >>> div_field = u_component.divergence(v_component)  # doctest: +SKIP
         """
         if not isinstance(other, UxDataArray):
             raise TypeError(
