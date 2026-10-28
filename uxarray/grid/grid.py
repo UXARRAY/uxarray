@@ -45,6 +45,7 @@ from uxarray.grid.coordinates import (
 )
 from uxarray.grid.dual import construct_dual
 from uxarray.grid.geometry import (
+    _compute_face_radii,
     _construct_boundary_edge_indices,
     _grid_to_matplotlib_linecollection,
     _grid_to_matplotlib_polycollection,
@@ -2158,6 +2159,38 @@ class Grid:
             from uxarray.core.dataarray import UxDataArray
 
             result = UxDataArray(result, uxgrid=self)
+        return result
+
+    def compute_face_radii(self):
+        """Compute the radius of each face in this grid,
+        defined as the maximum distance from the face center to any of its nodes.
+
+        Returns
+        -------
+        face_radii : uxarray.UxDataArray
+            The radius of each face in this grid.
+        """
+        from uxarray.conventions.ugrid import FACE_DIM
+        from uxarray.core.dataarray import UxDataArray
+
+        result = _compute_face_radii(
+            self.face_node_connectivity.values,
+            self.node_x.values,
+            self.node_y.values,
+            self.node_z.values,
+            self.face_x.values,
+            self.face_y.values,
+            self.face_z.values,
+        )
+        result = xr.DataArray(
+            data=result,
+            dims=[FACE_DIM],
+            name="face_radii",
+            attrs={
+                "description": "Radius of each face (max distance from face center to any node)."
+            },
+        )
+        result = UxDataArray(result, uxgrid=self)
         return result
 
     def calculate_total_face_area(
