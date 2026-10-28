@@ -403,6 +403,7 @@ class TestZonalAnomaly:
 from uxarray.core.zonal import (  # noqa: E402
     _compute_band_overlap_area,
     _compute_face_band_weights,
+    _is_pole_point,
 )
 from uxarray.grid.area import calculate_face_area  # noqa: E402
 from uxarray.grid.intersections import (  # noqa: E402
@@ -562,3 +563,63 @@ class TestBandOverlapArea:
         fe = _face_edges(np.array([0.0, 0.0, 3.0, 3.0]), np.array([0.0, 3.0, 3.0, 0.0]))
         assert _band_area(fe, -10.0, 0.0) == 0.0
         assert _band_area(fe, 0.0, 10.0) > 0.0
+
+    @pytest.mark.parametrize(
+        "p, expected",
+        [
+            ((0.0, 0.0, 1.0), True),
+            ((0.0, 0.0, -1.0), True),
+            ((0.0, 0.0, 1.0 - 1e-6), True),  # off the sphere, still on the axis
+            ((1e-170, -1e-170, 1.0), True),  # horizontal part underflows
+            ((6.123e-17, 0.0, 1.0), False),  # cos(90 deg) residue: near, not on
+            ((0.0, 1e-12, -1.0), False),
+        ],
+    )
+    def test_is_pole_point(self, p, expected):
+        """Only points on the z-axis count as poles, whatever their norm."""
+        assert _is_pole_point(np.array(p)) is expected
+
+    @pytest.mark.parametrize("hemisphere", [1.0, -1.0])
+    @pytest.mark.parametrize("phi", [45.0, 225.0])  # toward / away from the face
+    @pytest.mark.parametrize("rho", [6.123e-17, 1e-12, 1e-6])
+    def test_pole_vertex_moved_off_axis(self, hemisphere, phi, rho):
+        """Moving the pole vertex off the axis changes the overlap only by O(rho).
+
+        The vertex is no longer treated as a pole, so this checks that the
+        ordinary edge path stays accurate arbitrarily close to the pole, on both
+        sides of it.
+        """
+        fe = _face_edges(hemisphere * np.array([90.0, 80.0, 80.0]), np.array([0.0, 0.0, 90.0]))
+        fe[0, 0] = fe[2, 1] = (0.0, 0.0, hemisphere)
+        moved = fe.copy()
+        p = np.array([rho * np.cos(np.deg2rad(phi)), rho * np.sin(np.deg2rad(phi)), hemisphere])
+        moved[0, 0] = moved[2, 1] = p / np.linalg.norm(p)
+
+        for lat0, lat1 in [(-90.0, 90.0), (85.0, 90.0), (70.0, 82.0), (82.0, 90.0)]:
+            lat0, lat1 = sorted((hemisphere * lat0, hemisphere * lat1))
+            expected = _band_area(fe, lat0, lat1)
+            assert expected > 0.0
+            # The area moves by at most rho times the two edges meeting the vertex.
+            tol = rho * 2 * np.deg2rad(10.0) + 1e-12 * expected
+            assert abs(_band_area(moved, lat0, lat1) - expected) <= tol
+
+    @pytest.mark.parametrize(
+        "lat, lon",
+        [
+            ([10.0, 15.0, 35.0, 30.0], [-8.0, 9.0, 7.0, -6.0]),
+            ([80.0, 80.0, 80.0, 80.0], [45.0, 135.0, 225.0, 315.0]),
+            ([-90.0, -80.0, -80.0], [0.0, 90.0, 0.0]),
+        ],
+    )
+    def test_invariant_under_node_scaling(self, lat, lon):
+        """Nodes slightly off the unit sphere give the same overlap areas."""
+        lat, lon = np.array(lat), np.array(lon)
+        fe = _face_edges(lat, lon)
+        scale = 1.0 + np.random.default_rng(0).uniform(-1e-6, 1e-6, lat.size)
+        scaled = fe.copy()
+        scaled[:, 0] *= scale[:, None]
+        scaled[:, 1] *= np.roll(scale, -1)[:, None]
+        for lat0, lat1 in [(-90.0, 90.0), (12.0, 33.0), (25.0, 28.0), (81.0, 90.0),
+                           (-90.0, -85.0), (-84.0, -81.0)]:
+            expected = _band_area(fe, lat0, lat1)
+            assert _band_area(scaled, lat0, lat1) == pytest.approx(expected, rel=1e-12, abs=1e-15)

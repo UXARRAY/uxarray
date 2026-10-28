@@ -1,8 +1,8 @@
 import numpy as np
 from numba import njit
 
-from uxarray.constants import ERROR_TOLERANCE
 from uxarray.errors import DimensionError
+from uxarray.grid.coordinates import _normalize_xyz_scalar
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array_subset
 from uxarray.utils.computing import _cdp2, diff_of_products
@@ -103,8 +103,11 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
 
 @njit(cache=True)
 def _is_pole_point(p):
-    """Whether ``p`` lies (numerically) on a pole, where longitude is undefined."""
-    return p[0] * p[0] + p[1] * p[1] < ERROR_TOLERANCE * ERROR_TOLERANCE
+    """Whether ``p`` lies on the z-axis, where longitude is undefined.
+
+    Only a horizontal component that vanishes in working precision counts.
+    """
+    return p[0] * p[0] + p[1] * p[1] == 0.0
 
 
 @njit(cache=True)
@@ -249,8 +252,8 @@ def _compute_band_overlap_area(face_edges_xyz, z_min, z_max):
     Parameters
     ----------
     face_edges_xyz : ndarray
-        Cartesian coordinates of the face's edge nodes on the unit sphere, shape
-        (n_edges, 2, 3), with the edges in boundary order.
+        Cartesian coordinates of the face's edge nodes, shape (n_edges, 2, 3),
+        with the edges in boundary order.
     z_min, z_max : float
         Z-coordinate bounds of the latitude band (z = sin(latitude)),
         ``z_min <= z_max``.
@@ -269,6 +272,8 @@ def _compute_band_overlap_area(face_edges_xyz, z_min, z_max):
     for e in range(n_edges):
         a = face_edges_xyz[e, 0]
         b = face_edges_xyz[e, 1]
+        a = _normalize_xyz_scalar(a[0], a[1], a[2])
+        b = _normalize_xyz_scalar(b[0], b[1], b[2])
         z_sum += a[2]
 
         if _is_pole_point(a) or _is_pole_point(b):
