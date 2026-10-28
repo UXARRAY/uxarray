@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Sequence
 from difflib import get_close_matches
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numba import njit

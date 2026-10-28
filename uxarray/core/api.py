@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Hashable, Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Any, Hashable, Iterable, Mapping, Sequence, TypeAlias
+from typing import Any
 from warnings import warn
 
 import numpy as np
@@ -144,8 +145,8 @@ def open_grid(
         return grid
 
 
-MaskValue: TypeAlias = Any | Sequence[Any]
-MaskActiveValue: TypeAlias = MaskValue | Mapping[str, MaskValue] | None
+type MaskValue = Any | Sequence[Any]
+type MaskActiveValue = MaskValue | Mapping[str, MaskValue] | None
 
 
 def open_multigrid(

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Hashable, Iterable, Mapping
 from html import escape
-from typing import TYPE_CHECKING, Any, Hashable, Iterable, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Literal
 from warnings import warn
 
 import numpy as np
@@ -317,11 +318,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
     def to_polycollection(
         self,
-        periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
-        return_indices: Optional[bool] = False,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
+        periodic_elements: str | None = "exclude",
+        projection: ccrs.Projection | None = None,
+        return_indices: bool | None = False,
+        cache: bool | None = True,
+        override: bool | None = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
@@ -952,8 +953,8 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
     def azimuthal_mean(
         self,
         center_coord,
-        outer_radius: int | float,
-        radius_step: int | float,
+        outer_radius: float,
+        radius_step: float,
         return_hit_counts: bool = False,
     ):
         """Compute averages along circles of constant great-circle distance from a point.
@@ -1658,9 +1659,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
     def curl(
         self,
-        other: "UxDataArray",
+        other: UxDataArray,
         scale_by_radius: bool = True,
-    ) -> "UxDataArray":
+    ) -> UxDataArray:
         """
         Computes the curl of the vector field defined by this UxDataArray and ``other``,
         in the horizontal direction (i.e., along the unstructured grid dimension).
@@ -1775,8 +1776,8 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         return result
 
     def divergence(
-        self, other: "UxDataArray", scale_by_radius: bool = True, **kw_unused
-    ) -> "UxDataArray":
+        self, other: UxDataArray, scale_by_radius: bool = True, **kw_unused
+    ) -> UxDataArray:
         """
         Computes the divergence of the vector field defined by this UxDataArray and ``other``,
         in the horizontal direction (i.e., along the unstructured grid dimension).
@@ -1905,7 +1906,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         result = result.assign_attrs(attrs)
         return result
 
-    def scalardotgradient(self, v: "UxDataArray", q: "UxDataArray") -> "UxDataArray":
+    def scalardotgradient(self, v: UxDataArray, q: UxDataArray) -> UxDataArray:
         """
         Compute the dot product between a vector field and the gradient of a scalar field.
         The formula is: scalar_dot_gradient = u * (dq/dx) + v * (dq/dy),
@@ -2209,7 +2210,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         self,
         indexers: Mapping[Any, Any] | None = None,
         method: str | None = None,
-        tolerance: int | float | Iterable[int | float] | None = None,
+        tolerance: float | Iterable[int | float] | None = None,
         drop: bool = False,
         **indexers_kwargs: Any,
     ):
@@ -2349,7 +2350,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             raise AssertionError("internal implementation error if reached this line")
 
     @classmethod
-    def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
+    def from_xarray(
+        cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict | None = None
+    ):
         """
         Converts a ``xarray.DataArray`` into a ``uxarray.UxDataset`` paired with a user-defined ``Grid``
 

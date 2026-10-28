@@ -3,8 +3,9 @@ from __future__ import annotations
 import copy
 import os
 import warnings
+from collections.abc import Sequence
 from html import escape
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import xarray as xr
@@ -470,7 +471,7 @@ class Grid:
         node_lon: np.ndarray,
         node_lat: np.ndarray,
         face_node_connectivity: np.ndarray,
-        fill_value: int | float | None = None,
+        fill_value: float | None = None,
         start_index: int | None = 0,
         dims_dict: dict | None = None,
         **kwargs,
@@ -2230,7 +2231,7 @@ class Grid:
         latitude_adjusted_area: bool = False,
         return_jacobian: bool = False,
         as_uxarray: bool = False,
-    ) -> "np.ndarray | UxDataArray | tuple[np.ndarray | UxDataArray, np.ndarray]":
+    ) -> np.ndarray | UxDataArray | tuple[np.ndarray | UxDataArray, np.ndarray]:
         """Compute the area of each face in the grid.
 
         Unlike the cached :attr:`face_areas` property (which always uses the
@@ -2604,12 +2605,12 @@ class Grid:
 
     def to_polycollection(
         self,
-        periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
-        return_indices: Optional[bool] = False,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        return_non_nan_polygon_indices: Optional[bool] = False,
+        periodic_elements: str | None = "exclude",
+        projection: ccrs.Projection | None = None,
+        return_indices: bool | None = False,
+        cache: bool | None = True,
+        override: bool | None = False,
+        return_non_nan_polygon_indices: bool | None = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
@@ -2690,10 +2691,10 @@ class Grid:
 
     def to_linecollection(
         self,
-        periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
+        periodic_elements: str | None = "exclude",
+        projection: ccrs.Projection | None = None,
+        cache: bool | None = True,
+        override: bool | None = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.LineCollection``` consisting

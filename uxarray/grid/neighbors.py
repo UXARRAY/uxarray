@@ -1,7 +1,7 @@
 import enum
 import math
 import warnings
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 import xarray as xr

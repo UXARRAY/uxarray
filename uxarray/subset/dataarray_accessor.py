@@ -65,7 +65,7 @@ class DataArraySubsetAccessor:
     def bounding_circle(
         self,
         center_coord: tuple | list | np.ndarray,
-        r: float | int,
+        r: float,
         element: str | None = "face centers",
         inverse_indices: list[str] | set[str] | bool = False,
         **kwargs,

@@ -1,5 +1,5 @@
 import warnings
-from typing import Dict, Literal, Optional, Tuple
+from typing import Literal
 
 import xarray as xr
 
@@ -62,7 +62,7 @@ class SpatialCoordsRemapper:
         self.source = source
         self.remap_to = remap_to
 
-    def _get_destination_grid_coords(self) -> Dict[str, xr.DataArray]:
+    def _get_destination_grid_coords(self) -> dict[str, xr.DataArray]:
         """
         Get the spatial coordinates of the destination grid corresponding to `remap_to`.
 
@@ -97,7 +97,7 @@ class SpatialCoordsRemapper:
                 f"Unknown `remap_to`: {self.remap_to}. Must be either 'nodes', 'faces', or 'edges'."
             )
 
-    def _find_source_coords(self) -> Dict[str, Tuple[str, str]]:
+    def _find_source_coords(self) -> dict[str, tuple[str, str]]:
         """
         Find spatial coordinate variables in `source` by checking their attributes, units, and axes.
 
@@ -167,7 +167,7 @@ class SpatialCoordsRemapper:
 
         return source_coords
 
-    def _get_element_type_from_dimension(self, dim_name: str) -> Optional[str]:
+    def _get_element_type_from_dimension(self, dim_name: str) -> str | None:
         """
         Determine element type (i.e. 'nodes', 'faces', or 'edges') from dimension name.
 
@@ -244,7 +244,7 @@ class SpatialCoordsRemapper:
 
         return new_name
 
-    def construct_output_coords(self) -> Dict[str, xr.DataArray]:
+    def construct_output_coords(self) -> dict[str, xr.DataArray]:
         """
         Construct spatial coordinates for the remapped output by finding spatial coordinate variables, if any,
         in `source` and employing a logic as follows:

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 # LRU-bounded cache for loaded remap operators.
 _WEIGHTS_CACHE_MAXSIZE = 32
-_WEIGHTS_CACHE: "OrderedDict[tuple[str, int, int], RemapWeights]" = OrderedDict()
+_WEIGHTS_CACHE: OrderedDict[tuple[str, int, int], RemapWeights] = OrderedDict()
 
 
 def clear_remap_weights_cache() -> None:

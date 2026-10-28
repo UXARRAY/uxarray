@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Hashable, Iterable, Mapping
 from html import escape
-from typing import IO, Any, Hashable, Iterable, Mapping
+from typing import IO, Any
 from warnings import warn
 
 import xarray as xr
@@ -314,7 +315,9 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         return cls(ds, uxgrid=uxgrid)
 
     @classmethod
-    def from_xarray(cls, ds: xr.Dataset, uxgrid: Grid = None, ugrid_dims: dict = None):
+    def from_xarray(
+        cls, ds: xr.Dataset, uxgrid: Grid = None, ugrid_dims: dict | None = None
+    ):
         """
         Converts a ``xarray.Dataset`` into a ``uxarray.UxDataset``, paired with either a user-defined or
         parsed ``Grid``
@@ -548,7 +551,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         self,
         indexers: Mapping[Any, Any] | None = None,
         method: str | None = None,
-        tolerance: int | float | Iterable[int | float] | None = None,
+        tolerance: float | Iterable[int | float] | None = None,
         drop: bool = False,
         **indexers_kwargs: Any,
     ):
@@ -721,7 +724,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         # For all other attributes, use the default behavior
         return super().__getattribute__(name)
 
-    def info(self, buf: IO = None, show_attrs=False) -> None:
+    def info(self, buf: IO | None = None, show_attrs=False) -> None:
         """Concise summary of Dataset variables and attributes including grid
         topology information stored in the ``uxgrid`` property.
 
