@@ -403,7 +403,6 @@ class TestZonalAnomaly:
 from uxarray.core.zonal import (  # noqa: E402
     _compute_band_overlap_area,
     _compute_face_band_weights,
-    _is_pole_point,
 )
 from uxarray.grid.area import calculate_face_area  # noqa: E402
 from uxarray.grid.intersections import (  # noqa: E402
@@ -564,20 +563,56 @@ class TestBandOverlapArea:
         assert _band_area(fe, -10.0, 0.0) == 0.0
         assert _band_area(fe, 0.0, 10.0) > 0.0
 
+    @pytest.mark.parametrize("hemisphere", [1.0, -1.0])
+    @pytest.mark.parametrize("shift", [0, 1, 2, 3, 4])
+    def test_repeated_pole_vertices(self, hemisphere, shift):
+        """A pole repeated over consecutive vertices turns once, across the run.
+
+        Lat-lon grids store their polar row as faces with several vertices on
+        the pole. With the pole stored exactly, the face must match the one
+        with a single pole vertex, including when the run wraps past vertex 0.
+        """
+
+        def exact_pole_edges(lat, lon):
+            fe = _face_edges(hemisphere * np.array(lat), np.array(lon))
+            fe[np.abs(fe[..., 2]) == 1.0, :2] = 0.0
+            return fe
+
+        single = exact_pole_edges([90.0, 80.0, 80.0], [0.0, 90.0, 0.0])
+        lat = np.roll([90.0, 90.0, 90.0, 80.0, 80.0], shift)
+        lon = np.roll([0.0, 45.0, 90.0, 90.0, 0.0], shift)
+        repeated = exact_pole_edges(lat, lon)
+
+        quarter_cap = _zone_area(85.0, 90.0) / 4
+        for lat0, lat1 in [(-90.0, 90.0), (85.0, 90.0), (70.0, 82.0), (82.0, 90.0)]:
+            lat0, lat1 = sorted((hemisphere * lat0, hemisphere * lat1))
+            expected = _band_area(single, lat0, lat1)
+            assert _band_area(repeated, lat0, lat1) == pytest.approx(expected, rel=1e-12)
+        lat0, lat1 = sorted((hemisphere * 85.0, hemisphere * 90.0))
+        assert _band_area(repeated, lat0, lat1) == pytest.approx(quarter_cap, rel=1e-12)
+
+    @pytest.mark.parametrize("hemisphere", [1.0, -1.0])
     @pytest.mark.parametrize(
-        "p, expected",
+        "pole",
         [
-            ((0.0, 0.0, 1.0), True),
-            ((0.0, 0.0, -1.0), True),
-            ((0.0, 0.0, 1.0 - 1e-6), True),  # off the sphere, still on the axis
-            ((1e-170, -1e-170, 1.0), True),  # horizontal part underflows
-            ((6.123e-17, 0.0, 1.0), False),  # cos(90 deg) residue: near, not on
-            ((0.0, 1e-12, -1.0), False),
+            (0.0, 0.0, 1.0 - 1e-6),  # off the sphere, still on the axis
+            (1e-170, -1e-170, 1.0),  # horizontal part underflows
         ],
     )
-    def test_is_pole_point(self, p, expected):
-        """Only points on the z-axis count as poles, whatever their norm."""
-        assert _is_pole_point(np.array(p)) is expected
+    def test_pole_vertex_representations(self, hemisphere, pole):
+        """Any point on the z-axis is the pole, whatever its norm.
+
+        Points merely near the pole are covered by
+        :meth:`test_pole_vertex_moved_off_axis`.
+        """
+        fe = _face_edges(hemisphere * np.array([90.0, 80.0, 80.0]), np.array([0.0, 0.0, 90.0]))
+        fe[0, 0] = fe[2, 1] = (0.0, 0.0, hemisphere)
+        other = fe.copy()
+        other[0, 0] = other[2, 1] = (pole[0], pole[1], hemisphere * pole[2])
+
+        for lat0, lat1 in [(-90.0, 90.0), (85.0, 90.0), (70.0, 82.0), (82.0, 90.0)]:
+            lat0, lat1 = sorted((hemisphere * lat0, hemisphere * lat1))
+            assert _band_area(other, lat0, lat1) == _band_area(fe, lat0, lat1)
 
     @pytest.mark.parametrize("hemisphere", [1.0, -1.0])
     @pytest.mark.parametrize("phi", [45.0, 225.0])  # toward / away from the face

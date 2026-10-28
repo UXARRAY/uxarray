@@ -102,15 +102,6 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
 
 
 @njit(cache=True)
-def _is_pole_point(p):
-    """Whether ``p`` lies on the z-axis, where longitude is undefined.
-
-    Only a horizontal component that vanishes in working precision counts.
-    """
-    return p[0] * p[0] + p[1] * p[1] == 0.0
-
-
-@njit(cache=True)
 def _lon_delta(a, b):
     """Signed longitude change from ``a`` to ``b`` in (-pi, pi].
 
@@ -263,6 +254,14 @@ def _compute_band_overlap_area(face_edges_xyz, z_min, z_max):
     float
         Overlap area between the face and the latitude band.
     """
+
+    def is_pole(p):
+        # On the z-axis, where longitude is undefined: only a horizontal
+        # component that vanishes in working precision counts. In the Lambert
+        # map such a vertex is a segment along z = +-1 rather than a point, so
+        # the turn along it is added explicitly below.
+        return p[0] * p[0] + p[1] * p[1] == 0.0
+
     n_edges = face_edges_xyz.shape[0]
     line_integral = 0.0
     total_dlon = 0.0
@@ -276,16 +275,21 @@ def _compute_band_overlap_area(face_edges_xyz, z_min, z_max):
         b = _normalize_xyz_scalar(b[0], b[1], b[2])
         z_sum += a[2]
 
-        if _is_pole_point(a) or _is_pole_point(b):
+        if is_pole(a) or is_pole(b):
             # Meridian arc to or from a pole: longitude is constant along it, so
             # it adds nothing to the integral, and z varies monotonically.
             z_lo = min(a[2], b[2])
             z_hi = max(a[2], b[2])
             boundary_in_band |= max(z_lo, z_min) < min(z_hi, z_max)
-            if _is_pole_point(a):
+            if is_pole(a) and not is_pole(b):
                 # Turning at the pole from the incoming to the outgoing meridian
-                # sweeps longitude at constant z = a_z.
-                jump = _lon_delta(face_edges_xyz[e - 1, 0], b)
+                # sweeps longitude at constant z = a_z. The pole may repeat over
+                # consecutive vertices, so the incoming meridian is that of the
+                # last vertex before the run.
+                k = e - 1
+                while k > e - n_edges and is_pole(face_edges_xyz[k, 0]):
+                    k -= 1
+                jump = _lon_delta(face_edges_xyz[k, 0], b)
                 h_pole = min(max(a[2], z_min), z_max) - z_min
                 line_integral += h_pole * jump
                 total_dlon += jump
