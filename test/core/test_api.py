@@ -1,3 +1,7 @@
+from contextlib import ExitStack
+from functools import partial
+
+import dask.array as da
 import numpy.testing as nt
 import uxarray as ux
 import numpy as np
@@ -87,6 +91,303 @@ def test_open_dataset_single_argument_rejects_invalid_combined_file(datasetpath)
 
     with pytest.raises(ux.errors.GridInvalidError, match="Failed to parse uxgrid information from xarray.Dataset."):
         ux.open_dataset(data_path)
+
+
+@pytest.fixture
+def reuse_owners(tmp_path, monkeypatch):
+    """Close original backend owners even if Grid/UxDataset loses callbacks."""
+    with ExitStack() as owners:
+
+        def tracked_open(opener, *args, **kwargs):
+            """Track the actual backend owner, not just its UxDataset wrapper."""
+            source = opener(*args, **kwargs)
+            owners.callback(source.close)
+            return source
+
+        for name in ("open_dataset", "open_mfdataset"):
+            monkeypatch.setattr(xr, name, partial(tracked_open, getattr(xr, name)))
+        yield owners
+
+
+@pytest.fixture
+def reuse_grid(reuse_owners):
+    """Use the suite's small unstructured quad-hexagon grid for ordinary reuse."""
+    grid = ux.open_grid(TEST_MESHFILES / "ugrid" / "quad-hexagon" / "grid.nc")
+    grid.get_ball_tree(coordinates="nodes")
+    return grid
+
+
+@pytest.fixture
+def reuse_open(tmp_path, reuse_owners):
+    """Exercise Dataset/file/multifile inputs with identical preservation checks."""
+    counter = 0
+
+    def open_members(grid, members, kind, **kwargs):
+        """Open members and verify preservation before returning expected data."""
+        nonlocal counter
+        snapshots = [member.copy(deep=True) for member in members]
+        arrays = [{name: member[name].data for name in member} for member in members]
+        grid_snapshot, mapping = grid._ds.copy(deep=True), grid._source_dims_dict.copy()
+        grid_dataset = grid._ds
+        # Preserve storage, not materialized .data arrays from lazy backends.
+        grid_arrays = {name: grid._ds[name].variable._data for name in grid._ds}
+        tree = grid._ball_tree
+        chunks = kwargs.get("chunks")
+        saved_chunks = chunks.copy() if isinstance(chunks, dict) else chunks
+        grid_kwargs = kwargs.get("grid_kwargs")
+        saved_grid_kwargs = grid_kwargs.copy() if grid_kwargs is not None else None
+        paths = []
+        if kind != "dataset":
+            for member in members:
+                path = tmp_path / f"member_{counter}.nc"
+                counter += 1
+                member.to_netcdf(path)
+                paths.append(path)
+        # Chunk ownership for True is a separate open review question.
+        if chunks is not None:
+            kwargs.setdefault("chunk_grid", False)
+        with patch("uxarray.core.api.open_grid") as construct:
+            try:
+                if kind == "multiple":
+                    results = [
+                        ux.open_mfdataset(
+                            grid, paths, combine="nested", concat_dim="member", **kwargs
+                        )
+                    ]
+                    expected = [xr.concat(members, dim="member")]
+                    sources = [str(paths)]
+                elif kind == "dataset":
+                    with patch("xarray.open_dataset") as backend:
+                        results = [
+                            ux.open_dataset(grid, member, **kwargs)
+                            for member in members
+                        ]
+                    backend.assert_not_called()
+                    expected, sources = members, [None] * len(members)
+                else:
+                    results = [ux.open_dataset(grid, path, **kwargs) for path in paths]
+                    expected, sources = members, list(map(str, paths))
+                for result, source in zip(results, sources):
+                    reuse_owners.callback(result.close)
+                    assert result.uxgrid is grid
+                    assert result.source_datasets == source
+                return list(zip(results, expected))
+            finally:
+                construct.assert_not_called()
+                assert grid._ds is grid_dataset
+                assert grid._source_dims_dict == mapping
+                assert grid._ball_tree is tree
+                xr.testing.assert_identical(grid._ds, grid_snapshot)
+                for name, data in grid_arrays.items():
+                    assert grid._ds[name].variable._data is data
+                assert chunks == saved_chunks
+                assert grid_kwargs == saved_grid_kwargs
+                for member, snapshot, data in zip(members, snapshots, arrays):
+                    xr.testing.assert_identical(member, snapshot)
+                    for name in member:
+                        assert member[name].chunks == snapshot[name].chunks
+                        assert member[name].data is data[name]
+
+    return open_members
+
+
+def _reuse_members(face_dim="n_face"):
+    """Generate two deterministic members, independently of grid fixture data."""
+    return [
+        xr.Dataset(
+            {"temperature": (("time", face_dim), np.arange(12).reshape(3, 4) + i)}
+        )
+        for i in range(2)
+    ]
+
+
+def _equal_size_grid(source_dims):
+    """Equal node/face counts make size inference and alias collisions observable."""
+    return ux.Grid.from_topology(
+        node_lon=np.array([0.0, 120.0, -120.0, 0.0]),
+        node_lat=np.array([0.0, 0.0, 0.0, 90.0]),
+        face_node_connectivity=np.array([[0, 1, 2], [0, 3, 1], [1, 3, 2], [2, 3, 0]]),
+        dims_dict=source_dims.copy(),
+    )
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+@pytest.mark.parametrize("chunks", [None, -1, "auto", {}, {"n_face": 2, "time": 1}])
+def test_open_dataset_reuse_members(reuse_grid, reuse_open, kind, chunks):
+    """Reuse topology/cached tree without grid I/O, preserving member values."""
+    for result, expected in reuse_open(
+        reuse_grid, _reuse_members(), kind, chunks=chunks, grid_kwargs={}
+    ):
+        assert result.temperature.dims == expected.temperature.dims
+        nt.assert_array_equal(result.temperature, expected.temperature)
+        assert isinstance(result.temperature.data, da.Array) == (
+            kind == "multiple" or chunks is not None
+        )
+        if chunks == {"n_face": 2, "time": 1}:
+            assert result.temperature.chunks[-2:] == ((1, 1, 1), (2, 2))
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+@pytest.mark.parametrize(
+    "chunks",
+    [
+        {"n_face": 2, "n_node": 1, "time": 1},
+        {"cells": 2, "vertices": 1, "time": 1},
+        {"cells": 4, "vertices": 4, "n_face": 2, "n_node": 1, "time": 1},
+    ],
+)
+def test_open_dataset_reuse_source_chunks(reuse_open, kind, chunks):
+    """Translate source/canonical chunks without mutating caller options/data."""
+    grid = _equal_size_grid({"vertices": "n_node", "cells": "n_face"})
+    members = [
+        ds.assign(velocity=("vertices", np.arange(4) + i))
+        for i, ds in enumerate(_reuse_members("cells"))
+    ]
+    for result, expected in reuse_open(grid, members, kind, chunks=chunks):
+        assert (
+            result.temperature.dims == expected.temperature.rename(cells="n_face").dims
+        )
+        assert result.velocity.dims == expected.velocity.rename(vertices="n_node").dims
+        assert result.temperature.chunks[-2:] == ((1, 1, 1), (2, 2))
+        assert result.velocity.chunks[-1] == (1, 1, 1, 1)
+        nt.assert_array_equal(result.temperature, expected.temperature)
+        nt.assert_array_equal(result.velocity, expected.velocity)
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("face_chunks", [False, True])
+def test_open_dataset_reuse_overlapping_aliases(reuse_open, kind, reverse, face_chunks):
+    """Read requested values, not newly translated keys, in either mapping order."""
+    items = [("n_face", "n_node"), ("cells", "n_face")]
+    grid = _equal_size_grid(dict(items[::-1] if reverse else items))
+    chunks = {"n_node": 1, "time": 1}
+    if face_chunks:
+        chunks["n_face"] = 2
+    members = [
+        ds.assign(velocity=("n_face", np.arange(4) + i))
+        for i, ds in enumerate(_reuse_members("cells"))
+    ]
+    for result, expected in reuse_open(grid, members, kind, chunks=chunks):
+        prefix = ("member",) if kind == "multiple" else ()
+        assert result.temperature.dims == prefix + ("time", "n_face")
+        assert result.velocity.dims == prefix + ("n_node",)
+        assert result.temperature.chunks[-2:] == (
+            (1, 1, 1),
+            (2, 2) if face_chunks else (4,),
+        )
+        assert result.velocity.chunks[-1] == (1, 1, 1, 1)
+        nt.assert_array_equal(result.temperature, expected.temperature)
+        nt.assert_array_equal(result.velocity, expected.velocity)
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+@pytest.mark.parametrize("source_dims", [{}, {"vertices": "n_node", "cells": "n_face"}])
+def test_open_dataset_reuse_canonical_equal_counts(reuse_open, kind, source_dims):
+    """Canonical dimensions remain distinct, including topology without a map."""
+    grid = _equal_size_grid(source_dims)
+    members = [
+        ds.assign(velocity=("n_node", np.arange(4) + i))
+        for i, ds in enumerate(_reuse_members())
+    ]
+    for result, expected in reuse_open(
+        grid, members, kind, chunks={"n_face": 2, "n_node": 1}
+    ):
+        assert result.temperature.dims == expected.temperature.dims
+        assert result.velocity.dims == expected.velocity.dims
+        assert result.temperature.chunks[-1] == (2, 2)
+        assert result.velocity.chunks[-1] == (1, 1, 1, 1)
+        nt.assert_array_equal(result.temperature, expected.temperature)
+        nt.assert_array_equal(result.velocity, expected.velocity)
+    if source_dims:
+        result, _ = reuse_open(grid, _reuse_members("cells")[:1], "dataset")[0]
+        assert result.temperature.dims == ("time", "n_face")
+
+
+def test_open_dataset_reuse_face_node_sequence(reuse_open):
+    """Face-only members must not discard mappings needed by later node data."""
+    grid = _equal_size_grid({"vertices": "n_node", "cells": "n_face"})
+    members = [
+        _reuse_members("cells")[0],
+        xr.Dataset({"velocity": ("vertices", np.arange(4))}),
+        _reuse_members("cells")[1],
+    ]
+    for result, expected in reuse_open(grid, members, "dataset"):
+        xr.testing.assert_equal(
+            result.to_xarray(),
+            expected.rename(
+                {
+                    dim: grid._source_dims_dict[dim]
+                    for dim in expected.dims
+                    if dim in grid._source_dims_dict
+                }
+            ),
+        )
+
+
+@pytest.mark.parametrize("prechunked", [False, True])
+def test_open_dataset_reuse_input_dataset_chunks(reuse_grid, reuse_open, prechunked):
+    """Rechunk the returned Dataset without replacing the caller's arrays."""
+    members = _reuse_members()
+    if prechunked:
+        members = [member.chunk({"n_face": 4, "time": 3}) for member in members]
+    for result, _ in reuse_open(
+        reuse_grid, members, "dataset", chunks={"n_face": 2, "time": 1}
+    ):
+        assert result.temperature.chunks == ((1, 1, 1), (2, 2))
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+def test_open_dataset_reuse_prechunked_grid(reuse_grid, reuse_open, kind):
+    """With chunk_grid=False, preserve an already-chunked Grid and its caches."""
+    reuse_grid.chunk(n_node=2, n_face=2)
+    for result, _ in reuse_open(
+        reuse_grid, _reuse_members(), kind, chunks={"n_face": 1}, chunk_grid=False
+    ):
+        assert result.temperature.chunks[-1] == (1, 1, 1, 1)
+    assert reuse_grid.face_node_connectivity.chunks[0] == (2, 2)
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+@pytest.mark.parametrize(
+    "options, message",
+    [
+        ({"use_dual": True}, "use_dual"),
+        ({"grid_kwargs": {"drop_variables": "face_nodes"}}, "grid_kwargs"),
+    ],
+)
+def test_open_dataset_reuse_rejects_construction_options(
+    reuse_grid, reuse_open, kind, options, message
+):
+    """Reject options that only apply when constructing a Grid."""
+    with pytest.raises(ValueError, match=message):
+        reuse_open(reuse_grid, _reuse_members(), kind, **options)
+
+
+def test_open_dataset_reuse_requires_data(reuse_grid):
+    """An existing Grid alone is not a member Dataset."""
+    with pytest.raises(TypeError, match="filename_or_obj"):
+        ux.open_dataset(reuse_grid)
+
+
+@pytest.mark.parametrize("kind", ["file", "dataset"])
+def test_open_dataset_reuse_existing_construction(
+    reuse_grid, reuse_owners, tmp_path, kind
+):
+    """Existing grid-file and grid-Dataset inputs still construct equivalent grids."""
+    path = TEST_MESHFILES / "ugrid" / "quad-hexagon" / "grid.nc"
+    grid_source = path if kind == "file" else xr.open_dataset(path)
+    member = _reuse_members()[0]
+    data_path = tmp_path / "construction.nc"
+    member.to_netcdf(data_path)
+    result = ux.open_dataset(grid_source, data_path, chunks={"n_face": 2})
+    reuse_owners.callback(result.close)
+    assert result.uxgrid is not reuse_grid
+    assert result.uxgrid == reuse_grid
+    assert result.temperature.dims == ("time", "n_face")
+    assert result.temperature.chunks[-1] == (2, 2)
+    nt.assert_array_equal(result.temperature, member.temperature)
+    xr.testing.assert_identical(result.uxgrid._ds.compute(), reuse_grid._ds)
 
 
 def test_open_mf_dataset(gridpath, datasetpath, mesh_constants):
