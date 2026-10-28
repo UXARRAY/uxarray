@@ -258,7 +258,7 @@ def _point_within_face_radius(point, face_center, face_radius):
     return dist2 <= face_radius * face_radius
 
 
-@njit(cache=True, parallel=True)
+@parallel_njit
 def _cull_candidates_by_radius(
     pts, flat_cands, offsets, face_x, face_y, face_z, face_radii
 ):
