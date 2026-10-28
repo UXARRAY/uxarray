@@ -103,7 +103,7 @@ def _node_to_face_kernel(
         change_ind,
         n_nodes_per_face_sorted_ind,
         element_sizes,
-        size_counts,
+        _size_counts,
     ) = get_face_node_partitions(n_nodes_per_face)
 
     result = np.empty(shape=(data.shape[:-1]) + (n_face,))

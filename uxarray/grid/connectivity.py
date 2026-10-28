@@ -516,7 +516,7 @@ def _populate_node_face_connectivity(grid):
     and stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.node_face_connectivity``)."""
 
-    node_faces, n_max_faces_per_node = _build_node_face_connectivity(
+    node_faces, _n_max_faces_per_node = _build_node_face_connectivity(
         grid.face_node_connectivity.values, grid.n_node
     )
 

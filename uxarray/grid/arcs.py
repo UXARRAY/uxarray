@@ -241,8 +241,8 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
 
     # Initialize latitudes
-    lon_n1, lat_n1 = gca_lonlat[0]
-    lon_n2, lat_n2 = gca_lonlat[1]
+    _lon_n1, lat_n1 = gca_lonlat[0]
+    _lon_n2, lat_n2 = gca_lonlat[1]
 
     # Check if denominator is zero to avoid division by zero
     if denom != 0.0:

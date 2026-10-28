@@ -1739,10 +1739,10 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         u, v = xr.align(self, other, join="exact", copy=False)
 
         # Compute gradients of both components
-        grad_u_zonal, grad_u_meridional = _compute_gradient(
+        _grad_u_zonal, grad_u_meridional = _compute_gradient(
             u, scale_by_radius=scale_by_radius
         )
-        grad_v_zonal, grad_v_meridional = _compute_gradient(
+        grad_v_zonal, _grad_v_meridional = _compute_gradient(
             v, scale_by_radius=scale_by_radius
         )
 
@@ -1873,10 +1873,10 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         u, v = xr.align(self, other, join="exact", copy=False)
 
         # Compute gradients of both components
-        grad_u_zonal, grad_u_meridional = _compute_gradient(
+        grad_u_zonal, _grad_u_meridional = _compute_gradient(
             u, scale_by_radius=scale_by_radius
         )
-        grad_v_zonal, grad_v_meridional = _compute_gradient(
+        _grad_v_zonal, grad_v_meridional = _compute_gradient(
             v, scale_by_radius=scale_by_radius
         )
 

@@ -122,13 +122,13 @@ def _read_structured_grid(lon, lat, tol=None):
         adj_matrix = coo_matrix((data, (row, col)), shape=(n_nodes, n_nodes))
 
         # Use connected_components to find connected components
-        n_components, labels = connected_components(csgraph=adj_matrix, directed=False)
+        _n_components, labels = connected_components(csgraph=adj_matrix, directed=False)
     else:
         # No pairs within tolerance, each node is its own component
         labels = np.arange(n_nodes)
 
     # Extract unique nodes based on the labels
-    unique_labels, index = np.unique(labels, return_index=True)
+    _unique_labels, index = np.unique(labels, return_index=True)
     unique_nodes = nodes[index]
     unique_node_lon = unique_nodes[:, 0]
     unique_node_lat = unique_nodes[:, 1]

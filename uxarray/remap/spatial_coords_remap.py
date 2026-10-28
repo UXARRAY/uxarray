@@ -306,7 +306,7 @@ class SpatialCoordsRemapper:
             # Swap coords on matching dimension
             for coord_type in COORD_TYPES.values():
                 if coord_type in source_coords:
-                    source_coord_name, std_name = source_coords[coord_type]
+                    source_coord_name, _std_name = source_coords[coord_type]
                     out_name = source_coord_name
 
                     # Assign destination grid values
@@ -328,7 +328,7 @@ class SpatialCoordsRemapper:
             # Swap and rename (as needed) coords from source dimension
             for coord_type in COORD_TYPES.values():
                 if coord_type in source_coords:
-                    source_coord_name, std_name = source_coords[coord_type]
+                    source_coord_name, _std_name = source_coords[coord_type]
 
                     # Rename to reflect new element type
                     out_name = self._rename_coord_for_new_dimension(

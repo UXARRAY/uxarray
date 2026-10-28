@@ -255,7 +255,7 @@ def _get_all_face_area_from_coords(
     y = np.asarray(y, dtype=np.float64)
     z = np.asarray(z, dtype=np.float64)
 
-    n_face, n_max_face_nodes = face_nodes.shape
+    n_face, _n_max_face_nodes = face_nodes.shape
 
     # Compute the quadrature points once (they depend only on the rule and order,
     # not on the face) and reuse them across all faces, instead of rebuilding them
