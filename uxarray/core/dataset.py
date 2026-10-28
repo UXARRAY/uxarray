@@ -905,25 +905,37 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         return DatasetNeighborhood(self, r=r)
 
     def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
-        """
-        Converts a ``ux.UXDataset`` to a ``xr.Dataset``.
+        """returns a shallow copy of this ``UxDataset`` as a plain ``xr.Dataset``.
 
         Parameters
         ----------
         grid_format : str, default="UGRID"
-            The format in which to convert the grid. Supported values are "UGRID" and "HEALPix". The dimensions will
-            match the selected grid format.
+            The format in which to convert the grid. Supported values are "UGRID" and "HEALPix".
+            If "HEALPix", renames "n_face" dimension to "cell" in the result.
+            Otherwise, dimensions are kept unchanged.
 
         Returns
         -------
         xr.Dataset
-            The ``ux.UXDataset`` represented as a ``xr.Dataset``
+            The ``ux.UxDataset`` represented as a ``xr.Dataset``
         """
         if grid_format == "HEALPix":
             ds = self.rename_dims({"n_face": "cell"})
-            return xr.Dataset(ds.data_vars, coords=ds.coords, attrs=ds.attrs)
+        else:
+            ds = self
 
-        return xr.Dataset(self.data_vars, coords=self.coords, attrs=self.attrs)
+        # Equivalent to xr.DataArray(ds), but internally here
+        # uses _construct_direct() for efficiency, to avoid validation checks,
+        # since a valid UxDataset is already guaranteed to be a valid xr.Dataset.
+        variables = {k: v.copy(deep=False) for k, v in ds._variables.items()}
+        return xr.Dataset._construct_direct(
+            variables=variables,
+            coord_names=set(ds._coord_names),
+            dims=dict(ds._dims),
+            attrs=dict(ds.attrs),
+            indexes=dict(ds._indexes),
+            close=ds._close,
+        )
 
     def astype(self, dtype, **kw_super):
         """Copy of this uxarray object, with data cast to a specified type.
