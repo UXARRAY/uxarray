@@ -79,9 +79,9 @@ def test_pole_point_inside_polygon_from_vertice_south():
 def test_to_gdf_geodataframe(gridpath):
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
 
-    gdf_with_am = uxgrid.to_geodataframe(exclude_antimeridian=False)
+    gdf_with_am = uxgrid.to_geodataframe(periodic_elements="split")
 
-    gdf_without_am = uxgrid.to_geodataframe(exclude_antimeridian=True)
+    gdf_without_am = uxgrid.to_geodataframe(periodic_elements="exclude")
 
     assert len(gdf_with_am) >= len(gdf_without_am)
 
@@ -89,19 +89,19 @@ def test_to_gdf_geodataframe(gridpath):
 def test_cache_and_override_geodataframe(gridpath):
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
 
-    gdf_a = uxgrid.to_geodataframe(exclude_antimeridian=False)
+    gdf_a = uxgrid.to_geodataframe(periodic_elements="split")
 
-    gdf_b = uxgrid.to_geodataframe(exclude_antimeridian=False)
+    gdf_b = uxgrid.to_geodataframe(periodic_elements="split")
 
     # Should be the same object (cached)
-    gdf_c = uxgrid.to_geodataframe(exclude_antimeridian=True)
+    gdf_c = uxgrid.to_geodataframe(periodic_elements="exclude")
 
     # Should be different from gdf_a and gdf_b
-    gdf_d = uxgrid.to_geodataframe(exclude_antimeridian=True)
+    gdf_d = uxgrid.to_geodataframe(periodic_elements="exclude")
 
-    gdf_e = uxgrid.to_geodataframe(exclude_antimeridian=True, override=True, cache=False)
+    gdf_e = uxgrid.to_geodataframe(periodic_elements="exclude", override=True, cache=False)
 
-    gdf_f = uxgrid.to_geodataframe(exclude_antimeridian=True)
+    gdf_f = uxgrid.to_geodataframe(periodic_elements="exclude")
 
     # gdf_a and gdf_b should be the same (cached)
     assert gdf_a is gdf_b

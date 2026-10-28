@@ -16,7 +16,6 @@ from uxarray.conventions import ugrid
 
 # Import the utility function for opening datasets with fallback
 from uxarray.core.utils import _open_dataset_with_fallback
-from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.errors import DimensionError, GridInvalidError
 from uxarray.formatting_html import grid_repr
 from uxarray.grid.angles import (
@@ -257,9 +256,6 @@ class Grid:
 
     # declare subset accessor
     subset = UncachedAccessor(GridSubsetAccessor)
-
-    # declare cross section accessor
-    cross_section = UncachedAccessor(GridCrossSectionAccessor)
 
     @classmethod
     def from_dataset(cls, dataset, use_dual: bool | None = False, **kwargs):
@@ -876,15 +872,6 @@ class Grid:
         from uxarray.conventions.descriptors import DESCRIPTOR_NAMES
 
         return set([desc for desc in DESCRIPTOR_NAMES if desc in self._ds])
-
-    @property
-    def parsed_attrs(self) -> dict:
-        """Dictionary of parsed attributes from the source grid."""
-        warnings.warn(
-            "Grid.parsed_attrs will be deprecated in a future release. Please use Grid.attrs instead.",
-            DeprecationWarning,
-        )
-        return self._ds.attrs
 
     @property
     def attrs(self) -> dict:
@@ -2538,10 +2525,9 @@ class Grid:
         cache: bool | None = True,
         override: bool | None = False,
         engine: str | None = "spatialpandas",
-        exclude_antimeridian: bool | None = None,
         return_non_nan_polygon_indices: bool | None = False,
         exclude_nan_polygons: bool | None = True,
-        **kwargs,
+        project: bool = True,
     ):
         """Constructs a ``GeoDataFrame`` consisting of polygons representing
         the faces of the current ``Grid``
@@ -2551,7 +2537,6 @@ class Grid:
         Setting ``periodic_elements='exclude'`` will exclude any periodic polygon from the computed GeoDataFrame.
         Setting ``periodic_elements='ignore'`` will compute the GeoDataFrame assuming no corrections are needed, which
         is best used for grids that do not initially include any periodic polygons.
-
 
         Parameters
         ----------
@@ -2570,13 +2555,15 @@ class Grid:
         engine: str, optional
             Selects what library to use for creating a GeoDataFrame. One of ['spatialpandas', 'geopandas']. Defaults
             to spatialpandas
-        exclude_antimeridian: bool, optional
-            Flag used to select whether to exclude polygons that cross the antimeridian (Will be deprecated)
         return_non_nan_polygon_indices: bool, optional
             Flag used to select whether to return the indices of any non-nan polygons
         exclude_nan_polygons: bool, optional
             Flag to select whether to exclude any nan polygons
-
+        project: bool, optional
+            Flag to select whether to project the polygons using the provided projection.
+            If False, the projection is only used to determine the central coordinates.
+            Cannot combine project=True (the default), with periodic_elements='split'
+            and a non-None `projection`.
 
         Returns
         -------
@@ -2593,8 +2580,6 @@ class Grid:
             )
 
         # if project is false, projection is only used for determining central coordinates
-        project = kwargs.get("project", True)
-
         if projection and project:
             if periodic_elements == "split":
                 raise ValueError(
@@ -2602,19 +2587,6 @@ class Grid:
                     f"projection is provided; got projection={projection!r} "
                     f"in {type(self).__name__}.to_geodataframe()."
                 )
-
-        if exclude_antimeridian is not None:
-            warnings.warn(
-                DeprecationWarning(
-                    "The parameter ``exclude_antimeridian`` will be deprecated in a future release. Please "
-                    "use ``periodic_elements='exclude'`` or ``periodic_elements='split'`` instead."
-                ),
-                stacklevel=2,
-            )
-            if exclude_antimeridian:
-                periodic_elements = "exclude"
-            else:
-                periodic_elements = "split"
 
         if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
