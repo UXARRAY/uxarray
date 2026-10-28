@@ -542,8 +542,8 @@ def _build_node_face_connectivity(face_nodes, n_node):
     """
 
     node_face_conn = {node_i: [] for node_i in range(n_node)}
-    for face_i, face_nodes in enumerate(face_nodes):
-        for node_i in face_nodes:
+    for face_i, nodes in enumerate(face_nodes):
+        for node_i in nodes:
             if node_i != INT_FILL_VALUE:
                 node_face_conn[node_i].append(face_i)
 

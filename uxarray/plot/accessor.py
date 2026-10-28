@@ -483,12 +483,12 @@ class UxDataArrayPlotAccessor:
         # (commented here for future reference, since datashader appears in uxarray dependency list,
         #    but it isn't imported explicitly anywhere in uxarray. For more details see PR #1548.)
         return gdf.hvplot.polygons(
+            *args,
             c=self._uxda.name if self._uxda.name is not None else "var",
             rasterize=rasterize,
             dynamic=dynamic,
             xlabel=xlabel,
             ylabel=ylabel,
-            *args,
             **kwargs,
         )
 
@@ -540,7 +540,7 @@ class UxDataArrayPlotAccessor:
 
         points_df = pd.DataFrame.from_dict(verts)
 
-        return points_df.hvplot.points("lon", "lat", c="z", *args, **kwargs)
+        return points_df.hvplot.points("lon", "lat", *args, c="z", **kwargs)
 
     def contour(
         self,
