@@ -5,7 +5,7 @@ from uxarray.constants import ERROR_TOLERANCE
 from uxarray.errors import DimensionError
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array_subset
-from uxarray.utils.computing import _cdp2, _cdp4, diff_of_products
+from uxarray.utils.computing import _cdp2, diff_of_products
 from uxarray.utils.numba_math import (
     _numba_add3,
     _numba_cross3,
@@ -125,29 +125,31 @@ def _lon_delta(a, b):
 def _gca_z_dlon_integral(a, b):
     """Exact value of the line integral of ``z dlon`` along the minor great-circle arc a -> b.
 
-    The integral of ``(1 - z) dlon`` along the arc is the signed area of the
-    spherical triangle (north pole, a, b), so the result is ``dlon - E_N`` with
-    ``E_N`` that triangle's spherical excess; likewise it is ``E_S - dlon`` with
-    the triangle (south pole, b, a). Using the pole on the arc's side keeps the
-    subtraction from cancelling.
+    The integrals of ``(1 - z) dlon`` and ``(1 + z) dlon`` along the arc are the
+    signed spherical excesses ``E_N`` of the triangle (north pole, a, b) and
+    ``E_S`` of (south pole, b, a), so the result is ``(E_S - E_N) / 2``. Taking
+    each half-excess from the Van Oosterom-Strackee formula and using
+    ``c^2 + d^2 = |a_xy|^2 |b_xy|^2``, where ``c`` and ``d`` are the horizontal
+    cross and dot products, the difference collapses to a single arctangent::
 
-    The excess comes from the Van Oosterom-Strackee formula
-    ``tan(E/2) = det(P, a, b) / (|a||b| + (P.a)|b| + (P.b)|a| + a.b)`` with the
-    norms kept explicit, so the result does not depend on ``a`` and ``b`` being
-    exactly unit length. ``det(N, a, b)`` is the horizontal cross product from
-    :func:`_lon_delta`, evaluated with compensated arithmetic.
+        atan2(c (a_z |b| + b_z |a|), |a_xy|^2 |b_xy|^2 + d (|a||b| + a_z b_z))
+
+    For a minor arc neither argument subtracts nearly equal terms: the
+    latitude factor only cancels where the integral itself vanishes, and it
+    is summed with compensated products. The result therefore keeps its
+    relative accuracy at the equator and near the poles alike. The norms are
+    kept explicit, so ``a`` and ``b`` need not be exactly unit length.
     """
     c_hi, c_lo = diff_of_products(a[0], b[1], a[1], b[0])
     d_hi, d_lo = _cdp2(a[0], b[0], a[1], b[1])
-    ab_hi, ab_lo = _cdp4(a[0], b[0], a[1], b[1], a[2], b[2], 0.0, 0.0)
-    c = c_hi + c_lo
-    dlon = np.arctan2(c, d_hi + d_lo)
     na = _numba_norm3(a)
     nb = _numba_norm3(b)
-    ab = ab_hi + ab_lo
-    if a[2] + b[2] >= 0.0:
-        return dlon - 2.0 * np.arctan2(c, na * nb + a[2] * nb + b[2] * na + ab)
-    return 2.0 * np.arctan2(c, na * nb - a[2] * nb - b[2] * na + ab) - dlon
+    s_hi, s_lo = _cdp2(a[2], nb, b[2], na)
+    rho2 = (a[0] * a[0] + a[1] * a[1]) * (b[0] * b[0] + b[1] * b[1])
+    return np.arctan2(
+        (c_hi + c_lo) * (s_hi + s_lo),
+        rho2 + (d_hi + d_lo) * (na * nb + a[2] * b[2]),
+    )
 
 
 @njit(cache=True)
