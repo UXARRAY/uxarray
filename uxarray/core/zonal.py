@@ -5,6 +5,7 @@ from uxarray.constants import ERROR_TOLERANCE
 from uxarray.errors import DimensionError
 from uxarray.grid.integrate import _zonal_face_weights, _zonal_face_weights_robust
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array_subset
+from uxarray.utils.computing import _cdp2, _cdp4, diff_of_products
 from uxarray.utils.numba_math import (
     _numba_add3,
     _numba_cross3,
@@ -111,24 +112,42 @@ def _lon_delta(a, b):
     """Signed longitude change from ``a`` to ``b`` in (-pi, pi].
 
     Computed from the horizontal projections of the two points, so it is
-    unaffected by the antimeridian.
+    unaffected by the antimeridian. Their cross and dot products are
+    compensated, so the result is accurate to about an ulp even when the
+    longitudes nearly coincide.
     """
-    return np.arctan2(a[0] * b[1] - a[1] * b[0], a[0] * b[0] + a[1] * b[1])
+    c_hi, c_lo = diff_of_products(a[0], b[1], a[1], b[0])
+    d_hi, d_lo = _cdp2(a[0], b[0], a[1], b[1])
+    return np.arctan2(c_hi + c_lo, d_hi + d_lo)
 
 
 @njit(cache=True)
 def _gca_z_dlon_integral(a, b):
     """Exact value of the line integral of ``z dlon`` along the minor great-circle arc a -> b.
 
-    With ``n = a x b`` and ``t = n x p`` the (unnormalized) tangent at ``p``, an
-    antiderivative along the arc is ``-arctan(t_z / n_z)``. The difference of the
-    two arctangents is evaluated with a single ``arctan2`` so meridian arcs
-    (``n_z == 0``) give 0 instead of dividing by zero.
+    The integral of ``(1 - z) dlon`` along the arc is the signed area of the
+    spherical triangle (north pole, a, b), so the result is ``dlon - E_N`` with
+    ``E_N`` that triangle's spherical excess; likewise it is ``E_S - dlon`` with
+    the triangle (south pole, b, a). Using the pole on the arc's side keeps the
+    subtraction from cancelling.
+
+    The excess comes from the Van Oosterom-Strackee formula
+    ``tan(E/2) = det(P, a, b) / (|a||b| + (P.a)|b| + (P.b)|a| + a.b)`` with the
+    norms kept explicit, so the result does not depend on ``a`` and ``b`` being
+    exactly unit length. ``det(N, a, b)`` is the horizontal cross product from
+    :func:`_lon_delta`, evaluated with compensated arithmetic.
     """
-    n = _numba_cross3(a, b)
-    ta_z = n[0] * a[1] - n[1] * a[0]
-    tb_z = n[0] * b[1] - n[1] * b[0]
-    return -np.arctan2(n[2] * (tb_z - ta_z), n[2] * n[2] + ta_z * tb_z)
+    c_hi, c_lo = diff_of_products(a[0], b[1], a[1], b[0])
+    d_hi, d_lo = _cdp2(a[0], b[0], a[1], b[1])
+    ab_hi, ab_lo = _cdp4(a[0], b[0], a[1], b[1], a[2], b[2], 0.0, 0.0)
+    c = c_hi + c_lo
+    dlon = np.arctan2(c, d_hi + d_lo)
+    na = _numba_norm3(a)
+    nb = _numba_norm3(b)
+    ab = ab_hi + ab_lo
+    if a[2] + b[2] >= 0.0:
+        return dlon - 2.0 * np.arctan2(c, na * nb + a[2] * nb + b[2] * na + ab)
+    return 2.0 * np.arctan2(c, na * nb - a[2] * nb - b[2] * na + ab) - dlon
 
 
 @njit(cache=True)
