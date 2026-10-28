@@ -405,10 +405,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
         latlon_box[0, 1] = lat_pt
     else:
         # Update latitude range
-        if lat_pt < latlon_box[0, 0]:
-            latlon_box[0, 0] = lat_pt
-        if lat_pt > latlon_box[0, 1]:
-            latlon_box[0, 1] = lat_pt
+        latlon_box[0, 0] = min(latlon_box[0, 0], lat_pt)
+        latlon_box[0, 1] = max(latlon_box[0, 1], lat_pt)
 
     # Check if the longitude range is uninitialized and update it
     if np.isnan(old_box[1, 0]) and np.isnan(old_box[1, 1]):
@@ -422,9 +420,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
         # Check for pole points
         is_pole_point = False
-        if np.isnan(lon_pt):
-            if any_close_lat(lat_pt, ERROR_TOLERANCE):
-                is_pole_point = True
+        if np.isnan(lon_pt) and any_close_lat(lat_pt, ERROR_TOLERANCE):
+            is_pole_point = True
 
         if is_pole_point:
             # Update latitude for pole points
@@ -436,10 +433,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
             # Update longitude range based on periodicity
             if not is_lon_periodic:
                 # Non-periodic: straightforward min and max updates
-                if lon_pt < latlon_box[1, 0]:
-                    latlon_box[1, 0] = lon_pt
-                if lon_pt > latlon_box[1, 1]:
-                    latlon_box[1, 1] = lon_pt
+                latlon_box[1, 0] = min(latlon_box[1, 0], lon_pt)
+                latlon_box[1, 1] = max(latlon_box[1, 1], lon_pt)
             else:
                 # Periodic longitude handling
                 # Determine if the new point extends the current longitude range

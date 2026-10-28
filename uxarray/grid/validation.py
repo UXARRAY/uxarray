@@ -56,7 +56,7 @@ def _check_duplicate_nodes_indices(grid):
 
     for face_nodes in grid.face_node_connectivity.values:
         for node in face_nodes:
-            if node in duplicate_node_dict.keys():
+            if node in duplicate_node_dict:
                 return True
 
     return False

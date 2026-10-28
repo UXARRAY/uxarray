@@ -91,17 +91,16 @@ class UxSupportsArithmetic:
         OR if either grid has n_face==1 (to avoid breaking "scalar-like" workflows,
         because isel(n_face=int) maybe should provide scalar, but currently doesn't).
         """
-        if isinstance(other, UxSupportsArithmetic):
-            if (
-                (self.uxgrid.n_face > 1)
-                and (other.uxgrid.n_face > 1)
-                and (self.uxgrid != other.uxgrid)
-            ):
-                raise GridsMismatchError(
-                    f"A.uxgrid != B.uxgrid during binary operation {f.__name__!r}, "
-                    f"with type(A)={type(self).__name__}, type(B)={type(other).__name__}. "
-                    f"(Got A.uxgrid.sizes={self.uxgrid.sizes}; B.uxgrid.sizes={other.uxgrid.sizes}.)"
-                )
+        if isinstance(other, UxSupportsArithmetic) and (
+            (self.uxgrid.n_face > 1)
+            and (other.uxgrid.n_face > 1)
+            and (self.uxgrid != other.uxgrid)
+        ):
+            raise GridsMismatchError(
+                f"A.uxgrid != B.uxgrid during binary operation {f.__name__!r}, "
+                f"with type(A)={type(self).__name__}, type(B)={type(other).__name__}. "
+                f"(Got A.uxgrid.sizes={self.uxgrid.sizes}; B.uxgrid.sizes={other.uxgrid.sizes}.)"
+            )
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         """Like super().__array_ufunc__, except that if multiple inputs have a uxgrid,

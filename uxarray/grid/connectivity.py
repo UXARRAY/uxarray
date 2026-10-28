@@ -549,8 +549,7 @@ def _build_node_face_connectivity(face_nodes, n_node):
 
     n_max_node_faces = -1
     for face_indicies in node_face_conn.values():
-        if len(face_indicies) > n_max_node_faces:
-            n_max_node_faces = len(face_indicies)
+        n_max_node_faces = max(n_max_node_faces, len(face_indicies))
 
     node_face_connectivity = np.full(
         (n_node, n_max_node_faces), INT_FILL_VALUE, dtype=INT_DTYPE
@@ -692,8 +691,7 @@ def _build_node_edge_connectivity(edge_nodes, n_node):
     # find the maximum
     max_edges = 0
     for i in range(n_node):
-        if counts[i] > max_edges:
-            max_edges = counts[i]
+        max_edges = max(max_edges, counts[i])
 
     # allocate output, pad with fill
     node_edge = np.full((n_node, max_edges), INT_FILL_VALUE, dtype=INT_DTYPE)

@@ -30,8 +30,7 @@ def _read_exodus(ext_ds):
     max_face_nodes = 0
     for dim in ext_ds.dims:
         if "num_nod_per_el" in dim:
-            if ext_ds.sizes[dim] > max_face_nodes:
-                max_face_nodes = ext_ds.sizes[dim]
+            max_face_nodes = max(max_face_nodes, ext_ds.sizes[dim])
 
     for key, value in ext_ds.variables.items():
         if key == "qa_records":

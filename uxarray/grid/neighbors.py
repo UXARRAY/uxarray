@@ -996,7 +996,7 @@ def _barycentric_coordinates(nodes, point):
     sum_wi = 0
     w = []
 
-    for i in range(0, n):
+    for i in range(n):
         vim1 = nodes[i - 1]
         vi = nodes[i]
         vi1 = nodes[(i + 1) % n]
@@ -1226,8 +1226,7 @@ def _widest(counts):
     """Largest neighborhood, so each kernel allocates its buffer once."""
     widest = 0
     for i in range(counts.shape[0]):
-        if counts[i] > widest:
-            widest = counts[i]
+        widest = max(widest, counts[i])
     return widest
 
 

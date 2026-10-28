@@ -83,7 +83,7 @@ def _map_dims_to_ugrid(
                 ds[var_name] = ds[var_name].stack(n_node=["nf", "YCdim", "XCdim"])
     else:
         keys_to_drop = []
-        for key in _source_dims_dict.keys():
+        for key in _source_dims_dict:
             # obtain all dimensions not present in the original dataset
             if key not in ds.dims:
                 keys_to_drop.append(key)
@@ -314,17 +314,19 @@ def _apply_1dfunc_with_grid_core_dim(
     result_dims = uxarrays[0].dims
     xarrays = [arr.to_xarray() for arr in uxarrays]
     # make a helpful warning if chunked but didn't supply output_dtypes
-    if any(xarr.chunks is not None for xarr in xarrays):
-        if dask != "forbidden":
-            if "output_dtypes" not in kw_apply_ufunc:
-                warnings.warn(
-                    f"Input uxarray objects are chunked while calling {f.__name__}, "
-                    "with dask!='forbidden', but `output_dtypes` was not provided. "
-                    "If this causes a ValueError: `dtype` inference failed in `apply_gufunc`, "
-                    "that most likely indicates an implementation error in the function which "
-                    "called _apply_1dfunc_with_grid_core_dim, but failed to supply output_dtypes "
-                    "to it; that function should be updated accordingly."
-                )
+    if (
+        any(xarr.chunks is not None for xarr in xarrays)
+        and dask != "forbidden"
+        and "output_dtypes" not in kw_apply_ufunc
+    ):
+        warnings.warn(
+            f"Input uxarray objects are chunked while calling {f.__name__}, "
+            "with dask!='forbidden', but `output_dtypes` was not provided. "
+            "If this causes a ValueError: `dtype` inference failed in `apply_gufunc`, "
+            "that most likely indicates an implementation error in the function which "
+            "called _apply_1dfunc_with_grid_core_dim, but failed to supply output_dtypes "
+            "to it; that function should be updated accordingly."
+        )
 
     # actually do the calculations:
     result = xr.apply_ufunc(
