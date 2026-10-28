@@ -185,9 +185,9 @@ class GridSubsetAccessor:
         Examples
         --------
         >>> # Extract grid at 25° latitude
-        >>> cross_section = grid.cross_section.constant_latitude(lat=25.0)
+        >>> cross_section = grid.subset.constant_latitude(lat=25.0)
         >>> # With face indices
-        >>> cross_section, faces = grid.cross_section.constant_latitude(
+        >>> cross_section, faces = grid.subset.constant_latitude(
         ...     lat=25.0, return_face_indices=True
         ... )
 
@@ -252,9 +252,9 @@ class GridSubsetAccessor:
         Examples
         --------
         >>> # Extract grid at 0° longitude (Prime Meridian)
-        >>> cross_section = grid.cross_section.constant_longitude(lon=0.0)
+        >>> cross_section = grid.subset.constant_longitude(lon=0.0)
         >>> # With face indices
-        >>> cross_section, faces = grid.cross_section.constant_longitude(
+        >>> cross_section, faces = grid.subset.constant_longitude(
         ...     lon=0.0, return_face_indices=True
         ... )
 
@@ -317,11 +317,9 @@ class GridSubsetAccessor:
         Examples
         --------
         >>> # Extract grid between 30°S and 30°N latitude
-        >>> cross_section = grid.cross_section.constant_latitude_interval(
-        ...     lats=(-30.0, 30.0)
-        ... )
+        >>> cross_section = grid.subset.constant_latitude_interval(lats=(-30.0, 30.0))
         >>> # With face indices
-        >>> cross_section, faces = grid.cross_section.constant_latitude_interval(
+        >>> cross_section, faces = grid.subset.constant_latitude_interval(
         ...     lats=(-30.0, 30.0), return_face_indices=True
         ... )
 
@@ -378,11 +376,9 @@ class GridSubsetAccessor:
         Examples
         --------
         >>> # Extract grid between 0° and 45° longitude
-        >>> cross_section = grid.cross_section.constant_longitude_interval(
-        ...     lons=(0.0, 45.0)
-        ... )
+        >>> cross_section = grid.subset.constant_longitude_interval(lons=(0.0, 45.0))
         >>> # With face indices
-        >>> cross_section, faces = grid.cross_section.constant_longitude_interval(
+        >>> cross_section, faces = grid.subset.constant_longitude_interval(
         ...     lons=(0.0, 45.0), return_face_indices=True
         ... )
 
