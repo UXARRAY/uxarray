@@ -1,11 +1,11 @@
+import dask
+import numpy as np
 import numpy.testing as nt
 import xarray as xr
 import uxarray as ux
 import uxarray.errors
 from uxarray import UxDataset
 import pytest
-
-import numpy as np
 
 
 @pytest.fixture()
@@ -335,3 +335,120 @@ def test_uxdataset_astype_returns_uxdataset():
     result = obj.astype('float32')
     assert obj.dtypes['t2m'] == np.float32  # the original dtype was float32
     assert result.identical(obj)  # so astype() should be a no-op.
+
+
+class TestUxDatasetToXarray:
+    """``UxDataset.to_xarray()`` must behave exactly like old "naive" implementation:
+        result = xr.Dataset(uxds.data_vars, coords=uxds.coords, attrs=uxds.attrs)
+    (Added while addressing issue #1794 to optimize to_xarray() performance.)
+    """
+
+    def get_uxds(self):
+        """quad-hexagon plus a time-dependent var, extra coords, attrs and encodings."""
+        uxds = ux.tutorial.open_dataset("quad-hexagon")
+        uxds = uxds.assign(
+            {
+                "var_with_time": uxds["t2m"]
+                * xr.DataArray([10, 20, 30], dims="time", coords={"time": np.arange(3)})
+            }
+        )
+        uxds = uxds.assign_coords(
+            face_id=("n_face", np.arange(uxds.sizes["n_face"]), {"role": "id"}),
+            level=850.0,
+        )
+        uxds.attrs["title"] = "test"
+        uxds.variables["t2m"].attrs["units"] = "K"
+        uxds.variables["t2m"].encoding = {"dtype": "float32", "_FillValue": -999.0}
+        uxds.variables["face_id"].encoding = {"dtype": "int32"}
+        uxds.variables["time"].encoding = {"dtype": "int64"}
+        uxds.encoding = {"unlimited_dims": {"time"}}
+        return uxds
+
+    def old(self, uxds):
+        """The previous, "naive" implementation."""
+        return xr.Dataset(uxds.data_vars, coords=uxds.coords, attrs=uxds.attrs)
+
+    def assert_same_variables(self, new, old):
+        """Variable types, attrs, encodings and index types match."""
+        assert set(new.variables) == set(old.variables)
+        for k in old.variables:
+            assert type(new.variables[k]) is type(old.variables[k]), k
+            assert new.variables[k].attrs == old.variables[k].attrs, k
+            assert new.variables[k].encoding == old.variables[k].encoding, k
+        assert set(new.xindexes) == set(old.xindexes)
+        for k in old.xindexes:
+            assert type(new.xindexes[k]) is type(old.xindexes[k]), k
+
+    def test_identical_to_old(self):
+        """Contents, variable encodings, dataset encoding and ``_close`` match the old result."""
+        uxds = self.get_uxds()
+        new, old = uxds.to_xarray(), self.old(uxds)
+        xr.testing.assert_identical(new, old)
+        self.assert_same_variables(new, old)
+        assert new.encoding == old.encoding == {}
+        assert new._close is old._close is None
+
+    def test_data_sharing_matches_old(self):
+        """Whether each variable's data is shared with the original matches the old path."""
+        uxds = self.get_uxds()
+        new, old = uxds.to_xarray(), self.old(uxds)
+        for k in uxds.variables:
+            shares_new = np.shares_memory(new[k].values, uxds[k].values)
+            shares_old = np.shares_memory(old[k].values, uxds[k].values)
+            assert shares_new == shares_old, k
+
+    def test_modifying_result_leaves_original_unchanged(self):
+        """Mutating or restructuring the result never changes the original, same as the old path."""
+
+        def snapshot(ds):
+            return (
+                dict(ds.attrs),
+                {k: (dict(v.attrs), dict(v.encoding)) for k, v in ds.variables.items()},
+            )
+
+        for convert in (self.old, lambda u: u.to_xarray()):
+            uxds = self.get_uxds()
+            before = snapshot(uxds)
+            result = convert(uxds)
+
+            result.attrs["added"] = 1
+            for k in ("t2m", "face_id", "time"):
+                result.variables[k].attrs["added"] = 1
+                result.variables[k].encoding["added"] = 1
+            result.variables["var_with_time"].attrs = {"replaced": 1}
+            result.variables["var_with_time"].encoding = {"replaced": 1}
+            result["extra"] = ("n_face", np.zeros(uxds.sizes["n_face"]))
+            del result["var_with_time"]
+
+            assert snapshot(uxds) == before
+
+    def test_lazy(self, tmp_path):
+        """Dask-backed and file-backed data stay lazy, and closing the result doesn't close the original."""
+
+        def fail(*args, **kwargs):
+            raise RuntimeError("compute was called")
+
+        # dask-backed variables and coordinates
+        uxds = self.get_uxds()
+        chunked = uxds.chunk({"n_face": 2})
+        with dask.config.set(scheduler=fail):
+            new = chunked.to_xarray()
+        old = self.old(chunked)
+        assert new.chunks == old.chunks == chunked.chunks
+        for k in old.variables:
+            assert type(new[k].variable._data) is type(old[k].variable._data), k
+        xr.testing.assert_identical(new, old)
+
+        # lazily loaded file-backed variables
+        path = tmp_path / "data.nc"
+        uxds.to_netcdf(path)
+        opened = ux.UxDataset(xr.open_dataset(path), uxgrid=uxds.uxgrid)
+        new, old = opened.to_xarray(), self.old(opened)
+        for k in old.data_vars:
+            assert new[k].variable._in_memory == old[k].variable._in_memory is False
+        self.assert_same_variables(new, old)
+
+        new.close()
+        opened.load()  # original's file handles are still open and readable
+        xr.testing.assert_identical(new.load(), old.load())
+        opened.close()

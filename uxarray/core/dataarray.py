@@ -601,7 +601,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
     def to_xarray(self) -> xr.DataArray:
         """returns a shallow copy of this ``UxDataArray`` as a plain ``xr.DataArray``."""
-        # Equivalent to xr.DataArray(self), but internally here
+        # Equivalent to the "naive" xr.DataArray(self), but internally here
         # uses _construct_direct() for efficiency, to avoid validation checks,
         # since a valid UxDataArray is already guaranteed to be a valid xr.DataArray.
         variable = self._variable.copy(deep=False)
