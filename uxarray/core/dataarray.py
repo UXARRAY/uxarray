@@ -606,9 +606,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         # since a valid UxDataArray is already guaranteed to be a valid xr.DataArray.
         variable = self._variable.copy(deep=False)
         variable.encoding = {}  # matches xr.DataArray(self) behavior
+        coords = {k: v.copy(deep=True) for k, v in self._coords.items()}
+        # ^ also matches xr.DataArray(self) behavior, which copies coords deeply.
         return xr.DataArray._construct_direct(
             variable,
-            {k: v.copy(deep=False) for k, v in self._coords.items()},
+            coords,
             self._name,
             dict(self._indexes),
         )

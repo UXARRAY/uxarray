@@ -339,8 +339,7 @@ def test_uxdataset_astype_returns_uxdataset():
 
 class TestUxDatasetToXarray:
     """``UxDataset.to_xarray()`` must behave exactly like old "naive" implementation:
-        result = xr.Dataset(uxds.data_vars, coords=uxds.coords, attrs=uxds.attrs)
-    (Added while addressing issue #1794 to optimize to_xarray() performance.)
+    result = xr.Dataset(uxds.data_vars, coords=uxds.coords, attrs=uxds.attrs)
     """
 
     def get_uxds(self):
@@ -422,8 +421,33 @@ class TestUxDatasetToXarray:
 
             assert snapshot(uxds) == before
 
+    def test_nested_mutables_match_old(self):
+        """Whether nested attrs/encoding values leak into the original matches the old path."""
+        leaked = []
+        for convert in (self.old, lambda u: u.to_xarray()):
+            uxds = self.get_uxds()
+            uxds.attrs["nested"] = [0]
+            uxds.variables["t2m"].attrs["nested"] = [0]
+            uxds.variables["face_id"].attrs["nested"] = [0]
+            uxds.variables["face_id"].encoding["nested"] = [0]
+            result = convert(uxds)
+            result.attrs["nested"].append(1)
+            result.variables["t2m"].attrs["nested"].append(1)
+            result.variables["face_id"].attrs["nested"].append(1)
+            result.variables["face_id"].encoding["nested"].append(1)
+            leaked_here = (
+                uxds.attrs["nested"],
+                uxds.variables["t2m"].attrs["nested"],
+                uxds.variables["face_id"].attrs["nested"],
+                uxds.variables["face_id"].encoding["nested"],
+            )
+            leaked.append(leaked_here)
+        assert leaked[0] == leaked[1]
+
     def test_lazy(self, tmp_path):
-        """Dask-backed and file-backed data stay lazy, and closing the result doesn't close the original."""
+        """Just like the old path: dask-backed and file-backed data stay lazy,
+        and closing the result doesn't close the original.
+        """
 
         def fail(*args, **kwargs):
             raise RuntimeError("compute was called")
