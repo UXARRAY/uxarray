@@ -252,8 +252,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         cache: bool | None = True,
         override: bool | None = False,
         engine: str | None = "spatialpandas",
-        exclude_antimeridian: bool | None = None,
-        **kwargs,
+        project: bool = True,
     ):
         """Constructs a ``GeoDataFrame`` consisting of polygons representing
         the faces of the current ``Grid`` with a face-centered data variable
@@ -282,8 +281,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         engine: str, optional
             Selects what library to use for creating a GeoDataFrame. One of ['spatialpandas', 'geopandas']. Defaults
             to spatialpandas
-        exclude_antimeridian: bool, optional
-            Flag used to select whether to exclude polygons that cross the antimeridian (Will be deprecated)
+        project: bool, optional
+            Flag to select whether to project the polygons using the provided projection.
+            If False, the projection is only used to determine the central coordinates.
+            Cannot combine project=True (the default), with periodic_elements='split'
+            and a non-None `projection`.
 
         Returns
         -------
@@ -302,19 +304,12 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             gdf, non_nan_polygon_indices = self.uxgrid.to_geodataframe(
                 periodic_elements=periodic_elements,
                 projection=projection,
-                project=kwargs.get("project", True),
+                project=project,
                 cache=cache,
                 override=override,
-                exclude_antimeridian=exclude_antimeridian,
                 return_non_nan_polygon_indices=True,
                 engine=engine,
             )
-
-            if exclude_antimeridian is not None:
-                if exclude_antimeridian:
-                    periodic_elements = "exclude"
-                else:
-                    periodic_elements = "split"
 
             # set a default variable name if the data array is not named
             var_name = self.name if self.name is not None else "var"

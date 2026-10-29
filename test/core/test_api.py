@@ -176,6 +176,24 @@ def test_open_dataset_grid_kwargs(gridpath, datasetpath):
                 )
 
 
+def test_open_dataset_drop_variables():
+    """Ensure ux.open-dataset() handles the drop_variables kwarg
+    the same way that xarray.open_dataset() handles it.
+    Regression test for bug found during PR 1851.
+    """
+    gridpath = ux.tutorial.file_path("mpas-dyamond-30km-gradient", "grid")
+    datapath = ux.tutorial.file_path("mpas-dyamond-30km-gradient", "data")
+    ds0 = ux.open_dataset(gridpath, datapath)
+    assert "gaussian" in ds0.data_vars
+    assert "inverse_gaussian" in ds0.data_vars
+    ds1 = ux.open_dataset(gridpath, datapath, drop_variables="gaussian")
+    assert "gaussian" not in ds1.data_vars
+    assert "inverse_gaussian" in ds1.data_vars
+    ds2 = ux.open_dataset(gridpath, datapath, drop_variables=["gaussian", "inverse_gaussian"])
+    assert "gaussian" not in ds2.data_vars
+    assert "inverse_gaussian" not in ds2.data_vars
+
+
 def test_open_dataset_with_fallback():
     """Test that the fallback mechanism works when the default engine fails."""
 
