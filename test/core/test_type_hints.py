@@ -27,7 +27,7 @@ def _allows_none(annotation):
 
 def _none_hints_with_other_defaults():
     for path in sorted(PACKAGE.rglob("*.py")):
-        for func in ast.walk(ast.parse(path.read_text())):
+        for func in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             args = func.args
