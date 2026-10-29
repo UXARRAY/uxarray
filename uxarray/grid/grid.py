@@ -149,8 +149,8 @@ class Grid:
     --------
 
     >>> import uxarray as ux
-    >>> grid_path = "/path/to/grid.nc"
-    >>> data_path = "/path/to/data.nc"
+    >>> grid_path = ux.tutorial.file_path("outCSne30-vortex", "grid")
+    >>> data_path = ux.tutorial.file_path("outCSne30-vortex", "data")
 
     1. Open a grid file with `uxarray.open_grid()`:
 
@@ -160,7 +160,8 @@ class Grid:
     `uxarray.open_dataset()`, then access the ``Grid``.:
 
     >>> uxds = ux.open_dataset(grid_path, data_path)
-    >>> uxds.uxgrid
+    >>> uxds.uxgrid.n_face
+    5400
     """
 
     def __init__(
@@ -258,7 +259,7 @@ class Grid:
     subset = UncachedAccessor(GridSubsetAccessor)
 
     @classmethod
-    def from_dataset(cls, dataset, use_dual: bool | None = False, **kwargs):
+    def from_dataset(cls, dataset, use_dual: bool = False, **kwargs):
         """Constructs a ``Grid`` object from a dataset.
 
         Parameters
@@ -352,7 +353,7 @@ class Grid:
     def from_file(
         cls,
         filename: str,
-        backend: str | None = "geopandas",
+        backend: str = "geopandas",
         **kwargs,
     ):
         """Constructs a ``Grid`` object from a using the read_file method with
@@ -368,7 +369,9 @@ class Grid:
         Examples
         --------
         >>> import uxarray as ux
-        >>> grid = ux.Grid.from_file("path/to/file.shp", backend="geopandas")
+        >>> grid = ux.Grid.from_file(
+        ...     "path/to/file.shp", backend="geopandas"
+        ... )  # doctest: +SKIP
 
         Note
         ----
@@ -472,7 +475,7 @@ class Grid:
         node_lat: np.ndarray,
         face_node_connectivity: np.ndarray,
         fill_value: int | float | None = None,
-        start_index: int | None = 0,
+        start_index: int = 0,
         dims_dict: dict | None = None,
         **kwargs,
     ):
@@ -501,11 +504,14 @@ class Grid:
 
         Examples
         --------
+        >>> import numpy as np
         >>> import uxarray as ux
-        >>> node_lon, node_lat, face_node_connectivity, fill_value = ...
-        >>> uxgrid = ux.Grid.from_ugrid(
-        ...     node_lon, node_lat, face_node_connectivity, fill_value
-        ... )
+        >>> node_lon = np.array([0.0, 1.0, 1.0, 0.0])
+        >>> node_lat = np.array([0.0, 0.0, 1.0, 1.0])
+        >>> face_node_connectivity = np.array([[0, 1, 2], [0, 2, 3]])
+        >>> uxgrid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
+        >>> uxgrid.n_face
+        2
         """
 
         if dims_dict is None:
@@ -589,7 +595,7 @@ class Grid:
     def from_face_vertices(
         cls,
         face_vertices: list | tuple | np.ndarray,
-        latlon: bool | None = True,
+        latlon: bool = True,
     ):
         """Constructs a ``Grid`` object from user-defined face vertices.
 
@@ -702,11 +708,11 @@ class Grid:
         None
             This method constructs the face_lon and face_lat attributes for the grid object.
 
-        Usage
-        -----
+        Examples
+        --------
         >>> import uxarray as ux
-        >>> uxgrid = ux.open_grid("GRID_FILE_NAME")
-        >>> face_lat = uxgrid.construct_face_center(method="welzl")
+        >>> uxgrid = ux.tutorial.open_grid("outCSne30")
+        >>> uxgrid.construct_face_centers(method="welzl")
         """
         if method == "cartesian average":
             _populate_face_centroids(self, repopulate=True)
@@ -784,7 +790,10 @@ class Grid:
 
         Examples
         --------
-        >>> uxgrid["face_node_connectivity"]
+        >>> import uxarray as ux
+        >>> uxgrid = ux.tutorial.open_grid("quad-hexagon")
+        >>> uxgrid["face_node_connectivity"].shape
+        (4, 6)
         """
         return getattr(self, item)
 
@@ -1828,9 +1837,9 @@ class Grid:
 
     def get_ball_tree(
         self,
-        coordinates: str | None = "face centers",
-        coordinate_system: str | None = "spherical",
-        distance_metric: str | None = "haversine",
+        coordinates: str = "face centers",
+        coordinate_system: str = "spherical",
+        distance_metric: str = "haversine",
         reconstruct: bool = False,
     ):
         """Get the BallTree data structure of this Grid that allows for nearest
@@ -1924,9 +1933,7 @@ class Grid:
         """
         return Neighborhood(self, r=r, on=on)
 
-    def _get_scipy_kd_tree(
-        self, coordinates: str | None = "face", reconstruct: bool = False
-    ):
+    def _get_scipy_kd_tree(self, coordinates: str = "face", reconstruct: bool = False):
         """
         Build or retrieve a KDTree for efficient nearest-neighbor searches on grid points.
 
@@ -1978,9 +1985,9 @@ class Grid:
 
     def get_kd_tree(
         self,
-        coordinates: str | None = "face centers",
-        coordinate_system: str | None = "cartesian",
-        distance_metric: str | None = "minkowski",
+        coordinates: str = "face centers",
+        coordinate_system: str = "cartesian",
+        distance_metric: str = "minkowski",
         reconstruct: bool = False,
     ):
         """Get the KDTree data structure of this Grid that allows for nearest
@@ -2056,7 +2063,7 @@ class Grid:
         Open a grid from a file path:
 
         >>> import uxarray as ux
-        >>> uxgrid = ux.open_grid("grid_filename.nc")
+        >>> uxgrid = ux.tutorial.open_grid("outCSne30")
 
         Obtain SpatialHash instance:
 
@@ -2473,7 +2480,7 @@ class Grid:
 
         self._ds.attrs["sphere_radius"] = radius
 
-    def to_xarray(self, grid_format: str | None = "ugrid"):
+    def to_xarray(self, grid_format: str = "ugrid"):
         """Returns an ``xarray.Dataset`` with the variables stored under the
         ``Grid`` encoded in a specific grid format.
 
@@ -2520,13 +2527,13 @@ class Grid:
 
     def to_geodataframe(
         self,
-        periodic_elements: str | None = "exclude",
+        periodic_elements: str = "exclude",
         projection=None,
-        cache: bool | None = True,
-        override: bool | None = False,
-        engine: str | None = "spatialpandas",
-        return_non_nan_polygon_indices: bool | None = False,
-        exclude_nan_polygons: bool | None = True,
+        cache: bool = True,
+        override: bool = False,
+        engine: str = "spatialpandas",
+        return_non_nan_polygon_indices: bool = False,
+        exclude_nan_polygons: bool = True,
         project: bool = True,
     ):
         """Constructs a ``GeoDataFrame`` consisting of polygons representing
@@ -2637,12 +2644,12 @@ class Grid:
 
     def to_polycollection(
         self,
-        periodic_elements: Optional[str] = "exclude",
+        periodic_elements: str = "exclude",
         projection: Optional[ccrs.Projection] = None,
-        return_indices: Optional[bool] = False,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        return_non_nan_polygon_indices: Optional[bool] = False,
+        return_indices: bool = False,
+        cache: bool = True,
+        override: bool = False,
+        return_non_nan_polygon_indices: bool = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
@@ -2723,10 +2730,10 @@ class Grid:
 
     def to_linecollection(
         self,
-        periodic_elements: Optional[str] = "exclude",
+        periodic_elements: str = "exclude",
         projection: Optional[ccrs.Projection] = None,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
+        cache: bool = True,
+        override: bool = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.LineCollection``` consisting
@@ -3079,15 +3086,18 @@ class Grid:
         Examples
         --------
 
+        >>> import uxarray as ux
+        >>> uxgrid = ux.tutorial.open_grid("outCSne30")
+
         Query a single spherical point
 
         >>> face_indices, counts = uxgrid.get_faces_containing_point(points=(0.0, 0.0))
 
         Query a single Cartesian point
 
-         >>> face_indices, counts = uxgrid.get_faces_containing_point(
-         ...     points=[0.0, 0.0, 1.0]
-         ... )
+        >>> face_indices, counts = uxgrid.get_faces_containing_point(
+        ...     points=[0.0, 0.0, 1.0]
+        ... )
 
         Query multiple points at once
 

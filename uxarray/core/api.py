@@ -38,7 +38,7 @@ __all__ = [
 def open_grid(
     grid_filename_or_obj: str | os.PathLike[Any] | dict | xr.Dataset,
     chunks=None,
-    use_dual: bool | None = False,
+    use_dual: bool = False,
     **kwargs: dict[str, Any],
 ):
     """Constructs and returns a ``Grid`` from a grid file.
@@ -77,14 +77,17 @@ def open_grid(
     Examples
     --------
     >>> import uxarray as ux
+    >>> grid_path = ux.tutorial.file_path("outCSne30")
 
     Open a grid from a file path
 
-    >>> uxgrid = ux.open_grid("grid_filename.nc")
+    >>> uxgrid = ux.open_grid(grid_path)
+    >>> uxgrid.n_face
+    5400
 
     Lazily load grid variables using Dask
 
-    >>> uxgrid = ux.open_grid("grid_filename.nc", chunks=-1)
+    >>> uxgrid = ux.open_grid(grid_path, chunks=-1)
     """
     # Handle chunk-related kwargs first.
     data_chunks = kwargs.pop("data_chunks", None)
@@ -371,7 +374,7 @@ def open_dataset(
     filename_or_obj: str | os.PathLike[Any] | xr.Dataset | None = None,
     chunks=None,
     chunk_grid: bool = True,
-    use_dual: bool | None = False,
+    use_dual: bool = False,
     grid_kwargs: dict[str, Any] | None = None,
     **kwargs: dict[str, Any],
 ) -> UxDataset:
@@ -435,11 +438,15 @@ def open_dataset(
     Open a dataset with a grid file and data file
 
     >>> import uxarray as ux
-    >>> ux_ds = ux.open_dataset("grid_file.nc", "data_file.nc")
+    >>> grid_path = ux.tutorial.file_path("outCSne30-vortex", "grid")
+    >>> data_path = ux.tutorial.file_path("outCSne30-vortex", "data")
+    >>> ux_ds = ux.open_dataset(grid_path, data_path)
+    >>> ux_ds["psi"].dims
+    ('n_face',)
 
     Open a dataset stored in a single combined grid-and-data file
 
-    >>> ux_ds = ux.open_dataset("combined_file.nc")
+    >>> ux_ds = ux.open_dataset("combined_file.nc")  # doctest: +SKIP
     """
     if grid_kwargs is None:
         grid_kwargs = {}
@@ -501,7 +508,7 @@ def open_mfdataset(
     paths: str | os.PathLike,
     chunks=None,
     chunk_grid: bool = True,
-    use_dual: bool | None = False,
+    use_dual: bool = False,
     grid_kwargs: dict[str, Any] | None = None,
     **kwargs: dict[str, Any],
 ) -> UxDataset:
@@ -551,16 +558,20 @@ def open_mfdataset(
     Open grid file along with multiple data files (two or more)
 
     >>> import uxarray as ux
+    >>> grid_path = ux.tutorial.file_path("outCSne30-timeseries", "grid")
+    >>> data_path = ux.tutorial.file_path("outCSne30-timeseries", "data")
 
     1. Open from an explicit list of dataset files
 
-    >>> ux_ds = ux.open_mfdataset(
-    ...     "grid_filename.g", "grid_filename_vortex_1.nc", "grid_filename_vortex_2.nc"
-    ... )
+    >>> ux_ds = ux.open_mfdataset(grid_path, [data_path])
+    >>> dict(ux_ds["psi"].sizes)
+    {'time': 6, 'n_face': 5400}
 
     2. Open from a string glob
 
-    >>> ux_ds = ux.open_mfdataset("grid_filename.g", "grid_filename_vortex_*.nc")
+    >>> ux_ds = ux.open_mfdataset(
+    ...     "grid_filename.g", "grid_filename_vortex_*.nc"
+    ... )  # doctest: +SKIP
     """
     if grid_kwargs is None:
         grid_kwargs = {}
