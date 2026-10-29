@@ -1,59 +1,51 @@
 import os
 import urllib.request
+import warnings
 from pathlib import Path
 
 import numpy as np
 
 import uxarray as ux
+from uxarray.grid.neighbors import Neighborhood, _get_element_coords
 
+from .helpers._fixtures import (
+    OQU_DATASETS,
+    OQU_GRIDS,
+    OQU_RESOLUTIONS,
+    CachedFixtures,
+)
 from .helpers._memsize import grid_nbytes
-from .helpers._peakmem import numba_threads, peak_allocated
-
-current_path = Path(os.path.dirname(os.path.realpath(__file__)))
+from .helpers._peakmem import numba_threads, peak_allocated, subprocess_peak_rss
 
 data_var = 'bottomDepth'
 
-grid_filename_480 = "oQU480.grid.nc"
-data_filename_480 = "oQU480.data.nc"
+# Sample budget for the benchmarks with long single call runtimes.
+SLOW_CALL_REPEAT = (2, 3, 8.0)
 
-grid_filename_120 = "oQU120.grid.nc"
-data_filename_120 = "oQU120.data.nc"
-
-filenames = [grid_filename_480, data_filename_480, grid_filename_120, data_filename_120]
-
-for filename in filenames:
-    if not os.path.isfile(current_path / filename):
-        # downloads the files from Cookbook repo, if they haven't been downloaded locally yet
-        url = f"https://github.com/ProjectPythia/unstructured-grid-viz-cookbook/raw/main/meshfiles/{filename}"
-        _, headers = urllib.request.urlretrieve(url, filename=current_path / filename)
+file_path_dict = OQU_DATASETS
 
 
-file_path_dict = {"480km": [current_path / grid_filename_480, current_path / data_filename_480],
-                  "120km": [current_path / grid_filename_120, current_path / data_filename_120]}
-
-
-
-class DatasetBenchmark:
+class DatasetBenchmark(CachedFixtures):
     """Class used as a template for benchmarks requiring a ``UxDataset`` in
     this module across both resolutions."""
     param_names = ['resolution', ]
-    params = [['480km', '120km'], ]
+    params = [OQU_RESOLUTIONS, ]
 
     def setup(self, resolution, *args, **kwargs):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        self.uxds = self.cached_dataset(*file_path_dict[resolution])
 
     def teardown(self, resolution, *args, **kwargs):
         del self.uxds
 
 
-class GridBenchmark:
+class GridBenchmark(CachedFixtures):
     """Class used as a template for benchmarks requiring a ``Grid`` in this
     module across both resolutions."""
     param_names = ['resolution', ]
-    params = [['480km', '120km'], ]
+    params = [OQU_RESOLUTIONS, ]
 
     def setup(self, resolution, *args, **kwargs):
-        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid = self.cached_grid(file_path_dict[resolution][0])
 
     def teardown(self, resolution, *args, **kwargs):
         del self.uxgrid
@@ -65,9 +57,11 @@ class FaceAreas(GridBenchmark):
 
     def setup(self, resolution, *args, **kwargs):
         # The coarsest grid, purely to compile the njit kernel
-        warmup_grid = ux.open_grid(file_path_dict[self.params[0][0]][0])
-        _ = warmup_grid.face_areas
+        _ = self.cached_grid(OQU_GRIDS[OQU_RESOLUTIONS[0]]).face_areas
         super().setup(resolution, *args, **kwargs)
+
+        # MPAS meshes carry ``face_areas`` on disk and computation requires it to
+        # be dropped. Still safe, because each fixture ``Grid`` is a shallow copy.
         self.uxgrid._ds = self.uxgrid._ds.drop_vars("face_areas", errors="ignore")
 
     def time_face_areas(self, resolution):
@@ -91,8 +85,7 @@ class Gradient(DatasetBenchmark):
     def setup(self, resolution, *args, **kwargs):
         super().setup(resolution, *args, **kwargs)
         # Compiles the gradient kernels on the coarsest grid
-        grid, data = file_path_dict[self.params[0][0]]
-        _ = ux.open_dataset(grid, data)[data_var].gradient()
+        _ = self.cached_dataset(*file_path_dict[OQU_RESOLUTIONS[0]])[data_var].gradient()
 
     def time_gradient(self, resolution):
         self.uxds[data_var].gradient()
@@ -104,8 +97,12 @@ class Gradient(DatasetBenchmark):
     track_nbytes_gradient.unit = "bytes"
 
     def track_peakmem_gradient(self, resolution):
-        """Transient high-water allocation of taking a gradient."""
-        return peak_allocated(lambda: self.uxds[data_var].gradient())
+        """Transient high-water allocation of taking a gradient.
+
+        The kernel behind ``gradient`` is ``parallel=True``, hence the pinning
+        """
+        with numba_threads(1):
+            return peak_allocated(lambda: self.uxds[data_var].gradient())
 
     track_peakmem_gradient.unit = "bytes"
 
@@ -126,37 +123,55 @@ class Integrate(DatasetBenchmark):
 class GradientColdStartRss:
     """Peak memory of a cold start: import uxarray, open a dataset, take a gradient.
 
-    Whole-process ``ru_maxrss``, not tracemalloc -- the ~250MB uxarray import is
-    part of the number by design, because the cold start is the subject. For the
-    gradient's own transient cost see ``Gradient.track_peakmem_gradient``, which
-    runs one to three orders of magnitude lower.
+    Whole-process peak resident memory, not tracemalloc -- the ~226MB uxarray
+    import is part of the number by design, because the cold start is the
+    subject. For the gradient's own transient cost see
+    ``Gradient.track_peakmem_gradient``, which runs one to three orders of
+    magnitude lower.
+
+    Measured in a subprocess of its own rather than through asv's ``peakmem_*``,
+    which reports ``ru_maxrss`` for the benchmark process.
     """
 
     param_names = ["resolution"]
-    params = [["480km", "120km"]]
+    params = [OQU_RESOLUTIONS]
 
     def setup_cache(self):
-        """Compile the njit kernels before anything is measured."""
+        """Compile the njit kernels before anything is measured.
+
+        The subprocess inherits numba's on-disk cache rather than this process's
+        memory, so this keeps compilation out of the measured cold start.
+        """
         for resolution in self.params[0]:
             grid, data = file_path_dict[resolution]
             ux.open_dataset(grid, data)[data_var].gradient()
 
     setup_cache.timeout = 1800
 
-    def peakmem_gradient(self, resolution):
+    def track_peakmem_gradient(self, resolution):
         grid, data = file_path_dict[resolution]
-        ux.open_dataset(grid, data)[data_var].gradient()
+        return subprocess_peak_rss(
+            "import uxarray as ux\n"
+            f"uxds = ux.open_dataset({str(grid)!r}, {str(data)!r})\n"
+            f"uxds[{data_var!r}].gradient()\n"
+        )
+
+    track_peakmem_gradient.unit = "bytes"
 
 
 class GeoDataFrame(DatasetBenchmark):
-    param_names = DatasetBenchmark.param_names + ['exclude_antimeridian']
-    params = DatasetBenchmark.params + [[True, False]]
+    param_names = DatasetBenchmark.param_names + ['periodic_elements']
+    repeat = SLOW_CALL_REPEAT
+    params = DatasetBenchmark.params + [["exclude", "split"]]
 
-    def time_to_geodataframe(self, resolution, exclude_antimeridian):
-        self.uxds[data_var].to_geodataframe(exclude_antimeridian=exclude_antimeridian)
+    def time_to_geodataframe(self, resolution, periodic_elements):
+        self.uxds[data_var].to_geodataframe(periodic_elements=periodic_elements)
 
 
 class ConnectivityConstruction(DatasetBenchmark):
+    # ASV: only run this benchmark once, since the results will be cached
+    number = 1
+
     def time_n_nodes_per_face(self, resolution):
         _ = self.uxds.uxgrid.n_nodes_per_face
 
@@ -181,11 +196,11 @@ class ConstructTreeStructures(DatasetBenchmark):
         self.uxds.uxgrid.get_ball_tree()
 
 
-class RemapDownsample:
+class RemapDownsample(CachedFixtures):
 
     def setup(self):
-        self.uxds_120 = ux.open_dataset(file_path_dict['120km'][0], file_path_dict['120km'][1])
-        self.uxds_480 = ux.open_dataset(file_path_dict['480km'][0], file_path_dict['480km'][1])
+        self.uxds_120 = self.cached_dataset(*file_path_dict['120km'])
+        self.uxds_480 = self.cached_dataset(*file_path_dict['480km'])
 
     def teardown(self):
         del self.uxds_120, self.uxds_480
@@ -199,11 +214,12 @@ class RemapDownsample:
     def time_bilinear_remapping(self):
         self.uxds_120["bottomDepth"].remap.bilinear(self.uxds_480.uxgrid)
 
-class RemapUpsample:
+class RemapUpsample(CachedFixtures):
+    repeat = SLOW_CALL_REPEAT
 
     def setup(self):
-        self.uxds_120 = ux.open_dataset(file_path_dict['120km'][0], file_path_dict['120km'][1])
-        self.uxds_480 = ux.open_dataset(file_path_dict['480km'][0], file_path_dict['480km'][1])
+        self.uxds_120 = self.cached_dataset(*file_path_dict['120km'])
+        self.uxds_480 = self.cached_dataset(*file_path_dict['480km'])
 
     def teardown(self):
         del self.uxds_120, self.uxds_480
@@ -229,6 +245,8 @@ class DualMesh(DatasetBenchmark):
 
 
 class ConstructFaceLatLon(GridBenchmark):
+    repeat = SLOW_CALL_REPEAT
+
     def time_welzl(self, resolution):
         self.uxgrid.construct_face_centers(method='welzl')
 
@@ -236,12 +254,12 @@ class ConstructFaceLatLon(GridBenchmark):
         self.uxgrid.construct_face_centers(method='cartesian average')
 
 
-class CheckNorm:
+class CheckNorm(CachedFixtures):
     param_names = ['resolution']
-    params = ['480km', '120km']
+    params = OQU_RESOLUTIONS
 
     def setup(self, resolution):
-        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid = self.cached_grid(file_path_dict[resolution][0])
 
     def teardown(self, resolution):
         del self.uxgrid
@@ -252,10 +270,11 @@ class CheckNorm:
 
 class CrossSections(DatasetBenchmark):
     param_names = DatasetBenchmark.param_names + ['n_lat']
+    repeat = SLOW_CALL_REPEAT
     params = DatasetBenchmark.params + [[1, 2, 4]]
 
     def setup(self, resolution, lat_step):
-        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid = self.cached_grid(file_path_dict[resolution][0])
         self.uxgrid.normalize_cartesian_coordinates()
         self.lats = np.arange(-45, 45, lat_step)
         _ = self.uxgrid.bounds
@@ -265,15 +284,15 @@ class CrossSections(DatasetBenchmark):
 
     def time_const_lat(self, resolution, lat_step):
         for lat in self.lats:
-            self.uxgrid.cross_section.constant_latitude(lat)
+            self.uxgrid.subset.constant_latitude(lat)
 
 
-class PointInPolygon:
+class PointInPolygon(CachedFixtures):
     param_names = ['resolution']
-    params = ['480km', '120km']
+    params = OQU_RESOLUTIONS
 
     def setup(self, resolution):
-        self.uxgrid = ux.open_grid(file_path_dict[resolution][0])
+        self.uxgrid = self.cached_grid(file_path_dict[resolution][0])
         self.uxgrid.normalize_cartesian_coordinates()
 
         # Construct variables needed to ensure that the benchmark doesn't measure construction time
@@ -299,7 +318,7 @@ class PointInPolygon:
 
 class ZonalAverage(DatasetBenchmark):
     def setup(self, resolution, *args, **kwargs):
-        self.uxds = ux.open_dataset(file_path_dict[resolution][0], file_path_dict[resolution][1])
+        super().setup(resolution, *args, **kwargs)
         bounds = self.uxds.uxgrid.bounds
 
     def time_zonal_average(self, resolution):
@@ -308,10 +327,11 @@ class ZonalAverage(DatasetBenchmark):
 
 
 class ZonalAveragePeakMem:
-    """Peak memory of a cold-start non-conservative zonal-mean sweep."""
+    """Peak memory of a cold-start non-conservative zonal-mean sweep.
+    Uses a fresh interpreter per sample."""
 
     param_names = ["resolution"]
-    params = [["480km", "120km"]]
+    params = [OQU_RESOLUTIONS]
 
     def setup_cache(self):
         """Compile the njit kernels before anything is measured."""
@@ -321,18 +341,26 @@ class ZonalAveragePeakMem:
             uxds.uxgrid.bounds
             uxds[data_var].zonal_mean(lat=(-45, 45, 10))
 
-    def peakmem_zonal_average(self, resolution):
+    setup_cache.timeout = 1800
+
+    def track_peakmem_zonal_average(self, resolution):
         grid, data = file_path_dict[resolution]
-        uxds = ux.open_dataset(grid, data)
-        uxds.uxgrid.bounds
-        uxds[data_var].zonal_mean(lat=(-45, 45, 10))
+        return subprocess_peak_rss(
+            "import uxarray as ux\n"
+            f"uxds = ux.open_dataset({str(grid)!r}, {str(data)!r})\n"
+            "uxds.uxgrid.bounds\n"
+            f"uxds[{data_var!r}].zonal_mean(lat=(-45, 45, 10))\n"
+        )
+
+    track_peakmem_zonal_average.unit = "bytes"
 
 
 class CrossSectionsPeakMem:
-    """Peak memory of a cold-start constant-latitude cross-section sweep."""
+    """Peak memory of a cold-start constant-latitude cross-section sweep.
+    Uses a fresh interpreter per sample."""
 
     param_names = ["resolution", "lat_step"]
-    params = [["480km", "120km"], [1, 2, 4]]
+    params = [OQU_RESOLUTIONS, [1, 2, 4]]
 
     def setup_cache(self):
         """Compile the njit kernels before anything is measured."""
@@ -340,11 +368,234 @@ class CrossSectionsPeakMem:
             uxgrid = ux.open_grid(file_path_dict[resolution][0])
             uxgrid.normalize_cartesian_coordinates()
             uxgrid.bounds
-            uxgrid.cross_section.constant_latitude(0.0)
+            uxgrid.subset.constant_latitude(0.0)
 
-    def peakmem_const_lat(self, resolution, lat_step):
-        uxgrid = ux.open_grid(file_path_dict[resolution][0])
-        uxgrid.normalize_cartesian_coordinates()
-        uxgrid.bounds
-        for lat in np.arange(-45, 45, lat_step):
-            uxgrid.cross_section.constant_latitude(lat)
+    setup_cache.timeout = 1800
+
+    def track_peakmem_const_lat(self, resolution, lat_step):
+        grid = file_path_dict[resolution][0]
+        return subprocess_peak_rss(
+            "import numpy as np, uxarray as ux\n"
+            f"uxgrid = ux.open_grid({str(grid)!r})\n"
+            "uxgrid.normalize_cartesian_coordinates()\n"
+            "uxgrid.bounds\n"
+            f"for lat in np.arange(-45, 45, {lat_step}):\n"
+            "    uxgrid.subset.constant_latitude(lat)\n"
+        )
+
+    track_peakmem_const_lat.unit = "bytes"
+
+
+# Great-circle radii in degrees. Mean element spacing is roughly 4.3 degrees at
+# 480km and 1.1 at 120km, so 5.0 is a few neighbors per face on the coarse mesh
+# and dozens on the fine one.
+NEIGHBORHOOD_RADIUS = 5.0
+
+# asv re-runs ``setup`` before every sample, about six times per benchmark
+# process, and the neighborhood setups (fixture, warmup reduction, radius
+# query) cost far more than the calls they time: ``NeighborhoodReduce.
+# time_reduce`` timed a 5ms kernel at 120km but took 27s, almost all setup. The
+# timed calls only read what setup builds, so it is built once per process.
+_prepared = {}
+
+
+def _once_per_process(key, build):
+    if key not in _prepared:
+        _prepared[key] = build()
+    return _prepared[key]
+
+
+class NeighborhoodBuild(DatasetBenchmark):
+    """Construction cost of a ``Neighborhood``, split into its three stages.
+
+    ``Neighborhood`` claims the neighbor query costs more than any reduction run
+    on it. The timings skip r=15 (over a second per call at 120km); the
+    ``track_*`` benchmarks skip r=1, where they barely move.
+    """
+
+    param_names = DatasetBenchmark.param_names + ['r']
+    params = DatasetBenchmark.params + [[1.0, NEIGHBORHOOD_RADIUS]]
+    # asv reads ``params`` from the method before the class.
+    _track_params = DatasetBenchmark.params + [[NEIGHBORHOOD_RADIUS, 15.0]]
+
+    def setup(self, resolution, r):
+        super().setup(resolution)
+        self.uxgrid = self.uxds.uxgrid
+        # Build the coordinates, and the njit paths behind them, here -- so the
+        # timings below are the query rather than lat/lon construction.
+        self.coords = _get_element_coords(self.uxgrid, "face centers", "spherical")
+        self.tree = self.uxgrid.get_ball_tree(coordinates="face centers",
+                                              coordinate_system="spherical",
+                                              distance_metric="haversine")
+
+    def time_query_radius(self, resolution, r):
+        self.tree.query_radius(self.coords, r=r)
+
+    def time_build(self, resolution, r):
+        """Query plus CSR flatten; ``setup`` has already cached the tree."""
+        Neighborhood(self.uxgrid, r=r, on="face centers")
+
+    def track_nbytes_neighbors(self, resolution, r):
+        """Size of the CSR structure a ``Neighborhood`` holds onto."""
+        nb = Neighborhood(self.uxgrid, r=r, on="face centers")
+        return nb._flat.nbytes + nb._starts.nbytes + nb._counts.nbytes
+
+    track_nbytes_neighbors.params = _track_params
+    track_nbytes_neighbors.unit = "bytes"
+
+    def track_peakmem_build(self, resolution, r):
+        """Transient high-water allocation of building a ``Neighborhood``."""
+        return peak_allocated(
+            lambda: Neighborhood(self.uxgrid, r=r, on="face centers"))
+
+    track_peakmem_build.params = _track_params
+    track_peakmem_build.unit = "bytes"
+
+    def track_mean_neighbors(self, resolution, r):
+        """Mean neighborhood size -- the ``k`` behind every timing here."""
+        nb = Neighborhood(self.uxgrid, r=r, on="face centers")
+        return round(float(nb.n_neighbors.mean()), 2)
+
+    track_mean_neighbors.params = _track_params
+    track_mean_neighbors.unit = "elements"
+
+
+class NeighborhoodReduce(DatasetBenchmark):
+    """Reduction cost, and what reusing one neighbor query saves.
+
+    One reduction, measured three ways: on a neighborhood built in ``setup``,
+    which is the compiled kernel alone; through ``UxDataArray.neighborhood``,
+    which pays for a query per call; and through ``UxDataset.neighborhood``,
+    which shares one query per grid location across every variable. The first
+    two bracket how much of a call is the query, and the third says whether
+    ``DatasetNeighborhood`` actually shares one.
+
+    ``mean`` is linear in the neighborhood, while ``median`` partitions it.
+    """
+
+    param_names = DatasetBenchmark.param_names + ['reduction']
+    params = DatasetBenchmark.params + [['mean', 'median']]
+
+    radius = NEIGHBORHOOD_RADIUS
+
+    @staticmethod
+    def _run(neighborhood, reduction):
+        """Calls ``reduction`` on an already-bound neighborhood."""
+        if reduction == 'percentile':
+            return neighborhood.percentile(90)
+        if reduction == 'std':
+            return neighborhood.std(ddof=1)
+        return getattr(neighborhood, reduction)()
+
+    def setup(self, resolution, reduction):
+        self.uxds, self.nb = _once_per_process(
+            ('NeighborhoodReduce', resolution, reduction),
+            lambda: self._prepare(resolution, reduction))
+        # The grid caches one ball tree, and ``time_dataset_reduce`` leaves it
+        # on edges. Put back the face tree a fresh setup leaves, so every sample
+        # rebuilds the same trees.
+        self.uxds.uxgrid.get_ball_tree(coordinates="face centers",
+                                       coordinate_system="spherical",
+                                       distance_metric="haversine")
+
+    def _prepare(self, resolution, reduction):
+        super().setup(resolution)
+        uxgrid = self.uxds.uxgrid
+
+        # There is one compiled kernel per reduction, so warm the one under
+        # test on the coarsest grid. ``cache=True`` is an on-disk cache and asv
+        # builds a fresh environment per commit, so the first call still
+        # compiles.
+        grid, data = file_path_dict[self.params[0][0]]
+        warmup = ux.open_dataset(grid, data)[data_var].neighborhood(r=1.0)
+        _ = self._run(warmup, reduction)
+
+        # A second face-centered variable, so the dataset case has something to
+        # share a query with, and one variable at each of the other two
+        # locations, so it has to build more than one.
+        self.uxds['depth_squared'] = self.uxds[data_var] ** 2
+        self.uxds['node_var'] = ux.UxDataArray(
+            np.ones(uxgrid.n_node), dims=('n_node',), uxgrid=uxgrid)
+        self.uxds['edge_var'] = ux.UxDataArray(
+            np.ones(uxgrid.n_edge), dims=('n_edge',), uxgrid=uxgrid)
+        # Edge coordinates pull in edge_node_connectivity; build all three
+        # locations now so the first timed call is not the one that pays.
+        _, _, _ = uxgrid.node_lon, uxgrid.edge_lon, uxgrid.face_lon
+
+        return self.uxds, self.uxds[data_var].neighborhood(r=self.radius)
+
+    def time_reduce(self, resolution, reduction):
+        """The kernel alone: the query was paid for in ``setup``."""
+        self._run(self.nb, reduction)
+
+    def time_neighborhood_reduce(self, resolution, reduction):
+        """A query per call, which is what reuse is meant to avoid."""
+        self._run(self.uxds[data_var].neighborhood(r=self.radius), reduction)
+
+    def time_dataset_reduce(self, resolution, reduction):
+        """Four variables across three grid locations, sharing three queries."""
+        self._run(self.uxds.neighborhood(r=self.radius), reduction)
+
+    def track_peakmem_reduce(self, resolution, reduction):
+        """Transient allocation of the kernel, with the query already paid for.
+
+        Held to one numba thread: the kernels are ``target="parallel"``, and
+        tracing serializes them on tracemalloc's allocator lock.
+        """
+        with numba_threads(1):
+            return peak_allocated(lambda: self._run(self.nb, reduction))
+
+    track_peakmem_reduce.unit = "bytes"
+
+
+class NeighborhoodDask(DatasetBenchmark):
+    """A reduction over lazy input, chunked three ways."""
+
+    param_names = DatasetBenchmark.param_names + ['chunking']
+    params = DatasetBenchmark.params + [['numpy', 'time_chunks', 'grid_chunks']]
+
+    n_time = 12
+    radius = NEIGHBORHOOD_RADIUS
+
+    def setup(self, resolution, chunking):
+        self.uxds, self.nb = _once_per_process(
+            ('NeighborhoodDask', resolution, chunking),
+            lambda: self._prepare(resolution, chunking))
+
+    def _prepare(self, resolution, chunking):
+        super().setup(resolution)
+        grid, data = file_path_dict[self.params[0][0]]
+        _ = ux.open_dataset(grid, data)[data_var].neighborhood(r=1.0).mean()
+
+        base = self.uxds[data_var].values
+        stacked = np.broadcast_to(base, (self.n_time,) + base.shape).copy()
+        uxda = ux.UxDataArray(stacked, dims=('time', 'n_face'),
+                              uxgrid=self.uxds.uxgrid)
+        if chunking == 'time_chunks':
+            uxda = uxda.chunk({'time': 1})
+        elif chunking == 'grid_chunks':
+            uxda = uxda.chunk({'time': 1,
+                               'n_face': uxda.sizes['n_face'] // 4})
+
+        # Built here, so these measure the reduction and the graph it runs
+        # through rather than the query.
+        nb = uxda.neighborhood(r=self.radius)
+
+        # One reduction here too, to warm the dask graph path -- and, for
+        # 'grid_chunks', to let the rechunk warning through exactly once...
+        _ = nb.mean().compute()
+
+        # ...then silence the repeats.
+        warnings.filterwarnings('ignore', category=UserWarning,
+                                message='Rechunking')
+        return self.uxds, nb
+
+    def time_mean(self, resolution, chunking):
+        _ = self.nb.mean().compute()
+
+    def track_peakmem_mean(self, resolution, chunking):
+        """High-water allocation of the reduction, tree query excluded."""
+        with numba_threads(1):
+            return peak_allocated(lambda: self.nb.mean().compute())
+
+    track_peakmem_mean.unit = "bytes"

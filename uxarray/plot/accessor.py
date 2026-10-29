@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
 import pandas as pd
 
@@ -13,7 +13,9 @@ if TYPE_CHECKING:
     from uxarray.core.dataset import UxDataset
     from uxarray.grid import Grid
 
+from uxarray.grid.geometry import _central_longitude_of
 from uxarray.plot.utils import backend as plotting_backend
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 # import speedup trick:
 #   code here uses obj.hvplot, which requires import hvplot.pandas and/or hvplot.xarray.
@@ -30,6 +32,7 @@ def _ensure_hvplot_imported() -> None:
     """
     global _IMPORTED_HVPLOT
     if not _IMPORTED_HVPLOT:
+        _raise_hint_if_optional_deps_missing("holoviews", "hvplot")
         # workaround for hvplot issue #1735;
         #  import hvplot.pandas and hvplot.xarray always adjust the hvplot.extension().
         # To respect previously-setup extension value, need to remember and restore it.
@@ -244,6 +247,7 @@ class GridPlotAccessor:
         gdf.hvplot.paths : hvplot.paths
             A paths plot of the edges of the unstructured grid
         """
+        _raise_hint_if_optional_deps_missing("cartopy")
         import cartopy.crs as ccrs
 
         plotting_backend.assign(backend)
@@ -258,7 +262,7 @@ class GridPlotAccessor:
             kwargs["color"] = "black"
         if "crs" not in kwargs:
             if "projection" in kwargs:
-                central_longitude = kwargs["projection"].proj4_params["lon_0"]
+                central_longitude = _central_longitude_of(kwargs["projection"])
             else:
                 central_longitude = 0.0
             kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
@@ -362,6 +366,7 @@ class UxDataArrayPlotAccessor:
 
     - :func:`UxDataArray.plot.polygons`
     - :func:`UxDataArray.plot.points`
+    - :func:`UxDataArray.plot.contour`
     - :func:`UxDataArray.plot.line`
     - :func:`UxDataArray.plot.scatter`
 
@@ -445,6 +450,7 @@ class UxDataArrayPlotAccessor:
         gdf.hvplot.polygons : hvplot.polygons
             A shaded polygon plot
         """
+        _raise_hint_if_optional_deps_missing("cartopy")
         import cartopy.crs as ccrs
 
         plotting_backend.assign(backend)
@@ -459,7 +465,7 @@ class UxDataArrayPlotAccessor:
             kwargs["projection"] = projection
             kwargs["geo"] = True
             if "crs" not in kwargs:
-                central_longitude = projection.proj4_params["lon_0"]
+                central_longitude = _central_longitude_of(projection)
                 kwargs["crs"] = ccrs.PlateCarree(central_longitude=central_longitude)
 
         if "clabel" not in kwargs and self._uxda.name is not None:
@@ -472,6 +478,9 @@ class UxDataArrayPlotAccessor:
             project=False,
         )
 
+        # import datashader  # no need to import explicitly, but gets used below when rasterize=True.
+        # (commented here for future reference, since datashader appears in uxarray dependency list,
+        #    but it isn't imported explicitly anywhere in uxarray. For more details see PR #1548.)
         return gdf.hvplot.polygons(
             c=self._uxda.name if self._uxda.name is not None else "var",
             rasterize=rasterize,
@@ -531,6 +540,188 @@ class UxDataArrayPlotAccessor:
         points_df = pd.DataFrame.from_dict(verts)
 
         return points_df.hvplot.points("lon", "lat", c="z", *args, **kwargs)
+
+    def contour(
+        self,
+        levels: int | Sequence[float] = 7,
+        method: str | None = None,
+        backend: str | None = None,
+        projection=None,
+        labels: bool | float = True,
+        hover: bool = True,
+        **kwargs,
+    ):
+        """Generate a contour line plot.
+
+        The contour lines are computed on the unstructured grid itself, without
+        regridding the data.
+
+        See examples in :doc:`/examples/visualization/contour-demos`.
+
+        Parameters
+        ----------
+        levels : int or sequence of float, default=7
+            If an integer, roughly that many contour levels are chosen at round
+            values within the range of the data. If a sequence, contour lines are
+            drawn at those values; a value given twice gets one set of lines.
+        method : str, optional
+            How the contour lines are computed. Defaults to "edges" for
+            face-centered data and "interpolated" for node-centered data.
+            Options are:
+
+            - "edges": Lines follow the edges of the grid that separate faces
+              above a level from faces at or below it, without interpolation.
+              Supported for face-centered data.
+            - "interpolated": The data is linearly interpolated between the
+              locations it is defined on, which gives smooth lines. Supported for
+              face-centered and node-centered data.
+        backend : str or None, optional
+            Plotting backend to use. One of ['matplotlib', 'bokeh']. Equivalent to running holoviews.extension(backend)
+        projection : ccrs.Projection, optional
+            The map projection to use. Pass the same projection as the plot the
+            contours are overlaid on, if one was used for a plot below.
+        labels : bool or float, default=True
+            Whether the lines are labeled with their level. Each level is labeled
+            at the middle of its longest lines. A number between 0 and 1 labels
+            that fraction of the levels, spread evenly from the lowest one:
+            ``0.5`` labels every second level. ``0`` is the same as ``False``.
+        hover : bool, default=True
+            Whether the level of a line is shown when the pointer is over it. This
+            applies to the Bokeh backend; Matplotlib plots are static images.
+        **kwargs : dict
+            Additional options for the lines, such as ``color``, ``line_width`` or ``cmap``.
+            As with the other plot methods, options are given with their Bokeh names on both backends.
+
+        Returns
+        -------
+        contours : hv.Overlay, hv.Contours or gv.Contours
+            The contour lines, one path per level with the level as its value
+            and its lines separated by NaN, overlaid with their labels. With ``labels=False`` the lines
+            alone: an ``hv.Contours``, or a ``gv.Contours`` if a ``projection`` is
+            given.
+
+        Raises
+        ------
+        DataCenteringError (subclass of ValueError)
+            If the data is not mapped to the faces or nodes of the grid, or if
+            ``method="edges"`` is used with data that is not face-centered.
+        DimensionError (subclass of ValueError)
+            If the data has more than one dimension that is not of length 1.
+        ValueError
+            If an option in ``**kwargs`` is not an option of the lines, or if
+            ``labels`` is not ``True``, ``False`` or a number between 0 and 1.
+
+        Notes
+        -----
+        Contour lines are split where they cross the antimeridian.
+
+        Lines stop where neighbouring faces do not share their nodes, as on
+        grids that store the same node more than once (for example along the
+        panel seams of some cubed-sphere grids).
+
+        Data that has no grid dimension, such as a mean over the faces, is passed
+        to :meth:`xarray.DataArray.plot.contour` with ``levels`` and ``**kwargs``.
+
+        Examples
+        --------
+        Overlay black contour lines on a shaded plot of the same variable
+
+        >>> uxds["psi"].plot() * uxds["psi"].plot.contour(color="black")
+
+        Draw smooth contours of one variable over another, at chosen levels
+
+        >>> uxds["wind"].plot() * uxds["mslp"].plot.contour(
+        ...     levels=[980, 990, 1000, 1010], method="interpolated", color="black"
+        ... )
+        """
+        if not {"n_face", "n_node", "n_edge"}.intersection(self._uxda.dims):
+            # not on the grid any more: plotted by xarray, as before this method existed
+            uxarray.plot.utils.backend.reset_mpl_backend()
+            xarray_plot_accessor = super(type(self._uxda), self._uxda).plot
+            return xarray_plot_accessor.contour(levels=levels, **kwargs)
+
+        _raise_hint_if_optional_deps_missing("holoviews")
+        import holoviews as hv
+
+        from uxarray.plot.contour import (
+            _apply_options,
+            _compute_contours,
+            _drop_lines_outside_projection,
+            _grid_extents,
+            _label_fraction,
+            _label_points,
+            _paths_by_level,
+        )
+
+        label_fraction = _label_fraction(labels)
+        plotting_backend.assign(backend)
+
+        contours = _compute_contours(self._uxda, levels=levels, method=method)
+        if projection is not None:
+            _raise_hint_if_optional_deps_missing("cartopy", "geoviews")
+            contours = _drop_lines_outside_projection(contours, projection)
+
+        # The level has a fixed name, so data named "x" or "y" cannot replace a
+        # coordinate; the name of the data is what hover and the colorbar show.
+        name = self._uxda.name
+        level_dim = hv.Dimension("level", label="level" if name is None else str(name))
+        if kwargs.get("color") == level_dim.label:
+            kwargs["color"] = level_dim.name
+        kdims = [
+            hv.Dimension("x", label="Longitude"),
+            hv.Dimension("y", label="Latitude"),
+        ]
+        paths = _paths_by_level(contours, level_dim.name)
+        label_x, label_y, label_text = _label_points(contours, label_fraction)
+        label_data = {"x": label_x, "y": label_y, "text": label_text}
+        extents = _grid_extents(self._uxda.uxgrid)
+
+        if projection is not None:
+            import cartopy.crs as ccrs
+            import geoviews as gv
+
+            crs = ccrs.PlateCarree()
+            lines = gv.Contours(
+                paths, kdims=kdims, vdims=[level_dim], crs=crs, extents=extents
+            )
+            text = gv.Labels(label_data, kdims=kdims, vdims=["text"], crs=crs)
+        else:
+            lines = hv.Contours(paths, kdims=kdims, vdims=[level_dim], extents=extents)
+            text = hv.Labels(label_data, kdims=kdims, vdims=["text"])
+
+        # On their own, the lines get the frame that .plot() gives the data: the area of
+        # the grid (set as the extents of the lines) with no margin, and equal axis
+        # scaling on a map (otherwise a world map is squeezed into HoloViews' default
+        # 300 x 300 frame) or 700 x 300 without a projection. Overlaid on a shaded plot
+        # that comes first, its frame is kept; options passed here win over both.
+        defaults = {"padding": 0}
+        if projection is not None:
+            defaults["data_aspect"] = 1
+        else:
+            defaults.update(width=700, height=300)
+        kwargs = {**defaults, **kwargs}
+
+        if hover and "hover" not in kwargs.get("tools", []):
+            kwargs["tools"] = [*kwargs.get("tools", []), "hover"]
+        lines = _apply_options(lines, kwargs)
+        if projection is not None:
+            lines = lines.opts(projection=projection)
+        if label_fraction == 0:
+            return lines
+
+        # the labels sit just above the lines, in their color if they have a single one
+        color = kwargs.get("color")
+        color = color if isinstance(color, str) and color != level_dim.name else "black"
+        if hv.Store.current_backend == "bokeh":
+            text = text.opts(
+                text_color=color, text_font_size="8pt", text_baseline="bottom"
+            )
+        else:
+            text = text.opts(color=color, size=8, verticalalignment="bottom")
+        if projection is not None:
+            text = text.opts(projection=projection)
+
+        return lines * text
 
     def line(self, backend=None, *args, **kwargs):
         """Wrapper for ``hvplot.line()``"""

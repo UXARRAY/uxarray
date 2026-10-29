@@ -157,7 +157,7 @@ class DataArraySubsetAccessor:
         Examples
         --------
         >>> # Extract data at 15.5°S latitude
-        >>> cross_section = uxda.cross_section.constant_latitude(lat=-15.5)
+        >>> cross_section = uxda.subset.constant_latitude(lat=-15.5)
 
         """
         if not self.uxda._face_centered():
@@ -213,7 +213,7 @@ class DataArraySubsetAccessor:
         Examples
         --------
         >>> # Extract data at 0° longitude
-        >>> cross_section = uxda.cross_section.constant_longitude(lon=0.0)
+        >>> cross_section = uxda.subset.constant_longitude(lon=0.0)
         """
         if not self.uxda._face_centered():
             raise DataCenteringError(
@@ -268,9 +268,7 @@ class DataArraySubsetAccessor:
         Examples
         --------
         >>> # Extract data between 30°S and 30°N latitude
-        >>> cross_section = uxda.cross_section.constant_latitude_interval(
-        ...     lats=(-30.0, 30.0)
-        ... )
+        >>> cross_section = uxda.subset.constant_latitude_interval(lats=(-30.0, 30.0))
         """
         faces = self.uxda.uxgrid.get_faces_between_latitudes(lats)
 
@@ -308,9 +306,7 @@ class DataArraySubsetAccessor:
         Examples
         --------
         >>> # Extract data between 0° and 45° longitude
-        >>> cross_section = uxda.cross_section.constant_longitude_interval(
-        ...     lons=(0.0, 45.0)
-        ... )
+        >>> cross_section = uxda.subset.constant_longitude_interval(lons=(0.0, 45.0))
         """
         faces = self.uxda.uxgrid.get_faces_between_longitudes(lons)
 

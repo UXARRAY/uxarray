@@ -1,6 +1,11 @@
-import xarray as xr
+import warnings
 
-from uxarray.errors import DimensionError
+import numpy as np
+import xarray as xr
+from xarray.core.utils import either_dict_or_kwargs
+
+from uxarray.constants import GRID_DIMS
+from uxarray.errors import DataCenteringError, DimensionError, GridsMismatchError
 from uxarray.io.utils import _get_source_dims_dict, _parse_grid_type
 
 
@@ -32,11 +37,18 @@ def _open_dataset_with_fallback(filename_or_obj, chunks=None, **kwargs):
     try:
         # Try opening with xarray's default read engine
         return xr.open_dataset(filename_or_obj, chunks=chunks, **kwargs)
-    except Exception:
+    except Exception as default_engine_error:
         # If it fails, use the "netcdf4" engine as backup
         # Extract engine from kwargs to prevent duplicate parameter error
         engine = kwargs.pop("engine", "netcdf4")
-        return xr.open_dataset(filename_or_obj, engine=engine, chunks=chunks, **kwargs)
+        try:
+            return xr.open_dataset(
+                filename_or_obj, engine=engine, chunks=chunks, **kwargs
+            )
+        except Exception as fallback_error:
+            # Chain the fallback onto the original so both engines' reasons are
+            # visible; otherwise the default engine's error is lost entirely.
+            raise fallback_error from default_engine_error
 
 
 def _map_dims_to_ugrid(
@@ -123,9 +135,31 @@ def match_chunks_to_ugrid(grid_filename_or_obj, chunks):
 
 
 def _validate_indexers(indexers, indexers_kwargs, func_name, ignore_grid):
-    from xarray.core.utils import either_dict_or_kwargs
+    """returns (dict of indexers, set of grid_dim strs).
 
-    from uxarray.constants import GRID_DIMS
+    Parameters
+    ----------
+    indexers: dict
+        indexers originally provided as dict. E.g., uxarr.isel({'n_face': 0}).
+        Provide indexers or indexers_kwargs but not both.
+    indexers_kwargs: dict
+        indexers originally provided as kwargs. E.g. uxarr.isel(n_face=0).
+        Provide indexers or indexers_kwargs but not both.
+    func_name: str
+        name of the function calling _validate_indexers. E.g. "isel".
+        Included in error message if provided both indexers and indexers_kwargs.
+    ignore_grid: bool
+        whether ignore_grid=True flag was set in the indexing operation.
+        If False, ensure len(grid_dims) <= 1 else raise DimensionError.
+
+    Returns
+    -------
+    indexers: dict
+        validated dict of indexers, including grid dims indexers if present.
+    grid_dims: set
+        set of grid dimension names (from ``GRID_DIMS``) present as keys in indexers;
+        values from {"n_face", "n_node", "n_edge"} (at most 1 value if ignore_grid=False).
+    """
 
     # Used to filter out slices containing all Nones (causes subscription errors, i.e., var[0])
     _is_full_none_slice = lambda v: (
@@ -147,3 +181,168 @@ def _validate_indexers(indexers, indexers_kwargs, func_name, ignore_grid):
         )
 
     return indexers, grid_dims
+
+
+def _resolve_coordinate_labels_to_indices(
+    dim, labels_to_sel, coord_array, *, method=None, tolerance=None
+):
+    """returns indices which would be selected by coord_array.sel({dim: labels_to_sel}, ...)
+    coord_array.isel({dim: result}) should be equivalent to coord_array.sel({dim: labels_to_sel}, ...).
+    If labels_to_sel is an xr.DataArray, its coords/dims will also be attached to the result.
+
+    dim: str
+        dimension name to select along
+    labels_to_sel: any valid indexer which can be passed to .sel()
+        values to select along dim
+    coord_array: xr.DataArray or UxDataArray
+        coordinate array to select from.
+    method, tolerance: passed directly to .sel().
+    """
+    # just using xarray's .sel() on a simple np.arange(), to ensure exactly consistent behavior with sel().
+    # (Maybe a more efficient implementation exists, but this is simple and gives correct results.)
+    indices = xr.DataArray(np.arange(coord_array.sizes[dim]), dims=dim)
+    _indices_coord_name = f"__{dim}_indices__"  # just needs to be any unused name.
+    if _indices_coord_name in coord_array.coords:
+        warnings.warn(
+            f"Coordinate {_indices_coord_name!r} already exists in coord_array.coords "
+            "and will be overwritten, which may cause errors or subtly incorrect results..."
+        )
+    if hasattr(coord_array, "to_xarray"):  # convert to xarray to avoid recursive sel()
+        coord_array = coord_array.to_xarray()
+    coord_with_indices = coord_array.assign_coords({_indices_coord_name: indices})
+    selected = coord_with_indices.sel(
+        {dim: labels_to_sel}, method=method, tolerance=tolerance
+    )
+    result = selected[_indices_coord_name]
+    if isinstance(labels_to_sel, xr.DataArray):
+        # handle coords appropriately
+        result = result.drop_vars((dim, _indices_coord_name))
+        # (drop grid dim coords because the caller is expected to handle those directly;
+        # here the goal is just to properly propagate any other coords from labels_to_sel.)
+        result = result.rename(None)  # no reason to keep the _indices_coord_name
+        # (and keeping it for longer could maybe cause confusing error later?)
+    else:
+        # drop all coords/name info which was added internally during this method.
+        result = result.values
+    return result
+
+
+def _apply_1dfunc_with_grid_core_dim(
+    f,
+    grid_dim,
+    *uxarrays,
+    other_args=None,
+    kwargs=None,
+    n_outputs=1,
+    dask="parallelized",
+    **kw_apply_ufunc,
+):
+    """Return the results of applying f across uxarrays, like apply_ufunc
+    but treating the grid_dim as the core dimension.
+
+    Parameters
+    ----------
+    f : callable
+        function which takes as inputs one or more 1D numpy arrays
+        with the grid_dim as the only dimension, and returns one or more
+        1D numpy arrays of the same size.
+    grid_dim : str
+        name of the grid dimension to treat as the core dimension.
+    uxarrays : one or more UxDataArray objects
+        input uxarray objects to apply f to.
+        May have multiple dimensions (must be compatible under broadcasting),
+        but must all have the same grid_dim with compatible sizes and coords.
+    other_args : iterable or None
+        additional positional arguments to pass to f after the uxarrays,
+        but which should not be considered for broadcasting as args to a ufunc.
+    kwargs : dict or None
+        additional keyword arguments to pass to f.
+    n_outputs : int
+        number of outputs from f, and from this function.
+        If 1, this function returns a single UxDataArray; if >1, returns a tuple of UxDataArrays.
+    dask : str
+        passed to :meth:`xr.apply_ufunc` to control dask behavior. Default is "parallelized".
+        If inputs are chunked, `dask` is not "forbidden", and `output_dtypes` is not provided,
+        raises a warning with helpful instructions (i.e., to provide `output_dtypes`) because
+        the following error will likely occur: ValueError: `dtype` inference failed in `apply_gufunc`.
+    additional kwargs are passed to xr.apply_ufunc.
+
+    Notes
+    -----
+    If additional kwargs include "vectorize" but bool(vectorize)==False, will crash with ValueError.
+    This is because this function must use apply_ufunc(vectorize=True), because f is expected
+    to operate on 1D arrays. If f is already vectorized to handle more dimensions, use xr.apply_ufunc
+    or some other solution; using vectorize=True is slow, in general.
+    """
+    # misc. checks
+    if len(uxarrays) == 0:
+        raise ValueError("Expected at least one object, got len(uxarrays)==0.")
+    if not isinstance(grid_dim, str):
+        raise TypeError(f"Expected grid_dim to be a str, got {type(grid_dim)}.")
+    if not all(grid_dim in arr.dims for arr in uxarrays):
+        raise DataCenteringError(
+            f"Expected all input uxarray objects to have grid_dim dimension {grid_dim!r}, "
+            f"but got uxarray objects' dims: {[arr.dims for arr in uxarrays]}."
+        )
+    for i, obj in enumerate(uxarrays):
+        if obj.uxgrid != uxarrays[0].uxgrid:
+            raise GridsMismatchError(
+                f"Expected all input uxarray objects to have the same uxgrid, "
+                f"but uxarrays[0].uxgrid != uxarrays[{i}].uxgrid."
+            )
+    vectorize = kw_apply_ufunc.pop("vectorize", True)
+    if not vectorize:
+        raise ValueError(
+            "Expected vectorize=True, because f is expected to operate on 1D arrays."
+        )
+    # misc. bookkeeping
+    if other_args is None:
+        other_args = ()
+    if kwargs is None:
+        kwargs = {}
+    if len(other_args) == 0 and len(kwargs) == 0:
+        f_wrapped = f
+    else:
+
+        def f_wrapped(*numpy_arrays):
+            return f(*numpy_arrays, *other_args, **kwargs)
+
+    input_core_dims = [[grid_dim] for _ in uxarrays]
+    output_core_dims = [[grid_dim] for _ in range(n_outputs)]
+    result_cls = type(uxarrays[0])
+    result_grid = uxarrays[0].uxgrid
+    result_dims = uxarrays[0].dims
+    xarrays = [arr.to_xarray() for arr in uxarrays]
+    # make a helpful warning if chunked but didn't supply output_dtypes
+    if any(xarr.chunks is not None for xarr in xarrays):
+        if dask != "forbidden":
+            if "output_dtypes" not in kw_apply_ufunc:
+                warnings.warn(
+                    f"Input uxarray objects are chunked while calling {f.__name__}, "
+                    "with dask!='forbidden', but `output_dtypes` was not provided. "
+                    "If this causes a ValueError: `dtype` inference failed in `apply_gufunc`, "
+                    "that most likely indicates an implementation error in the function which "
+                    "called _apply_1dfunc_with_grid_core_dim, but failed to supply output_dtypes "
+                    "to it; that function should be updated accordingly."
+                )
+
+    # actually do the calculations:
+    result = xr.apply_ufunc(
+        f_wrapped,
+        *xarrays,
+        input_core_dims=input_core_dims,
+        output_core_dims=output_core_dims,
+        vectorize=vectorize,
+        dask=dask,
+        **kw_apply_ufunc,
+    )
+    # convert back to uxarray objects, and (style) restore original dims order.
+    if n_outputs == 1:
+        result = (result,)  # briefly write as tuple for consistency below
+    result = tuple(
+        res.transpose(*result_dims, ..., missing_dims="ignore") for res in result
+    )
+    result = tuple(result_cls(res, uxgrid=result_grid) for res in result)
+    if n_outputs == 1:
+        result = result[0]  # unpack single result from tuple
+    return result

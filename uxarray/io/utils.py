@@ -146,6 +146,12 @@ def _is_structured(dataset: xr.Dataset, tol: float = 1e-5) -> bool:
     bool
         True if the dataset is structured with regularly spaced latitude and longitude,
         False otherwise.
+
+    Note
+    ----
+    ``_parse_grid_type`` calls this speculatively for every dataset, so a
+    negative result is the normal case for all other grid formats. It must stay
+    quiet rather than reporting why the dataset is not structured.
     """
     # Extract all 'standard_name' attributes in lower case
     standard_names = [
@@ -176,7 +182,6 @@ def _is_structured(dataset: xr.Dataset, tol: float = 1e-5) -> bool:
 
     # Ensure that latitude and longitude are one-dimensional
     if lat.ndim != 1 or lon.ndim != 1:
-        print("Latitude and/or longitude coordinates are not one-dimensional.")
         return False, None, None
 
     # Calculate the differences between consecutive latitude and longitude values
@@ -186,11 +191,6 @@ def _is_structured(dataset: xr.Dataset, tol: float = 1e-5) -> bool:
     # Check if the differences are approximately constant within the tolerance
     lat_regular = np.all(np.abs(lat_diffs - lat_diffs[0]) <= tol)
     lon_regular = np.all(np.abs(lon_diffs - lon_diffs[0]) <= tol)
-
-    if not lat_regular:
-        print("Latitude coordinates are not regularly spaced.")
-    if not lon_regular:
-        print("Longitude coordinates are not regularly spaced.")
 
     return lat_regular and lon_regular, lon_name, lat_name
 

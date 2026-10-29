@@ -63,13 +63,16 @@ def test_edge_centroids_from_triangle():
     grid = ux.open_grid(test_triangle, latlon=False)
     _populate_edge_centroids(grid)
 
-    centroid_x = np.mean(grid.node_x[grid.edge_node_connectivity[0][0:]])
-    centroid_y = np.mean(grid.node_y[grid.edge_node_connectivity[0][0:]])
-    centroid_z = np.mean(grid.node_z[grid.edge_node_connectivity[0][0:]])
+    edge_nodes = grid.edge_node_connectivity.values
 
-    assert centroid_x == grid.edge_x[0]
-    assert centroid_y == grid.edge_y[0]
-    assert centroid_z == grid.edge_z[0]
+    centroid_x = grid.node_x.values[edge_nodes].mean(axis=1)
+    centroid_y = grid.node_y.values[edge_nodes].mean(axis=1)
+    centroid_z = grid.node_z.values[edge_nodes].mean(axis=1)
+    centroid_x, centroid_y, centroid_z = _normalize_xyz(centroid_x, centroid_y, centroid_z)
+
+    nt.assert_array_almost_equal(grid.edge_x.values, centroid_x)
+    nt.assert_array_almost_equal(grid.edge_y.values, centroid_y)
+    nt.assert_array_almost_equal(grid.edge_z.values, centroid_z)
 
 def test_edge_centroids_from_mpas(gridpath):
     """Test computed centroid values compared to values from a MPAS dataset."""

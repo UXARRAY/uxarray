@@ -190,3 +190,43 @@ def test_construct_edge_face_distances(gridpath):
     # Run the function under test
     calculated = _construct_edge_face_distances(face_lon, face_lat, edge_faces)
     np.testing.assert_array_almost_equal(calculated, expected, decimal=5)
+
+
+def test_tree_cache_invalidated_on_parameter_change(gridpath):
+    """``get_ball_tree``/``get_kd_tree`` must rebuild when any tree-defining
+    parameter changes, not just ``coordinates``. Previously a cached tree was
+    returned with the original ``coordinate_system``/``distance_metric``."""
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
+
+    spherical = uxgrid.get_ball_tree(
+        coordinates="face centers",
+        coordinate_system="spherical",
+        distance_metric="haversine",
+    )
+    assert spherical.coordinate_system == "spherical"
+
+    cartesian = uxgrid.get_ball_tree(
+        coordinates="face centers",
+        coordinate_system="cartesian",
+        distance_metric="euclidean",
+    )
+    assert cartesian.coordinate_system == "cartesian"
+    assert cartesian.distance_metric == "euclidean"
+
+    # switching only the distance metric must also rebuild
+    minkowski = uxgrid.get_ball_tree(
+        coordinates="face centers",
+        coordinate_system="cartesian",
+        distance_metric="minkowski",
+    )
+    assert minkowski.distance_metric == "minkowski"
+
+    # same for the KDTree
+    kd_cart = uxgrid.get_kd_tree(
+        coordinates="face centers", coordinate_system="cartesian"
+    )
+    assert kd_cart.coordinate_system == "cartesian"
+    kd_sph = uxgrid.get_kd_tree(
+        coordinates="face centers", coordinate_system="spherical"
+    )
+    assert kd_sph.coordinate_system == "spherical"
