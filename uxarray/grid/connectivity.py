@@ -4,8 +4,9 @@ import numpy as np
 import xarray as xr
 from numba import njit, prange
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.constants import ERROR_TOLERANCE, INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
+from uxarray.errors import GridInvalidError
 from uxarray.grid.utils import (
     _build_pair_index,
     _count_unique_in_bucket,
@@ -509,6 +510,255 @@ def _build_face_edge_connectivity(
             )
 
     return face_edge_connectivity
+
+
+def _remap_node_connectivity(connectivity, duplicate_node_map, n_node):
+    """Return a copy of connectivity with duplicate node indices canonicalized."""
+    if not duplicate_node_map:
+        return connectivity
+
+    lookup = np.arange(n_node, dtype=INT_DTYPE)
+    keys = np.fromiter(
+        duplicate_node_map.keys(), dtype=INT_DTYPE, count=len(duplicate_node_map)
+    )
+    vals = np.fromiter(
+        duplicate_node_map.values(), dtype=INT_DTYPE, count=len(duplicate_node_map)
+    )
+    lookup[keys] = vals
+
+    remapped_connectivity = connectivity.copy()
+    valid = connectivity != INT_FILL_VALUE
+    remapped_connectivity[valid] = lookup[connectivity[valid]]
+    return remapped_connectivity
+
+
+def _collapse_repeated_face_corners(face_node_connectivity, canonical_values):
+    """Collapse consecutive (cyclically) repeated corners in each face row.
+
+    Remapping two originally-distinct, now-coincident corners of the same
+    face to a single canonical node can leave that node referenced twice in
+    a row, e.g. a quad (A, P, P, B) at a merged pole -- a triangle stored as
+    a 4-column row with one corner repeated. This pads it back down to
+    (A, P, B, FILL) so it is treated as the triangle it actually is.
+    Nonconsecutive repeats are invalid; collapsed pole rows are preserved.
+
+    Only rows containing a value in ``canonical_values`` (nodes that
+    absorbed at least one duplicate) are inspected, since no other row can
+    have gained a repeat from the remap.
+    """
+    if len(canonical_values) == 0:
+        return face_node_connectivity
+
+    affected_rows = np.flatnonzero(
+        np.isin(face_node_connectivity, canonical_values).any(axis=1)
+    )
+    if len(affected_rows) == 0:
+        return face_node_connectivity
+
+    face_node_connectivity = face_node_connectivity.copy()
+    for row_index in affected_rows:
+        row = face_node_connectivity[row_index]
+        valid = row != INT_FILL_VALUE
+        n_valid = int(valid.sum())
+        if n_valid <= 1:
+            continue
+
+        corners = row[:n_valid]
+        keep = corners != np.roll(corners, 1)
+        compacted = corners[keep]
+        n_distinct = len(np.unique(compacted))
+        if n_distinct < 3:
+            # Some SCRIP/OASIS grids intentionally encode collapsed pole rows.
+            # Leave those rows unchanged rather than turning a valid file into
+            # a construction error; downstream code already handles them.
+            continue
+        if n_distinct != len(compacted):
+            raise GridInvalidError(
+                f"Face {row_index} has nonconsecutive repeated corners after "
+                "coincident-node merging."
+            )
+        if keep.all():
+            continue
+
+        new_row = np.full_like(row, INT_FILL_VALUE)
+        new_row[: len(compacted)] = compacted
+        face_node_connectivity[row_index] = new_row
+
+    return face_node_connectivity
+
+
+# node-index-valued connectivity: safe to remap element-wise in place
+_NODE_INDEX_CONNECTIVITY_TO_REMAP = ("face_node_connectivity", "node_node_connectivity")
+
+# connectivity derived from (and referencing) node indices, but whose rows must stay
+# unique (e.g. edge_node_connectivity) -- dropped rather than remapped, so the
+# existing lazy `@property` getters rebuild them cleanly from the corrected
+# face_node_connectivity instead of leaving phantom duplicate rows behind.
+_DERIVED_CONNECTIVITY_TO_INVALIDATE = (
+    "edge_node_connectivity",
+    "face_edge_connectivity",
+    "edge_face_connectivity",
+    "face_face_connectivity",
+    "node_edge_connectivity",
+    "node_face_connectivity",
+)
+
+# Formats whose node list is generated internally as an already-unique set.
+# File formats are not listed: even when their usual layout stores shared
+# vertices once, malformed or nonstandard files can still contain coincidences.
+_SPECS_WITHOUT_COINCIDENT_NODES = frozenset({"HEALPix"})
+
+
+def _spec_guarantees_unique_nodes(source_grid_spec):
+    """Whether ``source_grid_spec`` names a format that cannot have coincident
+    nodes, so the search may be skipped outright.
+
+    Unknown or absent specs answer False: the search is the safe default, and a
+    format is only listed here once its node layout has been shown to make
+    duplicates impossible.
+    """
+    return source_grid_spec in _SPECS_WITHOUT_COINCIDENT_NODES
+
+
+def _merge_coincident_grid_ds_nodes(
+    grid_ds, tolerance=ERROR_TOLERANCE, return_duplicate_map=False
+):
+    """Canonicalize coincident (within ``tolerance``) node indices in a raw grid
+    dataset's connectivity, before it is wrapped in a ``Grid``.
+
+    Per issue #865, node coordinate/data arrays are left untouched -- only
+    connectivity references to coincident nodes are remapped to a single canonical
+    (lowest-indexed) node. Note this differs from TempestRemap and MOAB, which
+    delete the redundant nodes and renumber; keeping them preserves round-trip
+    fidelity and leaves node-centered data index-aligned, at the cost of leaving
+    unreferenced coordinates behind (see ``_live_node_indices``).
+    """
+    from uxarray.grid.coordinates import _lonlat_rad_to_xyz
+    from uxarray.grid.validation import _coincident_node_canonical_indices
+
+    if "face_node_connectivity" not in grid_ds:
+        return (grid_ds, {}) if return_duplicate_map else grid_ds
+
+    required = ["face_node_connectivity"]
+    if "node_lon" in grid_ds and "node_lat" in grid_ds:
+        required.extend(["node_lon", "node_lat"])
+    else:
+        required.extend(["node_x", "node_y", "node_z"])
+    if any(
+        name in grid_ds and getattr(grid_ds[name].data, "chunks", None) is not None
+        for name in required
+    ):
+        # Preserve lazy readers such as chunked SCRIP. Canonicalization needs a
+        # global spatial search and is deferred until a duplicate-aware operation
+        # explicitly requests the map.
+        return (grid_ds, None) if return_duplicate_map else grid_ds
+
+    if "node_lon" in grid_ds and "node_lat" in grid_ds:
+        node_lon = np.asarray(grid_ds["node_lon"].values, dtype=np.float64)
+        node_lat = np.asarray(grid_ds["node_lat"].values, dtype=np.float64)
+        points_xyz = np.column_stack(
+            _lonlat_rad_to_xyz(np.deg2rad(node_lon), np.deg2rad(node_lat))
+        )
+    elif {"node_x", "node_y", "node_z"} <= set(grid_ds.variables):
+        points_xyz = np.column_stack(
+            (
+                grid_ds["node_x"].values,
+                grid_ds["node_y"].values,
+                grid_ds["node_z"].values,
+            )
+        ).astype(np.float64, copy=False)
+        if not np.isfinite(points_xyz).all():
+            raise ValueError("Node XYZ coordinates must contain only finite values.")
+        norms = np.hypot(np.hypot(points_xyz[:, 0], points_xyz[:, 1]), points_xyz[:, 2])
+        if np.any(norms == 0.0):
+            # Cartesian face-vertex inputs may use the origin in a planar
+            # geometry, where spherical coincidence matching is not defined.
+            return (grid_ds, {}) if return_duplicate_map else grid_ds
+        points_xyz /= norms[:, np.newaxis]
+    else:
+        # Defensive: Grid construction validates minimum UGRID (node_lon,
+        # node_lat, face_node_connectivity) before reaching here, so this is
+        # unreachable on that path. Return unchanged rather than raising, so
+        # foreign datasets without coordinates round-trip untouched, but warn
+        # so a caller never mistakes "not merged" for "no duplicates".
+        warnings.warn(
+            "Coincident nodes were not merged: the dataset has neither "
+            "node_x/node_y/node_z nor node_lon/node_lat, so node locations are "
+            "unknown. Connectivity is returned unchanged and may still "
+            "reference coincident nodes.",
+            RuntimeWarning,
+        )
+        return (grid_ds, {}) if return_duplicate_map else grid_ds
+
+    n_node = points_xyz.shape[0]
+    canonical = _coincident_node_canonical_indices(points_xyz, tolerance)
+    duplicate_node_map = {
+        INT_DTYPE(index): INT_DTYPE(canonical[index])
+        for index in np.flatnonzero(canonical != np.arange(n_node, dtype=INT_DTYPE))
+    }
+    if not duplicate_node_map:
+        # No coincident nodes: return ``grid_ds`` untouched. Everything below --
+        # the ``_NODE_INDEX_CONNECTIVITY_TO_REMAP`` remap, the face-ring collapse
+        # and the ``_DERIVED_CONNECTIVITY_TO_INVALIDATE`` drop -- only runs when
+        # duplicates were actually found.
+        return (grid_ds, {}) if return_duplicate_map else grid_ds
+
+    grid_ds = grid_ds.copy()
+
+    for name in _NODE_INDEX_CONNECTIVITY_TO_REMAP:
+        if name in grid_ds:
+            grid_ds[name] = grid_ds[name].copy(
+                data=_remap_node_connectivity(
+                    grid_ds[name].values, duplicate_node_map, n_node
+                )
+            )
+
+    if "face_node_connectivity" in grid_ds:
+        # Why only face_node_connectivity is collapsed. The remap can make two
+        # entries of a row identical wherever a row referenced both a duplicate
+        # and its canonical node. The three groups of node-index connectivity
+        # differ in what that means:
+        #
+        # 1. face_node_connectivity is a closed ring, so a repeat changes the
+        #    geometry: a quad (A, P, P, B) at a merged pole is really the
+        #    triangle (A, P, B) and must be stored as such, or area, bounds and
+        #    edge construction all see a zero-length side. Hence the collapse.
+        # 2. node_node_connectivity is an unordered neighbor list padded with
+        #    fill, not a ring. A repeat there is a redundant listing that names
+        #    the same neighbor twice; it does not change what the row means, and
+        #    cyclic collapsing would be the wrong operation for it (dedup would
+        #    be). UXarray cannot construct this variable, so it only exists when
+        #    read from a file, and nothing downstream consumes it.
+        # 3. Everything in _DERIVED_CONNECTIVITY_TO_INVALIDATE (edge_node,
+        #    face_edge, edge_face, face_face, node_edge, node_face) is dropped a
+        #    few lines below and rebuilt lazily from the corrected rings, so a
+        #    repeat introduced by the remap never survives.
+        canonical_values = np.unique(
+            np.fromiter(
+                duplicate_node_map.values(),
+                dtype=INT_DTYPE,
+                count=len(duplicate_node_map),
+            )
+        )
+        grid_ds["face_node_connectivity"] = grid_ds["face_node_connectivity"].copy(
+            data=_collapse_repeated_face_corners(
+                grid_ds["face_node_connectivity"].values, canonical_values
+            )
+        )
+
+    for name in _DERIVED_CONNECTIVITY_TO_INVALIDATE:
+        if name in grid_ds:
+            grid_ds = grid_ds.drop_vars(name)
+
+    if "n_edge" in grid_ds.dims:
+        grid_ds = grid_ds.drop_dims("n_edge")
+
+    if "n_nodes_per_face" in grid_ds:
+        grid_ds = grid_ds.drop_vars("n_nodes_per_face")
+
+    if return_duplicate_map:
+        return grid_ds, duplicate_node_map
+    return grid_ds
 
 
 def _populate_node_face_connectivity(grid):
