@@ -412,8 +412,8 @@ class UxDataArrayPlotAccessor:
         rasterize: bool = True,
         dynamic: bool = False,
         projection=None,
-        xlabel: str = "Longitude",
-        ylabel: str = "Latitude",
+        xlabel: str | None = "Longitude",
+        ylabel: str | None = "Latitude",
         *args,
         **kwargs,
     ):
