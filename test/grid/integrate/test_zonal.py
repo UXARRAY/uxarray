@@ -400,4 +400,261 @@ class TestZonalAnomaly:
             uxda.zonal_anomaly(lat=[10.0, -10.0, 30.0])
 
 
-from uxarray.core.zonal import _compute_face_band_weights  # noqa: E402
+from uxarray.core.zonal import (  # noqa: E402
+    _compute_band_overlap_area,
+    _compute_face_band_weights,
+)
+from uxarray.grid.area import calculate_face_area  # noqa: E402
+from uxarray.grid.intersections import (  # noqa: E402
+    gca_const_lat_intersection,
+    get_number_of_intersections,
+)
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array_subset  # noqa: E402
+
+
+def _face_edges(lat, lon):
+    """Edge array (n_edges, 2, 3) for a face given its vertices in degrees."""
+    lat, lon = np.deg2rad(lat), np.deg2rad(lon)
+    v = np.stack(
+        [np.cos(lat) * np.cos(lon), np.cos(lat) * np.sin(lon), np.sin(lat)], axis=1
+    )
+    return np.stack([v, np.roll(v, -1, axis=0)], axis=1)
+
+
+def _band_area(face_edges, lat0, lat1):
+    return _compute_band_overlap_area(
+        face_edges, np.sin(np.deg2rad(lat0)), np.sin(np.deg2rad(lat1))
+    )
+
+
+def _zone_area(lat0, lat1):
+    return 2 * np.pi * (np.sin(np.deg2rad(lat1)) - np.sin(np.deg2rad(lat0)))
+
+
+class TestBandOverlapArea:
+    """Face/latitude-band overlap areas used as conservative zonal weights."""
+
+    @pytest.mark.parametrize(
+        "lat0, lat1",
+        [(20.0, 60.0), (-10.0, 10.0), (0.0, 30.0), (60.0, 90.0), (85.0, 90.0),
+         (-90.0, -85.0), (-37.3, 81.2), (12.0, 12.05)],
+    )
+    def test_zone_area_identity(self, gridpath, lat0, lat1):
+        """The weights of one band on a global grid sum to the zone's area."""
+        grid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+        ((_, w),) = _compute_face_band_weights(grid, np.array([lat0, lat1]))
+        nt.assert_allclose(w.sum(), _zone_area(lat0, lat1), rtol=1e-9)
+
+    def test_overlaps_partition_face_area(self, gridpath):
+        """A face's overlaps with a set of bands tiling the sphere sum to its area."""
+        grid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+        totals = np.zeros(grid.n_face)
+        for idx, w in _compute_face_band_weights(grid, np.arange(-90.0, 91.0, 7.5)):
+            totals[idx] += w
+        nt.assert_allclose(totals, grid.face_areas.values, rtol=1e-9)
+
+    def test_contained_face_matches_face_area(self, gridpath):
+        """For a face inside the band, the overlap area is the face area."""
+        grid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+        faces = grid.get_faces_between_latitudes((20.0, 60.0))
+        assert faces.size > 0
+        n_nodes = grid.n_nodes_per_face.values
+        edges = _get_cartesian_face_edge_nodes_array_subset(
+            faces,
+            grid.face_node_connectivity.values,
+            n_nodes,
+            grid.n_max_face_nodes,
+            grid.node_x.values,
+            grid.node_y.values,
+            grid.node_z.values,
+        )
+        areas = [
+            _band_area(edges[k, : n_nodes[f]], 20.0, 60.0) for k, f in enumerate(faces)
+        ]
+        nt.assert_allclose(areas, grid.face_areas.values[faces], rtol=1e-9)
+
+    @pytest.mark.parametrize("lat0, lat1", [(-90.0, 90.0), (12.0, 33.0), (25.0, 28.0)])
+    def test_invariant_under_rotation_and_orientation(self, lat0, lat1):
+        """Rotating a face across the antimeridian or reversing it changes nothing."""
+        lat = np.array([10.0, 15.0, 35.0, 30.0])
+        lon = np.array([-8.0, 9.0, 7.0, -6.0])
+        expected = _band_area(_face_edges(lat, lon), lat0, lat1)
+        assert expected > 0.0
+        for shift in (90.0, 180.0, 183.0, 260.0):
+            fe = _face_edges(lat, lon + shift)
+            assert _band_area(fe, lat0, lat1) == pytest.approx(expected, rel=1e-12)
+            fe_cw = _face_edges(lat[::-1], lon[::-1] + shift)
+            assert _band_area(fe_cw, lat0, lat1) == pytest.approx(expected, rel=1e-12)
+
+    @pytest.mark.parametrize("hemisphere", [1.0, -1.0])
+    @pytest.mark.parametrize("reverse", [False, True])
+    def test_face_enclosing_pole(self, hemisphere, reverse):
+        """A face around a pole (no vertex on it) contains the polar cap."""
+        lat = hemisphere * np.array([80.0, 80.0, 80.0, 80.0])
+        lon = np.array([45.0, 135.0, 225.0, 315.0])
+        if reverse:
+            lat, lon = lat[::-1], lon[::-1]
+        fe = _face_edges(lat, lon)
+        x, y, z = (fe[:, 0, i] for i in range(3))
+        face_area, _ = calculate_face_area(x, y, z, order=6)
+
+        def band(a, b):
+            return _band_area(fe, *sorted((hemisphere * a, hemisphere * b)))
+
+        # Edges peak at ~82.9 deg, so the 85-90 cap lies entirely inside the face.
+        assert band(85.0, 90.0) == pytest.approx(_zone_area(85.0, 90.0), rel=1e-12)
+        assert band(60.0, 75.0) == 0.0
+        assert band(-90.0, 90.0) == pytest.approx(face_area, rel=1e-9)
+        parts = band(70.0, 81.0) + band(81.0, 84.0) + band(84.0, 90.0)
+        assert parts == pytest.approx(face_area, rel=1e-9)
+
+    def test_face_with_vertex_at_pole(self):
+        """A face with a vertex on the pole turns there between meridians."""
+        fe = _face_edges(np.array([90.0, 80.0, 80.0]), np.array([0.0, 0.0, 90.0]))
+        x, y, z = (fe[:, 0, i] for i in range(3))
+        face_area, _ = calculate_face_area(x, y, z, order=6)
+
+        assert _band_area(fe, -90.0, 90.0) == pytest.approx(face_area, rel=1e-9)
+        # The edge opposite the pole peaks at ~82.9 deg, so the face covers a
+        # quarter of the 85-90 cap.
+        quarter_cap = _zone_area(85.0, 90.0) / 4
+        assert _band_area(fe, 85.0, 90.0) == pytest.approx(quarter_cap, rel=1e-12)
+        parts = _band_area(fe, 70.0, 82.0) + _band_area(fe, 82.0, 90.0)
+        assert parts == pytest.approx(face_area, rel=1e-9)
+
+    @pytest.mark.parametrize("hemisphere", [1.0, -1.0])
+    def test_matches_latitude_adjusted_clipped_polygon(self, hemisphere):
+        """Agrees with clipping the face by hand and correcting its parallel edges.
+
+        The clipped ring is (in counterclockwise order) a crossing of the 12 deg
+        parallel, a face vertex, two crossings of the 28 deg parallel and one more
+        crossing of 12 deg. Its great-circle area plus the constant-latitude
+        correction on the two parallel edges is the overlap area.
+        """
+        lat = np.array([10.0, 15.0, 35.0, 30.0])
+        lon = np.array([-8.0, 9.0, 7.0, -6.0])
+        if hemisphere < 0:
+            # Mirror across the equator and reverse to stay counterclockwise.
+            lat, lon = -lat[::-1], lon[::-1]
+        fe = _face_edges(lat, lon)
+
+        def crossing(edge, lat_deg):
+            pts = gca_const_lat_intersection(edge, np.sin(np.deg2rad(lat_deg)))
+            assert get_number_of_intersections(pts) == 1
+            return pts[0]
+
+        if hemisphere > 0:
+            ring = [crossing(fe[0], 12.0), fe[1, 0], crossing(fe[1], 28.0),
+                    crossing(fe[3], 28.0), crossing(fe[3], 12.0)]
+        else:
+            ring = [crossing(fe[3], -28.0), crossing(fe[1], -28.0), fe[2, 0],
+                    crossing(fe[2], -12.0), crossing(fe[3], -12.0)]
+        ring = np.array(ring)
+
+        expected, _ = calculate_face_area(
+            ring[:, 0], ring[:, 1], ring[:, 2], order=6, latitude_adjusted_area=True
+        )
+        lat0, lat1 = sorted((hemisphere * 12.0, hemisphere * 28.0))
+        assert _band_area(fe, lat0, lat1) == pytest.approx(expected, rel=1e-12)
+
+    def test_face_touching_band_has_zero_overlap(self):
+        """A face sharing only an edge with the band boundary has zero overlap."""
+        fe = _face_edges(np.array([0.0, 0.0, 3.0, 3.0]), np.array([0.0, 3.0, 3.0, 0.0]))
+        assert _band_area(fe, -10.0, 0.0) == 0.0
+        assert _band_area(fe, 0.0, 10.0) > 0.0
+
+    @pytest.mark.parametrize("hemisphere", [1.0, -1.0])
+    @pytest.mark.parametrize("shift", [0, 1, 2, 3, 4])
+    def test_repeated_pole_vertices(self, hemisphere, shift):
+        """A pole repeated over consecutive vertices turns once, across the run.
+
+        Lat-lon grids store their polar row as faces with several vertices on
+        the pole. With the pole stored exactly, the face must match the one
+        with a single pole vertex, including when the run wraps past vertex 0.
+        """
+
+        def exact_pole_edges(lat, lon):
+            fe = _face_edges(hemisphere * np.array(lat), np.array(lon))
+            fe[np.abs(fe[..., 2]) == 1.0, :2] = 0.0
+            return fe
+
+        single = exact_pole_edges([90.0, 80.0, 80.0], [0.0, 90.0, 0.0])
+        lat = np.roll([90.0, 90.0, 90.0, 80.0, 80.0], shift)
+        lon = np.roll([0.0, 45.0, 90.0, 90.0, 0.0], shift)
+        repeated = exact_pole_edges(lat, lon)
+
+        quarter_cap = _zone_area(85.0, 90.0) / 4
+        for lat0, lat1 in [(-90.0, 90.0), (85.0, 90.0), (70.0, 82.0), (82.0, 90.0)]:
+            lat0, lat1 = sorted((hemisphere * lat0, hemisphere * lat1))
+            expected = _band_area(single, lat0, lat1)
+            assert _band_area(repeated, lat0, lat1) == pytest.approx(expected, rel=1e-12)
+        lat0, lat1 = sorted((hemisphere * 85.0, hemisphere * 90.0))
+        assert _band_area(repeated, lat0, lat1) == pytest.approx(quarter_cap, rel=1e-12)
+
+    @pytest.mark.parametrize("hemisphere", [1.0, -1.0])
+    @pytest.mark.parametrize(
+        "pole",
+        [
+            (0.0, 0.0, 1.0 - 1e-6),  # off the sphere, still on the axis
+            (1e-170, -1e-170, 1.0),  # horizontal part underflows
+        ],
+    )
+    def test_pole_vertex_representations(self, hemisphere, pole):
+        """Any point on the z-axis is the pole, whatever its norm.
+
+        Points merely near the pole are covered by
+        :meth:`test_pole_vertex_moved_off_axis`.
+        """
+        fe = _face_edges(hemisphere * np.array([90.0, 80.0, 80.0]), np.array([0.0, 0.0, 90.0]))
+        fe[0, 0] = fe[2, 1] = (0.0, 0.0, hemisphere)
+        other = fe.copy()
+        other[0, 0] = other[2, 1] = (pole[0], pole[1], hemisphere * pole[2])
+
+        for lat0, lat1 in [(-90.0, 90.0), (85.0, 90.0), (70.0, 82.0), (82.0, 90.0)]:
+            lat0, lat1 = sorted((hemisphere * lat0, hemisphere * lat1))
+            assert _band_area(other, lat0, lat1) == _band_area(fe, lat0, lat1)
+
+    @pytest.mark.parametrize("hemisphere", [1.0, -1.0])
+    @pytest.mark.parametrize("phi", [45.0, 225.0])  # toward / away from the face
+    @pytest.mark.parametrize("rho", [6.123e-17, 1e-12, 1e-6])
+    def test_pole_vertex_moved_off_axis(self, hemisphere, phi, rho):
+        """Moving the pole vertex off the axis changes the overlap only by O(rho).
+
+        The vertex is no longer treated as a pole, so this checks that the
+        ordinary edge path stays accurate arbitrarily close to the pole, on both
+        sides of it.
+        """
+        fe = _face_edges(hemisphere * np.array([90.0, 80.0, 80.0]), np.array([0.0, 0.0, 90.0]))
+        fe[0, 0] = fe[2, 1] = (0.0, 0.0, hemisphere)
+        moved = fe.copy()
+        p = np.array([rho * np.cos(np.deg2rad(phi)), rho * np.sin(np.deg2rad(phi)), hemisphere])
+        moved[0, 0] = moved[2, 1] = p / np.linalg.norm(p)
+
+        for lat0, lat1 in [(-90.0, 90.0), (85.0, 90.0), (70.0, 82.0), (82.0, 90.0)]:
+            lat0, lat1 = sorted((hemisphere * lat0, hemisphere * lat1))
+            expected = _band_area(fe, lat0, lat1)
+            assert expected > 0.0
+            # The area moves by at most rho times the two edges meeting the vertex.
+            tol = rho * 2 * np.deg2rad(10.0) + 1e-12 * expected
+            assert abs(_band_area(moved, lat0, lat1) - expected) <= tol
+
+    @pytest.mark.parametrize(
+        "lat, lon",
+        [
+            ([10.0, 15.0, 35.0, 30.0], [-8.0, 9.0, 7.0, -6.0]),
+            ([80.0, 80.0, 80.0, 80.0], [45.0, 135.0, 225.0, 315.0]),
+            ([-90.0, -80.0, -80.0], [0.0, 90.0, 0.0]),
+        ],
+    )
+    def test_invariant_under_node_scaling(self, lat, lon):
+        """Nodes slightly off the unit sphere give the same overlap areas."""
+        lat, lon = np.array(lat), np.array(lon)
+        fe = _face_edges(lat, lon)
+        scale = 1.0 + np.random.default_rng(0).uniform(-1e-6, 1e-6, lat.size)
+        scaled = fe.copy()
+        scaled[:, 0] *= scale[:, None]
+        scaled[:, 1] *= np.roll(scale, -1)[:, None]
+        for lat0, lat1 in [(-90.0, 90.0), (12.0, 33.0), (25.0, 28.0), (81.0, 90.0),
+                           (-90.0, -85.0), (-84.0, -81.0)]:
+            expected = _band_area(fe, lat0, lat1)
+            assert _band_area(scaled, lat0, lat1) == pytest.approx(expected, rel=1e-12, abs=1e-15)
