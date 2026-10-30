@@ -1,10 +1,12 @@
 import warnings
+import dask
 import numpy as np
 import uxarray as ux
 from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
 from uxarray.grid import neighbors
 from uxarray.grid.geometry import _build_polygon_shells, _build_corrected_polygon_shells
 from uxarray.core.dataset import UxDataset, UxDataArray
+import xarray as xr
 import pytest
 
 
@@ -599,3 +601,152 @@ def test_uxdataarray_astype_returns_uxdataarray():
     result = obj.astype('float32')
     assert obj.dtype == np.float32  # the original dtype was float32
     assert result.identical(obj)  # so astype() should be a no-op.
+
+
+class TestUxDataArrayToXarray:
+    """``UxDataArray.to_xarray()`` must behave exactly like old "naive" implementation:
+    result = xr.DataArray(uxda)
+    """
+
+    def get_uxds(self):
+        """quad-hexagon plus a time-dependent var, extra coords, attrs and encodings."""
+        uxds = ux.tutorial.open_dataset("quad-hexagon")
+        uxds = uxds.assign(
+            {
+                "var_with_time": uxds["t2m"]
+                * xr.DataArray([10, 20, 30], dims="time", coords={"time": np.arange(3)})
+            }
+        )
+        uxds = uxds.assign_coords(
+            face_id=("n_face", np.arange(uxds.sizes["n_face"]), {"role": "id"}),
+            level=850.0,
+        )
+        uxds.variables["var_with_time"].attrs["units"] = "K"
+        uxds.variables["face_id"].encoding = {"dtype": "int32"}
+        uxds.variables["time"].encoding = {"dtype": "int64"}
+        return uxds
+
+    def get_uxda(self):
+        """A named UxDataArray with an indexed coord, non-index coords and encodings."""
+        uxda = self.get_uxds()["var_with_time"]
+        # Set on the extracted array so the main-variable encoding is guaranteed to be present
+        uxda.variable.encoding = {"dtype": "float32", "_FillValue": -999.0}
+        return uxda
+
+    def old(self, uxda):
+        """The previous, "naive" implementation."""
+        return xr.DataArray(uxda)
+
+    def assert_same_encodings(self, new, old):
+        """Main-variable encoding, coord types/encodings and index types match."""
+        assert new.variable.encoding == old.variable.encoding
+        assert set(new.coords) == set(old.coords)
+        for k in old.coords:
+            assert type(new.coords[k].variable) is type(old.coords[k].variable), k
+            assert new.coords[k].encoding == old.coords[k].encoding, k
+        assert set(new.xindexes) == set(old.xindexes)
+        for k in old.xindexes:
+            assert type(new.xindexes[k]) is type(old.xindexes[k]), k
+
+    def test_identical_to_old(self):
+        """Contents, name, dims, encodings, and ``_close`` match the old result."""
+        uxda = self.get_uxda()
+        assert uxda.variable.encoding  # sanity: there is encoding that could leak through
+        new, old = uxda.to_xarray(), self.old(uxda)
+        xr.testing.assert_identical(new, old)
+        assert new.name == old.name == "var_with_time"
+        assert new.dims == old.dims
+        assert new._close is old._close is None
+        self.assert_same_encodings(new, old)
+
+    def test_data_sharing_matches_old(self):
+        """Whether the data and each coord's data is shared with the original matches the old path."""
+        uxda = self.get_uxda()
+        new, old = uxda.to_xarray(), self.old(uxda)
+        shares_new = np.shares_memory(new.values, uxda.values)
+        shares_old = np.shares_memory(old.values, uxda.values)
+        assert shares_new == shares_old
+        for k in uxda.coords:
+            shares_new = np.shares_memory(new.coords[k].values, uxda.coords[k].values)
+            shares_old = np.shares_memory(old.coords[k].values, uxda.coords[k].values)
+            assert shares_new == shares_old, k
+
+    def test_modifying_result_leaves_original_unchanged(self):
+        """Mutating or restructuring the result never changes the original, same as the old path."""
+
+        def snapshot(da):
+            return (
+                da.name,
+                dict(da.attrs),
+                dict(da.variable.encoding),
+                {k: (dict(c.attrs), dict(c.encoding)) for k, c in da.coords.items()},
+            )
+
+        for convert in (self.old, lambda u: u.to_xarray()):
+            uxda = self.get_uxda()
+            before = snapshot(uxda)
+            result = convert(uxda)
+
+            result.attrs["added"] = 1
+            result.variable.encoding["added"] = 1
+            for k in ("face_id", "time"):
+                result.coords[k].attrs["added"] = 1
+                result.coords[k].encoding["added"] = 1
+            result.variable.attrs = {"replaced": 1}
+            result.variable.encoding = {"replaced": 1}
+            result.coords["extra"] = ("n_face", np.zeros(uxda.sizes["n_face"]))
+            del result.coords["level"]
+            result.name = "renamed"
+
+            assert snapshot(uxda) == before
+
+    def test_nested_mutables_match_old(self):
+        """Whether nested attrs/encoding values leak into the original matches the old path."""
+        leaked = []
+        for convert in (self.old, lambda u: u.to_xarray()):
+            uxda = self.get_uxda()
+            uxda.attrs["nested"] = [0]
+            uxda.coords["face_id"].attrs["nested"] = [0]
+            uxda.coords["face_id"].encoding["nested"] = [0]
+            result = convert(uxda)
+            result.attrs["nested"].append(1)
+            result.coords["face_id"].attrs["nested"].append(1)
+            result.coords["face_id"].encoding["nested"].append(1)
+            leaked_here = (
+                uxda.attrs["nested"],
+                uxda.coords["face_id"].attrs["nested"],
+                uxda.coords["face_id"].encoding["nested"],
+            )
+            leaked.append(leaked_here)
+        assert leaked[0] == leaked[1]
+
+    def test_lazy(self, tmp_path):
+        """Just like the old path: dask-backed and file-backed data stay lazy,
+        and closing the result doesn't close the original.
+        """
+
+        def fail(*args, **kwargs):
+            raise RuntimeError("compute was called")
+
+        # dask-backed data and coordinates
+        uxds = self.get_uxds()
+        chunked = uxds["var_with_time"].chunk({"n_face": 2})
+        with dask.config.set(scheduler=fail):
+            new = chunked.to_xarray()
+        old = self.old(chunked)
+        assert new.chunks == old.chunks == chunked.chunks
+        assert type(new.variable._data) is type(old.variable._data)
+        for k in old.coords:
+            assert type(new.coords[k].variable._data) is type(old.coords[k].variable._data), k
+        xr.testing.assert_identical(new, old)
+
+        # lazily loaded file-backed data
+        path = tmp_path / "data.nc"
+        uxds.to_netcdf(path)
+        opened = ux.UxDataset(xr.open_dataset(path), uxgrid=uxds.uxgrid)
+        uxda = opened["var_with_time"]
+        new, old = uxda.to_xarray(), self.old(uxda)
+        assert new.variable._in_memory == old.variable._in_memory is False
+        self.assert_same_encodings(new, old)
+        xr.testing.assert_identical(new.load(), old.load())
+        opened.close()

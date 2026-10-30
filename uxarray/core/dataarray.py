@@ -624,7 +624,20 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         return uxds
 
     def to_xarray(self) -> xr.DataArray:
-        return xr.DataArray(self)
+        """returns a shallow copy of this ``UxDataArray`` as a plain ``xr.DataArray``."""
+        # Equivalent to the "naive" xr.DataArray(self), but internally here
+        # uses _construct_direct() for efficiency, to avoid validation checks,
+        # since a valid UxDataArray is already guaranteed to be a valid xr.DataArray.
+        variable = self._variable.copy(deep=False)
+        variable.encoding = {}  # matches xr.DataArray(self) behavior
+        coords = {k: v.copy(deep=True) for k, v in self._coords.items()}
+        # ^ also matches xr.DataArray(self) behavior, which copies coords deeply.
+        return xr.DataArray._construct_direct(
+            variable,
+            coords,
+            self._name,
+            dict(self._indexes),
+        )
 
     def astype(self, dtype, **kw_super):
         """Copy of this uxarray object, with data cast to a specified type.
