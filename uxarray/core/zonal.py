@@ -79,7 +79,7 @@ def _compute_non_conservative_zonal_mean(uxda, latitudes, use_robust_weights=Fal
         b = bounds[face_indices]
 
         if use_robust_weights:
-            w = _zonal_face_weights_robust(fe, z, b)["weight"].to_numpy()
+            w = _zonal_face_weights_robust(fe, z, b)
         else:
             w = _zonal_face_weights(fe, b, nn, z)
 
