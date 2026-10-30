@@ -3,11 +3,67 @@ import xarray as xr
 import holoviews as hv
 import pytest
 import numpy as np
+import warnings
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
+
+from uxarray.grid.geometry import _central_longitude_of
+
+
+def _cartopy_projections(convert_to='instance', *, include_local=True, errors='ignore', skip_private=True):
+    """returns a list of all cartopy.crs projections.
+    (Useful helper function for looping across all projections during tests.)
+
+    convert_to: 'instance', 'class', or 'name', default 'instance'
+        'instance' --> return a list of instances of the projection classes.
+                    (instantiated with no arguments.)
+        'class' --> return a list of the projection classes themselves.
+        'name' --> return a list of the names of the projection classes.
+    include_local: bool or 'only', default True
+        whether to include projections local to a particular area.
+            These are: EuroPP, LambertZoneII, OSGB, OSNI.
+        True --> yes, include them.
+        False --> no, do not include them.
+        'only' --> only include these local projections; exclude all other projections.
+    errors: 'ignore', 'warn', or 'raise', default 'ignore'
+        'ignore' --> skip any projection classes that can't be instantiated with no arguments.
+        'warn' --> issue a warning for any failures.
+        'raise' --> raise an exception for any failures.
+    skip_private: bool, default True
+        if True, skip any projection classes whose names start with '_'.
+    """
+    result = []
+    LOCAL_PROJECTIONS = {'EuroPP', 'LambertZoneII', 'OSGB', 'OSNI'}
+    for name in dir(ccrs):
+        if skip_private and name.startswith('_'):
+            continue
+        if include_local == 'only' and name not in LOCAL_PROJECTIONS:
+            continue
+        elif not include_local and name in LOCAL_PROJECTIONS:
+            continue
+        obj = getattr(ccrs, name)
+        if isinstance(obj, type) and issubclass(obj, ccrs.Projection) and obj is not ccrs.Projection:
+            if convert_to == 'instance':
+                try:
+                    result.append(obj())
+                except Exception as err:
+                    if errors == 'raise':
+                        raise
+                    elif errors == 'warn':
+                        warnings.warn(f"Could not instantiate {name}: {err}")
+                    else:
+                        assert errors == 'ignore'
+                        continue
+            elif convert_to == 'class':
+                result.append(obj)
+            else:
+                assert convert_to == 'name'
+                result.append(name)
+    return result
+
 
 def test_topology(gridpath):
     """Tests execution on Grid elements."""
@@ -341,8 +397,6 @@ def test_central_longitude_of_handles_cartopy_026_platecarree():
     call that defaulted to PlateCarree. Stub the params rather than branching on
     the installed cartopy, so both layouts stay covered on either version.
     """
-    from uxarray.grid.geometry import _central_longitude_of
-
     class _FakeProjection:
         def __init__(self, params):
             self.proj4_params = params
@@ -355,8 +409,65 @@ def test_central_longitude_of_handles_cartopy_026_platecarree():
     assert _central_longitude_of(_FakeProjection({"proj": "eqc", "lon_0": 0.0})) == 0.0
     assert _central_longitude_of(_FakeProjection({"proj": "robin", "lon_0": 45})) == 45.0
 
-    # neither key: fall back rather than raise
-    assert _central_longitude_of(_FakeProjection({"proj": "weird"})) == 0.0
+    # neither key: fall back to 0.0 rather than crash, but do at least raise a warning.
+    with pytest.warns(UserWarning, match=r"Could not determine central longitude"):
+        assert _central_longitude_of(_FakeProjection({"proj": "weird"})) == 0.0
+
+
+def test_central_longitude_of_for_all_nonlocal_projections():
+    """Ensure _central_longitude_of correctly identify the central longitude
+    for all non-local cartopy projections.
+    """
+    projections = _cartopy_projections("class", include_local=False)
+    # At time of writing, this finds 34 projection classes.
+    # Put a reasonably-high lower bound to account for possible future cartopy updates,
+    # while also ensuring the _cartopy_projections helper is actually finding projections.
+    assert len(projections) >= 30
+
+    couldnt_instantiate = {}
+    for cls in projections:
+        for cenlon in [0, 30, -45, 270]:
+            try:
+                proj = cls(central_longitude=cenlon)
+            except Exception as err:
+                couldnt_instantiate[cls] = err
+                continue
+            assert _central_longitude_of(proj) == cenlon, f"Failed for {cls}, central_longitude={cenlon}"
+
+    # At time of writing, this finds len(couldnt_instantiate)==3.
+    # Put a reasonably-low upper bound to account for possible future cartopy updates,
+    # while also ensuring that most cases were actually instantiated and tested above.
+    assert len(couldnt_instantiate) <= 5
+
+
+def test_plot_with_nonzero_central_longitude():
+    """Ensure can render a plot using a projection with a nonzero central longitude.
+    Regression test for issue #1795.
+    """
+    arr = ux.tutorial.open_dataset("outCSne30-vortex")['psi']
+
+    # simple test first (easier to debug a single explicit case, if crash)
+    plot_obj = arr.plot(projection=ccrs.Robinson(central_longitude=100))
+    renderer = hv.renderer("matplotlib")
+    renderer.get_plot(plot_obj)
+
+    # exhaustively check all non-local projections which can be instantiated with
+    # a central_longitude, and check across a few different central_longitude values.
+    projections = _cartopy_projections("class", include_local=False)
+    assert len(projections) >= 30  # ensure actually found most projections
+
+    couldnt_instantiate = {}
+    for cls in projections:
+        for cenlon in [0, 30, -45, 270]:
+            try:
+                proj = cls(central_longitude=cenlon)
+            except Exception as err:
+                couldnt_instantiate[cls] = err
+                continue
+            plot_obj = arr.plot(projection=proj)
+            renderer.get_plot(plot_obj)
+
+    assert len(couldnt_instantiate) <= 5  # ensure most projections were actually tested
 
 
 def test_plot_topology_with_explicit_projection(gridpath):
