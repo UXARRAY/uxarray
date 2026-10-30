@@ -346,12 +346,20 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         Parameters
         ----------
         ds: xr.Dataset
-            An Xarray dataset containing data residing on an unstructured grid
+            An Xarray dataset containing data residing on an unstructured grid,
+            or structured data paired with a ``Grid`` that records its source
+            longitude and latitude dimensions. Structured dimensions are stacked
+            onto ``n_face`` in the Grid's latitude-major, longitude-minor face
+            order, independently of variable or dimension order. Non-spatial
+            dimensions are retained.
         uxgrid: Grid, optional
             ``Grid`` object representing an unstructured grid. If a grid is not provided, the source ds will be
             parsed to see if a ``Grid`` can be constructed.
         ugrid_dims: dict, optional
-            A dictionary mapping dataset dimensions to UGRID dimensions.
+            A dictionary describing the mapping between dataset and UGRID dimensions.
+            For structured grids, for example, ``{"n_face": ("x", "y")}`` uses
+            the UGRID dimension as the key and the dataset's longitude and
+            latitude dimensions as the tuple value, in that order.
 
         Returns
         -------

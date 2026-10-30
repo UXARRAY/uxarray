@@ -61,18 +61,16 @@ def _map_dims_to_ugrid(
     "nCell": "n_face")"""
 
     if grid.source_grid_spec == "Structured":
-        # Case for structured grids, flatten bottom two sptial dimensions
-
         lon_name, lat_name = _source_dims_dict["n_face"]
-
-        for var_name in ds.data_vars:
-            if lon_name in ds[var_name].dims and lat_name in ds[var_name].dims:
-                if ds[var_name].dims[-1] == lon_name:
-                    dim_ordered = [lat_name, lon_name]
-                else:
-                    dim_ordered = [lon_name, lat_name]
-
-        ds = ds.stack(n_face=dim_ordered)
+        if lon_name not in ds.dims or lat_name not in ds.dims:
+            raise DimensionError(
+                "Structured data must contain the selected mapping's spatial "
+                f"dimensions {lon_name!r} and {lat_name!r}; got {tuple(ds.dims)!r}."
+            )
+        # Structured Grid faces are latitude-major, longitude-minor. The source
+        # mapping stores (longitude, latitude), not the stacking order. Match
+        # the geometry regardless of each variable's axis or insertion order.
+        ds = ds.stack(n_face=(lat_name, lon_name))
 
     elif grid.source_grid_spec == "GEOS-CS":
         # stack dimensions to flatten them to map to nodes or faces
