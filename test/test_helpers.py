@@ -8,8 +8,8 @@ import uxarray as ux
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
-from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array, _get_lonlat_rad_face_edge_nodes_array, _small_angle_of_2_vectors
+from uxarray.grid.arcs import point_within_gca, in_between
+from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array, _get_lonlat_rad_face_edge_nodes_array
 from uxarray.grid.geometry import pole_point_inside_polygon, _pole_point_inside_polygon_cartesian
 
 err_tolerance = 1.0e-12
@@ -209,93 +209,6 @@ def test_in_between():
     # Test the in_between operator
     assert in_between(0, 1, 2)
     assert in_between(-1, -1.5, -2)
-
-def test_angle_of_2_vectors():
-    # Test the angle between two vectors
-    v1 = np.array([1.0, 0.0, 0.0])
-    v2 = np.array([0.0, 1.0, 0.0])
-    assert pytest.approx(_angle_of_2_vectors(v1, v2)) == np.pi / 2.0
-
-    v1 = np.array([1.0, 0.0, 0.0])
-    v2 = np.array([1.0, 0.0, 0.0])
-    assert pytest.approx(_angle_of_2_vectors(v1, v2)) == 0.0
-
-def test_angle_of_2_vectors_180_degree():
-    GCR1_cart = np.array([
-        _lonlat_rad_to_xyz(np.deg2rad(0.0),
-                                np.deg2rad(0.0)),
-        _lonlat_rad_to_xyz(np.deg2rad(181.0),
-                                np.deg2rad(0.0))
-    ])
-
-    res = _angle_of_2_vectors(GCR1_cart[0], GCR1_cart[1])
-
-    # The angle between the two vectors should be 181 degree
-    assert pytest.approx(res, abs=1e-8) == np.deg2rad(181.0)
-
-    GCR1_cart = np.array([
-        _lonlat_rad_to_xyz(np.deg2rad(170.0),
-                                np.deg2rad(89.0)),
-        _lonlat_rad_to_xyz(np.deg2rad(170.0),
-                                np.deg2rad(-10.0))
-    ])
-
-    res = _angle_of_2_vectors(GCR1_cart[0], GCR1_cart[1])
-
-    # The angle between the two vectors should be 99 degrees
-    assert pytest.approx(res, abs=1e-8) == np.deg2rad(89.0+10.0)
-
-
-def _exact_small_angle(u, v):
-    """Angle between two float vectors, for angles well below 1 rad.
-
-    The cross and dot products are formed exactly in rational arithmetic, then
-    atan(|u x v| / (u . v)) is evaluated with a 50-digit Taylor series.
-    """
-    from decimal import Decimal, localcontext
-    from fractions import Fraction
-
-    u = [Fraction(float(c)) for c in u]
-    v = [Fraction(float(c)) for c in v]
-    cross = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
-    cross2 = sum(c * c for c in cross)
-    dot = sum(a * b for a, b in zip(u, v))
-    with localcontext() as ctx:
-        ctx.prec = 50
-        t = (Decimal(cross2.numerator) / Decimal(cross2.denominator)).sqrt() / (
-            Decimal(dot.numerator) / Decimal(dot.denominator))
-        term, total, k = t, Decimal(0), 0
-        while abs(term) > Decimal(10) ** -45:
-            total += term / (2 * k + 1) * (-1) ** k
-            term *= t * t
-            k += 1
-        return float(total)
-
-
-def test_small_angle_of_2_vectors_special_values():
-    assert _small_angle_of_2_vectors((1.0, 0.0, 0.0), (0.0, 3.0, 0.0)) == pytest.approx(np.pi / 2, rel=1e-15)
-    assert _small_angle_of_2_vectors((2.0, 0.0, 0.0), (0.5, 0.0, 0.0)) == 0.0
-    assert _small_angle_of_2_vectors((0.0, 0.0, 1.0), (0.0, 0.0, -7.0)) == pytest.approx(np.pi, rel=1e-15)
-    assert _small_angle_of_2_vectors((0.0, 0.0, 0.0), (1.0, 2.0, 3.0)) == 0.0
-
-
-@pytest.mark.parametrize("theta, rtol", [(1e-3, 1e-14), (1e-5, 1e-14), (1e-7, 1e-14), (1e-9, 1e-13)])
-def test_small_angle_of_2_vectors_accuracy(theta, rtol):
-    """Nearly parallel vectors of different, arbitrary lengths.
-
-    A naive evaluation of v|u| - u|v| loses accuracy as eps / theta (about 1e-7
-    at theta = 1e-9); with compensated products it stays within a few ulps,
-    plus a second-order (eps / theta)^2 term from the rounded norms.
-    """
-    rng = np.random.default_rng(0)
-    for _ in range(50):
-        u = rng.normal(size=3)
-        w = np.cross(u, rng.normal(size=3))
-        v = u / np.linalg.norm(u) * np.cos(theta) + w / np.linalg.norm(w) * np.sin(theta)
-        u, v = u * rng.uniform(0.1, 10.0), v * rng.uniform(0.1, 10.0)
-        expected = _exact_small_angle(u, v)
-        assert _small_angle_of_2_vectors(u, v) == pytest.approx(expected, rel=rtol, abs=0.0)
-        assert _small_angle_of_2_vectors(v, u) == pytest.approx(expected, rel=rtol, abs=0.0)
 
 def test_get_cartesian_face_edge_nodes_pipeline():
     vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5]]

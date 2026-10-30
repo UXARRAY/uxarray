@@ -3,10 +3,12 @@ import xarray as xr
 from numba import njit, prange
 
 from uxarray.constants import EDGE_NODE_SORT_THRESHOLD, INT_DTYPE, INT_FILL_VALUE
-from uxarray.utils.computing import diff_of_products
 from uxarray.utils.numba_math import (
+    _numba_add3,
     _numba_cross3,
+    _numba_diff_of_products3,
     _numba_dot3,
+    _numba_mul3_scalar,
     _numba_norm3,
 )
 from uxarray.utils.parallel import parallel_njit
@@ -24,8 +26,8 @@ def _small_angle_of_2_vectors(u, v):
     which avoids the cancellation of the arcsin/arccos forms and of the cross
     product in atan2(|u x v|, u . v). When the vectors are nearly parallel,
     every component of ``v |u| - u |v|`` is a difference of two nearly equal
-    products, so it is evaluated with the FMA-based ``diff_of_products``
-    (Kahan's 2x2 determinant). The result is accurate to a few ulps for angles
+    products, so it is evaluated with the FMA-based ``_numba_diff_of_products3``
+    (Kahan's 2x2 determinant per component). The result is accurate to a few ulps for angles
     down to about 1e-7 rad, for any input lengths; below that, the rounding of
     the norms adds a second-order relative error of about (eps / angle)^2.
 
@@ -51,20 +53,17 @@ def _small_angle_of_2_vectors(u, v):
     algorithms for regridding on the sphere. Geoscientific Model
     Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
     """
-    u0, u1, u2 = float(u[0]), float(u[1]), float(u[2])
-    v0, v1, v2 = float(v[0]), float(v[1]), float(v[2])
-    nu = _numba_norm3((u0, u1, u2))
-    nv = _numba_norm3((v0, v1, v2))
+    nu = _numba_norm3(u)
+    nv = _numba_norm3(v)
 
-    # v|u| - u|v|, each component as a compensated difference of products.
-    m0_hi, m0_lo = diff_of_products(v0, nu, u0, nv)
-    m1_hi, m1_lo = diff_of_products(v1, nu, u1, nv)
-    m2_hi, m2_lo = diff_of_products(v2, nu, u2, nv)
-    m = (m0_hi + m0_lo, m1_hi + m1_lo, m2_hi + m2_lo)
+    # v|u| - u|v| as a compensated difference of products: m_hi alone is the
+    # naive rounded difference, adding m_lo applies the products' rounding errors.
+    m_hi, m_lo = _numba_diff_of_products3(v, nu, u, nv)
+    m = _numba_add3(m_hi, m_lo)
 
     # v|u| + u|v|: its cancellation near antiparallel vectors does not affect
     # the returned angle, so it is evaluated directly.
-    s = (v0 * nu + u0 * nv, v1 * nu + u1 * nv, v2 * nu + u2 * nv)
+    s = _numba_add3(_numba_mul3_scalar(v, nu), _numba_mul3_scalar(u, nv))
 
     return 2.0 * np.arctan2(_numba_norm3(m), _numba_norm3(s))
 
