@@ -406,11 +406,11 @@ class UxDataArrayPlotAccessor:
 
     def polygons(
         self,
-        periodic_elements: str | None = "split",
+        periodic_elements: str = "split",
         backend: str | None = None,
-        engine: str | None = "spatialpandas",
-        rasterize: bool | None = True,
-        dynamic: bool | None = False,
+        engine: str = "spatialpandas",
+        rasterize: bool = True,
+        dynamic: bool = False,
         projection=None,
         xlabel: str | None = "Longitude",
         ylabel: str | None = "Latitude",
