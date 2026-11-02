@@ -330,3 +330,18 @@ def test_open_multigrid_mask_active_value_per_grid_override(gridpath):
 
     assert grids["ocn"].n_face == expected_ocn
     assert grids["atm"].n_face == expected_atm
+
+
+def test_scrip_load_is_deterministic():
+    """Ensure loading the same SCRIP grid file repeatedly does not change results.
+    Regression test for issue #1738.
+    """
+    examples = ["scrip-ne30pg2", "scrip-outCSne8"]
+    for example in examples:
+        for kw in (dict(), dict(chunks="auto")):
+            # load 3 times instead of 2, to drastically reduce the odds of
+            # non-deterministic results which "just happen" to align.
+            gridA = ux.tutorial.open_grid(example, **kw)
+            gridB = ux.tutorial.open_grid(example, **kw)
+            gridC = ux.tutorial.open_grid(example, **kw)
+            assert gridA == gridB == gridC
