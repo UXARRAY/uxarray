@@ -143,48 +143,15 @@ def test_scrip_dask_lazy_dedup_matches_eager(gridpath, chunks):
     """Opening a SCRIP grid with ``chunks=`` must produce the same mesh as
     the eager path, even though the underlying dedup algorithm differs
     (dask-native vs. Polars) once the corner arrays are dask-backed.
-
-    The comparison is on corner coordinates *in winding order*, not sorted:
-    the two paths are free to number nodes differently, but the order of
-    corners within a face is what determines area sign and normal
-    direction, so it must be preserved exactly.
     """
     grid_file = gridpath("scrip", "outCSne8", "outCSne8.nc")
-
     grid_eager = ux.open_grid(grid_file)
     grid_lazy = ux.open_grid(grid_file, chunks=chunks)
-
     assert isinstance(grid_lazy._ds["face_node_connectivity"].data, da.Array), (
         f"chunks={chunks!r} did not produce a dask-backed connectivity, so this "
         "test would silently compare the eager path against itself"
     )
-
-    assert grid_eager.n_face == grid_lazy.n_face
-    assert grid_eager.n_node == grid_lazy.n_node
-
-    fnc_eager = grid_eager.face_node_connectivity.values
-    fnc_lazy = grid_lazy.face_node_connectivity.values
-
-    # Same set of unique nodes, independent of how each path numbered them.
-    nodes_eager = np.unique(
-        np.stack([grid_eager.node_lon.values, grid_eager.node_lat.values], 1), axis=0
-    )
-    nodes_lazy = np.unique(
-        np.stack([grid_lazy.node_lon.values, grid_lazy.node_lat.values], 1), axis=0
-    )
-    nt.assert_allclose(nodes_eager, nodes_lazy, atol=1e-10)
-
-    # Same corners per face, in the same order.
-    nt.assert_allclose(
-        grid_eager.node_lon.values[fnc_eager],
-        grid_lazy.node_lon.values[fnc_lazy],
-        atol=1e-10,
-    )
-    nt.assert_allclose(
-        grid_eager.node_lat.values[fnc_eager],
-        grid_lazy.node_lat.values[fnc_lazy],
-        atol=1e-10,
-    )
+    assert grid_lazy == grid_eager
 
 
 def test_scrip_dask_lazy_dedup_matches_eager_radians(gridpath):
@@ -192,25 +159,10 @@ def test_scrip_dask_lazy_dedup_matches_eager_radians(gridpath):
     radians, i.e. when ``_values_in_degrees`` converts a dask array rather
     than returning it untouched."""
     grid_file = gridpath("scrip", "scrip_radians", "scrip_radians_grid.nc")
-
     grid_eager = ux.open_grid(grid_file)
     grid_lazy = ux.open_grid(grid_file, chunks={"grid_size": 3})
-
     assert isinstance(grid_lazy._ds["face_node_connectivity"].data, da.Array)
-    assert grid_eager.n_node == grid_lazy.n_node
-
-    fnc_eager = grid_eager.face_node_connectivity.values
-    fnc_lazy = grid_lazy.face_node_connectivity.values
-    nt.assert_allclose(
-        grid_eager.node_lon.values[fnc_eager],
-        grid_lazy.node_lon.values[fnc_lazy],
-        atol=1e-10,
-    )
-    nt.assert_allclose(
-        grid_eager.node_lat.values[fnc_eager],
-        grid_lazy.node_lat.values[fnc_lazy],
-        atol=1e-10,
-    )
+    assert grid_eager == grid_lazy
 
 
 def test_lookup_node_ids_preserves_input_order():
