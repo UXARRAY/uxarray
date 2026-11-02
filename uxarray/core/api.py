@@ -32,6 +32,8 @@ __all__ = [
     "list_grid_names",
     "open_dataset",
     "open_mfdataset",
+    "asuxarray",
+    "asxarray",
 ]
 
 
@@ -657,3 +659,89 @@ def concat(
     xarray_objs = [obj.to_xarray() for obj in objs]
 
     return result_type(xr.concat(xarray_objs, dim=dim, **kwargs), uxgrid=result_uxgrid)
+
+
+def asuxarray(
+    obj: xr.DataArray | xr.Dataset | UxDataArray | UxDataset,
+    uxgrid: Grid,
+    *,
+    source_datasets: str | None = None,
+) -> UxDataArray | UxDataset:
+    """Return obj as a UxDataArray or UxDataset, with the provided uxgrid.
+
+    If obj is already a UxDataArray or UxDataset, it is returned unchanged,
+    after confirming that its uxgrid matches the provided uxgrid
+    (unless obj's uxgrid is None, in which case it is set to the provided uxgrid).
+    If obj is an xr.DataArray or xr.Dataset, convert to the corresponding uxarray type.
+    If obj is any other type, raise TypeError.
+
+    Parameters
+    ----------
+    obj : xr.DataArray | xr.Dataset | UxDataArray | UxDataset
+        The object to convert to a uxarray object.
+    uxgrid : Grid
+        The uxarray grid to associate with the returned object.
+    source_datasets : str, optional
+        Optional string indicating the source dataset(s) for the returned object;
+        currently only utilized if obj is an xr.Dataset (does not compare with
+        obj's source_datasets if obj is a UxDataset, and does not pass to UxDataArray
+        because UxDataArray does not currently support source_datasets).
+
+    Returns
+    -------
+    ux_obj: UxDataArray | UxDataset
+        The input object converted to a uxarray object, with the provided uxgrid.
+        UxDataArray if the input was an xr.DataArray or UxDataArray;
+        UxDataset if the input was an xr.Dataset or UxDataset.
+    """
+    if isinstance(obj, (UxDataArray, UxDataset)):
+        if obj._uxgrid is None:
+            obj.uxgrid = uxgrid
+        elif obj.uxgrid != uxgrid:
+            raise GridsMismatchError(
+                "provided obj and uxgrid with unequal grids, "
+                "obj.uxgrid != uxgrid, during asuxarray(obj, uxgrid)."
+            )
+        return obj
+
+    if isinstance(obj, xr.DataArray):
+        return UxDataArray(obj, uxgrid=uxgrid)
+    elif isinstance(obj, xr.Dataset):
+        return UxDataset(obj, uxgrid=uxgrid, source_datasets=source_datasets)
+    else:
+        raise TypeError(
+            "asuxarray(obj, uxgrid) expects obj to be an xr.DataArray, xr.Dataset, "
+            f"UxDataArray or UxDataset, but got type(obj)={type(obj)}."
+        )
+
+
+def asxarray(
+    obj: xr.DataArray | xr.Dataset | UxDataArray | UxDataset,
+) -> xr.DataArray | xr.Dataset:
+    """Return obj as an xr.DataArray or xr.Dataset.
+
+    If obj was a uxarray object, this is equivalent to obj.to_xarray().
+    If obj was already an xr.DataArray or xr.Dataset, it is returned unchanged.
+    If obj is any other type, raise TypeError.
+
+    Parameters
+    ----------
+    obj : xr.DataArray | xr.Dataset | UxDataArray | UxDataset
+        The object to convert to an xarray object.
+
+    Returns
+    -------
+    xr_obj: xr.DataArray | xr.Dataset
+        The input object converted to an xarray object.
+        xr.DataArray if the input was an xr.DataArray or UxDataArray;
+        xr.Dataset if the input was an xr.Dataset or UxDataset.
+    """
+    if isinstance(obj, (UxDataArray, UxDataset)):
+        return obj.to_xarray()
+    elif isinstance(obj, (xr.DataArray, xr.Dataset)):
+        return obj
+    else:
+        raise TypeError(
+            "asxarray(obj) expects obj to be an xr.DataArray, xr.Dataset, "
+            f"UxDataArray or UxDataset, but got type(obj)={type(obj)}."
+        )

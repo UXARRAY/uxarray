@@ -198,6 +198,8 @@ def _resolve_coordinate_labels_to_indices(
         coordinate array to select from.
     method, tolerance: passed directly to .sel().
     """
+    from uxarray.core.api import asxarray
+
     # just using xarray's .sel() on a simple np.arange(), to ensure exactly consistent behavior with sel().
     # (Maybe a more efficient implementation exists, but this is simple and gives correct results.)
     indices = xr.DataArray(np.arange(coord_array.sizes[dim]), dims=dim)
@@ -207,8 +209,7 @@ def _resolve_coordinate_labels_to_indices(
             f"Coordinate {_indices_coord_name!r} already exists in coord_array.coords "
             "and will be overwritten, which may cause errors or subtly incorrect results..."
         )
-    if hasattr(coord_array, "to_xarray"):  # convert to xarray to avoid recursive sel()
-        coord_array = coord_array.to_xarray()
+    coord_array = asxarray(coord_array)  # convert to xarray to avoid recursive sel()
     coord_with_indices = coord_array.assign_coords({_indices_coord_name: indices})
     selected = coord_with_indices.sel(
         {dim: labels_to_sel}, method=method, tolerance=tolerance

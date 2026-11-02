@@ -35,8 +35,6 @@ Note:
 
 import operator
 
-import xarray as xr
-
 from uxarray.errors import GridsMismatchError
 
 
@@ -112,8 +110,7 @@ class UxSupportsArithmetic:
         OR if they have n_face==1 (to avoid breaking "scalar-like" workflows,
         because isel(n_face=int) maybe should provide scalar, but currently doesn't).
         """
-        from uxarray.core.dataarray import UxDataArray
-        from uxarray.core.dataset import UxDataset
+        from uxarray.core.api import asuxarray
 
         uxgrids = [
             (i, obj.uxgrid)
@@ -149,10 +146,7 @@ class UxSupportsArithmetic:
         _was_tuple = isinstance(result, tuple)
         result = list(result) if _was_tuple else [result]
         for i, obj in enumerate(result):
-            if isinstance(obj, xr.DataArray):
-                result[i] = UxDataArray(obj, uxgrid=grid_ref)
-            elif isinstance(obj, xr.Dataset):
-                result[i] = UxDataset(obj, uxgrid=grid_ref)
+            result[i] = asuxarray(obj, uxgrid=grid_ref)
         result = tuple(result) if _was_tuple else result[0]
         return result
 
