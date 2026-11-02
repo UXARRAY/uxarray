@@ -1012,6 +1012,66 @@ class TestCurlDyamondSubset:
         assert curl_field.uxgrid == u_component.uxgrid
 
 
+class TestLaplacianQuadHex:
+
+    def test_laplacian_output_format(self):
+        """Tests the output format of laplacian functionality"""
+        uxds = ux.tutorial.open_dataset("quad-hexagon")
+        q = uxds['t2m']
+        laplacian_da = q.laplacian()
+
+        assert isinstance(laplacian_da, ux.UxDataArray)
+        assert laplacian_da.name == "laplacian"
+        assert laplacian_da.attrs["derivative"] == "laplacian"
+        assert laplacian_da.attrs["long_name"] == "Laplacian of t2m"
+        assert laplacian_da.attrs["description"].startswith("Laplacian of scalar field")
+        assert q.sizes == laplacian_da.sizes
+
+        # units attr checks
+        assert q.attrs["units"] == "K"
+        assert laplacian_da.attrs["units"] == "K/m^2"
+        laplacian_da_no_scaling = q.laplacian(scale_by_radius=False)
+        assert laplacian_da_no_scaling.attrs["units"] == "K/rad^2"
+        q_no_units = q.copy()
+        q_no_units.attrs.pop("units")
+        laplacian_da_no_units_yes_scaling = q_no_units.laplacian()
+        assert laplacian_da_no_units_yes_scaling.attrs["units"] == "1/m^2"
+        laplacian_da_no_units_no_scaling = q_no_units.laplacian(scale_by_radius=False)
+        assert laplacian_da_no_units_no_scaling.attrs["units"] == "1/rad^2"
+        q_ratio_units = q.assign_attrs({"units": "K/s"})
+        laplacian_da_ratio_units = q_ratio_units.laplacian()
+        assert laplacian_da_ratio_units.attrs["units"] == "(K/s)/m^2"
+        # blank units input should become 1/m^2 or 1/rad^2, not "/m^2" or "/rad^2"
+        for blank in ["", " ", "  \t ", "\n"]:
+            q_blank_units = q.assign_attrs({"units": blank})
+            laplacian_da_blank_units = q_blank_units.laplacian()
+            assert laplacian_da_blank_units.attrs["units"] == "1/m^2"
+            laplacian_da_blank_units_no_scaling = q_blank_units.laplacian(scale_by_radius=False)
+            assert laplacian_da_blank_units_no_scaling.attrs["units"] == "1/rad^2"
+        # units of None, False, or 0 should become None/m^2, False/m^2, or 0/m^2, not 1/m^2.
+        # (similarly for rad^2, but just spot-checking m^2 for brevity.)
+        for zero in [None, False, 0]:
+            q_zero_units = q.assign_attrs({"units": zero})
+            laplacian_da_zero_units = q_zero_units.laplacian()
+            assert laplacian_da_zero_units.attrs["units"] == f"{zero}/m^2"
+
+        # other attrs checks - spot check for handling None names:
+        # use "unnamed_array" in long_name; keep name as "laplacian"
+        q_noname = q.rename(None)
+        laplacian_da_noname = q_noname.laplacian()
+        assert laplacian_da_noname.name == "laplacian"
+        assert laplacian_da_noname.attrs["long_name"] == "Laplacian of unnamed_array"
+
+        # other attrs checks - spot check that value-describing attrs get removed
+        # (gradient output format test has more comprehensive checks):
+        q_with_more_attrs = q.copy()
+        q_with_more_attrs.attrs["actual_range"] = (0.0, 100.0)
+        q_with_more_attrs.attrs["some other attr"] = "test"
+        laplacian_with_more_attrs = q_with_more_attrs.laplacian()
+        assert "actual_range" not in laplacian_with_more_attrs.attrs
+        assert "some other attr" in laplacian_with_more_attrs.attrs
+
+
 class TestSphericalManufacturedSolutions:
     """Amplitude checks against closed-form answers on the unit sphere.
 
@@ -1263,6 +1323,33 @@ class TestMoreThan1D:
         arr0j = arr0 * 1j
         resultj = arrj.divergence(arr0j)
         assert np.allclose(resultj.imag, resultA, atol=0, rtol=1e-9)
+
+    def test_laplacian_more_than_1d(self):
+        ds0 = ux.tutorial.open_dataset('outCSne30-vortex')
+        arr0 = ds0['psi']
+        arr0.uxgrid._ds.attrs['sphere_radius'] = 1.0
+        # ^ set 'sphere_radius' to avoid the warning which is irrelevant here:
+        # "scale_by_radius=True but the grid has no 'sphere_radius' attribute"
+        times = xr.DataArray([1,3,5,7], coords={'time': [10,30,50,70]})
+        levels = xr.DataArray([2,4], coords={'level': [2,4]})
+        arr = arr0 * times + levels
+        assert arr.sizes == {'time': 4, 'level': 2, 'n_face': arr0.sizes['n_face']}
+        result = arr.laplacian()
+        assert result.sizes == arr.sizes
+        # ensure full result matches 1D results at each slice
+        for it in range(arr.sizes['time']):
+            for il in range(arr.sizes['level']):
+                arr_it_il_laplacian = arr.isel(time=it, level=il).laplacian()
+                assert result.isel(time=it, level=il).equals(arr_it_il_laplacian)
+        # ensure chunked input stays chunked and produces correct results
+        arrc = arr.chunk({'time': 2, 'level': -1})
+        resultc = arrc.laplacian()
+        assert resultc.chunks == arrc.chunks
+        assert resultc.compute().equals(result)
+        # ensure complex values are allowed :)
+        arrj = arr * 1j
+        resultj = arrj.laplacian()
+        assert np.allclose(resultj.imag, result, atol=0, rtol=1e-9)
 
     def test_scalar_dot_gradient_more_than_1d(self):
         ds0 = ux.tutorial.open_dataset('outCSne30-vortex')

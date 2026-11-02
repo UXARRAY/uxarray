@@ -1990,10 +1990,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         )
 
         # bookkeeping for units
-        units = result.attrs["units"]
-        assert units.endswith("/m") or units.endswith(
-            "/rad"
-        )  # else, made a coding error.
+        units = grad_q_zonal.attrs["units"]  # ends with "/m" or "/rad".
         u_numer, u_denom = units.rsplit("/", 1)
         units = f"{u_numer}/{u_denom}^2"  # e.g., input has "K", output has "K/m^2".
 
