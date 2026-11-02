@@ -529,6 +529,7 @@ Mathematical Operators
    UxDataArray.divergence
    UxDataArray.gradient
    UxDataArray.integrate
+   UxDataArray.laplacian
    UxDataArray.scalardotgradient
 
 
