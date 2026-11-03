@@ -496,7 +496,7 @@ class Grid:
             Face node connectivity, mapping each face to the nodes that surround them
         fill_value: int | float | None
             Value used for padding connectivity variables when the maximum number of elements in a row is less than the maximum.
-        start_index: int | None, default=0
+        start_index: int, default=0
             Start index (typically 0 or 1)
         dims_dict : dict | None
             Dictionary of dimension names mapped to the ugrid conventions (i.e. {"nVertices": "n_node})
