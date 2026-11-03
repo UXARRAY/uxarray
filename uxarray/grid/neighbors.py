@@ -51,9 +51,9 @@ class KDTree:
     def __init__(
         self,
         grid,
-        coordinates: str | None = "face centers",
-        coordinate_system: str | None = "cartesian",
-        distance_metric: str | None = "minkowski",
+        coordinates: str = "face centers",
+        coordinate_system: str = "cartesian",
+        distance_metric: str = "minkowski",
         reconstruct: bool = False,
     ):
         # Set up references
@@ -232,12 +232,12 @@ class KDTree:
     def query(
         self,
         coords: np.ndarray | list | tuple,
-        k: int | None = 1,
-        return_distance: bool | None = True,
-        in_radians: bool | None = False,
-        dualtree: bool | None = False,
-        breadth_first: bool | None = False,
-        sort_results: bool | None = True,
+        k: int = 1,
+        return_distance: bool = True,
+        in_radians: bool = False,
+        dualtree: bool = False,
+        breadth_first: bool = False,
+        sort_results: bool = True,
     ):
         """Queries the tree for the ``k`` nearest neighbors.
 
@@ -322,11 +322,11 @@ class KDTree:
     def query_radius(
         self,
         coords: np.ndarray | list | tuple,
-        r: int | None = 1.0,
-        return_distance: bool | None = False,
-        in_radians: bool | None = False,
-        count_only: bool | None = False,
-        sort_results: bool | None = False,
+        r: int = 1.0,
+        return_distance: bool = False,
+        in_radians: bool = False,
+        count_only: bool = False,
+        sort_results: bool = False,
     ):
         """Queries the tree for all neighbors within a radius ``r``.
 
@@ -469,9 +469,9 @@ class BallTree:
     def __init__(
         self,
         grid,
-        coordinates: str | None = "face centers",
-        coordinate_system: str | None = "spherical",
-        distance_metric: str | None = "haversine",
+        coordinates: str = "face centers",
+        coordinate_system: str = "spherical",
+        distance_metric: str = "haversine",
         reconstruct: bool = False,
     ):
         # maintain a reference to the source grid
@@ -646,12 +646,12 @@ class BallTree:
     def query(
         self,
         coords: np.ndarray | list | tuple,
-        k: int | None = 1,
-        in_radians: bool | None = False,
-        return_distance: bool | None = True,
-        dualtree: bool | None = False,
-        breadth_first: bool | None = False,
-        sort_results: bool | None = True,
+        k: int = 1,
+        in_radians: bool = False,
+        return_distance: bool = True,
+        dualtree: bool = False,
+        breadth_first: bool = False,
+        sort_results: bool = True,
     ):
         """Queries the tree for the ``k`` nearest neighbors.
 
@@ -736,11 +736,11 @@ class BallTree:
     def query_radius(
         self,
         coords: np.ndarray | list | tuple,
-        r: int | None = 1.0,
-        in_radians: bool | None = False,
-        return_distance: bool | None = False,
-        count_only: bool | None = False,
-        sort_results: bool | None = False,
+        r: int = 1.0,
+        in_radians: bool = False,
+        return_distance: bool = False,
+        count_only: bool = False,
+        sort_results: bool = False,
     ):
         """Queries the tree for all neighbors within a radius ``r``.
 
@@ -963,8 +963,8 @@ class SpatialHash:
     def query(
         self,
         coords: np.ndarray | list | tuple,
-        in_radians: bool | None = False,
-        tol: float | None = 1e-6,
+        in_radians: bool = False,
+        tol: float = 1e-6,
     ):
         """Queries the hash table.
 
