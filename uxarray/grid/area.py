@@ -10,6 +10,20 @@ from uxarray.utils.numba_math import (
 from uxarray.utils.parallel import parallel_njit
 
 
+def _integration_face_areas(uxgrid, quadrature_rule, order):
+    """Select integration areas, preserving defaults and validating custom rules."""
+    if quadrature_rule is None:
+        quadrature_rule = "triangular"
+    if order is None:
+        order = 4
+    # The cached property is triangular/4 and preserves HEALPix equal areas.
+    if quadrature_rule == "triangular" and order == 4:
+        return uxgrid.face_areas
+    return uxgrid.compute_face_areas(
+        quadrature_rule=quadrature_rule, order=order, as_uxarray=True
+    )
+
+
 @njit(cache=True)
 def calculate_face_area(
     x,
