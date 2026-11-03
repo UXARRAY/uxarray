@@ -1,13 +1,22 @@
 import os
-import xarray as xr
-import warnings
+
+import dask
+import dask.array as da
+import dask.dataframe as dd
 import numpy as np
 import numpy.testing as nt
 import pytest
+import xarray as xr
 
 import uxarray as ux
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.io._scrip import _detect_multigrid
+from uxarray.constants import INT_DTYPE
+from uxarray.errors import GridInvalidError
+from uxarray.io._scrip import (
+    _dedup_scrip_nodes_dask,
+    _dedup_scrip_nodes_eager,
+    _detect_multigrid,
+    _lookup_node_ids,
+)
 
 
 def test_read_ugrid(gridpath, mesh_constants):
@@ -118,6 +127,238 @@ def test_scrip_radians_units(gridpath):
     nt.assert_allclose(np.sort(grid.face_lat.values), np.sort(expected_face_lat), atol=1e-10)
     nt.assert_allclose(np.sort(grid.node_lon.values), np.sort(expected_node_lon), atol=1e-10)
     nt.assert_allclose(np.sort(grid.node_lat.values), np.sort(expected_node_lat), atol=1e-10)
+
+
+@pytest.mark.parametrize(
+    "chunks",
+    [
+        {"grid_size": 7},  # many tiny partitions
+        {"grid_size": 10**6},  # one partition, larger than the grid
+        "auto",  # what a caller (and the docstring) would reach for
+        -1,
+    ],
+    ids=["tiny_chunks", "single_chunk", "auto", "minus_one"],
+)
+def test_scrip_dask_lazy_dedup_matches_eager(gridpath, chunks):
+    """Opening a SCRIP grid with ``chunks=`` must produce the same mesh as
+    the eager path, even though the underlying dedup algorithm differs
+    (dask-native vs. Polars) once the corner arrays are dask-backed.
+
+    The comparison is on corner coordinates *in winding order*, not sorted:
+    the two paths are free to number nodes differently, but the order of
+    corners within a face is what determines area sign and normal
+    direction, so it must be preserved exactly.
+    """
+    grid_file = gridpath("scrip", "outCSne8", "outCSne8.nc")
+
+    grid_eager = ux.open_grid(grid_file)
+    grid_lazy = ux.open_grid(grid_file, chunks=chunks)
+
+    assert isinstance(grid_lazy._ds["face_node_connectivity"].data, da.Array), (
+        f"chunks={chunks!r} did not produce a dask-backed connectivity, so this "
+        "test would silently compare the eager path against itself"
+    )
+
+    assert grid_eager.n_face == grid_lazy.n_face
+    assert grid_eager.n_node == grid_lazy.n_node
+
+    fnc_eager = grid_eager.face_node_connectivity.values
+    fnc_lazy = grid_lazy.face_node_connectivity.values
+
+    # Same set of unique nodes, independent of how each path numbered them.
+    nodes_eager = np.unique(
+        np.stack([grid_eager.node_lon.values, grid_eager.node_lat.values], 1), axis=0
+    )
+    nodes_lazy = np.unique(
+        np.stack([grid_lazy.node_lon.values, grid_lazy.node_lat.values], 1), axis=0
+    )
+    nt.assert_allclose(nodes_eager, nodes_lazy, atol=1e-10)
+
+    # Same corners per face, in the same order.
+    nt.assert_allclose(
+        grid_eager.node_lon.values[fnc_eager],
+        grid_lazy.node_lon.values[fnc_lazy],
+        atol=1e-10,
+    )
+    nt.assert_allclose(
+        grid_eager.node_lat.values[fnc_eager],
+        grid_lazy.node_lat.values[fnc_lazy],
+        atol=1e-10,
+    )
+
+
+def test_scrip_dask_lazy_dedup_matches_eager_radians(gridpath):
+    """The lazy path must also agree with the eager one when the file is in
+    radians, i.e. when ``_values_in_degrees`` converts a dask array rather
+    than returning it untouched."""
+    grid_file = gridpath("scrip", "scrip_radians", "scrip_radians_grid.nc")
+
+    grid_eager = ux.open_grid(grid_file)
+    grid_lazy = ux.open_grid(grid_file, chunks={"grid_size": 3})
+
+    assert isinstance(grid_lazy._ds["face_node_connectivity"].data, da.Array)
+    assert grid_eager.n_node == grid_lazy.n_node
+
+    fnc_eager = grid_eager.face_node_connectivity.values
+    fnc_lazy = grid_lazy.face_node_connectivity.values
+    nt.assert_allclose(
+        grid_eager.node_lon.values[fnc_eager],
+        grid_lazy.node_lon.values[fnc_lazy],
+        atol=1e-10,
+    )
+    nt.assert_allclose(
+        grid_eager.node_lat.values[fnc_eager],
+        grid_lazy.node_lat.values[fnc_lazy],
+        atol=1e-10,
+    )
+
+
+def test_lookup_node_ids_preserves_input_order():
+    """``_lookup_node_ids`` must return ids positionally aligned with its
+    inputs, and must find every corner.
+
+    ``map_blocks`` splices each block's output back by position, so a lookup
+    that reordered rows would build every face from the wrong corners -- a
+    silently wrong mesh, not an error. The lookup is a binary search over the
+    sorted unique-node arrays; that the dask dedup really hands it a sorted
+    table is pinned by ``test_scrip_dask_lazy_dedup_matches_eager``, which
+    fails if the sort is missing or sorts on longitude alone.
+    """
+    # sorted lexicographically by (lon, lat), as the dedup produces them
+    unq_lon = np.array([10.0, 20.0, 30.0])
+    unq_lat = np.array([1.0, 2.0, 3.0])
+
+    # blocks repeat nodes, as a real corner table does, in neither sorted nor
+    # lookup order
+    lon_block = np.array([20.0, 30.0, 10.0, 20.0, 10.0])
+    lat_block = np.array([2.0, 3.0, 1.0, 2.0, 1.0])
+
+    ids = _lookup_node_ids(lon_block, lat_block, (unq_lon, unq_lat))
+
+    nt.assert_array_equal(ids, np.array([1, 2, 0, 1, 0], dtype=INT_DTYPE))
+    assert len(ids) == len(lon_block)
+
+    # the property face_node_connectivity depends on: ids round-trip back to
+    # the coordinates they came from
+    nt.assert_allclose(unq_lon[ids], lon_block)
+    nt.assert_allclose(unq_lat[ids], lat_block)
+
+
+def test_lookup_node_ids_rejects_a_corner_it_cannot_find():
+    """A corner absent from the unique table must raise, not guess.
+
+    searchsorted returns an insertion point for a missing key rather than an
+    error, so without the check a mismatch between the two halves of the
+    dedup would map that corner to an arbitrary neighbouring node.
+    """
+    unq_lon = np.array([10.0, 20.0])
+    unq_lat = np.array([1.0, 2.0])
+
+    with pytest.raises(GridInvalidError, match="absent from the unique-node table"):
+        _lookup_node_ids(np.array([15.0]), np.array([1.5]), (unq_lon, unq_lat))
+
+
+def test_scrip_dedup_merges_nan_corners():
+    """Corners decoded from a ``_FillValue`` are NaN, and NaN != NaN, so a
+    naive comparison would make every one its own node. Both paths must merge
+    equal pairs into one node, or the same file gets a different mesh
+    depending on whether chunks= was passed.
+    """
+    lon = np.array([0.0, 10.0, np.nan, np.nan, 10.0, np.nan, np.nan, np.nan])
+    lat = np.array([0.0, 5.0, np.nan, np.nan, 5.0, np.nan, 1.0, 1.0])
+    # unique pairs: (0, 0), (10, 5), (nan, nan), (nan, 1)
+
+    eager = _dedup_scrip_nodes_eager(lon, lat)
+    lazy = _dedup_scrip_nodes_dask(
+        da.from_array(lon, chunks=3), da.from_array(lat, chunks=3)
+    )
+
+    for unq_lon, unq_lat, inv in (eager, lazy):
+        inv = np.asarray(inv)
+        assert len(unq_lon) == 4
+        # every corner maps back to its own coordinates (NaN == NaN here)
+        nt.assert_array_equal(unq_lon[inv], lon)
+        nt.assert_array_equal(unq_lat[inv], lat)
+
+
+def test_scrip_open_with_one_corner_variable_in_memory(gridpath):
+    """A chunked Dataset whose corner_lat is already in memory must open like the
+    eager path. map_blocks passes a non-dask argument whole to every block,
+    so without matching chunks each lon block was paired with the wrong
+    latitudes.
+    """
+    grid_file = gridpath("scrip", "outCSne8", "outCSne8.nc")
+    grid_eager = ux.open_grid(grid_file)
+
+    ds = xr.open_dataset(grid_file, chunks={"grid_size": 50})
+    # only corner_lat in memory; corner_lon stays dask-backed
+    ds["grid_corner_lat"].load()
+    grid_mixed = ux.open_grid(ds)
+
+    fnc_eager = grid_eager.face_node_connectivity.values
+    fnc_mixed = grid_mixed.face_node_connectivity.values
+    nt.assert_allclose(
+        grid_eager.node_lon.values[fnc_eager], grid_mixed.node_lon.values[fnc_mixed]
+    )
+    nt.assert_allclose(
+        grid_eager.node_lat.values[fnc_eager], grid_mixed.node_lat.values[fnc_mixed]
+    )
+
+
+@pytest.mark.parametrize("chunks", [None, {"grid_size": 10}], ids=["eager", "dask"])
+def test_scrip_open_empty_grid(gridpath, chunks):
+    """A SCRIP grid with no faces opens as an empty mesh on both paths."""
+    ds = xr.open_dataset(gridpath("scrip", "outCSne8", "outCSne8.nc"))
+    ds = ds.isel(grid_size=slice(0, 0))
+    if chunks is not None:
+        ds = ds.chunk(chunks)
+
+    grid = ux.open_grid(ds)
+
+    assert grid.n_face == 0
+    assert grid.n_node == 0
+
+
+def test_scrip_dask_dedup_passes_shuffle_method_explicitly(monkeypatch):
+    """dask's drop_duplicates prefers an order-preserving shuffle and
+    overrides a method set through dask.config rather than honoring it, so a
+    caller's choice only takes effect when passed as an argument. Pin that a
+    configured method is forwarded, and that with nothing configured the
+    reader forwards nothing and leaves the choice to dask.
+    """
+    requested = []
+    sentinel = object()
+    drop_duplicates = dd.DataFrame.drop_duplicates
+
+    def spy(self, *args, **kwargs):
+        requested.append(kwargs.get("shuffle_method", sentinel))
+        return drop_duplicates(self, *args, **kwargs)
+
+    monkeypatch.setattr(dd.DataFrame, "drop_duplicates", spy)
+
+    lon = da.from_array(np.array([0.0, 1.0, 0.0, 2.0]), chunks=2)
+    lat = da.from_array(np.array([5.0, 6.0, 5.0, 7.0]), chunks=2)
+
+    with dask.config.set({"dataframe.shuffle.method": None}):
+        _dedup_scrip_nodes_dask(lon, lat)
+    with dask.config.set({"dataframe.shuffle.method": "tasks"}):
+        _dedup_scrip_nodes_dask(lon, lat)
+
+    assert requested == [sentinel, "tasks"]
+
+
+def test_scrip_dask_dedup_does_not_materialize_corner_arrays(gridpath):
+    """The point of the dask path is that the full corner table is never
+    resident. Guard it: the connectivity must still be lazy after open, so
+    a future refactor that quietly calls ``.compute()`` in the reader --
+    reintroducing the OOM this path exists to avoid -- fails here rather
+    than only on a multi-GB file nobody runs in CI.
+    """
+    grid = ux.open_grid(gridpath("scrip", "outCSne8", "outCSne8.nc"), chunks="auto")
+
+    fnc = grid._ds["face_node_connectivity"].data
+    assert isinstance(fnc, da.Array)
+    assert fnc.npartitions >= 1
 
 
 def test_open_multigrid_mask_active_value_per_grid_override(gridpath):

@@ -22,6 +22,7 @@ from uxarray.grid.utils import (
     all_elements_nan,
     any_close_lat,
 )
+from uxarray.utils.parallel import parallel_njit
 
 # Constants for the accurate GCA bounds path.
 
@@ -484,7 +485,7 @@ def _populate_face_bounds(
         grid._ds["bounds"] = bounds_da
 
 
-@njit(cache=True, parallel=True)
+@parallel_njit
 def _construct_face_bounds_array(
     face_node_connectivity,
     n_nodes_per_face,
@@ -766,7 +767,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
     else:
         # Validate longitude point
         if not np.isnan(lon_pt) and (lon_pt < 0.0 or lon_pt > 2.0 * np.pi):
-            raise ValueError("Longitude point out of range")
+            raise ValueError("Longitude point out of range (<0 or >2*pi)")
+            # (numba complains about f-strings, so don't put `lon_pt` value in message.)
 
         # Check for pole points
         is_pole_point = False
@@ -816,7 +818,7 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
                         # Ensure widths are non-negative
                         if (d_width_a < 0.0) or (d_width_b < 0.0):
                             raise AssertionError(
-                                "Logic error in longitude box width calculation"
+                                "Logic error in longitude box width calculation: computed negative width"
                             )
 
                         # Choose the box with the smaller width
@@ -840,8 +842,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
                         # Ensure widths are non-negative
                         if (d_width_a < 0.0) or (d_width_b < 0.0):
-                            raise Exception(
-                                "Logic error in longitude box width calculation"
+                            raise AssertionError(
+                                "Logic error in longitude box width calculation: computed negative width"
                             )
 
                         # Choose the box with the smaller width

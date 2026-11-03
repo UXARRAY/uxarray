@@ -6,14 +6,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numba import njit, prange
 
-from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-from uxarray.grid.arcs import (
-    _PREDICATE_ZERO_TOL,
-    _normal_dot_value,
-    on_minor_arc,
-)
-from uxarray.grid.utils import _get_cartesian_face_edge_nodes
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, POINT_IN_FACE_CULL_THRESHOLDS
+from uxarray.grid.arcs import _normal_dot_value, on_minor_arc
 from uxarray.utils.computing import accucross
+from uxarray.utils.numba_math import _numba_dot3, _numba_sub3
+from uxarray.utils.parallel import parallel_njit
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike
@@ -26,162 +23,18 @@ _LOC_INSIDE = 1
 _LOC_ON_VERTEX = 2
 _LOC_ON_EDGE = 3
 
-# Sign codes for orient3d_on_sphere results.
-_SIGN_NEG = -1
-_SIGN_ZERO = 0
-_SIGN_POS = 1
-
 _VERTEX_TOL = 1e-12
 _EDGE_TOL = 1e-10
-_RAY_EPS = 1e-8
-
-
-@njit(cache=True)
-def _ray_endpoint(q):
-    """Return a unit vector R perpendicular to q for use as the SPIP ray target.
-
-    Constructs R by projecting the coordinate axis least parallel to q onto
-    the plane perpendicular to q and normalizing.  This gives q·R = 0 exactly
-    (a 90° arc), so q×R has magnitude ≈ 1 — keeping orient3d_on_sphere calls
-    well-conditioned regardless of q's position.
-
-    A small perturbation is added to reduce the chance that R falls exactly on
-    a polygon edge's great circle, which would trigger the -1 degenerate path.
-    """
-    ax, ay, az = abs(q[0]), abs(q[1]), abs(q[2])
-    if ax <= ay and ax <= az:
-        # Project the x-axis: (1,0,0) - q[0]*q
-        r0 = 1.0 - q[0] * q[0]
-        r1 = -q[1] * q[0]
-        r2 = -q[2] * q[0]
-    elif ay <= ax and ay <= az:
-        r0 = -q[0] * q[1]
-        r1 = 1.0 - q[1] * q[1]
-        r2 = -q[2] * q[1]
-    else:
-        r0 = -q[0] * q[2]
-        r1 = -q[1] * q[2]
-        r2 = 1.0 - q[2] * q[2]
-    r0 += _RAY_EPS
-    r1 -= _RAY_EPS * 0.7
-    r2 += _RAY_EPS * 0.3
-    n = math.sqrt(r0 * r0 + r1 * r1 + r2 * r2)
-    r = np.empty(3)
-    inv = 1.0 / n
-    r[0] = r0 * inv
-    r[1] = r1 * inv
-    r[2] = r2 * inv
-    return r
-
-
-@njit(cache=True, inline="always")
-def _sign_from_value(v):
-    """
-    Sign of a compensated orient3d value under the standard zero tolerance.
-    """
-    if v > _PREDICATE_ZERO_TOL:
-        return _SIGN_POS
-    if v < -_PREDICATE_ZERO_TOL:
-        return _SIGN_NEG
-    return _SIGN_ZERO
-
-
-@njit(cache=True, inline="always")
-def _counts_as_crossing(
-    a0,
-    a1,
-    a2,
-    b0,
-    b1,
-    b2,
-    q0,
-    q1,
-    q2,
-    r0,
-    r1,
-    r2,
-    qr_x_hi,
-    qr_y_hi,
-    qr_z_hi,
-    qr_x_lo,
-    qr_y_lo,
-    qr_z_lo,
-):
-    """Return 1 if edge AB crosses the minor arc q->R, 0 if not, -1 if degenerate.
-
-    An edge AB crosses ray q->R iff q and R lie on opposite sides of the great
-    circle plane through AB AND A and B lie on opposite sides of the great
-    circle plane through q->R. Uses orient3d_on_sphere (compensated) for all
-    side-of-plane tests. Returns -1 when R lies exactly on plane(AB), which
-    signals the caller to perturb R and retry.
-    """
-    # A x B: computed once, reused by both the q-side and R-side tests below.
-    nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(a0, a1, a2, b0, b1, b2)
-
-    s_AB_q = _sign_from_value(
-        _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q0, q1, q2)
-    )
-    # q on great circle AB: already caught by edge-membership check; not a crossing.
-    if s_AB_q == _SIGN_ZERO:
-        return 0
-
-    s_AB_R = _sign_from_value(
-        _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, r0, r1, r2)
-    )
-    # R on great circle AB: degenerate ray, caller must perturb R.
-    if s_AB_R == _SIGN_ZERO:
-        return -1
-    # q and R on the same side of plane(AB): no crossing possible.
-    if s_AB_q == s_AB_R:
-        return 0
-
-    # q and R are strictly on opposite sides of plane(AB).
-    # Now check whether the intersection of the two great circles falls
-    # inside the minor arc A->B, i.e. A and B are on opposite sides of plane(qR).
-    s_qR_A = _sign_from_value(
-        _normal_dot_value(
-            qr_x_hi, qr_y_hi, qr_z_hi, qr_x_lo, qr_y_lo, qr_z_lo, a0, a1, a2
-        )
-    )
-    s_qR_B = _sign_from_value(
-        _normal_dot_value(
-            qr_x_hi, qr_y_hi, qr_z_hi, qr_x_lo, qr_y_lo, qr_z_lo, b0, b1, b2
-        )
-    )
-
-    # Common case: neither endpoint lies on the ray plane, so the edge counts
-    # iff A and B straddle it.
-    s_qR_prod = s_qR_A * s_qR_B
-    if s_qR_prod != 0:
-        return 1 if s_qR_prod < 0 else 0
-
-    # An endpoint lies exactly on the ray plane. Apply the half-edge rule there:
-    # count the edge only if the other endpoint is strictly on the negative
-    # side, so that the two edges meeting at such a vertex are not both counted.
-    if s_qR_A == _SIGN_ZERO:
-        if s_qR_B == _SIGN_ZERO:
-            return 0  # whole edge coplanar with the ray plane: degenerate
-        return 1 if s_qR_B == _SIGN_NEG else 0
-    return 1 if s_qR_A == _SIGN_NEG else 0
 
 
 @njit(cache=True)
 def _point_in_polygon_sphere(q, polygon):
-    """Spherical point-in-polygon test using the perturbed-antipode ray-casting method.
+    """Classify a point using signed spherical winding and compensated predicates.
 
-    Casts a great-circle ray from q toward its perturbed antipode R and counts
-    how many polygon edges the ray crosses. Uses ``orient3d_on_sphere``
-    (compensated) for the crossing test, avoiding the ``arctan2`` calls in the
-    winding-number approach and the large number of ``np.cross`` allocations.
-
-    Returns one of _LOC_INSIDE, _LOC_OUTSIDE, _LOC_ON_VERTEX, _LOC_ON_EDGE.
-
-    Degenerate-ray handling: when R falls on a polygon edge's great circle, R
-    is nudged by a fixed perturbation and the loop restarts (up to 4 retries).
-    AccuSphGeom's Tier-3 approach instead uses Simulation of Simplicity (SoS)
-    with global vertex IDs to resolve degeneracies without any branching or
-    retries. SoS requires per-vertex IDs that are not available in the current
-    UXarray polygon representation, so it is left as future work.
+    The signed solid angle determines the ring orientation, preventing the
+    antipodal image from being mistaken for the polygon interior. Faces are
+    simple rings representing the smaller spherical region (less than 2*pi).
+    Boundary checks precede winding and include both vertices and minor arcs.
 
     Parameters
     ----------
@@ -213,59 +66,56 @@ def _point_in_polygon_sphere(q, polygon):
         if on_minor_arc(q, A, B, _EDGE_TOL):
             return _LOC_ON_EDGE
 
-    # 3. Ray-casting crossing count.
-    # When R hits a degenerate edge, nudge and restart from i=0 so that all
-    # edges are counted with the same ray — a mid-loop nudge corrupts parity.
-    R = _ray_endpoint(q)
-    q0, q1, q2 = q[0], q[1], q[2]
-    for _retry in range(4):
-        # The ray plane q x R is the same for every edge of the face, so it is
-        # computed once per ray pass rather than twice per edge.
-        qr_x_hi, qr_y_hi, qr_z_hi, qr_x_lo, qr_y_lo, qr_z_lo = accucross(
-            q0, q1, q2, R[0], R[1], R[2]
-        )
-        inside = False
-        need_retry = False
-        for i in range(n):
-            A = polygon[i]
-            B = polygon[(i + 1) % n]
-            c = _counts_as_crossing(
-                A[0],
-                A[1],
-                A[2],
-                B[0],
-                B[1],
-                B[2],
-                q0,
-                q1,
-                q2,
-                R[0],
-                R[1],
-                R[2],
-                qr_x_hi,
-                qr_y_hi,
-                qr_z_hi,
-                qr_x_lo,
-                qr_y_lo,
-                qr_z_lo,
-            )
-            if c < 0:
-                R[0] += 1e-7
-                R[1] -= 1e-7
-                R[2] += 5e-8
-                n2 = R[0] * R[0] + R[1] * R[1] + R[2] * R[2]
-                inv = 1.0 / math.sqrt(n2)
-                R[0] *= inv
-                R[1] *= inv
-                R[2] *= inv
-                need_retry = True
-                break
-            if c == 1:
-                inside = not inside
-        if not need_retry:
-            return _LOC_INSIDE if inside else _LOC_OUTSIDE
+    # Signed tangent-plane winding distinguishes the polygon from its antipodal
+    # image. An absolute winding test incorrectly accepts both of them.
+    winding = 0.0
+    for i in range(n):
+        a = polygon[i]
+        b = polygon[(i + 1) % n]
+        nx, ny, nz, lx, ly, lz = accucross(a[0], a[1], a[2], b[0], b[1], b[2])
+        numerator = _normal_dot_value(nx, ny, nz, lx, ly, lz, q[0], q[1], q[2])
+        denominator = np.dot(a, b) - np.dot(q, a) * np.dot(q, b)
+        winding += math.atan2(numerator, denominator)
 
-    return _LOC_OUTSIDE
+    # The signed solid angle fixes the ring orientation independently of q.
+    # Triangulation is algebraic, so concave rings do not need a convex centroid.
+    area = 0.0
+    a = polygon[0]
+    for i in range(1, n - 1):
+        b = polygon[i]
+        c = polygon[i + 1]
+        nx, ny, nz, lx, ly, lz = accucross(b[0], b[1], b[2], c[0], c[1], c[2])
+        numerator = _normal_dot_value(nx, ny, nz, lx, ly, lz, a[0], a[1], a[2])
+        denominator = 1.0 + np.dot(a, b) + np.dot(b, c) + np.dot(c, a)
+        area += 2.0 * math.atan2(numerator, denominator)
+    return _LOC_INSIDE if winding * np.sign(area) > math.pi else _LOC_OUTSIDE
+
+
+def _point_in_face_from_grid(point: np.ndarray, grid: Grid, fidx: int):
+    """Test a grid face through the node-index-based spherical predicate."""
+    n_nodes = grid.n_nodes_per_face[fidx].item()
+    nodes_idx = grid.face_node_connectivity[fidx][:n_nodes].values
+    return _point_in_face(
+        point, nodes_idx, grid.node_x.values, grid.node_y.values, grid.node_z.values
+    )
+
+
+@njit(cache=True)
+def _point_in_face(
+    point: np.ndarray | tuple[float, float, float],
+    nodes_idx: np.ndarray,
+    node_x: np.ndarray,
+    node_y: np.ndarray,
+    node_z: np.ndarray,
+) -> bool:
+    """Test a face's ordered node indices; edges and vertices count as inside."""
+    polygon = np.empty((len(nodes_idx), 3))
+    for i in range(len(nodes_idx)):
+        idx = nodes_idx[i]
+        polygon[i, 0] = node_x[idx]
+        polygon[i, 1] = node_y[idx]
+        polygon[i, 2] = node_z[idx]
+    return _point_in_polygon_sphere(np.asarray(point), polygon) != _LOC_OUTSIDE
 
 
 @njit(cache=True)
@@ -301,21 +151,32 @@ def _face_contains_point(face_edges: np.ndarray, point: np.ndarray) -> bool:
 
 
 @njit(cache=True)
-def _get_faces_containing_point(
-    point: np.ndarray,
+def _set_faces_containing_point(
+    result: np.ndarray,
+    i: int,
+    point: np.ndarray | tuple[float, float, float],
     candidate_indices: np.ndarray,
     face_node_connectivity: np.ndarray,
     n_nodes_per_face: np.ndarray,
     node_x: np.ndarray,
     node_y: np.ndarray,
     node_z: np.ndarray,
-) -> np.ndarray:
+) -> int:
     """
-    Test each candidate face to see if it contains the query point.
+    Test each candidate face to see if it contains the query point,
+    setting result[i, j] = candidate_indices[k] for all k where the
+    point is inside the face. j starts at 0 and increments by 1 for
+    each hit. Returns the total number of hits.
 
     Parameters
     ----------
-    point : np.ndarray, shape (3,)
+    result : np.ndarray, shape (n_points, max_possible_hits)
+        Preallocated array to store face indices for each point.
+        max_possible_hits can be much less than max_candidates;
+        the maximum number of hits is n_max_face_nodes, because
+        the "worst case" of point being a node would lead to hits
+        of all faces it is a part of, but nothing else.
+    point : iterable of length 3
         Cartesian unit-vector of the query point.
     candidate_indices : np.ndarray, shape (k,)
         Array of face indices to test (e.g., from a k-d tree cull).
@@ -328,23 +189,20 @@ def _get_faces_containing_point(
 
     Returns
     -------
-    hits : np.ndarray, shape (h,)
-        Subset of `candidate_indices` for which the point is inside the face.
+    n_hits : int
+        Number of candidate faces that contain the point.
     """
-    hit_buf = np.empty(candidate_indices.shape[0], dtype=INT_DTYPE)
     count = 0
     for k in range(candidate_indices.shape[0]):
         fidx = candidate_indices[k]
-        face_edges = _get_cartesian_face_edge_nodes(
-            fidx, face_node_connectivity, n_nodes_per_face, node_x, node_y, node_z
-        )
-        if _face_contains_point(face_edges, point):
-            hit_buf[count] = fidx
+        nodes_idx = face_node_connectivity[fidx][: n_nodes_per_face[fidx]]
+        if _point_in_face(point, nodes_idx, node_x, node_y, node_z):
+            result[i, count] = fidx
             count += 1
-    return hit_buf[:count]
+    return count
 
 
-@njit(cache=True, parallel=True)
+@parallel_njit
 def _batch_point_in_face(
     points: np.ndarray,
     flat_candidate_indices: np.ndarray,
@@ -386,17 +244,94 @@ def _batch_point_in_face(
     for i in prange(n_points):
         start = offsets[i]
         end = offsets[i + 1]
-        p = points[i]
+        p = (points[i][0], points[i][1], points[i][2])
         cands = flat_candidate_indices[start:end]
 
-        hits = _get_faces_containing_point(
-            p, cands, face_node_connectivity, n_nodes_per_face, node_x, node_y, node_z
+        n_hits = _set_faces_containing_point(
+            results,
+            i,
+            p,
+            cands,
+            face_node_connectivity,
+            n_nodes_per_face,
+            node_x,
+            node_y,
+            node_z,
         )
-        for j, fi in enumerate(hits):
-            results[i, j] = fi
-        counts[i] = hits.shape[0]
+        counts[i] = n_hits
 
     return results, counts
+
+
+@njit(inline="always", cache=True)
+def _point_within_face_radius(point, face_center, face_radius):
+    """True if point is within face_radius of face_center.
+
+    point, face_center: iterables of length 3
+        the (x,y,z) coordinates of the point and face center
+    face_radius: float
+        the maximum distance from face center to any point on the face
+    """
+    diff = _numba_sub3(point, face_center)
+    dist2 = _numba_dot3(diff, diff)
+    return dist2 <= face_radius * face_radius
+
+
+@parallel_njit
+def _cull_candidates_by_radius(
+    pts, flat_cands, offsets, face_x, face_y, face_z, face_radii
+):
+    """
+    Keep only candidates where dist(point, face_center) <= face_radius.
+
+    Returns new flat candidates and new offsets.
+
+    Parameters
+    ----------
+    pts : np.ndarray, shape (n_pts, 3)
+        Cartesian coordinates of query points.
+    flat_cands : np.ndarray, shape (total_candidates,)
+        Flattened array of all candidate face indices across points.
+    offsets : np.ndarray, shape (n_pts + 1,)
+        Offsets into `flat_cands` marking each point’s slice.
+    face_x, face_y, face_z : np.ndarray, shape (n_faces,)
+        Cartesian coordinates of face centers.
+    face_radii : np.ndarray, shape (n_faces,)
+        Maximum distance from face center to any point on the face.
+    """
+    n_pts = pts.shape[0]
+
+    # figure out which faces to keep:
+    keep = np.zeros(flat_cands.shape[0], dtype=np.bool_)
+    for i in prange(n_pts):
+        point = pts[i]
+        for k in range(offsets[i], offsets[i + 1]):
+            f = flat_cands[k]
+            face_center = (face_x[f], face_y[f], face_z[f])
+            face_radius = face_radii[f]
+            keep[k] = _point_within_face_radius(point, face_center, face_radius)
+
+    # count survivors per point
+    new_lens = np.empty(n_pts, dtype=np.int64)
+    for i in prange(n_pts):
+        new_lens[i] = np.count_nonzero(keep[offsets[i] : offsets[i + 1]])
+
+    # build new offsets
+    new_offsets = np.empty(n_pts + 1, dtype=np.int64)
+    new_offsets[0] = 0
+    for i in range(n_pts):  # cheap serial cumsum
+        new_offsets[i + 1] = new_offsets[i] + new_lens[i]
+
+    # build new flat candidates
+    new_flat = np.empty(new_offsets[n_pts], dtype=np.int64)
+    for i in prange(n_pts):
+        w = new_offsets[i]
+        for k in range(offsets[i], offsets[i + 1]):
+            if keep[k]:
+                new_flat[w] = flat_cands[k]
+                w += 1
+
+    return new_flat, new_offsets
 
 
 def _point_in_face_query(
@@ -405,9 +340,13 @@ def _point_in_face_query(
     """
     Find grid faces that contain given Cartesian point(s) on the unit sphere.
 
-    This function first uses a SciPy k-d tree (in Cartesian space) to cull
-    candidate faces within the maximum face‐radius, then calls the Numba‐
-    accelerated winding‐number tester in parallel.
+    Follows these steps:
+    (1) Cull candidate faces using a SciPy k-d tree (in Cartesian space),
+        checking whether the point is within `max_face_radius` of each face's center
+    (2) Maybe cull candidate faces further by checking whether the point is within
+        each face's radius of the face center. This cull has a nontrivial cost,
+        so it is gated to only run if there are many candidates.
+    (3) call the Numba‐accelerated winding‐number tester in parallel.
 
     Parameters
     ----------
@@ -428,12 +367,16 @@ def _point_in_face_query(
     counts : np.ndarray, shape (n_points,)
         Number of valid face‐hits per point.
     """
+    SAFETY = 1.05
+
     pts = np.asarray(points, dtype=np.float64)
     if pts.ndim == 1:
         pts = pts[np.newaxis, :]
-    # Cull with k-d tree
+
+    # Cull with k-d tree: a face can only contain a point if
+    # the point is within max_face_radius of the face's center.
     kdt = source_grid._get_scipy_kd_tree()
-    radius = source_grid.max_face_radius * 1.05
+    radius = source_grid.max_face_radius * SAFETY
     cand_lists = kdt.query_ball_point(x=pts, r=radius, workers=-1)
 
     # Prepare flattened candidates and offsets
@@ -442,6 +385,30 @@ def _point_in_face_query(
     offs = np.empty(len(lens) + 1, dtype=np.int64)
     offs[0] = 0
     np.cumsum(lens, out=offs[1:])
+
+    # Cull by face radius: a face can only contain a point if
+    # the point is within the face's radius of the face's center.
+
+    # The cull has a nontrivial cost, so for efficiency, gate it to only run if there
+    # are "many" candidates, i.e. large (A) n_cands / n_points, and large (B) n_cands / n_face.
+    # Large (A) ratio happens in variable-resolution grids (many faces' radii < max_face_radius).
+    # Small (B) indicates not enough candidates to make up for compute_face_radii() cost, which
+    # scales with n_face. (Could remove gate (B) if compute_face_radii() result was cached.)
+    n_cands_per_point = len(flat_cands) / len(pts)
+    n_cands_per_face = len(flat_cands) / source_grid.n_face
+    if (n_cands_per_point > POINT_IN_FACE_CULL_THRESHOLDS["CANDS_PER_POINT"]) and (
+        n_cands_per_face > POINT_IN_FACE_CULL_THRESHOLDS["CANDS_PER_FACE"]
+    ):
+        radii = source_grid.compute_face_radii().values * SAFETY
+        flat_cands, offs = _cull_candidates_by_radius(
+            pts,
+            flat_cands,
+            offs,
+            source_grid.face_x.values,
+            source_grid.face_y.values,
+            source_grid.face_z.values,
+            radii,
+        )
 
     # Perform the batch winding‐number test
     return _batch_point_in_face(

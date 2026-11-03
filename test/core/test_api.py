@@ -1,3 +1,7 @@
+from contextlib import ExitStack
+from functools import partial
+
+import dask.array as da
 import numpy.testing as nt
 import uxarray as ux
 import numpy as np
@@ -75,7 +79,7 @@ def test_open_dataset_single_argument_rejects_directory_grid(tmp_path):
     """Requires a separate data file for directory-based grids."""
 
     with pytest.raises(
-        ValueError, match="single directory argument is not supported"
+        ValueError, match="single directory is not supported"
     ):
         ux.open_dataset(tmp_path)
 
@@ -87,6 +91,315 @@ def test_open_dataset_single_argument_rejects_invalid_combined_file(datasetpath)
 
     with pytest.raises(ux.errors.GridInvalidError, match="Failed to parse uxgrid information from xarray.Dataset."):
         ux.open_dataset(data_path)
+
+
+@pytest.fixture
+def reuse_owners(tmp_path, monkeypatch):
+    """Close original backend owners even if Grid/UxDataset loses callbacks."""
+    with ExitStack() as owners:
+
+        def tracked_open(opener, *args, **kwargs):
+            """Track the actual backend owner, not just its UxDataset wrapper."""
+            source = opener(*args, **kwargs)
+            owners.callback(source.close)
+            return source
+
+        for name in ("open_dataset", "open_mfdataset"):
+            monkeypatch.setattr(xr, name, partial(tracked_open, getattr(xr, name)))
+        yield owners
+
+
+@pytest.fixture
+def reuse_grid(reuse_owners):
+    """Use the suite's small unstructured quad-hexagon grid for ordinary reuse."""
+    grid = ux.open_grid(TEST_MESHFILES / "ugrid" / "quad-hexagon" / "grid.nc")
+    grid.get_ball_tree(coordinates="nodes")
+    return grid
+
+
+@pytest.fixture
+def reuse_open(tmp_path, reuse_owners):
+    """Exercise Dataset/file/multifile inputs with identical preservation checks."""
+    counter = 0
+
+    def open_members(grid, members, kind, **kwargs):
+        """Open members and verify preservation before returning expected data."""
+        nonlocal counter
+        snapshots = [member.copy(deep=True) for member in members]
+        arrays = [{name: member[name].data for name in member} for member in members]
+        grid_snapshot, mapping = grid._ds.copy(deep=True), grid._source_dims_dict.copy()
+        grid_dataset = grid._ds
+        # Preserve storage, not materialized .data arrays from lazy backends.
+        grid_arrays = {name: grid._ds[name].variable._data for name in grid._ds}
+        tree = grid._ball_tree
+        chunks = kwargs.get("chunks")
+        saved_chunks = chunks.copy() if isinstance(chunks, dict) else chunks
+        grid_kwargs = kwargs.get("grid_kwargs")
+        saved_grid_kwargs = grid_kwargs.copy() if grid_kwargs is not None else None
+        paths = []
+        if kind != "dataset":
+            for member in members:
+                path = tmp_path / f"member_{counter}.nc"
+                counter += 1
+                member.to_netcdf(path)
+                paths.append(path)
+        with patch("uxarray.core.api.open_grid") as construct:
+            try:
+                if kind == "multiple":
+                    results = [
+                        ux.open_mfdataset(
+                            grid, paths, combine="nested", concat_dim="member", **kwargs
+                        )
+                    ]
+                    expected = [xr.concat(members, dim="member")]
+                    sources = [str(paths)]
+                elif kind == "dataset":
+                    with patch("xarray.open_dataset") as backend:
+                        results = [
+                            ux.open_dataset(grid, member, **kwargs)
+                            for member in members
+                        ]
+                    backend.assert_not_called()
+                    expected, sources = members, [None] * len(members)
+                else:
+                    results = [ux.open_dataset(grid, path, **kwargs) for path in paths]
+                    expected, sources = members, list(map(str, paths))
+                for result, source in zip(results, sources):
+                    reuse_owners.callback(result.close)
+                    assert result.uxgrid is grid
+                    assert result.source_datasets == source
+                return list(zip(results, expected))
+            finally:
+                construct.assert_not_called()
+                assert grid._ds is grid_dataset
+                assert grid._source_dims_dict == mapping
+                assert grid._ball_tree is tree
+                xr.testing.assert_identical(grid._ds, grid_snapshot)
+                for name, data in grid_arrays.items():
+                    assert grid._ds[name].variable._data is data
+                assert chunks == saved_chunks
+                assert grid_kwargs == saved_grid_kwargs
+                for member, snapshot, data in zip(members, snapshots, arrays):
+                    xr.testing.assert_identical(member, snapshot)
+                    for name in member:
+                        assert member[name].chunks == snapshot[name].chunks
+                        assert member[name].data is data[name]
+
+    return open_members
+
+
+def _reuse_members(face_dim="n_face"):
+    """Generate two deterministic members, independently of grid fixture data."""
+    return [
+        xr.Dataset(
+            {"temperature": (("time", face_dim), np.arange(12).reshape(3, 4) + i)}
+        )
+        for i in range(2)
+    ]
+
+
+def _equal_size_grid(source_dims):
+    """Equal node/face counts make size inference and alias collisions observable."""
+    return ux.Grid.from_topology(
+        node_lon=np.array([0.0, 120.0, -120.0, 0.0]),
+        node_lat=np.array([0.0, 0.0, 0.0, 90.0]),
+        face_node_connectivity=np.array([[0, 1, 2], [0, 3, 1], [1, 3, 2], [2, 3, 0]]),
+        dims_dict=source_dims.copy(),
+    )
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+@pytest.mark.parametrize("chunks, chunk_grid", [
+    (None, True), (None, False), (-1, False), ("auto", False),
+    ({}, False), ({"n_face": 2, "time": 1}, False),
+])
+def test_open_dataset_reuse_members(reuse_grid, reuse_open, kind, chunks, chunk_grid):
+    """Reuse topology/cached tree without grid I/O, preserving member values."""
+    for result, expected in reuse_open(
+        reuse_grid, _reuse_members(), kind, chunks=chunks,
+        chunk_grid=chunk_grid, grid_kwargs={}
+    ):
+        assert result.temperature.dims == expected.temperature.dims
+        nt.assert_array_equal(result.temperature, expected.temperature)
+        assert isinstance(result.temperature.data, da.Array) == (
+            kind == "multiple" or chunks is not None
+        )
+        if chunks == {"n_face": 2, "time": 1}:
+            assert result.temperature.chunks[-2:] == ((1, 1, 1), (2, 2))
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+@pytest.mark.parametrize(
+    "chunks",
+    [
+        {"n_face": 2, "n_node": 1, "time": 1},
+        {"cells": 2, "vertices": 1, "time": 1},
+        {"cells": 4, "vertices": 4, "n_face": 2, "n_node": 1, "time": 1},
+    ],
+)
+def test_open_dataset_reuse_source_chunks(reuse_open, kind, chunks):
+    """Translate source/canonical chunks without mutating caller options/data."""
+    grid = _equal_size_grid({"vertices": "n_node", "cells": "n_face"})
+    members = [
+        ds.assign(velocity=("vertices", np.arange(4) + i))
+        for i, ds in enumerate(_reuse_members("cells"))
+    ]
+    for result, expected in reuse_open(grid, members, kind, chunks=chunks, chunk_grid=False):
+        assert (
+            result.temperature.dims == expected.temperature.rename(cells="n_face").dims
+        )
+        assert result.velocity.dims == expected.velocity.rename(vertices="n_node").dims
+        assert result.temperature.chunks[-2:] == ((1, 1, 1), (2, 2))
+        assert result.velocity.chunks[-1] == (1, 1, 1, 1)
+        nt.assert_array_equal(result.temperature, expected.temperature)
+        nt.assert_array_equal(result.velocity, expected.velocity)
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("face_chunks", [False, True])
+def test_open_dataset_reuse_overlapping_aliases(reuse_open, kind, reverse, face_chunks):
+    """Read requested values, not newly translated keys, in either mapping order."""
+    items = [("n_face", "n_node"), ("cells", "n_face")]
+    grid = _equal_size_grid(dict(items[::-1] if reverse else items))
+    chunks = {"n_node": 1, "time": 1}
+    if face_chunks:
+        chunks["n_face"] = 2
+    members = [
+        ds.assign(velocity=("n_face", np.arange(4) + i))
+        for i, ds in enumerate(_reuse_members("cells"))
+    ]
+    for result, expected in reuse_open(grid, members, kind, chunks=chunks, chunk_grid=False):
+        prefix = ("member",) if kind == "multiple" else ()
+        assert result.temperature.dims == prefix + ("time", "n_face")
+        assert result.velocity.dims == prefix + ("n_node",)
+        assert result.temperature.chunks[-2:] == (
+            (1, 1, 1),
+            (2, 2) if face_chunks else (4,),
+        )
+        assert result.velocity.chunks[-1] == (1, 1, 1, 1)
+        nt.assert_array_equal(result.temperature, expected.temperature)
+        nt.assert_array_equal(result.velocity, expected.velocity)
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+@pytest.mark.parametrize("source_dims", [{}, {"vertices": "n_node", "cells": "n_face"}])
+def test_open_dataset_reuse_canonical_equal_counts(reuse_open, kind, source_dims):
+    """Canonical dimensions remain distinct, including topology without a map."""
+    grid = _equal_size_grid(source_dims)
+    members = [
+        ds.assign(velocity=("n_node", np.arange(4) + i))
+        for i, ds in enumerate(_reuse_members())
+    ]
+    for result, expected in reuse_open(
+        grid, members, kind, chunks={"n_face": 2, "n_node": 1}, chunk_grid=False
+    ):
+        assert result.temperature.dims == expected.temperature.dims
+        assert result.velocity.dims == expected.velocity.dims
+        assert result.temperature.chunks[-1] == (2, 2)
+        assert result.velocity.chunks[-1] == (1, 1, 1, 1)
+        nt.assert_array_equal(result.temperature, expected.temperature)
+        nt.assert_array_equal(result.velocity, expected.velocity)
+    if source_dims:
+        result, _ = reuse_open(grid, _reuse_members("cells")[:1], "dataset")[0]
+        assert result.temperature.dims == ("time", "n_face")
+
+
+def test_open_dataset_reuse_face_node_sequence(reuse_open):
+    """Face-only members must not discard mappings needed by later node data."""
+    grid = _equal_size_grid({"vertices": "n_node", "cells": "n_face"})
+    members = [
+        _reuse_members("cells")[0],
+        xr.Dataset({"velocity": ("vertices", np.arange(4))}),
+        _reuse_members("cells")[1],
+    ]
+    for result, expected in reuse_open(grid, members, "dataset"):
+        xr.testing.assert_equal(
+            result.to_xarray(),
+            expected.rename(
+                {
+                    dim: grid._source_dims_dict[dim]
+                    for dim in expected.dims
+                    if dim in grid._source_dims_dict
+                }
+            ),
+        )
+
+
+@pytest.mark.parametrize("prechunked", [False, True])
+def test_open_dataset_reuse_input_dataset_chunks(reuse_grid, reuse_open, prechunked):
+    """Rechunk the returned Dataset without replacing the caller's arrays."""
+    members = _reuse_members()
+    if prechunked:
+        members = [member.chunk({"n_face": 4, "time": 3}) for member in members]
+    for result, _ in reuse_open(
+        reuse_grid, members, "dataset", chunks={"n_face": 2, "time": 1}, chunk_grid=False
+    ):
+        assert result.temperature.chunks == ((1, 1, 1), (2, 2))
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+@pytest.mark.parametrize("chunks, chunk_grid", [(None, True), (None, False), ({"n_face": 1}, False)])
+def test_open_dataset_reuse_prechunked_grid(reuse_grid, reuse_open, kind, chunks, chunk_grid):
+    """Preserve an already-chunked Grid and its caches for supported options."""
+    reuse_grid.chunk(n_node=2, n_face=2)
+    for result, _ in reuse_open(
+        reuse_grid, _reuse_members(), kind, chunks=chunks, chunk_grid=chunk_grid
+    ):
+        if chunks is not None:
+            assert result.temperature.chunks[-1] == (1, 1, 1, 1)
+    assert reuse_grid.face_node_connectivity.chunks[0] == (2, 2)
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+@pytest.mark.parametrize("chunks", [-1, "auto", {}, {"n_face": 2, "time": 1}])
+@pytest.mark.parametrize("options", [{}, {"chunk_grid": True}])
+def test_open_dataset_reuse_rejects_grid_chunks(reuse_grid, reuse_open, kind, chunks, options):
+    """Reject implicit or explicit grid rechunking without changing shared state."""
+    with pytest.raises(ValueError, match=r"Grid, non-None chunks, and chunk_grid=True.*Grid\.chunk\(\)"):
+        reuse_open(reuse_grid, _reuse_members(), kind, chunks=chunks, **options)
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+@pytest.mark.parametrize(
+    "options, message",
+    [
+        ({"use_dual": True}, "use_dual"),
+        ({"grid_kwargs": {"drop_variables": "face_nodes"}}, "grid_kwargs"),
+    ],
+)
+def test_open_dataset_reuse_rejects_construction_options(
+    reuse_grid, reuse_open, kind, options, message
+):
+    """Reject options that only apply when constructing a Grid."""
+    with pytest.raises(ValueError, match=message):
+        reuse_open(reuse_grid, _reuse_members(), kind, **options)
+
+
+def test_open_dataset_reuse_requires_data(reuse_grid):
+    """An existing Grid alone is not a member Dataset."""
+    with pytest.raises(TypeError, match="filename_or_obj"):
+        ux.open_dataset(reuse_grid)
+
+
+@pytest.mark.parametrize("kind", ["file", "dataset"])
+def test_open_dataset_reuse_existing_construction(
+    reuse_grid, reuse_owners, tmp_path, kind
+):
+    """Existing grid-file and grid-Dataset inputs still construct equivalent grids."""
+    path = TEST_MESHFILES / "ugrid" / "quad-hexagon" / "grid.nc"
+    grid_source = path if kind == "file" else xr.open_dataset(path)
+    member = _reuse_members()[0]
+    data_path = tmp_path / "construction.nc"
+    member.to_netcdf(data_path)
+    result = ux.open_dataset(grid_source, data_path, chunks={"n_face": 2})
+    reuse_owners.callback(result.close)
+    assert result.uxgrid is not reuse_grid
+    assert result.uxgrid == reuse_grid
+    assert result.temperature.dims == ("time", "n_face")
+    assert result.temperature.chunks[-1] == (2, 2)
+    nt.assert_array_equal(result.temperature, member.temperature)
+    xr.testing.assert_identical(result.uxgrid._ds.compute(), reuse_grid._ds)
 
 
 def test_open_mf_dataset(gridpath, datasetpath, mesh_constants):
@@ -176,6 +489,24 @@ def test_open_dataset_grid_kwargs(gridpath, datasetpath):
                 )
 
 
+def test_open_dataset_drop_variables():
+    """Ensure ux.open-dataset() handles the drop_variables kwarg
+    the same way that xarray.open_dataset() handles it.
+    Regression test for bug found during PR 1851.
+    """
+    gridpath = ux.tutorial.file_path("mpas-dyamond-30km-gradient", "grid")
+    datapath = ux.tutorial.file_path("mpas-dyamond-30km-gradient", "data")
+    ds0 = ux.open_dataset(gridpath, datapath)
+    assert "gaussian" in ds0.data_vars
+    assert "inverse_gaussian" in ds0.data_vars
+    ds1 = ux.open_dataset(gridpath, datapath, drop_variables="gaussian")
+    assert "gaussian" not in ds1.data_vars
+    assert "inverse_gaussian" in ds1.data_vars
+    ds2 = ux.open_dataset(gridpath, datapath, drop_variables=["gaussian", "inverse_gaussian"])
+    assert "gaussian" not in ds2.data_vars
+    assert "inverse_gaussian" not in ds2.data_vars
+
+
 def test_open_dataset_with_fallback():
     """Test that the fallback mechanism works when the default engine fails."""
 
@@ -216,6 +547,21 @@ def test_open_dataset_with_fallback():
             ds_fallback.close()
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
+
+
+def test_open_dataset_with_fallback_chains_both_engine_errors(tmp_path):
+    """When both engines fail, the fallback error must be chained onto the
+    default engine's error rather than replacing it."""
+
+    not_netcdf = tmp_path / "not_netcdf.nc"
+    not_netcdf.write_text("this is not a netcdf file")
+
+    with pytest.raises(Exception) as excinfo:
+        _open_dataset_with_fallback(str(not_netcdf))
+
+    assert excinfo.value.__cause__ is not None, (
+        "the default engine's error was discarded"
+    )
 
 
 def test_list_grid_names_multigrid(gridpath):
@@ -282,5 +628,69 @@ def test_open_multigrid_missing_grid_error(gridpath):
     """Requesting a missing grid should raise."""
     grid_file = gridpath("scrip", "oasis", "grids.nc")
 
-    with pytest.raises(ValueError, match="Grid 'land' not found"):
+    with pytest.raises(ValueError, match="grid 'land' not found in the provided file"):
         ux.open_multigrid(grid_file, gridnames=["land"])
+
+
+def test_concat_various_inputs():
+    """Ensure concat() requires uxarray objs and raises clear TypeError otherwise,
+    and that concat() works in basic cases (exactly two UxDataArrays or two UxDatasets)
+    Includes regression test for first and third bugs mentioned in #1642.
+    """
+    # ensure reasonable crash when providing no inputs
+    with pytest.raises(ValueError, match="requires at least one object"):
+        ux.concat((), dim='anything')
+    # ensure crash when providing no uxarray objects
+    with pytest.raises(TypeError, match="expected either all UxDataArray or all UxDataset"):
+        ux.concat((7, "not a uxarray object"), dim='anything')
+    # ensure crash when providing some non-uxarray objects
+    uxds0 = ux.tutorial.open_dataset('quad-hexagon')
+    uxds1 = uxds0 + 10
+    with pytest.raises(TypeError, match="expected either all UxDataArray or all UxDataset"):
+        ux.concat((uxds0, "not a uxarray object", uxds1), dim='new_dim')
+    # ensure crash when providing a mix of UxDataArray and UxDataset objects
+    uxarr0 = uxds0['t2m']
+    with pytest.raises(TypeError, match="expected either all UxDataArray or all UxDataset"):
+        ux.concat((uxds0, uxds1, uxarr0), dim='new_dim')
+    with pytest.raises(TypeError, match="expected either all UxDataArray or all UxDataset"):
+        ux.concat((uxarr0, uxds0), dim='new_dim')
+    # ensure concat works in basic cases: two UxDatasets or two UxDataArrays
+    ux.concat((uxds0, uxds1), 'new_dim')  # also ensures can provide dim as positional arg.
+    uxarr1 = uxds1['t2m']
+    assert uxarr0.uxgrid == uxarr1.uxgrid
+    result = ux.concat((uxarr0, uxarr1), 'new_dim')
+    # ^^ also serves as regression test for third bug in #1642,
+    # i.e.: ensures can actually concat UxDataArray objects.
+    # include a few quick tests that the result looks reasonable:
+    assert isinstance(result, ux.UxDataArray)
+    assert result.uxgrid == uxarr0.uxgrid
+    assert result.sizes == {**uxarr0.sizes, 'new_dim': 2}
+
+    # regression test for first bug in #1642: using non-uxarray objects with equal uxgrid
+    #    should raise error message mentioning uxarray objects, not xarray objects.
+    class Foo():
+        def __init__(self, uxgrid):
+            self.uxgrid = uxgrid
+    foo0 = Foo(7)
+    foo1 = Foo(7)  # also 7 because: want to use the same uxgrid value in both cases.
+    with pytest.raises(TypeError, match="expected either all UxDataArray or all UxDataset"):
+        ux.concat([foo0, foo1], dim='anything')
+
+
+def test_concat_checks_uxgrid():
+    """Ensure concat() requires all objects' uxgrids to be equal,
+    but not necessarily the same exact object.
+    Includes regression test for second bug mentioned in #1642.
+    """
+    arrA = ux.tutorial.open_dataset("outCSne30-vortex")['psi']
+    arrB = arrA.copy()
+    assert arrA.uxgrid == arrB.uxgrid
+    assert arrA.uxgrid is not arrB.uxgrid
+    ux.concat([arrA, arrB], 'new_dim')
+
+    arrC = ux.tutorial.open_dataset("quad-hexagon")['t2m']
+    assert arrA.uxgrid != arrC.uxgrid
+    with pytest.raises(ux.errors.GridsMismatchError, match=r"got objs\[1\]\.uxgrid != objs\[0\]\.uxgrid"):
+        ux.concat([arrA, arrC], dim='new_dim')
+    with pytest.raises(ux.errors.GridsMismatchError, match=r"got objs\[2\]\.uxgrid != objs\[0\]\.uxgrid"):
+        ux.concat([arrA, arrB, arrC], dim='new_dim')

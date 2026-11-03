@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 import numpy as np
 
 from uxarray.errors import DimensionError
+from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 if TYPE_CHECKING:
     from cartopy.mpl.geoaxes import GeoAxes
@@ -126,6 +127,7 @@ def _get_points_from_axis(ax: GeoAxes, *, pixel_ratio: float = 1):
     ny : int
         Number of rows (height) in the pixel grid.
     """
+    _raise_hint_if_optional_deps_missing("cartopy")
     import cartopy.crs as ccrs
 
     ax_attrs = _RasterAxAttrs.from_ax(ax, pixel_ratio=pixel_ratio)
