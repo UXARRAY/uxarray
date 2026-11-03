@@ -4,7 +4,17 @@ import pytest
 import xarray as xr
 
 import uxarray as ux
-from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
+from uxarray.constants import INT_FILL_VALUE
+from uxarray.grid.connectivity import (
+    _merge_coincident_grid_ds_nodes,
+    _spec_guarantees_unique_nodes,
+)
+from uxarray.grid.validation import (
+    _check_duplicate_nodes_indices,
+    _find_duplicate_node_map,
+    _find_duplicate_nodes,
+)
+from uxarray.errors import GridInvalidError
 
 
 def test_grid_with_holes(gridpath):
@@ -129,7 +139,396 @@ def test_dual_mesh_mpas(gridpath):
 
 
 def test_dual_duplicate(gridpath):
-    """Test dual mesh creation with duplicate grids."""
-    dataset = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), gridpath("ugrid", "geoflow-small", "grid.nc"))
-    with pytest.raises(ux.errors.GridInvalidError):
-        dataset.get_dual()
+    """Test dual mesh creation on a grid whose source file has duplicate
+    (coincident) node indices, merged at construction time."""
+    grid_path = gridpath("ugrid", "geoflow-small", "grid.nc")
+    grid = ux.open_grid(grid_path)
+
+    # The source file really does contain duplicates: 6000 node coordinates for
+    # 3842 distinct locations, so 2158 indices are coincident with an earlier one.
+    # The count is hard-coded here only to guard against unexpected
+    # regressions in which duplicates are identified; it is not independently
+    # derived from the source file. For a correctness check of the duplicate
+    # identification itself, see test_duplicate_nodes_minimal_example.
+    duplicates = _find_duplicate_nodes(grid)
+    assert grid.n_node == 6000
+    assert len(duplicates) == 2158
+
+    # Connectivity is canonicalized to a single index per coincident group, so no
+    # face references any duplicate index.
+    assert not _check_duplicate_nodes_indices(grid)
+    # duplicate coordinates are left in place by design, but connectivity is
+    # fully canonicalized, so validation passes
+    assert grid.validate()
+
+    dual = grid.get_dual()
+
+    assert dual.n_node == grid.n_face
+
+    # One dual face per node that is a corner of at least three faces. After the
+    # merge, 3842 distinct nodes remain; every one is touched by at least three
+    # faces and therefore produces a dual cell.
+    face_nodes = grid.face_node_connectivity.values
+    faces_per_node = np.bincount(
+        face_nodes[face_nodes != INT_FILL_VALUE], minlength=grid.n_node
+    )
+    assert grid.n_node - len(duplicates) == 3842
+    assert (faces_per_node >= 3).sum() == 3842
+    assert dual.n_face == 3842
+
+    dataset = ux.open_dataset(grid_path, grid_path)
+    dual_ds = dataset.get_dual()
+    assert dual_ds.uxgrid.n_face == dual.n_face
+
+
+def test_dual_duplicate_geos_cs(gridpath):
+    """Test dual mesh creation on a cube-sphere grid with duplicate node
+    indices (issue #865)."""
+    grid_path = gridpath("geos-cs", "c12", "test-c12.native.nc4")
+    grid = ux.open_grid(grid_path)
+
+    assert len(_find_duplicate_nodes(grid)) > 0
+    assert not _check_duplicate_nodes_indices(grid)
+
+    dual = grid.get_dual()
+    assert dual.n_node == grid.n_face
+    assert dual.n_face > 0
+
+
+def test_duplicate_nodes_minimal_example():
+    """Two quads that share an edge, but whose shared corners are stored twice.
+
+    Nodes 1 and 2 are repeated as nodes 6 and 7, so the file describes 8 nodes
+    at 6 distinct locations. Node 6 must canonicalize to node 1 and node 7 to
+    node 2, leaving the second face pointing at the first face's corners.
+
+        3-----2/7-----5    lat 1
+        |      |      |
+        |  f0  |  f1  |
+        |      |      |
+        0-----1/6-----4    lat 0
+       lon 0  lon 1  lon 2
+
+    f0 = [0, 1, 2, 3] uses the shared edge as nodes 1, 2; f1 = [6, 4, 5, 7]
+    uses the duplicates 6, 7 for the same two corners.
+    """
+    node_lon = np.array([0.0, 1.0, 1.0, 0.0, 2.0, 2.0, 1.0, 1.0])
+    node_lat = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0])
+    #                    left quad        right quad, via the duplicates
+    face_node_connectivity = np.array([[0, 1, 2, 3], [6, 4, 5, 7]])
+
+    grid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
+
+    assert grid._duplicate_node_map == {6: 1, 7: 2}
+    duplicates = _find_duplicate_nodes(grid)
+    assert duplicates == {6: 1, 7: 2}
+
+    # No face may still reference a duplicate index.
+    assert not _check_duplicate_nodes_indices(grid)
+    nt.assert_equal(
+        grid.face_node_connectivity.values, np.array([[0, 1, 2, 3], [1, 4, 5, 2]])
+    )
+
+
+@pytest.mark.parametrize(
+    "lon_offset, merges",
+    [
+        (1e-9, True),  # 1.7e-11 chord, well inside
+        (1e-7, True),  # 1.7e-09 chord, inside
+        (1e-5, False),  # 1.7e-07 chord, outside
+    ],
+)
+def test_duplicate_nodes_tolerance(lon_offset, merges):
+    """Nodes merge only when they are coincident within the merge tolerance.
+
+    Same topology as test_duplicate_nodes_minimal_example, but duplicate node 6
+    is offset in lon. The tolerance is a chord length of ERROR_TOLERANCE (1e-8)
+    on the unit sphere, so the cutoff sits near 5.7e-7 degrees: the first two
+    offsets must still canonicalize 6 to 1, the third must not.
+    """
+    node_lon = np.array([0.0, 1.0, 1.0, 0.0, 2.0, 2.0, 1.0 + lon_offset, 1.0])
+    node_lat = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0])
+    face_node_connectivity = np.array([[0, 1, 2, 3], [6, 4, 5, 7]])
+
+    grid = ux.Grid.from_topology(node_lon, node_lat, face_node_connectivity)
+
+    duplicates = _find_duplicate_nodes(grid)
+    # Node 7 is an exact duplicate of node 2 in every case.
+    assert duplicates == ({6: 1, 7: 2} if merges else {7: 2})
+    assert not _check_duplicate_nodes_indices(grid)
+
+    # Face 1's first corner follows node 6: canonicalized to 1 when merged,
+    # left as 6 when the offset puts it outside the tolerance.
+    assert grid.face_node_connectivity.values[1][0] == (1 if merges else 6)
+
+
+def test_merge_warns_when_node_locations_are_unknown():
+    """Without node coordinates the merge cannot run; it must say so rather
+    than quietly return connectivity that may still hold duplicates."""
+    grid_ds = xr.Dataset(
+        {
+            "face_node_connectivity": (
+                ("n_face", "n_max_face_nodes"),
+                np.array([[0, 1, 2, 3], [6, 4, 5, 7]]),
+            )
+        }
+    )
+
+    with pytest.warns(RuntimeWarning, match="Coincident nodes were not merged"):
+        out = _merge_coincident_grid_ds_nodes(grid_ds)
+
+    nt.assert_equal(
+        out["face_node_connectivity"].values,
+        grid_ds["face_node_connectivity"].values,
+    )
+
+
+def test_merge_compacts_face_and_invalidates_edge_variables():
+    grid_ds = xr.Dataset(
+        {
+            "node_lon": ("n_node", [0.0, 1.0, 0.0, 1.0]),
+            "node_lat": ("n_node", [0.0, 0.0, 1.0, 0.0]),
+            "face_node_connectivity": (
+                ("n_face", "n_max_face_nodes"),
+                [[0, 1, 3, 2]],
+            ),
+            "edge_node_connectivity": (("n_edge", "two"), np.zeros((4, 2))),
+            "edge_data": ("n_edge", np.arange(4)),
+            "n_nodes_per_face": ("n_face", [4]),
+        }
+    )
+
+    merged = _merge_coincident_grid_ds_nodes(grid_ds)
+
+    nt.assert_equal(
+        merged["face_node_connectivity"].values,
+        np.array([[0, 1, 2, INT_FILL_VALUE]]),
+    )
+    assert "n_edge" not in merged.dims
+    assert "edge_node_connectivity" not in merged
+    assert "edge_data" not in merged
+    assert "n_nodes_per_face" not in merged
+
+    grid = ux.Grid(merged, source_grid_spec="User Defined Topology")
+    nt.assert_equal(grid.n_nodes_per_face.values, [3])
+    assert grid.n_edge == 3
+
+
+def test_merge_preserves_face_with_fewer_than_three_distinct_corners():
+    grid_ds = xr.Dataset(
+        {
+            "node_lon": ("n_node", [0.0, 1.0, 1.0]),
+            "node_lat": ("n_node", [0.0, 0.0, 0.0]),
+            "face_node_connectivity": (
+                ("n_face", "n_max_face_nodes"),
+                [[0, 1, 2]],
+            ),
+        }
+    )
+
+    merged = _merge_coincident_grid_ds_nodes(grid_ds)
+    nt.assert_equal(merged["face_node_connectivity"].values, [[0, 1, 1]])
+
+
+def test_merge_rejects_nonconsecutive_repeated_face_corner():
+    grid_ds = xr.Dataset(
+        {
+            "node_lon": ("n_node", [0.0, 1.0, 0.0, 1.0]),
+            "node_lat": ("n_node", [0.0, 0.0, 1.0, 0.0]),
+            "face_node_connectivity": (
+                ("n_face", "n_max_face_nodes"),
+                [[0, 1, 2, 3]],
+            ),
+        }
+    )
+
+    with pytest.raises(GridInvalidError, match="nonconsecutive repeated corners"):
+        _merge_coincident_grid_ds_nodes(grid_ds)
+
+
+def test_get_dual_rejects_faces_referencing_duplicate_nodes():
+    """``construct_dual`` reads ``node_face_connectivity`` with no duplicate
+    handling, so a face still pointing at a dead duplicate index would yield a
+    degenerate dual face instead of an error. Merging at construction makes this
+    unreachable today; the guard keeps it that way."""
+    node_lon = np.array([0.0, 1.0, 1.0, 0.0, 2.0, 2.0, 1.0, 1.0])
+    node_lat = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0])
+    unmerged = np.array([[0, 1, 2, 3], [6, 4, 5, 7]])
+
+    grid = ux.Grid.from_topology(node_lon, node_lat, unmerged)
+    # Construction canonicalized the connectivity; put the duplicates back.
+    grid.face_node_connectivity = xr.DataArray(
+        unmerged, dims=grid.face_node_connectivity.dims
+    )
+
+    assert _check_duplicate_nodes_indices(grid)
+    with pytest.raises(GridInvalidError):
+        grid.get_dual()
+
+
+def test_pole_matching_merges_only_exact_xyz_rows():
+    from uxarray.grid.validation import _coincident_node_canonical_indices
+
+    z = 1.0 - 1e-6
+    x = np.sqrt(1.0 - z * z)
+
+    points_xyz = np.array(
+        [
+            [0.0, 0.0, 1.0],
+            [0.0, 0.0, 1.0],  # exact duplicate pole row
+            [np.finfo(np.float64).eps, 0.0, 1.0],  # distinct pole representation
+            [x, 0.0, z],
+            [x, 0.0, z],
+        ]
+    )
+
+    canonical = _coincident_node_canonical_indices(points_xyz)
+
+    nt.assert_equal(canonical, np.array([0, 0, 2, 3, 3]))
+
+
+def test_merge_prefers_float64_lonlat_over_xyz():
+    grid_ds = xr.Dataset(
+        {
+            "node_lon": (
+                "n_node", np.array([0.0, 1.0, 1.0, 90.0], dtype=np.float32)
+            ),
+            "node_lat": ("n_node", np.zeros(4, dtype=np.float32)),
+            "node_x": ("n_node", np.array([1.0, 0.0, -1.0, 0.0])),
+            "node_y": ("n_node", np.array([0.0, 1.0, 0.0, -1.0])),
+            "node_z": ("n_node", np.zeros(4)),
+            "face_node_connectivity": (
+                ("n_face", "n_max_face_nodes"),
+                np.array([[0, 1, 2, 3]]),
+            ),
+        }
+    )
+
+    merged = _merge_coincident_grid_ds_nodes(grid_ds)
+
+    nt.assert_equal(
+        merged["face_node_connectivity"].values,
+        np.array([[0, 1, 3, INT_FILL_VALUE]]),
+    )
+
+
+def test_merge_normalizes_xyz_fallback():
+    grid_ds = xr.Dataset(
+        {
+            "node_x": ("n_node", np.array([1.0, 2.0, 0.0, 0.0])),
+            "node_y": ("n_node", np.array([0.0, 0.0, 1.0, 0.0])),
+            "node_z": ("n_node", np.array([0.0, 0.0, 0.0, 1.0])),
+            "face_node_connectivity": (
+                ("n_face", "n_max_face_nodes"),
+                np.array([[0, 1, 2, 3]]),
+            ),
+        }
+    )
+
+    merged = _merge_coincident_grid_ds_nodes(grid_ds)
+
+    nt.assert_equal(
+        merged["face_node_connectivity"].values,
+        np.array([[0, 2, 3, INT_FILL_VALUE]]),
+    )
+
+
+@pytest.mark.parametrize("invalid", [np.nan, np.inf])
+def test_merge_rejects_invalid_xyz_fallback(invalid):
+    grid_ds = xr.Dataset(
+        {
+            "node_x": ("n_node", np.array([invalid, 0.0, 0.0])),
+            "node_y": ("n_node", np.array([0.0, 1.0, 0.0])),
+            "node_z": ("n_node", np.array([0.0, 0.0, 1.0])),
+            "face_node_connectivity": (
+                ("n_face", "n_max_face_nodes"),
+                np.array([[0, 1, 2]]),
+            ),
+        }
+    )
+
+    with pytest.raises(ValueError, match="finite"):
+        _merge_coincident_grid_ds_nodes(grid_ds)
+
+
+def test_coincident_prescreen_keeps_both_ends_of_a_run():
+    """The x-sorted prescreen must mark both members of a close pair.
+
+    It flags a point when the gap to its predecessor *or* its successor is within
+    tolerance. Dropping either half of that OR silently loses one node of every
+    coincident pair, so this places coincident pairs at both ends of the sorted
+    order, where only one of the two neighbour tests fires.
+    """
+    from uxarray.grid.validation import _coincident_node_canonical_indices
+
+    # x strictly increasing and far apart, except for the duplicated first and
+    # last points, which have no predecessor / no successor respectively.
+    points_xyz = np.array(
+        [
+            [-1.0, 0.0, 0.0],  # 0
+            [-1.0, 0.0, 0.0],  # 1, coincident with 0 -> first in sorted x
+            [0.25, np.sqrt(1.0 - 0.25**2), 0.0],  # 2
+            [0.5, np.sqrt(1.0 - 0.5**2), 0.0],  # 3
+            [1.0, 0.0, 0.0],  # 4
+            [1.0, 0.0, 0.0],  # 5, coincident with 4 -> last in sorted x
+        ]
+    )
+
+    canonical = _coincident_node_canonical_indices(points_xyz)
+
+    nt.assert_equal(canonical, np.array([0, 0, 2, 3, 4, 4]))
+
+
+def test_no_duplicate_nodes_ne30pg3(gridpath):
+    """``esmf/ne30/ne30pg3.grid.nc`` no longer reproduces issue #865's
+    duplicate-node bug; this only checks the general fix is a safe no-op."""
+    grid_path = gridpath("esmf", "ne30", "ne30pg3.grid.nc")
+    grid = ux.open_grid(grid_path)
+
+    assert len(_find_duplicate_nodes(grid)) == 0
+
+
+def test_spec_guarantees_unique_nodes_membership():
+    """Only formats whose node list is an already-unique vertex array may claim
+    the skip; per-face-corner formats must still be searched."""
+    assert _spec_guarantees_unique_nodes("HEALPix")
+
+    # File formats are always searched because their names alone cannot guarantee
+    # that a particular file has unique node coordinates.
+    for spec in ("MPAS", "Scrip", "Exodus", "GEOS-CS", "UGRID", "ESMF", "ICON"):
+        assert not _spec_guarantees_unique_nodes(spec)
+
+    # An unrecognized or absent spec must fall back to searching.
+    assert not _spec_guarantees_unique_nodes(None)
+    assert not _spec_guarantees_unique_nodes("SomeFutureFormat")
+
+
+def test_skipped_spec_really_has_no_coincident_nodes():
+    """Only internally generated HEALPix nodes bypass the duplicate search."""
+    healpix = ux.Grid.from_healpix(zoom=3)
+    assert _spec_guarantees_unique_nodes(healpix.source_grid_spec)
+    assert (
+        _find_duplicate_node_map(healpix.node_lon.values, healpix.node_lat.values) == {}
+    )
+
+
+def test_mpas_label_does_not_skip_duplicate_merge():
+    node_lon = np.array([0.0, 1.0, 1.0, 0.0, 2.0, 2.0, 1.0, 1.0])
+    node_lat = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0])
+    connectivity = np.array([[0, 1, 2, 3], [6, 4, 5, 7]])
+    grid = ux.Grid.from_topology(
+        node_lon, node_lat, connectivity, source_grid_spec="MPAS"
+    )
+
+    nt.assert_equal(
+        grid.face_node_connectivity.values,
+        np.array([[0, 1, 2, 3], [1, 4, 5, 2]]),
+    )
+
+
+def test_duplicates_still_merged_for_non_skipped_specs(gridpath):
+    """The skip must not weaken the #865 fix for formats that do have duplicates."""
+    grid = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
+    assert grid.source_grid_spec == "UGRID"
+    assert not _spec_guarantees_unique_nodes(grid.source_grid_spec)
+    assert grid.get_dual().n_face == 3842
