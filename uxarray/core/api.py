@@ -415,8 +415,10 @@ def open_dataset(
     chunk_grid : bool, default: True
         If valid chunks are passed in, determines whether to also apply the same
         chunks when constructing a ``Grid``. An existing ``Grid`` is reused
-        unchanged, including its chunking; call ``Grid.chunk`` explicitly
-        before opening data to change its chunking.
+        unchanged, including its chunking. With an existing ``Grid``, passing
+        non-None ``chunks`` and ``chunk_grid=True`` raises ``ValueError``.
+        Set ``chunk_grid=False`` to chunk only the data, or call ``Grid.chunk()``
+        explicitly before opening data to change the grid's chunking.
     use_dual : bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is MPAS.
         ``use_dual=True`` is not supported for an existing ``Grid``; select
@@ -560,8 +562,10 @@ def open_mfdataset(
     chunk_grid : bool, default: True
         If valid chunks are passed in, determines whether to also apply the same
         chunks when constructing a ``Grid``. An existing ``Grid`` is reused
-        unchanged, including its chunking; call ``Grid.chunk`` explicitly
-        before opening data to change its chunking.
+        unchanged, including its chunking. With an existing ``Grid``, passing
+        non-None ``chunks`` and ``chunk_grid=True`` raises ``ValueError``.
+        Set ``chunk_grid=False`` to chunk only the data, or call ``Grid.chunk()``
+        explicitly before opening data to change the grid's chunking.
     use_dual : bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is MPAS.
         ``use_dual=True`` is not supported for an existing ``Grid``; select
@@ -642,6 +646,12 @@ def _get_grid(
             raise ValueError(
                 "grid_kwargs must be empty when passing an existing Grid. "
                 "Apply these options when constructing the Grid."
+            )
+        if chunks is not None and chunk_grid:
+            raise ValueError(
+                "Providing Grid, non-None chunks, and chunk_grid=True simultaneously "
+                "is not supported. Call Grid.chunk() explicitly to change the grid's "
+                "chunking, or set chunk_grid=False to chunk only the data."
             )
         if isinstance(chunks, dict):
             # Keep the caller's options and the shared Grid unchanged. Match

@@ -143,9 +143,6 @@ def reuse_open(tmp_path, reuse_owners):
                 counter += 1
                 member.to_netcdf(path)
                 paths.append(path)
-        # Chunk ownership for True is a separate open review question.
-        if chunks is not None:
-            kwargs.setdefault("chunk_grid", False)
         with patch("uxarray.core.api.open_grid") as construct:
             try:
                 if kind == "multiple":
@@ -212,11 +209,15 @@ def _equal_size_grid(source_dims):
 
 
 @pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
-@pytest.mark.parametrize("chunks", [None, -1, "auto", {}, {"n_face": 2, "time": 1}])
-def test_open_dataset_reuse_members(reuse_grid, reuse_open, kind, chunks):
+@pytest.mark.parametrize("chunks, chunk_grid", [
+    (None, True), (None, False), (-1, False), ("auto", False),
+    ({}, False), ({"n_face": 2, "time": 1}, False),
+])
+def test_open_dataset_reuse_members(reuse_grid, reuse_open, kind, chunks, chunk_grid):
     """Reuse topology/cached tree without grid I/O, preserving member values."""
     for result, expected in reuse_open(
-        reuse_grid, _reuse_members(), kind, chunks=chunks, grid_kwargs={}
+        reuse_grid, _reuse_members(), kind, chunks=chunks,
+        chunk_grid=chunk_grid, grid_kwargs={}
     ):
         assert result.temperature.dims == expected.temperature.dims
         nt.assert_array_equal(result.temperature, expected.temperature)
@@ -243,7 +244,7 @@ def test_open_dataset_reuse_source_chunks(reuse_open, kind, chunks):
         ds.assign(velocity=("vertices", np.arange(4) + i))
         for i, ds in enumerate(_reuse_members("cells"))
     ]
-    for result, expected in reuse_open(grid, members, kind, chunks=chunks):
+    for result, expected in reuse_open(grid, members, kind, chunks=chunks, chunk_grid=False):
         assert (
             result.temperature.dims == expected.temperature.rename(cells="n_face").dims
         )
@@ -268,7 +269,7 @@ def test_open_dataset_reuse_overlapping_aliases(reuse_open, kind, reverse, face_
         ds.assign(velocity=("n_face", np.arange(4) + i))
         for i, ds in enumerate(_reuse_members("cells"))
     ]
-    for result, expected in reuse_open(grid, members, kind, chunks=chunks):
+    for result, expected in reuse_open(grid, members, kind, chunks=chunks, chunk_grid=False):
         prefix = ("member",) if kind == "multiple" else ()
         assert result.temperature.dims == prefix + ("time", "n_face")
         assert result.velocity.dims == prefix + ("n_node",)
@@ -291,7 +292,7 @@ def test_open_dataset_reuse_canonical_equal_counts(reuse_open, kind, source_dims
         for i, ds in enumerate(_reuse_members())
     ]
     for result, expected in reuse_open(
-        grid, members, kind, chunks={"n_face": 2, "n_node": 1}
+        grid, members, kind, chunks={"n_face": 2, "n_node": 1}, chunk_grid=False
     ):
         assert result.temperature.dims == expected.temperature.dims
         assert result.velocity.dims == expected.velocity.dims
@@ -332,20 +333,31 @@ def test_open_dataset_reuse_input_dataset_chunks(reuse_grid, reuse_open, prechun
     if prechunked:
         members = [member.chunk({"n_face": 4, "time": 3}) for member in members]
     for result, _ in reuse_open(
-        reuse_grid, members, "dataset", chunks={"n_face": 2, "time": 1}
+        reuse_grid, members, "dataset", chunks={"n_face": 2, "time": 1}, chunk_grid=False
     ):
         assert result.temperature.chunks == ((1, 1, 1), (2, 2))
 
 
 @pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
-def test_open_dataset_reuse_prechunked_grid(reuse_grid, reuse_open, kind):
-    """With chunk_grid=False, preserve an already-chunked Grid and its caches."""
+@pytest.mark.parametrize("chunks, chunk_grid", [(None, True), (None, False), ({"n_face": 1}, False)])
+def test_open_dataset_reuse_prechunked_grid(reuse_grid, reuse_open, kind, chunks, chunk_grid):
+    """Preserve an already-chunked Grid and its caches for supported options."""
     reuse_grid.chunk(n_node=2, n_face=2)
     for result, _ in reuse_open(
-        reuse_grid, _reuse_members(), kind, chunks={"n_face": 1}, chunk_grid=False
+        reuse_grid, _reuse_members(), kind, chunks=chunks, chunk_grid=chunk_grid
     ):
-        assert result.temperature.chunks[-1] == (1, 1, 1, 1)
+        if chunks is not None:
+            assert result.temperature.chunks[-1] == (1, 1, 1, 1)
     assert reuse_grid.face_node_connectivity.chunks[0] == (2, 2)
+
+
+@pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
+@pytest.mark.parametrize("chunks", [-1, "auto", {}, {"n_face": 2, "time": 1}])
+@pytest.mark.parametrize("options", [{}, {"chunk_grid": True}])
+def test_open_dataset_reuse_rejects_grid_chunks(reuse_grid, reuse_open, kind, chunks, options):
+    """Reject implicit or explicit grid rechunking without changing shared state."""
+    with pytest.raises(ValueError, match=r"Grid, non-None chunks, and chunk_grid=True.*Grid\.chunk\(\)"):
+        reuse_open(reuse_grid, _reuse_members(), kind, chunks=chunks, **options)
 
 
 @pytest.mark.parametrize("kind", ["dataset", "file", "multiple"])
