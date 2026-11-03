@@ -38,7 +38,7 @@ __all__ = [
 def open_grid(
     grid_filename_or_obj: str | os.PathLike[Any] | dict | xr.Dataset,
     chunks=None,
-    use_dual: bool | None = False,
+    use_dual: bool = False,
     **kwargs: dict[str, Any],
 ):
     """Constructs and returns a ``Grid`` from a grid file.
@@ -371,7 +371,7 @@ def open_dataset(
     filename_or_obj: str | os.PathLike[Any] | xr.Dataset | None = None,
     chunks=None,
     chunk_grid: bool = True,
-    use_dual: bool | None = False,
+    use_dual: bool = False,
     grid_kwargs: dict[str, Any] | None = None,
     **kwargs: dict[str, Any],
 ) -> UxDataset:
@@ -489,12 +489,12 @@ def open_dataset(
                 "in ux.open_dataset(grid_filename_or_obj, filename_or_obj=None)."
             )
 
-        uxgrid, _ = _get_grid(ds, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs)
+        uxgrid, _ = _get_grid(ds, chunks, chunk_grid, use_dual, grid_kwargs)
         filename_or_obj = grid_filename_or_obj
     else:
         # Construct a Grid, validate parameters, and correct chunks
         uxgrid, corrected_chunks = _get_grid(
-            grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
+            grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs
         )
 
         # Load the data as a Xarray Dataset
@@ -528,7 +528,7 @@ def open_mfdataset(
     paths: str | os.PathLike,
     chunks=None,
     chunk_grid: bool = True,
-    use_dual: bool | None = False,
+    use_dual: bool = False,
     grid_kwargs: dict[str, Any] | None = None,
     **kwargs: dict[str, Any],
 ) -> UxDataset:
@@ -607,7 +607,11 @@ def open_mfdataset(
 
     # Construct a Grid, validate parameters, and correct chunks
     uxgrid, corrected_chunks = _get_grid(
-        grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
+        grid_filename_or_obj,
+        chunks,
+        chunk_grid,
+        use_dual,
+        grid_kwargs,
     )
 
     # Load the data as a Xarray Dataset
@@ -621,7 +625,11 @@ def open_mfdataset(
 
 
 def _get_grid(
-    grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs, **kwargs
+    grid_filename_or_obj,
+    chunks,
+    chunk_grid,
+    use_dual,
+    grid_kwargs,
 ):
     """Validate input parameters and return the ``(grid, chunks)`` tuple."""
     if isinstance(grid_filename_or_obj, Grid):
@@ -644,14 +652,6 @@ def _get_grid(
                 if isinstance(ugrid_dim, str) and ugrid_dim in requested_chunks:
                     chunks[source_dim] = requested_chunks[ugrid_dim]
         return grid_filename_or_obj, chunks
-
-    if "latlon" in kwargs:
-        warn(
-            "'latlon is no longer a supported parameter",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        grid_kwargs["latlon"] = kwargs["latlon"]
 
     grid_kwargs["data_chunks"] = chunks
     grid_kwargs["chunk_grid"] = chunk_grid

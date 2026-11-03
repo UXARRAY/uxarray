@@ -15,6 +15,8 @@ import math
 import numpy as np
 from numba import njit
 
+from uxarray.utils.computing import diff_of_products
+
 # ------- basic arithmetic with vectors ------- #
 
 
@@ -112,6 +114,27 @@ def _numba_cross3(u, v):
     cy = u[2] * v[0] - u[0] * v[2]
     cz = u[0] * v[1] - u[1] * v[0]
     return (cx, cy, cz)
+
+
+@njit(cache=True, inline="always")
+def _numba_diff_of_products3(u, a, v, b):
+    """component-wise u * a - v * b for 3-vectors u, v and scalars a, b, without cancellation.
+
+    Each component is evaluated with Kahan's 2x2 determinant
+    (:func:`uxarray.utils.computing.diff_of_products`), so it is accurate even
+    when ``u * a`` and ``v * b`` nearly cancel.
+
+    Returns
+    -------
+    hi, lo : tuple of 3 floats
+        High and low parts of each component; ``hi[i] + lo[i]`` is the
+        accurate value. ``hi`` alone equals the naive ``u * a - v * b``, so the
+        two must be added, e.g. with ``_numba_add3(hi, lo)``.
+    """
+    h0, l0 = diff_of_products(u[0], a, v[0], b)
+    h1, l1 = diff_of_products(u[1], a, v[1], b)
+    h2, l2 = diff_of_products(u[2], a, v[2], b)
+    return (h0, h1, h2), (l0, l1, l2)
 
 
 # ------- convenience functions / helpers ------- #
