@@ -1072,6 +1072,165 @@ class TestLaplacianQuadHex:
         assert "some other attr" in laplacian_with_more_attrs.attrs
 
 
+class TestLaplacianDyamondSubset:
+
+    def test_laplacian_constant_field(self, gridpath, datasetpath):
+        """Laplacian of a constant scalar field reduces to 0.
+        The metric term from div in div(grad(q)) sees v = ∂q/∂y = 0, so
+        the result is identically 0 (or NaN if missing boundaries) everywhere.
+        """
+        uxds = ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
+        )
+        # some constant fields:
+        q0 = uxds['face_lat'] * 0
+        q1 = q0 + 1.0
+        q3 = q0 - 3.0
+
+        lap0 = q0.laplacian()
+        lap1 = q1.laplacian()
+        lap3 = q3.laplacian()
+        boundaries = lap0.isnull()
+        assert np.all(boundaries == lap1.isnull())
+        assert np.all(boundaries == lap3.isnull())
+
+        assert np.all(lap0[~boundaries] == 0)
+        assert np.all(lap1[~boundaries] == 0)
+        assert np.all(lap3[~boundaries] == 0)
+
+        # changing scale_by_radius (nontrivial because the radius is not 1.
+        assert uxds.uxgrid.sphere_radius > 1.0
+        lap0r = q0.laplacian(scale_by_radius=False)
+        lap1r = q1.laplacian(scale_by_radius=False)
+        lap3r = q3.laplacian(scale_by_radius=False)
+        assert np.all(lap0r[~boundaries] == 0)
+        assert np.all(lap1r[~boundaries] == 0)
+        assert np.all(lap3r[~boundaries] == 0)
+
+
+class TestLaplacianSphericalHarmonics:
+    """Numerical correctness checks for the Laplacian, using spherical harmonics:
+        laplacian(q) == -l(l+1)/r^2 * q
+    where q is any linear combination of any spherical harmonics of degree l.
+
+    Linear combinations of harmonics of degree 1 include: x, y, z
+    Linear combinations of harmonics of degree 1 include: xy, xz, yz, x^2-y^2, 3z^2-r^2
+    """
+    def grid_and_xyz(self, zoom):
+        """returns (healpix grid, x, y, z) for this zoom.
+        x, y, z are from the grid, converted to UxDataArrays.
+        """
+        grid = ux.Grid.from_healpix(zoom=zoom)
+        grid.sphere_radius = 1.0  # avoid any warnings later about undefined sphere_radius.
+        zero = ux.UxDataArray(xr.DataArray(np.zeros(grid.n_face), dims="n_face"), uxgrid=grid)
+        x = grid.face_x + zero
+        y = grid.face_y + zero
+        z = grid.face_z + zero
+        return grid, x, y, z
+
+    def error_stats(self, q, l=1, *, max_lat=70):
+        """returns (mean, max) of |lap(q) - expected| / max(q),
+        with expected = -l(l+1)/r^2 * q, and the difference is only computed where |lat| < max_lat.
+        Restricting to mid-latitudes large tan(lat) near poles.
+
+        mean gives a decent measurement of overall error, while max tells worst-case error.
+        """
+        max_q = q.max().item()
+        ylm_factor = -l * (l+1) / q.uxgrid.sphere_radius**2
+        diff = q.laplacian() - ylm_factor * q
+        far_from_poles = np.abs(q.uxgrid.face_lat) < max_lat
+        diff_far_from_poles = diff[far_from_poles]
+        err_check = np.abs(diff_far_from_poles)
+        return err_check.mean().item() / max_q, err_check.max().item() / max_q
+
+    def test_laplacian_harmonics_l1_zoom4(self):
+        """checks absolute errors some spherical harmonics on healpix grid at zoom=4.
+        The error bounds here were derived empirically; they are not tiny because uxarray's
+        Laplacian uses a low-order stencil (see test_laplacian_harmonics_l1_convergence).
+        """
+        MEAN_TOL = 0.02
+        MAX_TOL = 0.15
+        grid, x, y, z = self.grid_and_xyz(zoom=4)
+        # various combinations of spherical harmonics
+        fields = [x, y, z, 7*x, y+z, 3*y-10*z, -x-y-z, 2*x-3*y+4*z]
+        for i, q in enumerate(fields):
+            mean_err, max_err = self.error_stats(q, l=1)
+            assert mean_err < MEAN_TOL, f"failure on field i={i}"
+            assert max_err < MAX_TOL, f"failure on field i={i}"
+
+    def test_laplacian_harmonics_l2_zoom4(self):
+        """checks absolute errors some spherical harmonics on healpix grid at zoom=4.
+        The error bounds here were derived empirically; they are not tiny because uxarray's
+        Laplacian uses a low-order stencil (see test_laplacian_harmonics_l2_convergence).
+        """
+        MEAN_TOL = 0.07
+        MAX_TOL = 0.50
+        grid, x, y, z = self.grid_and_xyz(zoom=4)
+        # various combinations of spherical harmonics of degree 2
+        fields = [x*y, x*z, y*z, x**2-y**2, 3*z**2-1, 7*x*y, -3*x*z+5*y*z+7*(x**2-y**2)]
+        for i, q in enumerate(fields):
+            mean_err, max_err = self.error_stats(q, l=2)
+            assert mean_err < MEAN_TOL, f"failure on field i={i}"
+            assert max_err < MAX_TOL, f"failure on field i={i}"
+
+    def test_laplacian_harmonics_l1_convergence(self):
+        """checks that the Laplacian mean errors shrink as the grid is refined,
+        for spherical harmonics of degree 1. (Max errors not tested because the low-order stencil
+        happens to not always cause max errors to decrease as zoom increases. Checking by-eye
+        reveals these max errors occurs near some of few special vertices where only 3 faces meet.)
+        """
+        zooms = [4, 5, 6, 7]
+        # expect at least this much improvement in mean error when zoom increases by 1.
+        MEAN_CONV_TOL = 3.0
+        zoom_to_errors = {}  # {zoom: list of errors for each field}
+        for zoom in zooms:
+            errors = []
+            grid, x, y, z = self.grid_and_xyz(zoom=zoom)
+            fields = [x, y, z, 7*x, y+z]
+            for q in fields:
+                mean_err, max_err = self.error_stats(q, l=1)
+                errors.append(mean_err)
+            zoom_to_errors[zoom] = errors
+        for j in range(len(fields)):
+            for i in range(len(zooms)-1):
+                zoom1, zoom2 = zooms[i], zooms[i+1]
+                err1 = zoom_to_errors[zoom1][j]
+                err2 = zoom_to_errors[zoom2][j]
+                assert err1 / err2 >= MEAN_CONV_TOL, (
+                    f"mean error did not shrink enough from zoom {zoom1} to {zoom2} "
+                    f"for field {j}: {err1} -> {err2}"
+                )
+
+    def test_laplacian_harmonics_l2_convergence(self):
+        """checks that the Laplacian mean errors shrink as the grid is refined,
+        for spherical harmonics of degree 2. (Max errors not tested because the low-order stencil
+        happens to not always cause max errors to decrease as zoom increases. Checking by-eye
+        reveals these max errors occurs near some of few special vertices where only 3 faces meet.)
+        """
+        zooms = [4, 5, 6, 7]
+        # expect at least this much improvement in mean error when zoom increases by 1.
+        MEAN_CONV_TOL = 2.0
+        zoom_to_errors = {}  # {zoom: list of errors for each field}
+        for zoom in zooms:
+            errors = []
+            grid, x, y, z = self.grid_and_xyz(zoom=zoom)
+            fields = [x*y, x*z, y*z, x**2-y**2, 3*z**2-1]
+            for q in fields:
+                mean_err, max_err = self.error_stats(q, l=2)
+                errors.append(mean_err)
+            zoom_to_errors[zoom] = errors
+        for j in range(len(fields)):
+            for i in range(len(zooms)-1):
+                zoom1, zoom2 = zooms[i], zooms[i+1]
+                err1 = zoom_to_errors[zoom1][j]
+                err2 = zoom_to_errors[zoom2][j]
+                assert err1 / err2 >= MEAN_CONV_TOL, (
+                    f"mean error did not shrink enough from zoom {zoom1} to {zoom2} "
+                    f"for field {j}: {err1} -> {err2}"
+                )
+
+
 class TestSphericalManufacturedSolutions:
     """Amplitude checks against closed-form answers on the unit sphere.
 
