@@ -77,7 +77,7 @@ class GridSubsetAccessor:
         self,
         center_coord: tuple | list | np.ndarray,
         r: float | int,
-        element: str | None = "face centers",
+        element: str = "face centers",
         inverse_indices: list[str] | set[str] | bool = False,
         **kwargs,
     ):
@@ -116,7 +116,7 @@ class GridSubsetAccessor:
         self,
         center_coord: tuple | list | np.ndarray,
         k: int,
-        element: str | None = "face centers",
+        element: str = "face centers",
         inverse_indices: list[str] | set[str] | bool = False,
         **kwargs,
     ):
@@ -431,8 +431,9 @@ def _faces_in_bounding_box(uxgrid, lon_bounds, lat_bounds):
     Returns the same faces as intersecting ``Grid.get_faces_between_longitudes``
     with ``Grid.get_faces_between_latitudes``, which need ``Grid.bounds`` for
     every face in the mesh. Here bounds are computed only for the faces whose
-    nodes all lie inside the box, so the cost scales with the region rather
-    than with the mesh (UXARRAY/uxarray#1778). A face's bounds contain each of
+    nodes all lie inside the box, so bounds work scales with the region
+    (UXARRAY/uxarray#1778). The node screen still scans the whole mesh.
+    A face's bounds contain each of
     its nodes, so that screen cannot drop a face the exact test keeps, and it
     needs no margin or assumption about face size or shape. Bounds that are
     already cached on the grid are used as they are.

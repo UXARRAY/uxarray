@@ -374,7 +374,7 @@ def _face_bounds_lon_degrees(bounds):
     return bounds_lon
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _faces_with_nodes_within_box(
     face_node_connectivity,
     n_nodes_per_face,
