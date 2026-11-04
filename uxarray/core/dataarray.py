@@ -1649,7 +1649,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             the result carries physical units: [u units]/meter
             (e.g. result has units of 1/s if u represents velocity).
             When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
-            the result caries per-radian units: [u units]/radian.
+            the result carries per-radian units: [u units]/radian.
             (e.g. result has units of (m/s)/rad if u represents velocity).
 
             CAUTION: this scaling does not account for any radius increases
@@ -1839,7 +1839,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             the result carries physical units: [u units]/meter
             (e.g. result has units of 1/s if u represents velocity).
             When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
-            the result caries per-radian units: [u units]/radian.
+            the result carries per-radian units: [u units]/radian.
             (e.g. result has units of (m/s)/rad if u represents velocity).
 
             CAUTION: this scaling does not account for any radius increases
@@ -1961,9 +1961,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             Whether to divide unit-sphere derivatives by ``uxgrid.sphere_radius``.
             When ``True`` (and the grid's ``sphere_radius`` is set correctly),
             the result carries physical units: [q units]/meter^2
-            (e.g. result has units of 1/s^2 if q represents velocity).
+            (e.g. result has units of 1/(m*s) if q represents velocity).
             When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
-            the result caries per-radian^2 units: [q units]/radian^2.
+            the result carries per-radian^2 units: [q units]/radian^2.
             (e.g. result has units of (m/s)/rad^2 if q represents velocity).
 
             CAUTION: this scaling does not account for any radius increases

@@ -1115,7 +1115,7 @@ class TestLaplacianSphericalHarmonics:
     where q is any linear combination of any spherical harmonics of degree l.
 
     Linear combinations of harmonics of degree 1 include: x, y, z
-    Linear combinations of harmonics of degree 1 include: xy, xz, yz, x^2-y^2, 3z^2-r^2
+    Linear combinations of harmonics of degree 2 include: xy, xz, yz, x^2-y^2, 3z^2-r^2
     """
     def grid_and_xyz(self, zoom):
         """returns (healpix grid, x, y, z) for this zoom.
