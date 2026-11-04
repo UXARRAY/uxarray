@@ -232,8 +232,6 @@ def test_indexing_by_dataarray():
     See #1712 for more details.
 
     Regression test for bug in branch (fixed before merging to main) for PR 1729.
-
-    TODO: update accordingly after fixing #1758.
     """
     # --- n_face indexing of n_face data --- #
     # ensure grid's dims/coords do not incorporate indexer's dims/coords:
@@ -296,13 +294,13 @@ def test_indexing_by_dataarray():
     # to cover more combinations of cases (e.g., discovered #1758 while making this test).
     ds_face = ds
     ds_node = ux.tutorial.open_dataset("quad-hexagon-random-node")
-    #ds_edge = ux.tutorial.open_dataset("quad-hexagon-random-edge")  # uncomment after fixing #1758
+    ds_edge = ux.tutorial.open_dataset("quad-hexagon-random-edge")
     assert "n_face" in ds_face.dims
     assert "n_node" in ds_node.dims
-    #assert "n_edge" in ds_edge.dims   # uncomment after fixing #1758
+    assert "n_edge" in ds_edge.dims
     counter = 0  # (count up during loop to make sure nothing is skipped unexpectedly)
     for method in "isel", "sel":
-        for dataset in [ds_face, ds_node]:  # include ds_edge after fixing #1758
+        for dataset in [ds_face, ds_node, ds_edge]:
             for grid_dim in ("n_face", "n_edge", "n_node"):
                 for to_array in [False, True]:
                     if grid_dim == "n_face" and "n_face" in dataset.dims:
@@ -321,7 +319,7 @@ def test_indexing_by_dataarray():
                     assert "other1dcoord" not in result2.uxgrid._ds.coords
                     assert "other1dcoord" not in result2.coords
                     assert result2.coords["scalarcoord"] == 100
-    n_data_grid_dim_combos = 2 * 3 - 1  # after fixing #1758, update to: 3 * 3 - 1.
+    n_data_grid_dim_combos = 3 * 3 - 1
     # the -1 accounts for skipping when both are "n_face" above.
     assert counter == 2 * n_data_grid_dim_combos * 2
 
@@ -436,13 +434,13 @@ def test_indexing_by_size_0_array():
     # simpler tests, but applied across isel, sel, UxDataArray, UxDataset, n_edge, n_node, and n_face:
     ds_face = ux.tutorial.open_dataset("quad-hexagon-random-face")
     ds_node = ux.tutorial.open_dataset("quad-hexagon-random-node")
-    #ds_edge = ux.tutorial.open_dataset("quad-hexagon-random-edge")  # uncomment after fixing #1758
+    ds_edge = ux.tutorial.open_dataset("quad-hexagon-random-edge")
     assert "n_face" in ds_face.dims
     assert "n_node" in ds_node.dims
-    #assert "n_edge" in ds_edge.dims   # uncomment after fixing #1758
+    assert "n_edge" in ds_edge.dims
     counter = 0  # (count up during loop to make sure nothing is skipped unexpectedly)
     for method in "isel", "sel":
-        for dataset in [ds_face, ds_node]:  # include ds_edge after fixing #1758
+        for dataset in [ds_face, ds_node, ds_edge]:
             for grid_dim in ("n_face", "n_edge", "n_node"):
                 for to_array in [False, True]:
                     counter += 1
@@ -465,6 +463,7 @@ def test_indexing_by_size_0_array():
                     assert _as_array(result).size == 0
                     assert set(result.dims) == set(obj.dims)
                     assert result.coords["scalar7"] == 7
+    assert counter == 2 * 3 * 3 * 2
 
 
 def test_indexing_does_not_edit_indexers_dict():
@@ -670,7 +669,7 @@ def test_isel_crash_if_coordinates_conflict():
     assert isinstance(indexer1, ux.UxDataArray)
     assert 'time' in indexer1.coords and 'time' not in indexer1.dims
     MATCH_ERRMSG = "dimension coordinate 'time' conflicts between indexed and indexing objects"
-    MATCH_ERRMSG_2 = "The indexer's dimension \('time'\) already exists as a scalar"
+    MATCH_ERRMSG_2 = r"The indexer's dimension \('time'\) already exists as a scalar"
     with pytest.raises(IndexError, match=MATCH_ERRMSG):
         arr.to_xarray().isel(n_face=indexer0)  # sanity check that xarray also crashes here.
     with pytest.raises(IndexError, match=MATCH_ERRMSG):

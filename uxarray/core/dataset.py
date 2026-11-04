@@ -546,6 +546,12 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
 
             _crash_if_1d_xarray_indexer_dim_in_uxarray_obj(self, grid_dim, grid_indexer)
 
+            if "n_edge" in self.dims:
+                # ensure uxgrid.face_edge_connectivity exists, otherwise uxgrid.isel()
+                # silently fails to populate _subgrid_edge_indices, causing confusing
+                # errors later (see issue #1758)
+                self.uxgrid.face_edge_connectivity
+
             sliced_grid = self.uxgrid.isel(
                 **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
             )
