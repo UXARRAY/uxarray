@@ -672,10 +672,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             Quadrature rule used to compute the face areas, one of
             ``"triangular"`` (default) or ``"gaussian"``. See
             :meth:`~uxarray.Grid.compute_face_areas` for what these mean and
-            which orders each supports. ``None`` selects the default rule.
+            which orders each supports.
         order : int, optional
-            Order of the quadrature rule. Defaults to 4. ``None`` selects the
-            default order.
+            Order of the quadrature rule. Defaults to 4.
 
         Returns
         -------
