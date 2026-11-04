@@ -9,6 +9,8 @@ on:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
+    # Otherwise only the 6h platform cap stops a runaway range build.
+    timeout-minutes: 180
     defaults:
       run:
         shell: bash -el {0}
@@ -73,6 +75,24 @@ jobs:
             cp -r uxarray-asv/results benchmarks/
           fi
 
+      # asv builds benchmarks/env from ci/environment.yml (per asv.conf.json), not
+      # ci/asv.yml. No restore-keys: asv reuses a restored env without checking it.
+      - name: Cache asv's benchmark environment
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.ASV_DIR }}/env
+          key: "asv-env-${{runner.os}}-${{runner.arch}}-${{hashFiles('ci/environment.yml', 'benchmarks/asv.conf.json')}}"
+
+      - name: Cache the benchmark fixtures
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.ASV_DIR }}/oQU*.nc
+            ${{ env.ASV_DIR }}/_io_cache
+          key: asv-fixtures-${{ runner.os }}-${{ hashFiles('benchmarks/helpers/_fixtures.py') }}
+          restore-keys: |
+            asv-fixtures-${{ runner.os }}-
+
       - name: Run benchmarks
         shell: bash -l {0}
         id: benchmark
@@ -81,7 +101,9 @@ jobs:
           python -m benchmarks.helpers._fixtures
           cd benchmarks
           asv machine --machine GH-Actions --os ubuntu-latest --arch x64 --cpu "2-core unknown" --ram 7GB
-          asv run v2024.02.0..main --skip-existing --parallel || true
+          # --skip-existing-commits, not --skip-existing: the latter still builds
+          # every commit in the range before skipping benchmarks it already has.
+          asv run main^! --skip-existing-commits --parallel || true
 
       - name: Commit and push benchmark results
         run: |
@@ -104,3 +126,28 @@ jobs:
           force: true
           repository: UXARRAY/uxarray-asv
           directory: uxarray-asv
+
+      # The PR workflow plans its shards from asv's recorded durations, and a
+      # PR's own caches are invisible to other PRs, so without this every PR's
+      # first run splits by count. Only this commit's results: _partition
+      # averages every file it finds, and the history has since-redefined
+      # benchmarks. After the push, so the pruning never reaches uxarray-asv.
+      - name: Keep only this commit's durations
+        id: durations
+        working-directory: ${{ env.ASV_DIR }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          find results -name '*.json' ! -name benchmarks.json ! -name machine.json \
+            ! -name "${sha:0:8}-*" -delete
+          # A failed run leaves nothing; don't shadow an older cache with that.
+          if compgen -G "results/*/${sha:0:8}-*.json" > /dev/null; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Same path and key prefix the PR workflow restores.
+      - name: Save recorded durations for PR runs
+        if: steps.durations.outputs.found == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.ASV_DIR }}/results
+          key: asv-results-${{ runner.os }}-${{ github.run_id }}

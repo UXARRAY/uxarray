@@ -3,12 +3,13 @@ Purpose: angle calculations on a grid
 """
 
 import numpy as np
-from numba import njit, prange
+from numba import prange
 
 from uxarray.grid.utils import _numba_norm3, _small_angle_of_2_vectors
+from uxarray.utils.parallel import parallel_njit
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _compute_face_node_angles_convex(
     node_x,
     node_y,

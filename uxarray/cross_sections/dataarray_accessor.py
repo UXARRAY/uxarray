@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from warnings import warn
-
 import numpy as np
 import xarray as xr
 
@@ -151,40 +149,3 @@ class UxDataArrayCrossSectionAccessor:
         )
 
     __doc__ = __call__.__doc__
-
-    def constant_latitude(self, *args, **kwargs):
-        warn(
-            "The ‘.cross_section.constant_latitude’ method is deprecated and will be removed in a future release; "
-            "please use the `.subset.constant_latitude` accessor instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        return self.uxda.subset.constant_latitude(*args, **kwargs)
-
-    def constant_longitude(self, *args, **kwargs):
-        warn(
-            "The ‘.cross_section.constant_longitude’ method is deprecated and will be removed in a future release; "
-            "please use the `.subset.constant_longitude` accessor instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.uxda.subset.constant_longitude(*args, **kwargs)
-
-    def constant_latitude_interval(self, *args, **kwargs):
-        warn(
-            "The ‘.cross_section.constant_latitude_interval’ method is deprecated and will be removed in a future release; "
-            "please use the `.subset.constant_latitude_interval` accessor instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.uxda.subset.constant_latitude_interval(*args, **kwargs)
-
-    def constant_longitude_interval(self, *args, **kwargs):
-        warn(
-            "The ‘.cross_section.constant_longitude_interval’ method is deprecated and will be removed in a future release; "
-            "please use the `.subset.constant_longitude_interval` accessor instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.uxda.subset.constant_longitude_interval(*args, **kwargs)

@@ -7,6 +7,7 @@ from uxarray.utils.numba_math import (
     _numba_dot3,
     _numba_mul3_scalar,
 )
+from uxarray.utils.parallel import parallel_njit
 
 
 @njit(cache=True)
@@ -206,7 +207,7 @@ def _edge_passes_through_pole(node1, node2):
     )
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _get_all_face_area_from_coords(
     x,
     y,
