@@ -86,9 +86,9 @@ def test_gca_gca_row_count(gca_gca_rows):
 @pytest.mark.parametrize("idx", range(31))
 def test_gca_gca_intersection_baseline(gca_gca_rows, idx):
     pair_id, a0, a1, b0, b1, baseline = gca_gca_rows[idx]
-    result = gca_gca_intersection(np.stack([a0, a1]), np.stack([b0, b1]))
-    assert result.shape[0] >= 1, f"pair_id={pair_id}: expected intersection, got none"
-    err = float(np.linalg.norm(result[0] - baseline))
+    result = gca_gca_intersection((a0, a1), (b0, b1))
+    assert np.isfinite(result[0][0]), f"pair_id={pair_id}: expected intersection, got none"
+    err = float(np.linalg.norm(np.array(result[0]) - baseline))
     assert err < 1e-15, f"pair_id={pair_id}: err={err:.3e} ≥ 1e-15"
 
 
@@ -129,7 +129,7 @@ def test_gca_constlat_intersection_baseline(gca_constlat_rows, idx):
     case_id, a0, a1, z0, bx, by = gca_constlat_rows[idx]
     result = gca_const_lat_intersection(np.stack([a0, a1]), z0)
     assert not np.all(np.isnan(result[0])), f"case_id={case_id}: no intersection returned"
-    dx = result[0, 0] - bx
-    dy = result[0, 1] - by
+    dx = result[0][0] - bx
+    dy = result[0][1] - by
     err = math.sqrt(dx * dx + dy * dy)
     assert err < 5e-15, f"case_id={case_id}: err_xy={err:.3e} ≥ 5e-15"

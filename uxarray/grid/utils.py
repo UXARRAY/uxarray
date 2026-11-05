@@ -2,14 +2,17 @@ import numpy as np
 import xarray as xr
 from numba import njit, prange
 
-from uxarray.constants import INT_FILL_VALUE
+from uxarray.constants import EDGE_NODE_SORT_THRESHOLD, INT_DTYPE, INT_FILL_VALUE
 from uxarray.conventions import ugrid
 from uxarray.utils.numba_math import (
     _numba_add3,
+    _numba_cross3,
+    _numba_diff_of_products3,
+    _numba_dot3,
     _numba_mul3_scalar,
     _numba_norm3,
-    _numba_sub3,
 )
+from uxarray.utils.parallel import parallel_njit
 
 
 def _drop_non_grid_coords(ds):
@@ -36,7 +39,19 @@ def _drop_non_grid_coords(ds):
 @njit(cache=True)
 def _small_angle_of_2_vectors(u, v):
     """
-    Compute the smallest angle between two vectors using the new _angle_of_2_vectors.
+    Compute the angle in [0, pi] between two vectors of arbitrary lengths.
+
+    Uses Kahan's formula
+
+        angle = 2 * atan2(| v |u| - u |v| |, | v |u| + u |v| |),
+
+    which avoids the cancellation of the arcsin/arccos forms and of the cross
+    product in atan2(|u x v|, u . v). When the vectors are nearly parallel,
+    every component of ``v |u| - u |v|`` is a difference of two nearly equal
+    products, so it is evaluated with the FMA-based ``_numba_diff_of_products3``
+    (Kahan's 2x2 determinant per component). The result is accurate to a few ulps for angles
+    down to about 1e-7 rad, for any input lengths; below that, the rounding of
+    the norms adds a second-order relative error of about (eps / angle)^2.
 
     Parameters
     ----------
@@ -48,14 +63,31 @@ def _small_angle_of_2_vectors(u, v):
     Returns
     -------
     float
-        The smallest angle between `u` and `v` in radians.
+        The angle between `u` and `v` in radians. Zero if either vector is zero.
+
+    References
+    ----------
+    Kahan, W. (2006). How Futile are Mindless Assessments of Roundoff in
+    Floating-Point Computation? https://people.eecs.berkeley.edu/~wkahan/Mindless.pdf
+
+    Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+    Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+    algorithms for regridding on the sphere. Geoscientific Model
+    Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
     """
-    u_times_v_norm = _numba_mul3_scalar(v, _numba_norm3(u))
-    v_times_u_norm = _numba_mul3_scalar(u, _numba_norm3(v))
-    vec_minus = _numba_sub3(u_times_v_norm, v_times_u_norm)
-    vec_sum = _numba_add3(u_times_v_norm, v_times_u_norm)
-    angle_u_v_rad = 2 * np.arctan2(_numba_norm3(vec_minus), _numba_norm3(vec_sum))
-    return angle_u_v_rad
+    nu = _numba_norm3(u)
+    nv = _numba_norm3(v)
+
+    # v|u| - u|v| as a compensated difference of products: m_hi alone is the
+    # naive rounded difference, adding m_lo applies the products' rounding errors.
+    m_hi, m_lo = _numba_diff_of_products3(v, nu, u, nv)
+    m = _numba_add3(m_hi, m_lo)
+
+    # v|u| + u|v|: its cancellation near antiparallel vectors does not affect
+    # the returned angle, so it is evaluated directly.
+    s = _numba_add3(_numba_mul3_scalar(v, nu), _numba_mul3_scalar(u, nv))
+
+    return 2.0 * np.arctan2(_numba_norm3(m), _numba_norm3(s))
 
 
 @njit(cache=True)
@@ -68,9 +100,9 @@ def _angle_of_2_vectors(u, v):
 
     Parameters
     ----------
-    u : numpy.ndarray
+    u : iterable of length 3
         The first 3D vector (float), originating from the center of the unit sphere.
-    v : numpy.ndarray
+    v : iterable of length 3
         The second 3D vector (float), originating from the center of the unit sphere.
 
     Returns
@@ -84,13 +116,14 @@ def _angle_of_2_vectors(u, v):
     - Special cases such as vectors aligned along the same longitude are handled explicitly.
     """
     # Compute the cross product to determine the direction of the normal
-    normal = np.cross(u, v)
+    normal = _numba_cross3(u, v)
 
     # Calculate the angle using arctangent of cross and dot products
-    angle_u_v_rad = np.arctan2(np.linalg.norm(normal), np.dot(u, v))
+    angle_u_v_rad = np.arctan2(_numba_norm3(normal), _numba_dot3(u, v))
 
     # Determine the direction of the angle
-    normal_z = np.dot(normal, np.array([0.0, 0.0, 1.0]))
+    normal_z = normal[2]
+
     if normal_z > 0:
         # Counterclockwise direction
         return angle_u_v_rad
@@ -288,7 +321,7 @@ def _get_cartesian_face_edge_nodes_array(
     return face_edges_cartesian.reshape(n_face, n_max_face_edges, 2, 3)
 
 
-@njit(cache=True, parallel=True)
+@parallel_njit
 def _get_cartesian_face_edge_nodes_array_subset(
     face_indices,
     face_node_connectivity,
@@ -521,7 +554,263 @@ def make_setter(key: str):
 
     def setter(self, value):
         if not isinstance(value, xr.DataArray):
-            raise TypeError(f"{key} must be an xr.DataArray")
+            raise TypeError(
+                f"Expected xr.DataArray value when setting Grid.{key}=value; "
+                f"got type(value)={type(value)}."
+            )
         self._ds[key] = value
 
     return setter
+
+
+# The following adaptive sorting algorithm is implemented for the sole purpose of
+# sorting edge_node connectivity quickly. Other usages are not recommended.
+#
+# ---------------------------------------------------------------------------------
+#
+# Bucket sorting and searching for the counting sorts in ``uxarray.grid.connectivity``, which
+# bucket half edges or edges on one of their two nodes and then order each bucket by the other.
+# Nothing below knows about meshes: a bucket is a contiguous ``[bucket_start, bucket_end)`` slice
+# of a key array, carrying an equally long ``payload`` array that every reordering moves in step
+# so the two stay aligned.
+#
+# ``_sort_bucket`` orders one bucket and is the entry point for the sorts; the kernels beneath it
+# are chosen by bucket size and are exposed only for testing. ``_build_pair_index`` runs the whole
+# count/scatter/sort sequence for a caller starting from an ``(n, 2)`` array, and
+# ``_search_bucket`` is the lookup that index is built for.
+#
+# NOTE: these are inlined into ``cache=True`` kernels in another module, and numba stamps its
+# cache against the defining file alone, so editing them does not invalidate a caller's cached
+# object. Clear ``uxarray/grid/__pycache__/*.nbi *.nbc`` after changing anything here.
+
+
+@njit(cache=True)
+def _sort_bucket(end_node, payload, bucket_start, size):
+    """Orders one bucket by ``end_node``, picking the sort that suits its size."""
+    if size > 2 * EDGE_NODE_SORT_THRESHOLD:
+        # Large enough that a bad ordering would be worth catching, which only a
+        # collapsed pole or a similarly degenerate node reaches
+        _adaptive_sort_bucket(end_node, payload, bucket_start, size)
+    elif size > 1:
+        _insertion_sort_bucket(end_node, payload, bucket_start, size)
+
+
+@njit(cache=True)
+def _sift_down(end_node, payload, bucket_start, root, size):
+    """Restores the max-heap property at ``root`` for a bucket keyed on ``end_node``."""
+    while True:
+        child = 2 * root + 1
+        if child >= size:
+            break
+
+        if (
+            child + 1 < size
+            and end_node[bucket_start + child] < end_node[bucket_start + child + 1]
+        ):
+            child += 1
+
+        if end_node[bucket_start + root] >= end_node[bucket_start + child]:
+            break
+
+        end_node[bucket_start + root], end_node[bucket_start + child] = (
+            end_node[bucket_start + child],
+            end_node[bucket_start + root],
+        )
+        payload[bucket_start + root], payload[bucket_start + child] = (
+            payload[bucket_start + child],
+            payload[bucket_start + root],
+        )
+        root = child
+
+
+@njit(cache=True)
+def _heap_sort_bucket(end_node, payload, bucket_start, size):
+    """Sorts a bucket by ``end_node`` in place, in ``O(size * log(size))`` and without
+    scratch space, for the rare bucket an insertion sort cannot finish cheaply."""
+    for root in range(size // 2 - 1, -1, -1):
+        _sift_down(end_node, payload, bucket_start, root, size)
+
+    for end in range(size - 1, 0, -1):
+        end_node[bucket_start], end_node[bucket_start + end] = (
+            end_node[bucket_start + end],
+            end_node[bucket_start],
+        )
+        payload[bucket_start], payload[bucket_start + end] = (
+            payload[bucket_start + end],
+            payload[bucket_start],
+        )
+        _sift_down(end_node, payload, bucket_start, 0, end)
+
+
+@njit(cache=True)
+def _insertion_sort_bucket(end_node, payload, bucket_start, size):
+    """Sorts a bucket by ``end_node`` in place, in ``O(size + inversions)``."""
+    for i in range(bucket_start + 1, bucket_start + size):
+        key = end_node[i]
+        key_payload = payload[i]
+
+        j = i - 1
+        while j >= bucket_start and end_node[j] > key:
+            end_node[j + 1] = end_node[j]
+            payload[j + 1] = payload[j]
+            j -= 1
+        end_node[j + 1] = key
+        payload[j + 1] = key_payload
+
+
+@njit(cache=True)
+def _adaptive_sort_bucket(end_node, payload, bucket_start, size):
+    """Sorts a large bucket by ``end_node`` in place, insertion sorting it unless it turns out
+    to be badly ordered, in which case the partial work is abandoned for a heap sort.
+
+    This is ``_insertion_sort_bucket``'s loop with a shift meter around it. The duplication is
+    deliberate: metering every bucket instead of only the large ones measured ~5% slower
+    end-to-end, because typical buckets hold a handful of edges and the per-element bookkeeping
+    is a real fraction of that work. Keep the two in sync rather than merging them.
+    """
+    budget = EDGE_NODE_SORT_THRESHOLD * size
+    shifts = 0
+
+    for i in range(bucket_start + 1, bucket_start + size):
+        key = end_node[i]
+        key_payload = payload[i]
+
+        j = i - 1
+        while j >= bucket_start and end_node[j] > key:
+            end_node[j + 1] = end_node[j]
+            payload[j + 1] = payload[j]
+            j -= 1
+        end_node[j + 1] = key
+        payload[j + 1] = key_payload
+
+        shifts += i - 1 - j
+        if shifts > budget:
+            _heap_sort_bucket(end_node, payload, bucket_start, size)
+            return
+
+
+@njit(cache=True)
+def _count_unique_in_bucket(end_node, bucket_start, bucket_end):
+    """Number of distinct keys in an already sorted bucket, where equal keys are adjacent."""
+    n_unique = 0
+    previous_end_node = INT_FILL_VALUE
+
+    for i in range(bucket_start, bucket_end):
+        if end_node[i] != previous_end_node:
+            n_unique += 1
+            previous_end_node = end_node[i]
+
+    return n_unique
+
+
+@njit(cache=True)
+def _is_lexicographically_sorted(pairs):
+    """Whether every row of an ``(n, 2)`` array is ascending and the rows are themselves in
+    nondecreasing lexicographic order."""
+    previous_low = INT_FILL_VALUE
+    previous_high = INT_FILL_VALUE
+
+    for i in range(pairs.shape[0]):
+        low = pairs[i, 0]
+        high = pairs[i, 1]
+
+        if low > high:
+            return False
+        if low < previous_low or (low == previous_low and high < previous_high):
+            return False
+
+        previous_low = low
+        previous_high = high
+
+    return True
+
+
+@njit(cache=True)
+def _count_pairs_per_bucket(pairs, n_bucket):
+    """Bucket offsets keyed on each row's lower value: bucket ``a`` will occupy
+    ``[bucket_offset[a], bucket_offset[a + 1])``."""
+    bucket_offset = np.zeros(n_bucket + 1, dtype=INT_DTYPE)
+
+    for i in range(pairs.shape[0]):
+        bucket_offset[min(pairs[i, 0], pairs[i, 1]) + 1] += 1
+
+    for a in range(n_bucket):
+        bucket_offset[a + 1] += bucket_offset[a]
+
+    return bucket_offset
+
+
+@njit(cache=True)
+def _build_pair_index(pairs, n_bucket):
+    """Indexes an ``(n, 2)`` array of integer pairs so a pair can be looked up by value.
+
+    Each row is bucketed on its lower value and each bucket ordered by its higher value, which is
+    what lets :func:`_search_bucket` find a row with a single binary search. Rows that are already
+    canonically ordered are indexed without being sorted again.
+
+    Returns ``(bucket_offset, high, row)``: bucket ``a`` occupies
+    ``[bucket_offset[a], bucket_offset[a + 1])``, ``high`` holds each entry's higher value, and
+    ``row`` the index of ``pairs`` it came from. ``high`` is a copy rather than a column view, both
+    to keep the search off a strided array and so that either path below returns the same arrays.
+    """
+    bucket_offset = _count_pairs_per_bucket(pairs, n_bucket)
+
+    n_pair = pairs.shape[0]
+    high = np.empty(n_pair, dtype=INT_DTYPE)
+    row = np.empty(n_pair, dtype=INT_DTYPE)
+
+    if _is_lexicographically_sorted(pairs):
+        # Already grouped by lower value, ascending within each group, so the buckets are the
+        # runs the counting pass just measured and no sorting is needed
+        for i in range(n_pair):
+            high[i] = pairs[i, 1]
+            row[i] = i
+        return bucket_offset, high, row
+
+    for i in range(n_pair):
+        pair_low = pairs[i, 0]
+        pair_high = pairs[i, 1]
+        if pair_low > pair_high:
+            pair_low, pair_high = pair_high, pair_low
+
+        slot = bucket_offset[pair_low]
+        high[slot] = pair_high
+        row[slot] = i
+        bucket_offset[pair_low] = slot + 1
+
+    # The scatter left each entry at its bucket's end, one slot right of where the convention
+    # above wants it. One backward pass puts it back.
+    for a in range(n_bucket, 0, -1):
+        bucket_offset[a] = bucket_offset[a - 1]
+    bucket_offset[0] = 0
+
+    for a in range(n_bucket):
+        bucket_start = bucket_offset[a]
+        _sort_bucket(high, row, bucket_start, bucket_offset[a + 1] - bucket_start)
+
+    return bucket_offset, high, row
+
+
+@njit(cache=True)
+def _search_bucket(high, row, bucket_start, bucket_end, key):
+    """The ``row`` entry whose key is ``key`` within a sorted bucket, or ``INT_FILL_VALUE``
+    when the bucket does not hold it."""
+    low = bucket_start
+    stop = bucket_end
+
+    while low < stop:
+        mid = (low + stop) // 2
+        if high[mid] < key:
+            low = mid + 1
+        else:
+            stop = mid
+
+    if low < bucket_end and high[low] == key:
+        return row[low]
+    return INT_FILL_VALUE
+
+
+#
+# End edge_node connectivity sorting routines
+#
+# ------------------------------------------------------------------------------------------

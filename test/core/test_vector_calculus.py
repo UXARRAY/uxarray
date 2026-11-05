@@ -2,6 +2,8 @@ import numpy as np
 import pytest
 
 import uxarray as ux
+from uxarray.conventions.attrs import _VALUE_DESCRIBING_ATTRS
+import xarray as xr
 import numpy.testing as nt
 
 
@@ -13,27 +15,116 @@ class TestGradientQuadHex:
     def test_gradient_output_format(self, gridpath, datasetpath):
         """Tests the output format of gradient functionality"""
         uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
+        uxarr = uxds['t2m']
 
-        grad_ds = uxds['t2m'].gradient()
+        grad = uxarr.gradient()
+        VARS = ["zonal_gradient", "meridional_gradient"]
 
-        assert isinstance(grad_ds, ux.UxDataset)
-        assert "zonal_gradient" in grad_ds
-        assert "meridional_gradient" in grad_ds
-        assert "gradient" in grad_ds.attrs
-        assert uxds['t2m'].sizes == grad_ds.sizes
+        assert isinstance(grad, ux.UxDataset)
+        assert VARS[0] in grad
+        assert VARS[1] in grad
+        assert grad.attrs["derivative"] == "gradient"
+        assert uxds["t2m"].sizes == grad.sizes
+        assert grad["zonal_gradient"].attrs["long_name"] == "Zonal gradient of t2m"
+        assert grad["meridional_gradient"].attrs["long_name"] == "Meridional gradient of t2m"
+        assert grad["zonal_gradient"].attrs["description"].startswith("Zonal component")
+        assert grad["meridional_gradient"].attrs["description"].startswith("Meridional component")
+
+        # units attr checks:
+        assert uxarr.attrs["units"] == "K"
+        assert grad[VARS[0]].attrs["units"] == "K/m"
+        assert grad[VARS[1]].attrs["units"] == "K/m"
+        grad_no_scaling = uxarr.gradient(scale_by_radius=False)
+        assert grad_no_scaling[VARS[0]].attrs["units"] == "K/rad"
+        assert grad_no_scaling[VARS[1]].attrs["units"] == "K/rad"
+        uxarr_no_units = uxarr.copy()
+        uxarr_no_units.attrs.pop("units")
+        grad_no_units_yes_scaling = uxarr_no_units.gradient()
+        assert grad_no_units_yes_scaling[VARS[0]].attrs["units"] == "1/m"
+        assert grad_no_units_yes_scaling[VARS[1]].attrs["units"] == "1/m"
+        grad_no_units_no_scaling = uxarr_no_units.gradient(scale_by_radius=False)
+        assert grad_no_units_no_scaling[VARS[0]].attrs["units"] == "1/rad"
+        assert grad_no_units_no_scaling[VARS[1]].attrs["units"] == "1/rad"
+        uxarr_ratio_units = uxarr.assign_attrs({"units": "K/s"})
+        grad_ratio_units = uxarr_ratio_units.gradient()
+        assert grad_ratio_units[VARS[0]].attrs["units"] == "(K/s)/m"
+        assert grad_ratio_units[VARS[1]].attrs["units"] == "(K/s)/m"
+        # blank units input should become 1/m or 1/rad, not "/m" or "/rad"
+        for blank in ["", " ", "  \t ", "\n"]:
+            uxarr_blank_units = uxarr.assign_attrs({"units": blank})
+            grad_blank_units = uxarr_blank_units.gradient()
+            assert grad_blank_units[VARS[0]].attrs["units"] == "1/m"
+            assert grad_blank_units[VARS[1]].attrs["units"] == "1/m"
+            grad_blank_units_no_scaling = uxarr_blank_units.gradient(scale_by_radius=False)
+            assert grad_blank_units_no_scaling[VARS[0]].attrs["units"] == "1/rad"
+            assert grad_blank_units_no_scaling[VARS[1]].attrs["units"] == "1/rad"
+        # units of None, False, or 0 should become None/m, False/m, or 0/m, not 1/m.
+        # (similarly for rad, but just spot-checking m for brevity.)
+        for zero in [None, False, 0]:
+            uxarr_zero_units = uxarr.assign_attrs({"units": zero})
+            grad_zero_units = uxarr_zero_units.gradient()
+            assert grad_zero_units[VARS[0]].attrs["units"] == f"{zero}/m"
+            assert grad_zero_units[VARS[1]].attrs["units"] == f"{zero}/m"
+
+        # other attrs checks - spot check for handling None names:
+        # use "unnamed_array" in long_name. (data_vars array names always come from
+        # keys (e.g. "zonal_gradient") regardless of the input array's name.)
+        uxarr_noname = uxarr.rename(None)
+        grad_noname = uxarr_noname.gradient()
+        assert grad_noname["zonal_gradient"].name == "zonal_gradient"
+        assert grad_noname["meridional_gradient"].name == "meridional_gradient"
+        assert grad_noname["zonal_gradient"].attrs["long_name"] == "Zonal gradient of unnamed_array"
+        assert grad_noname["meridional_gradient"].attrs["long_name"] == "Meridional gradient of unnamed_array"
+
+        # other attrs checks - spot check that value-describing attrs get removed:
+        uxarr_with_more_attrs = uxarr.copy()
+        uxarr_with_more_attrs.attrs["missing_value"] = -1e7
+        uxarr_with_more_attrs.attrs["non-value-describing-attr"] = "wow what a cool attr"
+        grad_with_more_attrs = uxarr_with_more_attrs.gradient()
+        assert "missing_value" not in grad_with_more_attrs[VARS[0]].attrs
+        assert "missing_value" not in grad_with_more_attrs[VARS[1]].attrs
+        assert "non-value-describing-attr" in grad_with_more_attrs[VARS[0]].attrs
+        assert "non-value-describing-attr" in grad_with_more_attrs[VARS[1]].attrs
+
+        # more comprehensive check that value-describing attrs get removed:
+        for attr in _VALUE_DESCRIBING_ATTRS:
+            uxarr_with_more_attrs.attrs[attr] = "test"
+        grad_with_more_attrs = uxarr_with_more_attrs.gradient()
+        for attr in _VALUE_DESCRIBING_ATTRS:
+            if attr in ("long_name", "units", "description"):
+                continue  # gradient defines these; see above!
+            assert attr not in grad_with_more_attrs[VARS[0]].attrs
+            assert attr not in grad_with_more_attrs[VARS[1]].attrs
+
 
     def test_gradient_all_boundary_faces(self, gridpath, datasetpath):
         """Quad hexagon grid has 4 faces, all touching the boundary.
 
-        Each face still has some interior edges, so the gradient should
-        produce finite (small) values rather than NaN.
+        Green-Gauss needs a closed contour to divide by the area it
+        encloses. Every face here sits on the mesh boundary, so no closed
+        contour exists and NaN is the honest answer rather than a value
+        normalized by an area that was never integrated over.
         """
         uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
         grad = uxds['t2m'].gradient()
 
-        assert not np.isnan(grad['meridional_gradient']).any()
-        assert not np.isnan(grad['zonal_gradient']).any()
+        assert np.isnan(grad['meridional_gradient']).all()
+        assert np.isnan(grad['zonal_gradient']).all()
+
+    def test_gradient_partial_boundary_still_finite(self, gridpath):
+        """Interior faces of a SCRIP-derived grid keep finite gradients.
+
+        Regression guard for #1452: the boundary handling must not go back
+        to NaN-ing an entire grid.
+        """
+        uxgrid = ux.open_grid(gridpath("scrip", "ne30pg2", "grid.nc"))
+        lat = np.deg2rad(uxgrid.face_lat.values)
+        phi = ux.UxDataArray(np.sin(lat), dims=["n_face"], uxgrid=uxgrid, name="phi")
+
+        grad = phi.gradient(scale_by_radius=False)
+
+        assert np.isfinite(grad["meridional_gradient"].values).mean() > 0.95
 
 
 class TestGradientMPASOcean:
@@ -169,6 +260,62 @@ class TestGradientDyamondSubset:
         assert grad_scaled["zonal_gradient"].attrs["units"].endswith("/m")
         assert grad_unit["zonal_gradient"].attrs["units"].endswith("/rad")
 
+    def test_gradient_invariant_to_coordinate_scale(self, gridpath):
+        """The gradient must not depend on the units of face_x/face_y/face_z.
+
+        This grid is the one test mesh whose Cartesian face coordinates are
+        stored in meters (norm 6.37e6) rather than as unit vectors, so it is
+        what distinguishes a dual-cell area that normalizes its inputs from one
+        that does not. Skipping the normalization inflates the area by the
+        radius squared (~4e13) and collapses the gradient to ~0 instead of
+        raising anything.
+
+        d/dlat of sin(lat) is cos(lat), so the meridional component divided by
+        cos(lat) should be 1.
+        """
+        uxgrid = ux.open_grid(gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"))
+        lat = np.deg2rad(uxgrid.face_lat.values)
+        phi = ux.UxDataArray(np.sin(lat), dims=["n_face"], uxgrid=uxgrid, name="phi")
+
+        grad = phi.gradient(scale_by_radius=False)
+        mg = grad["meridional_gradient"].values
+
+        finite = np.isfinite(mg)
+        assert finite.any()
+
+        ratio = mg[finite] / np.cos(lat[finite])
+        assert np.abs(np.median(ratio) - 1.0) < 0.01
+
+
+class TestGradientDualCellArea:
+    """The dual cell is frequently non-convex, so its area has to be measured
+    with a signed fan sum."""
+
+    @pytest.mark.parametrize("zoom,tol", [(4, 0.02), (5, 0.01), (6, 0.006)])
+    def test_gradient_worst_case_error_converges(self, zoom, tol):
+        """Bound the worst face, not just the median.
+
+        A HealPix dual cell alternates near edge-neighbor centroids with far
+        corner-neighbor centroids, so a fan from vertex 0 sweeps some triangles
+        backwards. Summing their spherical excess unsigned double-counts those
+        and leaves a ~19% error on the worst face that does not shrink with
+        resolution; only the median looks healthy. Guard the tail so that a
+        regression to an unsigned sum fails here.
+        """
+        uxgrid = ux.Grid.from_healpix(zoom)
+        lat = np.deg2rad(uxgrid.face_lat.values)
+        phi = ux.UxDataArray(np.sin(lat), dims=["n_face"], uxgrid=uxgrid, name="phi")
+
+        mg = phi.gradient(scale_by_radius=False)["meridional_gradient"].values
+
+        # d/dlat of sin(lat) is cos(lat); stay off the poles where the
+        # projection is ill-conditioned.
+        ok = np.isfinite(mg) & (np.abs(lat) < np.deg2rad(60))
+        assert ok.any()
+
+        error = np.abs(mg[ok] / np.cos(lat[ok]) - 1.0)
+        assert error.max() < tol
+
 
 class TestDivergenceQuadHex:
 
@@ -177,15 +324,69 @@ class TestDivergenceQuadHex:
         uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
         # Create two components for vector field (using same data for simplicity in test)
+        # (Flipped sign of second array's data as requested by reviewers in PR 1823. But,
+        # to be clear, the array's values should not affect this test's results in any way.)
         u_component = uxds['t2m']
-        v_component = uxds['t2m']
+        v_component = -uxds['t2m'].rename("vname")
+        # (used .rename() to check below the result name/attrs when input names differ)
 
         div_da = u_component.divergence(v_component)
 
         assert isinstance(div_da, ux.UxDataArray)
         assert div_da.name == "divergence"
-        assert "divergence" in div_da.attrs
+        assert div_da.attrs["derivative"] == "divergence"
+        assert div_da.attrs["long_name"] == "Divergence of (t2m, vname)"
+        assert div_da.attrs["description"].startswith("Divergence of vector field")
         assert u_component.sizes == div_da.sizes
+
+        # units attr checks:
+        assert u_component.attrs["units"] == "K"
+        assert div_da.attrs["units"] == "K/m"
+        div_da_no_scaling = u_component.divergence(v_component, scale_by_radius=False)
+        assert div_da_no_scaling.attrs["units"] == "K/rad"
+        u_no_units = u_component.copy()
+        u_no_units.attrs.pop("units")
+        div_da_no_units_yes_scaling = u_no_units.divergence(v_component)
+        assert div_da_no_units_yes_scaling.attrs["units"] == "1/m"
+        div_da_no_units_no_scaling = u_no_units.divergence(v_component, scale_by_radius=False)
+        assert div_da_no_units_no_scaling.attrs["units"] == "1/rad"
+        u_ratio_units = u_component.assign_attrs({"units": "K/s"})
+        div_da_ratio_units = u_ratio_units.divergence(v_component)
+        assert div_da_ratio_units.attrs["units"] == "(K/s)/m"
+        # blank units input should become 1/m or 1/rad, not "/m" or "/rad"
+        for blank in ["", " ", "  \t ", "\n"]:
+            u_blank_units = u_component.assign_attrs({"units": blank})
+            div_da_blank_units = u_blank_units.divergence(v_component)
+            assert div_da_blank_units.attrs["units"] == "1/m"
+            div_da_blank_units_no_scaling = u_blank_units.divergence(v_component, scale_by_radius=False)
+            assert div_da_blank_units_no_scaling.attrs["units"] == "1/rad"
+        # units of None, False, or 0 should become None/m, False/m, or 0/m, not 1/m.
+        # (similarly for rad, but just spot-checking m for brevity.)
+        for zero in [None, False, 0]:
+            u_zero_units = u_component.assign_attrs({"units": zero})
+            div_da_zero_units = u_zero_units.divergence(v_component)
+            assert div_da_zero_units.attrs["units"] == f"{zero}/m"
+
+        # other attrs checks - spot check for handling None names:
+        # use "unnamed_array" in long_name; keep name as "divergence"
+        u_noname = u_component.rename(None)
+        v_noname = v_component.rename(None)
+        div_da_noname = u_noname.divergence(v_noname)
+        assert div_da_noname.name == "divergence"
+        assert div_da_noname.attrs["long_name"] == "Divergence of (unnamed_array, unnamed_array)"
+
+        # other attrs checks - spot check that value-describing attrs get removed
+        # (gradient output format test has more comprehensive checks):
+        u_with_more_attrs = u_component.copy()
+        u_with_more_attrs.attrs["valid_max"] = 0.0
+        u_with_more_attrs.attrs["some_other_attr"] = 100.0
+        v_with_more_attrs = v_component.copy()
+        v_with_more_attrs.attrs["add_offset"] = 7.0
+        div_with_more_attrs = u_with_more_attrs.divergence(v_with_more_attrs)
+        assert "valid_max" not in div_with_more_attrs.attrs
+        assert "add_offset" not in div_with_more_attrs.attrs
+        assert "some_other_attr" in div_with_more_attrs.attrs
+
 
     def test_divergence_input_validation(self, gridpath, datasetpath):
         """Tests input validation for divergence method"""
@@ -194,7 +395,7 @@ class TestDivergenceQuadHex:
         u_component = uxds['t2m']
 
         # Test with non-UxDataArray
-        with pytest.raises(TypeError, match="other must be a UxDataArray"):
+        with pytest.raises(TypeError, match=r"u.divergence\(v\) expected UxDataArray v; got type\(v\)="):
             u_component.divergence(np.array([1, 2, 3]))
 
         # Test with different grids (create a simple test case)
@@ -221,6 +422,59 @@ class TestDivergenceMPASOcean:
         assert np.isfinite(div_field.values).any()
 
 
+class TestScalarDotGradientQuadHex:
+
+    def test_scalardotgradient_output_format(self):
+        """test the output format of scalardotgradient functionality"""
+        uxds = ux.tutorial.open_dataset("quad-hexagon")
+
+        # Create two components for vector field, and one scalar field
+        # (using similar data for all cases for simplicity in test).
+        u = uxds['t2m']
+        v = -uxds['t2m'].rename("vname")
+        q = 7 * uxds['t2m'].rename("qname")
+
+        result = u.scalardotgradient(v, q)
+        assert isinstance(result, ux.UxDataArray)
+        assert result.name == "scalardotgradient"
+        assert result.attrs["derivative"] == "scalardotgradient"
+        assert result.attrs["long_name"] == "Scalar dot gradient: (t2m, vname) dot grad(qname)"
+        assert result.attrs["description"].startswith("Dot product of vector field (u, v) with")
+        assert u.sizes == result.sizes
+
+        # result should not have units attr currently;
+        # replace this with assertions about expected units, if implemented.
+        assert "units" not in result.attrs
+
+        # other attrs checks - spot check for handling None names:
+        # use "unnamed_array" in long_name; keep name as "scalardotgradient"
+        u_noname = u.rename(None)
+        v_noname = v.rename(None)
+        q_noname = q.rename(None)
+        result_noname = u_noname.scalardotgradient(v_noname, q_noname)
+        assert result_noname.name == "scalardotgradient"
+        assert result_noname.attrs["long_name"] == "Scalar dot gradient: (unnamed_array, unnamed_array) dot grad(unnamed_array)"
+
+        # other attrs checks - spot check that value-describing attrs get removed
+        # (gradient output format test has more comprehensive checks):
+        u_with_more_attrs = u.copy()
+        u_with_more_attrs.attrs["valid_range"] = (0.0, 10.0)
+        u_with_more_attrs.attrs["some_other_attr"] = 100.0
+        v_with_more_attrs = v.copy()
+        v_with_more_attrs.attrs["cell_methods"] = "unknown"
+        v_with_more_attrs.attrs["another_attr"] = 200.0
+        q_with_more_attrs = q.copy()
+        q_with_more_attrs.attrs["flag_values"] = [0, 1]
+        q_with_more_attrs.attrs["yet_another_attr"] = 300.0
+        result_with_more_attrs = u_with_more_attrs.scalardotgradient(v_with_more_attrs, q_with_more_attrs)
+        assert "valid_range" not in result_with_more_attrs.attrs
+        assert "some_other_attr" in result_with_more_attrs.attrs
+        assert "cell_methods" not in result_with_more_attrs.attrs
+        assert "another_attr" in result_with_more_attrs.attrs
+        assert "flag_values" not in result_with_more_attrs.attrs
+        assert "yet_another_attr" in result_with_more_attrs.attrs
+
+
 class TestScalarDotGradientMPASOcean:
 
     def test_scalardotgradient_uses_known_gradient_components(
@@ -244,20 +498,16 @@ class TestScalarDotGradientMPASOcean:
             np.full(n_face, -0.5), dims=dims, uxgrid=uxds.uxgrid, name="v"
         )
 
-        def mock_gradient(self):
-            return ux.UxDataset(
-                {
-                    "zonal_gradient": ux.UxDataArray(
-                        np.full(n_face, 3.0), dims=dims, uxgrid=self.uxgrid
-                    ),
-                    "meridional_gradient": ux.UxDataArray(
-                        np.full(n_face, -4.0), dims=dims, uxgrid=self.uxgrid
-                    ),
-                },
-                uxgrid=self.uxgrid,
+        def mock_compute_gradient(data, scale_by_radius=True, **kw_apply_ufunc):
+            zonal_gradient = ux.UxDataArray(
+                np.full(n_face, 3.0), dims=dims, uxgrid=data.uxgrid
             )
+            meridional_gradient = ux.UxDataArray(
+                np.full(n_face, -4.0), dims=dims, uxgrid=data.uxgrid
+            )
+            return zonal_gradient, meridional_gradient
 
-        monkeypatch.setattr(ux.UxDataArray, "gradient", mock_gradient)
+        monkeypatch.setattr(ux.core.dataarray, "_compute_gradient", mock_compute_gradient)
 
         result = u_component.scalardotgradient(v_component, scalar)
 
@@ -265,8 +515,8 @@ class TestScalarDotGradientMPASOcean:
         nt.assert_allclose(result.values, expected, rtol=0.0, atol=0.0)
 
         assert isinstance(result, ux.UxDataArray)
-        assert result.name == "scalar_dot_gradient"
-        assert result.attrs["long_name"] == "scalar dot gradient"
+        assert result.name == "scalardotgradient"
+        assert result.attrs["long_name"] == "Scalar dot gradient: (u, v) dot grad(scalar)"
         assert result.sizes == u_component.sizes
 
     def test_scalardotgradient_rejects_misaligned_indexes(self, gridpath, datasetpath):
@@ -297,7 +547,12 @@ class TestScalarDotGradientMPASOcean:
 class TestDivergenceDyamondSubset:
 
     def test_divergence_constant_field(self, gridpath, datasetpath):
-        """Test divergence of constant vector field (should be zero)"""
+        """Divergence of a constant vector field reduces to the metric term.
+
+        On a plane this would be zero, but on the sphere the divergence
+        carries -v*tan(lat)/a, so a constant v = 1 leaves exactly
+        -tan(lat)/a behind.
+        """
         uxds = ux.open_dataset(
             gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
             datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
@@ -309,15 +564,16 @@ class TestDivergenceDyamondSubset:
 
         div_field = constant_u.divergence(constant_v)
 
-        # Divergence of constant field should be close to zero for interior faces
         # Boundary faces may have NaN values (which is expected)
-        finite_values = div_field.values[np.isfinite(div_field.values)]
+        finite = np.isfinite(div_field.values)
+        assert finite.any(), "No finite divergence values found"
 
-        # Check that we have some finite values (interior faces)
-        assert len(finite_values) > 0, "No finite divergence values found"
+        radius = uxds.uxgrid._ds.attrs["sphere_radius"]
+        expected = -np.tan(np.deg2rad(uxds.uxgrid.face_lat.values)) / radius
 
-        # Divergence of constant field should be close to zero for finite values
-        assert np.abs(finite_values).max() < 1e-10, f"Max divergence: {np.abs(finite_values).max()}"
+        nt.assert_allclose(
+            div_field.values[finite], expected[finite], rtol=1e-10, atol=1e-15
+        )
 
     def test_divergence_linear_field(self, gridpath, datasetpath):
         """Test divergence of linear vector field"""
@@ -437,16 +693,69 @@ class TestCurlQuadHex:
         uxds = ux.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"), datasetpath("ugrid", "quad-hexagon", "data.nc"))
 
         # Create two components for vector field (using same data for simplicity in test)
+        # (Flipped sign of second array's data as requested by reviewers in PR 1823. But,
+        # to be clear, the array's values should not affect this test's results in any way.)
         u_component = uxds['t2m']
-        v_component = uxds['t2m']
+        v_component = -uxds['t2m'].rename("vname")
+        # (used .rename() to check below the result name/attrs when input names differ)
 
         curl_da = u_component.curl(v_component)
 
         assert isinstance(curl_da, ux.UxDataArray)
-        assert curl_da.name == f"curl_{u_component.name}_{v_component.name}"
-        assert "description" in curl_da.attrs
-        assert "long_name" in curl_da.attrs
+        assert curl_da.name == "curl"
+        assert curl_da.attrs["derivative"] == "curl"
+        assert curl_da.attrs["long_name"] == "Curl of (t2m, vname)"
+        assert curl_da.attrs["description"].startswith("Curl of vector field")
         assert u_component.sizes == curl_da.sizes
+
+        # units attr checks
+        assert u_component.attrs["units"] == "K"
+        assert curl_da.attrs["units"] == "K/m"
+        curl_da_no_scaling = u_component.curl(v_component, scale_by_radius=False)
+        assert curl_da_no_scaling.attrs["units"] == "K/rad"
+        u_no_units = u_component.copy()
+        u_no_units.attrs.pop("units")
+        curl_da_no_units_yes_scaling = u_no_units.curl(v_component)
+        assert curl_da_no_units_yes_scaling.attrs["units"] == "1/m"
+        curl_da_no_units_no_scaling = u_no_units.curl(v_component, scale_by_radius=False)
+        assert curl_da_no_units_no_scaling.attrs["units"] == "1/rad"
+        u_ratio_units = u_component.assign_attrs({"units": "K/s"})
+        curl_da_ratio_units = u_ratio_units.curl(v_component)
+        assert curl_da_ratio_units.attrs["units"] == "(K/s)/m"
+        # blank units input should become 1/m or 1/rad, not "/m" or "/rad"
+        for blank in ["", " ", "  \t ", "\n"]:
+            u_blank_units = u_component.assign_attrs({"units": blank})
+            curl_da_blank_units = u_blank_units.curl(v_component)
+            assert curl_da_blank_units.attrs["units"] == "1/m"
+            curl_da_blank_units_no_scaling = u_blank_units.curl(v_component, scale_by_radius=False)
+            assert curl_da_blank_units_no_scaling.attrs["units"] == "1/rad"
+        # units of None, False, or 0 should become None/m, False/m, or 0/m, not 1/m.
+        # (similarly for rad, but just spot-checking m for brevity.)
+        for zero in [None, False, 0]:
+            u_zero_units = u_component.assign_attrs({"units": zero})
+            curl_da_zero_units = u_zero_units.curl(v_component)
+            assert curl_da_zero_units.attrs["units"] == f"{zero}/m"
+
+        # other attrs checks - spot check for handling None names:
+        # use "unnamed_array" in long_name; keep name as "curl"
+        u_noname = u_component.rename(None)
+        v_noname = v_component.rename(None)
+        curl_da_noname = u_noname.curl(v_noname)
+        assert curl_da_noname.name == "curl"
+        assert curl_da_noname.attrs["long_name"] == "Curl of (unnamed_array, unnamed_array)"
+
+        # other attrs checks - spot check that value-describing attrs get removed
+        # (gradient output format test has more comprehensive checks):
+        u_with_more_attrs = u_component.copy()
+        u_with_more_attrs.attrs["valid_min"] = 0.0
+        u_with_more_attrs.attrs["random attr"] = 100.0
+        v_with_more_attrs = v_component.copy()
+        v_with_more_attrs.attrs["standard_name"] = "standard name for v component"
+        curl_with_more_attrs = u_with_more_attrs.curl(u_with_more_attrs)
+        assert "valid_min" not in curl_with_more_attrs.attrs
+        assert "standard_name" not in curl_with_more_attrs.attrs
+        assert "random attr" in curl_with_more_attrs.attrs
+
 
     def test_curl_input_validation(self, gridpath, datasetpath):
         """Tests input validation for curl method"""
@@ -455,7 +764,7 @@ class TestCurlQuadHex:
         u_component = uxds['t2m']
 
         # Test with non-UxDataArray
-        with pytest.raises(TypeError, match="other must be a UxDataArray"):
+        with pytest.raises(TypeError, match=r"u.curl\(v\) expected UxDataArray v; got type\(v\)="):
             u_component.curl(np.array([1, 2, 3]))
 
         # Test with different grids (create a simple test case)
@@ -485,7 +794,11 @@ class TestCurlMPASOcean:
 class TestCurlDyamondSubset:
 
     def test_curl_constant_field(self, gridpath, datasetpath):
-        """Test curl of constant vector field (should be zero)"""
+        """Curl of a constant vector field reduces to the metric term.
+
+        On a plane this would be zero, but on the sphere the curl carries
+        u*tan(lat)/a, so a constant u = 1 leaves exactly tan(lat)/a behind.
+        """
         uxds = ux.open_dataset(
             gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
             datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
@@ -497,15 +810,16 @@ class TestCurlDyamondSubset:
 
         curl_field = constant_u.curl(constant_v)
 
-        # Curl of constant field should be close to zero for interior faces
         # Boundary faces may have NaN values (which is expected)
-        finite_values = curl_field.values[np.isfinite(curl_field.values)]
+        finite = np.isfinite(curl_field.values)
+        assert finite.any(), "No finite curl values found"
 
-        # Check that we have some finite values (interior faces)
-        assert len(finite_values) > 0, "No finite curl values found"
+        radius = uxds.uxgrid._ds.attrs["sphere_radius"]
+        expected = np.tan(np.deg2rad(uxds.uxgrid.face_lat.values)) / radius
 
-        # Curl of constant field should be close to zero for finite values
-        assert np.abs(finite_values).max() < 1e-10, f"Max curl: {np.abs(finite_values).max()}"
+        nt.assert_allclose(
+            curl_field.values[finite], expected[finite], rtol=1e-10, atol=1e-15
+        )
 
     def test_curl_linear_field(self, gridpath, datasetpath):
         """Test curl of linear vector field"""
@@ -686,11 +1000,324 @@ class TestCurlDyamondSubset:
         # Check attributes
         assert "long_name" in curl_field.attrs
         assert "description" in curl_field.attrs
-        assert curl_field.attrs["description"] == "Curl of vector field computed as ∂v/∂x - ∂u/∂y"
+        assert curl_field.attrs["description"] == (
+            "Curl of vector field computed as ∂v/∂x - ∂u/∂y + u·tan(φ)/a, "
+            "with u, x zonal; v, y meridional; φ=latitude; a=sphere radius."
+        )
 
         # Check name
-        expected_name = f"curl_{u_component.name}_{v_component.name}"
-        assert curl_field.name == expected_name
+        assert curl_field.name == "curl"
 
         # Check that grid is preserved
         assert curl_field.uxgrid == u_component.uxgrid
+
+
+class TestSphericalManufacturedSolutions:
+    """Amplitude checks against closed-form answers on the unit sphere.
+
+    The existing suite leans on null tests (constant fields, curl of a
+    gradient) and on sign/ordering comparisons. Those stay satisfied when an
+    operator is off by a constant factor, which is how the dual/primal area
+    mismatch and the missing metric terms survived. Each test below has a
+    non-zero exact answer, so a scale error fails immediately.
+    """
+
+    # Away from the poles, where tan(lat) blows up and the finite-volume
+    # stencil degrades.
+    MIDLAT = np.deg2rad(60)
+
+    @staticmethod
+    def _grids():
+        yield "healpix_z5_quad", ux.Grid.from_healpix(zoom=5)
+
+    def test_gradient_amplitude(self):
+        """grad of sin(lat) has meridional component cos(lat), zonal zero."""
+        for label, uxgrid in self._grids():
+            lat = np.deg2rad(uxgrid.face_lat.values)
+            interior = np.abs(lat) < self.MIDLAT
+
+            phi = ux.UxDataArray(
+                np.sin(lat), dims=["n_face"], uxgrid=uxgrid, name="phi"
+            )
+            grad = phi.gradient(scale_by_radius=False)
+
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio = grad["meridional_gradient"].values / np.cos(lat)
+            sel = interior & np.isfinite(ratio)
+            assert np.abs(np.median(ratio[sel]) - 1.0) < 0.01, label
+
+    def test_curl_solid_body_rotation(self):
+        """u = cos(lat), v = 0 has relative vorticity 2*sin(lat)."""
+        for label, uxgrid in self._grids():
+            lat = np.deg2rad(uxgrid.face_lat.values)
+            interior = np.abs(lat) < self.MIDLAT
+
+            u = ux.UxDataArray(
+                np.cos(lat), dims=["n_face"], uxgrid=uxgrid, name="u"
+            )
+            v = ux.UxDataArray(
+                np.zeros_like(lat), dims=["n_face"], uxgrid=uxgrid, name="v"
+            )
+
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio = u.curl(v, scale_by_radius=False).values / (
+                    2 * np.sin(lat)
+                )
+            sel = interior & np.isfinite(ratio)
+            assert np.abs(np.median(ratio[sel]) - 1.0) < 0.01, label
+
+    def test_divergence_amplitude(self):
+        """u = 0, v = cos(lat) has divergence -2*sin(lat)."""
+        for label, uxgrid in self._grids():
+            lat = np.deg2rad(uxgrid.face_lat.values)
+            interior = np.abs(lat) < self.MIDLAT
+
+            u = ux.UxDataArray(
+                np.zeros_like(lat), dims=["n_face"], uxgrid=uxgrid, name="u"
+            )
+            v = ux.UxDataArray(
+                np.cos(lat), dims=["n_face"], uxgrid=uxgrid, name="v"
+            )
+
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio = u.divergence(v, scale_by_radius=False).values / (
+                    -2 * np.sin(lat)
+                )
+            sel = interior & np.isfinite(ratio)
+            assert np.abs(np.median(ratio[sel]) - 1.0) < 0.01, label
+
+    def test_gradient_converges_under_refinement(self):
+        """The error shrinks with resolution instead of sitting at a factor.
+
+        This is the check that separates a normalization bug from truncation
+        error: before the fix the ratio converged to 4.0 on quads.
+        """
+        errors = []
+        for zoom in (4, 5, 6):
+            uxgrid = ux.Grid.from_healpix(zoom=zoom)
+            lat = np.deg2rad(uxgrid.face_lat.values)
+            interior = np.abs(lat) < self.MIDLAT
+
+            phi = ux.UxDataArray(
+                np.sin(lat), dims=["n_face"], uxgrid=uxgrid, name="phi"
+            )
+            grad = phi.gradient(scale_by_radius=False)
+
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio = grad["meridional_gradient"].values / np.cos(lat)
+            sel = interior & np.isfinite(ratio)
+            errors.append(abs(np.median(ratio[sel]) - 1.0))
+
+        assert errors[1] < errors[0]
+        assert errors[2] < errors[1]
+
+    def test_hexagonal_matches_quadrilateral(self, gridpath):
+        """The answer must not depend on cell topology.
+
+        The dual/primal ratio was ~4 on quads and ~3 on hexagons, so an
+        inflated gradient showed up as a topology-dependent answer.
+        """
+        results = {}
+        for label, uxgrid in (
+            ("quad", ux.Grid.from_healpix(zoom=5)),
+            ("hex", ux.open_grid(gridpath("mpas", "QU", "480", "grid.nc"))),
+        ):
+            lat = np.deg2rad(uxgrid.face_lat.values)
+            interior = np.abs(lat) < self.MIDLAT
+
+            phi = ux.UxDataArray(
+                np.sin(lat), dims=["n_face"], uxgrid=uxgrid, name="phi"
+            )
+            grad = phi.gradient(scale_by_radius=False)
+
+            with np.errstate(divide="ignore", invalid="ignore"):
+                ratio = grad["meridional_gradient"].values / np.cos(lat)
+            sel = interior & np.isfinite(ratio)
+            results[label] = np.median(ratio[sel])
+
+        assert abs(results["quad"] - results["hex"]) < 0.02
+
+
+class TestMoreThan1D:
+    """Ensure calculus operators loop across non-grid dimensions as expected,
+    treating the grid dimension as the only core dimension.
+    """
+    def test_gradient_more_than_1d(self):
+        ds0 = ux.tutorial.open_dataset('outCSne30-vortex')
+        arr0 = ds0['psi']
+        arr0.uxgrid._ds.attrs['sphere_radius'] = 1.0
+        # ^ set 'sphere_radius' to avoid the warning which is irrelevant here:
+        # "scale_by_radius=True but the grid has no 'sphere_radius' attribute"
+        times = xr.DataArray([1,3,5,7], coords={'time': [10,30,50,70]})
+        levels = xr.DataArray([2,4], coords={'level': [2,4]})
+        arr = arr0 * times + levels
+        assert arr.sizes == {'time': 4, 'level': 2, 'n_face': arr0.sizes['n_face']}
+        result = arr.gradient()
+        assert result.sizes == arr.sizes
+        # ensure full result matches 1D results at each slice
+        for it in range(arr.sizes['time']):
+            for il in range(arr.sizes['level']):
+                arr_it_il_gradient = arr.isel(time=it, level=il).gradient()
+                assert result.isel(time=it, level=il).equals(arr_it_il_gradient)
+        # (derivative of (arr0 * times + levels)) / (derivative of arr0) == times + 0 * levels:
+        arr0_gradient = arr0.gradient()
+        ratio = result / arr0_gradient
+        assert np.allclose(ratio.min('n_face')['zonal_gradient'], times + 0 * levels, atol=0, rtol=1e-9)
+        assert np.allclose(ratio.max('n_face')['zonal_gradient'], times + 0 * levels, atol=0, rtol=1e-9)
+        assert np.allclose(ratio.min('n_face')['meridional_gradient'], times + 0 * levels, atol=0, rtol=1e-9)
+        assert np.allclose(ratio.max('n_face')['meridional_gradient'], times + 0 * levels, atol=0, rtol=1e-9)
+        # ensure chunked input stays chunked and produces correct results
+        arrc = arr.chunk({'time': 2, 'level': -1})
+        resultc = arrc.gradient()
+        assert resultc['zonal_gradient'].chunks == arrc.chunks
+        assert resultc['meridional_gradient'].chunks == arrc.chunks
+        assert resultc.compute().equals(result)
+        # ensure complex values are allowed :)
+        arrj = arr * 1j
+        resultj = arrj.gradient()
+        assert np.allclose(resultj['zonal_gradient'].imag, result['zonal_gradient'], atol=0, rtol=1e-9)
+        assert np.allclose(resultj['meridional_gradient'].imag, result['meridional_gradient'], atol=0, rtol=1e-9)
+
+    def test_curl_more_than_1d(self):
+        ds0 = ux.tutorial.open_dataset('outCSne30-vortex')
+        arr0 = ds0['psi']
+        arr0.uxgrid._ds.attrs['sphere_radius'] = 1.0
+        # ^ set 'sphere_radius' to avoid the warning which is irrelevant here:
+        # "scale_by_radius=True but the grid has no 'sphere_radius' attribute"
+        times = xr.DataArray([1,3,5,7], coords={'time': [10,30,50,70]})
+        levels = xr.DataArray([2,4], coords={'level': [2,4]})
+        arr = arr0 * times + levels
+        assert arr.sizes == {'time': 4, 'level': 2, 'n_face': arr0.sizes['n_face']}
+        resultA = arr.curl(arr0)
+        resultB = arr0.curl(arr)
+        resultC = arr.curl(arr)
+        assert resultA.sizes == arr.sizes
+        assert resultB.sizes == arr.sizes
+        assert resultC.sizes == arr.sizes
+        # ensure full result matches 1D results at each slice
+        for it in range(arr.sizes['time']):
+            for il in range(arr.sizes['level']):
+                arr_it_il = arr.isel(time=it, level=il)
+                arr_it_il_curlA = arr_it_il.curl(arr0)
+                arr_it_il_curlB = arr0.curl(arr_it_il)
+                arr_it_il_curlC = arr_it_il.curl(arr_it_il)
+                assert resultA.isel(time=it, level=il).equals(arr_it_il_curlA)
+                assert resultB.isel(time=it, level=il).equals(arr_it_il_curlB)
+                assert resultC.isel(time=it, level=il).equals(arr_it_il_curlC)
+        # ensure scalar coords do not cause complaints:
+        arr.curl(arr.isel(time=2, level=1))
+        arr.isel(time=1, level=0).curl(arr)
+        arr.curl(arr0.assign_coords(time=9))
+        arr0.assign_coords(level="nonexistent_level").curl(arr)
+        # ensure chunked input stays chunked and produces correct results
+        # (just doing a sanity check in the arr.curl(arr0) case)
+        arrc = arr.chunk({'time': 2, 'level': -1})
+        resultc = arrc.curl(arr0)
+        assert resultc.chunks == arrc.chunks
+        assert resultc.compute().equals(resultA)
+        # ensure complex values are allowed :)
+        arrj = arr * 1j
+        arr0j = arr0 * 1j
+        resultj = arrj.curl(arr0j)
+        assert np.allclose(resultj.imag, resultA, atol=0, rtol=1e-9)
+
+    def test_divergence_more_than_1d(self):
+        ds0 = ux.tutorial.open_dataset('outCSne30-vortex')
+        arr0 = ds0['psi']
+        arr0.uxgrid._ds.attrs['sphere_radius'] = 1.0
+        # ^ set 'sphere_radius' to avoid the warning which is irrelevant here:
+        # "scale_by_radius=True but the grid has no 'sphere_radius' attribute"
+        times = xr.DataArray([1,3,5,7], coords={'time': [10,30,50,70]})
+        levels = xr.DataArray([2,4], coords={'level': [2,4]})
+        arr = arr0 * times + levels
+        assert arr.sizes == {'time': 4, 'level': 2, 'n_face': arr0.sizes['n_face']}
+        resultA = arr.divergence(arr0)
+        resultB = arr0.divergence(arr)
+        resultC = arr.divergence(arr)
+        assert resultA.sizes == arr.sizes
+        assert resultB.sizes == arr.sizes
+        assert resultC.sizes == arr.sizes
+        # ensure full result matches 1D results at each slice
+        for it in range(arr.sizes['time']):
+            for il in range(arr.sizes['level']):
+                arr_it_il = arr.isel(time=it, level=il)
+                arr_it_il_divA = arr_it_il.divergence(arr0)
+                arr_it_il_divB = arr0.divergence(arr_it_il)
+                arr_it_il_divC = arr_it_il.divergence(arr_it_il)
+                assert resultA.isel(time=it, level=il).equals(arr_it_il_divA)
+                assert resultB.isel(time=it, level=il).equals(arr_it_il_divB)
+                assert resultC.isel(time=it, level=il).equals(arr_it_il_divC)
+        # ensure scalar coords do not cause complaints:
+        arr.divergence(arr.isel(time=2, level=1))
+        arr.isel(time=1, level=0).divergence(arr)
+        arr.divergence(arr0.assign_coords(time=9))
+        arr0.assign_coords(level="nonexistent_level").divergence(arr)
+        # ensure chunked input stays chunked and produces correct results
+        # (just doing a sanity check in the arr.divergence(arr0) case)
+        arrc = arr.chunk({'time': 2, 'level': -1})
+        resultc = arrc.divergence(arr0)
+        assert resultc.chunks == arrc.chunks
+        assert resultc.compute().equals(resultA)
+        # ensure complex values are allowed :)
+        arrj = arr * 1j
+        arr0j = arr0 * 1j
+        resultj = arrj.divergence(arr0j)
+        assert np.allclose(resultj.imag, resultA, atol=0, rtol=1e-9)
+
+    def test_scalar_dot_gradient_more_than_1d(self):
+        ds0 = ux.tutorial.open_dataset('outCSne30-vortex')
+        arr0 = ds0['psi']
+        arr0.uxgrid._ds.attrs['sphere_radius'] = 1.0
+        # ^ set 'sphere_radius' to avoid the warning which is irrelevant here:
+        # "scale_by_radius=True but the grid has no 'sphere_radius' attribute"
+        times = xr.DataArray([1,3,5,7], coords={'time': [10,30,50,70]})
+        levels = xr.DataArray([2,4], coords={'level': [2,4]})
+        arr = arr0 * times + levels
+        assert arr.sizes == {'time': 4, 'level': 2, 'n_face': arr0.sizes['n_face']}
+        resultA = arr.scalardotgradient(arr0, arr0)
+        resultB = arr0.scalardotgradient(arr, arr0)
+        resultC = arr0.scalardotgradient(arr0, arr)
+        resultD = arr0.scalardotgradient(arr, arr)
+        resultE = arr.scalardotgradient(arr0, arr)
+        resultF = arr.scalardotgradient(arr, arr0)
+        resultG = arr.scalardotgradient(arr, arr)
+        assert resultA.sizes == arr.sizes
+        assert resultB.sizes == arr.sizes
+        assert resultC.sizes == arr.sizes
+        assert resultD.sizes == arr.sizes
+        assert resultE.sizes == arr.sizes
+        assert resultF.sizes == arr.sizes
+        assert resultG.sizes == arr.sizes
+        # ensure full result matches 1D results at each slice
+        for it in range(arr.sizes['time']):
+            for il in range(arr.sizes['level']):
+                arr_it_il = arr.isel(time=it, level=il)
+                arr_it_il_gradA = arr_it_il.scalardotgradient(arr0, arr0)
+                arr_it_il_gradB = arr0.scalardotgradient(arr_it_il, arr0)
+                arr_it_il_gradC = arr0.scalardotgradient(arr0, arr_it_il)
+                arr_it_il_gradD = arr0.scalardotgradient(arr_it_il, arr_it_il)
+                arr_it_il_gradE = arr_it_il.scalardotgradient(arr0, arr_it_il)
+                arr_it_il_gradF = arr_it_il.scalardotgradient(arr_it_il, arr0)
+                arr_it_il_gradG = arr_it_il.scalardotgradient(arr_it_il, arr_it_il)
+                assert resultA.isel(time=it, level=il).equals(arr_it_il_gradA)
+                assert resultB.isel(time=it, level=il).equals(arr_it_il_gradB)
+                assert resultC.isel(time=it, level=il).equals(arr_it_il_gradC)
+                assert resultD.isel(time=it, level=il).equals(arr_it_il_gradD)
+                assert resultE.isel(time=it, level=il).equals(arr_it_il_gradE)
+                assert resultF.isel(time=it, level=il).equals(arr_it_il_gradF)
+                assert resultG.isel(time=it, level=il).equals(arr_it_il_gradG)
+        # ensure chunked input stays chunked and produces correct results
+        # (just doing a sanity check in the arr.scalardotgradient(arr0, arr0) case)
+        arrc = arr.chunk({'time': 2, 'level': -1})
+        resultc = arrc.scalardotgradient(arr0, arr0)
+        assert resultc.chunks == arrc.chunks
+        assert resultc.compute().equals(resultA)
+        # ensure complex values are allowed :)
+        # case 1: (u*1j).scalardotgradient(v*1j, q).imag == (u.scalardotgradient(v, q))
+        # case 2: (u).scalardotgradient(v, q*1j).imag == (u.scalardotgradient(v, q))
+        arrj = arr * 1j
+        arr0j = arr0 * 1j
+        resultj1 = arrj.scalardotgradient(arr0j, arr0)
+        resultj2 = arr.scalardotgradient(arr0, arr0j)
+        assert np.allclose(resultj1.imag, resultA, atol=0, rtol=1e-9)
+        assert np.allclose(resultj2.imag, resultA, atol=0, rtol=1e-9)

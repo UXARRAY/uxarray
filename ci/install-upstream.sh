@@ -1,22 +1,38 @@
 #!/usr/bin/env bash
 # adapted from https://github.com/pydata/xarray/blob/main/ci/install-upstream-wheels.sh
 
+# fail the job if anything goes wrong (e.g. if `conda remove ...` fails)
+# instead of silently continuing.
+set -e
+
 # forcibly remove packages to avoid artifacts
 conda remove -y --force \
+    antimeridian \
     cartopy \
     dask \
     datashader \
     distributed \
+    matplotlib-base \
+    matplotlib-inline \
     holoviews \
+    hvplot \
+    geoviews \
     pandas \
+    pooch \
+    pyarrow \
+    requests \
     scikit-learn \
     scipy \
     shapely \
+    spatialpandas \
     xarray
 
-pip uninstall -y \
-    antimeridian \
-    spatialpandas
+# solution for any packages whose latest versions are being tested here but
+# which do not appear during (the first!) `conda list` from upstream-dev-ci.yml
+# (currently there are none; just keeping this comment for future reference.)
+# pip uninstall -y \
+    # package1_not_in_conda_list
+    # package2_not_in_conda_list
 
 # conda list
 conda list
@@ -32,6 +48,8 @@ python -m pip install \
     --no-deps \
     --pre \
     --upgrade \
+    matplotlib \
+    pyarrow \
     scikit-learn \
     scipy \
     xarray
@@ -46,7 +64,11 @@ python -m pip install \
     git+https://github.com/holoviz/datashader.git \
     git+https://github.com/dask/dask.git \
     git+https://github.com/dask/distributed.git \
+    git+https://github.com/fatiando/pooch.git \
     git+https://github.com/holoviz/holoviews.git \
+    git+https://github.com/holoviz/hvplot.git \
+    git+https://github.com/holoviz/geoviews.git \
+    git+https://github.com/psf/requests.git \
     git+https://github.com/shapely/shapely.git \
     git+https://github.com/holoviz/spatialpandas.git \
     'geopandas>=1.0.0'

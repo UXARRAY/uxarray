@@ -61,6 +61,9 @@ These user guides provide detailed explanations of the core functionality in UXa
 `Azimuthal Mean <user-guide/azimuthal-average.ipynb>`_
  Compute the azimuthal average along rings of constant distance from a specified central point
 
+`Neighborhood Filter <user-guide/neighborhood-filter.ipynb>`_
+ Apply a function (e.g. mean, max, percentile) to all grid elements within a circular radius
+
 `Remapping <user-guide/remapping.ipynb>`_
  Remap (a.k.a Regrid) between unstructured grids
 
@@ -121,6 +124,7 @@ These user guides provide additional details about specific features in UXarray.
    user-guide/cross-sections.ipynb
    user-guide/zonal-average.ipynb
    user-guide/azimuthal-average.ipynb
+   user-guide/neighborhood-filter.ipynb
    user-guide/remapping.ipynb
    user-guide/remap-weights.rst
    user-guide/topological-aggregations.ipynb

@@ -2,6 +2,7 @@ include LICENSE
 include README.md
 
 recursive-include uxarray *.py
+include uxarray/py.typed
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
 exclude .gitignore
