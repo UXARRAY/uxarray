@@ -1199,10 +1199,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 # otherwise xarray silently only keeps locations where coords agree.
                 try:
                     self, weights = xr.align(self, weights, join="exact")
-                except ValueError as err:
-                    # TODO: update to xr.AlignmentError (a subclass of ValueError) when minimum
-                    # supported xarray is >=2025.04.0 (which introduced xr.AlignmentError.
-                    # ValueError works in the meantime, but is broader than necessary).
+                except xr.AlignmentError as err:
                     raise DimensionError(
                         f"For DataArray weights, expected alignment with data's grid dimension "
                         f"({self._grid_dim!r}), but got mismatch in sizes and/or coords."
