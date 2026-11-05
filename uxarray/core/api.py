@@ -460,14 +460,18 @@ def open_dataset(
 
     Open a dataset stored in a single combined grid-and-data file
 
-    >>> ux_ds = ux.open_dataset("combined_file.nc")  # doctest: +SKIP
+    >>> combined_path = "test/meshfiles/mpas/QU/oQU480.231010.nc"
+    >>> ux_ds = ux.open_dataset(combined_path)
+    >>> "bottomDepth" in ux_ds
+    True
 
-    Reuse one grid for multiple ensemble members
+    Reuse one grid for two data files containing different variables
 
-    >>> uxgrid = ux.open_grid("grid_file.nc")  # doctest: +SKIP
-    >>> member_1 = ux.open_dataset(uxgrid, "member_1.nc")  # doctest: +SKIP
-    >>> member_2 = ux.open_dataset(uxgrid, "member_2.nc")  # doctest: +SKIP
-    >>> member_1.uxgrid is member_2.uxgrid  # doctest: +SKIP
+    >>> uxgrid = ux.open_grid(grid_path)
+    >>> other_path = "test/meshfiles/ugrid/outCSne30/outCSne30_var2.nc"
+    >>> vortex = ux.open_dataset(uxgrid, data_path)
+    >>> other = ux.open_dataset(uxgrid, other_path)
+    >>> vortex.uxgrid is other.uxgrid
     True
     """
     if grid_kwargs is None:
@@ -597,25 +601,31 @@ def open_mfdataset(
     Open grid file along with multiple data files (two or more)
 
     >>> import uxarray as ux
-    >>> grid_path = ux.tutorial.file_path("outCSne30-timeseries", "grid")
-    >>> data_path = ux.tutorial.file_path("outCSne30-timeseries", "data")
+    >>> grid_path = ux.tutorial.file_path("outCSne30-vortex", "grid")
+    >>> data_dir = "test/meshfiles/ugrid/outCSne30"
+    >>> data_paths = [
+    ...     f"{data_dir}/outCSne30_vortex.nc",
+    ...     f"{data_dir}/outCSne30_var2.nc",
+    ... ]
 
-    1. Open from an explicit list of dataset files
+    1. Open from an explicit list of two files containing different variables
 
-    >>> ux_ds = ux.open_mfdataset(grid_path, [data_path])
-    >>> dict(ux_ds["psi"].sizes)
-    {'time': 6, 'n_face': 5400}
+    >>> ux_ds = ux.open_mfdataset(grid_path, data_paths)
+    >>> sorted(ux_ds.data_vars)
+    ['psi', 'var2']
 
-    2. Open from a string glob
+    2. Open from a string glob matching both files
 
-    >>> ux_ds = ux.open_mfdataset(
-    ...     "grid_filename.g", "grid_filename_vortex_*.nc"
-    ... )  # doctest: +SKIP
+    >>> ux_ds = ux.open_mfdataset(grid_path, f"{data_dir}/outCSne30_v*.nc")
+    >>> sorted(ux_ds.data_vars)
+    ['psi', 'var2']
 
-    3. Reuse an existing grid
+    3. Reuse an existing grid with the same two data files
 
-    >>> uxgrid = ux.open_grid("grid_filename.g")  # doctest: +SKIP
-    >>> ux_ds = ux.open_mfdataset(uxgrid, "grid_filename_vortex_*.nc")  # doctest: +SKIP
+    >>> uxgrid = ux.open_grid(grid_path)
+    >>> ux_ds = ux.open_mfdataset(uxgrid, data_paths)
+    >>> ux_ds.uxgrid is uxgrid
+    True
     """
     if grid_kwargs is None:
         grid_kwargs = {}

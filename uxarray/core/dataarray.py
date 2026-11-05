@@ -1766,9 +1766,15 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         Example
         -------
-        >>> u_component = uxds["u_wind"]  # doctest: +SKIP
-        >>> v_component = uxds["v_wind"]  # doctest: +SKIP
-        >>> curl_field = u_component.curl(v_component)  # doctest: +SKIP
+        Use the Gaussian and inverse Gaussian as illustrative vector components.
+
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("mpas-dyamond-30km-gradient")
+        >>> u_component = uxds["gaussian"]
+        >>> v_component = uxds["inverse_gaussian"]
+        >>> curl_field = u_component.curl(v_component)
+        >>> curl_field.dims
+        ('n_face',)
         """
         # Input validation
         if not isinstance(other, UxDataArray):
@@ -1886,9 +1892,15 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         Example
         -------
-        >>> u_component = uxds["u_wind"]  # doctest: +SKIP
-        >>> v_component = uxds["v_wind"]  # doctest: +SKIP
-        >>> div_field = u_component.divergence(v_component)  # doctest: +SKIP
+        Use the Gaussian and inverse Gaussian as illustrative vector components.
+
+        >>> import uxarray as ux
+        >>> uxds = ux.tutorial.open_dataset("mpas-dyamond-30km-gradient")
+        >>> u_component = uxds["gaussian"]
+        >>> v_component = uxds["inverse_gaussian"]
+        >>> div_field = u_component.divergence(v_component)
+        >>> div_field.dims
+        ('n_face',)
         """
         if not isinstance(other, UxDataArray):
             raise TypeError(

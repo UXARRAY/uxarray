@@ -68,6 +68,8 @@ jobs:
         run: |
           python -m pytest test
 
+      # Exercise the core I/O, data-container, and Grid examples in this PR.
+      # Other modules' examples are outside this initial doctest rollout.
       - name: Run Doctests
         run: |
           python -m pytest --doctest-modules uxarray/core/api.py uxarray/core/dataarray.py uxarray/core/dataset.py uxarray/grid/grid.py

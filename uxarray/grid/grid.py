@@ -370,8 +370,10 @@ class Grid:
         --------
         >>> import uxarray as ux
         >>> grid = ux.Grid.from_file(
-        ...     "path/to/file.shp", backend="geopandas"
-        ... )  # doctest: +SKIP
+        ...     "test/meshfiles/shp/5poly/5poly.shp", backend="geopandas"
+        ... )
+        >>> grid.n_face
+        5
 
         Note
         ----
@@ -1920,10 +1922,12 @@ class Grid:
         Examples
         --------
         >>> import uxarray as ux
-        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")  # doctest: +SKIP
-        >>> nb = uxds.uxgrid.neighborhood(r=5.0)  # doctest: +SKIP
-        >>> smooth = nb.mean(uxds["psi"])  # doctest: +SKIP
-        >>> p90 = nb.percentile(uxds["psi"], q=90)  # doctest: +SKIP
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
+        >>> nb = uxds.uxgrid.neighborhood(r=5.0)
+        >>> smooth = nb.mean(uxds["psi"])
+        >>> p90 = nb.percentile(uxds["psi"], q=90)
+        >>> smooth.sizes == p90.sizes == uxds["psi"].sizes
+        True
 
         See Also
         --------
