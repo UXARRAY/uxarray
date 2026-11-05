@@ -221,6 +221,33 @@ class GCAConstLatIntersection:
         self.gca_const_lat_intersection(self.gca_cart, _CONST_Z)
 
 
+class PointInFaceNodes:
+    """Track the allocation-free node-index predicate used by candidate loops."""
+
+    def setup(self):
+        from numba import njit
+        from uxarray.grid.point_in_face import _point_in_face
+
+        self.nodes = np.arange(len(_POLY))
+        self.x, self.y, self.z = (v.copy() for v in _POLY.T)
+
+        @njit
+        def repeated_queries(nodes, x, y, z):
+            hits = 0
+            for i in range(10000):
+                q = (0.1, 0.3, 0.9) if i % 2 else (-0.5, -0.5, -0.7)
+                norm = np.sqrt(q[0] ** 2 + q[1] ** 2 + q[2] ** 2)
+                point = (q[0] / norm, q[1] / norm, q[2] / norm)
+                hits += _point_in_face(point, nodes, x, y, z)
+            return hits
+
+        self.repeated_queries = repeated_queries
+        repeated_queries(self.nodes, self.x, self.y, self.z)
+
+    def time_repeated_queries(self):
+        self.repeated_queries(self.nodes, self.x, self.y, self.z)
+
+
 class PointInPolygonSphere:
     """Benchmark the spherical point-in-polygon kernel."""
 

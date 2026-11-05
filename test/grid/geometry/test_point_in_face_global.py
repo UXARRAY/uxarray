@@ -13,9 +13,10 @@ from uxarray.grid.point_in_face import (
 
 
 @pytest.mark.parametrize("reverse", [False, True])
-def test_small_triangle_matches_convex_halfspaces_globally(reverse):
-    """Far-away rays and the antipodal triangle must not produce false hits."""
-    polygon = np.array([[1.0, -0.1, -0.1], [1.0, 0.1, -0.1], [1.0, 0.0, 0.1]])
+@pytest.mark.parametrize("size", [0.1, 2.0, 10.0])
+def test_triangle_matches_convex_halfspaces_globally(reverse, size):
+    """Large faces and their antipodal images must not produce false hits."""
+    polygon = np.array([[1.0, -size, -size], [1.0, size, -size], [1.0, 0.0, size]])
     polygon /= np.linalg.norm(polygon, axis=1)[:, None]
     normals = np.cross(polygon, np.roll(polygon, -1, axis=0))
     normals *= np.sign(normals @ polygon.mean(axis=0))[:, None]
@@ -29,6 +30,12 @@ def test_small_triangle_matches_convex_halfspaces_globally(reverse):
         [_point_in_polygon_sphere(q, polygon) == _LOC_INSIDE for q in points]
     )
     nt.assert_array_equal(actual, expected)
+    nodes = np.arange(len(polygon))[::-1]
+    indexed = polygon[::-1].copy()
+    direct = np.array(
+        [_point_in_face(tuple(q), nodes, *indexed.T) for q in points]
+    )
+    nt.assert_array_equal(direct, expected)
     assert _point_in_polygon_sphere(np.array([-1.0, 0.0, 0.0]), polygon) == _LOC_OUTSIDE
 
 
@@ -52,6 +59,12 @@ def test_rotated_quads_match_convex_halfspaces():
             [_point_in_polygon_sphere(q, polygon) == _LOC_INSIDE for q in points]
         )
         nt.assert_array_equal(actual, expected)
+        nodes = np.arange(len(polygon))[::-1]
+        indexed = polygon[::-1].copy()
+        direct = np.array(
+            [_point_in_face(tuple(q), nodes, *indexed.T) for q in points]
+        )
+        nt.assert_array_equal(direct, expected)
 
 
 @pytest.mark.parametrize("reverse", [False, True])
@@ -79,6 +92,12 @@ def test_concave_ring_matches_gnomonic_planar_crossings(reverse):
         [_point_in_polygon_sphere(q, polygon) == _LOC_INSIDE for q in points]
     )
     nt.assert_array_equal(actual, expected)
+    nodes = np.arange(len(polygon))[::-1]
+    indexed = polygon[::-1].copy()
+    direct = np.array(
+        [_point_in_face(tuple(q), nodes, *indexed.T) for q in points]
+    )
+    nt.assert_array_equal(direct, expected)
 
 
 def test_node_index_entry_point_accepts_tuple():

@@ -29,6 +29,12 @@ _EDGE_TOL = 1e-10
 
 @njit(cache=True)
 def _point_in_polygon_sphere(q, polygon):
+    """Classify an ordered unit-sphere ring; boundary points count as inside."""
+    return _classify_polygon_nodes(q, None, polygon[:, 0], polygon[:, 1], polygon[:, 2])
+
+
+@njit(cache=True)
+def _classify_polygon_nodes(q, nodes_idx, node_x, node_y, node_z):
     """Classify a point using signed spherical winding and compensated predicates.
 
     The signed solid angle determines the ring orientation, preventing the
@@ -40,8 +46,10 @@ def _point_in_polygon_sphere(q, polygon):
     ----------
     q : np.ndarray, shape (3,)
         Query point (unit vector).
-    polygon : np.ndarray, shape (n, 3)
-        Polygon vertices on the unit sphere, ordered.
+    nodes_idx : np.ndarray or None
+        Ordered node indices, or None for already ordered coordinate arrays.
+    node_x, node_y, node_z : np.ndarray
+        Unit-sphere node coordinates.
 
     Returns
     -------
@@ -49,44 +57,44 @@ def _point_in_polygon_sphere(q, polygon):
         Location code: _LOC_OUTSIDE (0), _LOC_INSIDE (1),
         _LOC_ON_VERTEX (2), _LOC_ON_EDGE (3).
     """
-    n = polygon.shape[0]
+    n = len(node_x) if nodes_idx is None else len(nodes_idx)
+    if n < 3:
+        return _LOC_OUTSIDE
 
-    # 1. Vertex coincidence check.
+    # Access coordinates by node index and use scalar tuples, not per-face arrays.
     for i in range(n):
-        dx = polygon[i, 0] - q[0]
-        dy = polygon[i, 1] - q[1]
-        dz = polygon[i, 2] - q[2]
+        idx = i if nodes_idx is None else nodes_idx[i]
+        dx = node_x[idx] - q[0]
+        dy = node_y[idx] - q[1]
+        dz = node_z[idx] - q[2]
         if dx * dx + dy * dy + dz * dz < _VERTEX_TOL * _VERTEX_TOL:
             return _LOC_ON_VERTEX
 
-    # 2. Edge membership check.
-    for i in range(n):
-        A = polygon[i]
-        B = polygon[(i + 1) % n]
-        if on_minor_arc(q, A, B, _EDGE_TOL):
-            return _LOC_ON_EDGE
-
-    # Signed tangent-plane winding distinguishes the polygon from its antipodal
-    # image. An absolute winding test incorrectly accepts both of them.
     winding = 0.0
     for i in range(n):
-        a = polygon[i]
-        b = polygon[(i + 1) % n]
+        ia = i if nodes_idx is None else nodes_idx[i]
+        ib = (i + 1) % n if nodes_idx is None else nodes_idx[(i + 1) % n]
+        a = (node_x[ia], node_y[ia], node_z[ia])
+        b = (node_x[ib], node_y[ib], node_z[ib])
+        if on_minor_arc(q, a, b, _EDGE_TOL):
+            return _LOC_ON_EDGE
         nx, ny, nz, lx, ly, lz = accucross(a[0], a[1], a[2], b[0], b[1], b[2])
         numerator = _normal_dot_value(nx, ny, nz, lx, ly, lz, q[0], q[1], q[2])
-        denominator = np.dot(a, b) - np.dot(q, a) * np.dot(q, b)
+        denominator = _numba_dot3(a, b) - _numba_dot3(q, a) * _numba_dot3(q, b)
         winding += math.atan2(numerator, denominator)
 
-    # The signed solid angle fixes the ring orientation independently of q.
-    # Triangulation is algebraic, so concave rings do not need a convex centroid.
+    # Signed area fixes ring orientation independently of q, including concavity.
     area = 0.0
-    a = polygon[0]
+    ia = 0 if nodes_idx is None else nodes_idx[0]
+    a = (node_x[ia], node_y[ia], node_z[ia])
     for i in range(1, n - 1):
-        b = polygon[i]
-        c = polygon[i + 1]
+        ib = i if nodes_idx is None else nodes_idx[i]
+        ic = i + 1 if nodes_idx is None else nodes_idx[i + 1]
+        b = (node_x[ib], node_y[ib], node_z[ib])
+        c = (node_x[ic], node_y[ic], node_z[ic])
         nx, ny, nz, lx, ly, lz = accucross(b[0], b[1], b[2], c[0], c[1], c[2])
         numerator = _normal_dot_value(nx, ny, nz, lx, ly, lz, a[0], a[1], a[2])
-        denominator = 1.0 + np.dot(a, b) + np.dot(b, c) + np.dot(c, a)
+        denominator = 1.0 + _numba_dot3(a, b) + _numba_dot3(b, c) + _numba_dot3(c, a)
         area += 2.0 * math.atan2(numerator, denominator)
     return _LOC_INSIDE if winding * np.sign(area) > math.pi else _LOC_OUTSIDE
 
@@ -109,18 +117,15 @@ def _point_in_face(
     node_z: np.ndarray,
 ) -> bool:
     """Test a face's ordered node indices; edges and vertices count as inside."""
-    polygon = np.empty((len(nodes_idx), 3))
-    for i in range(len(nodes_idx)):
-        idx = nodes_idx[i]
-        polygon[i, 0] = node_x[idx]
-        polygon[i, 1] = node_y[idx]
-        polygon[i, 2] = node_z[idx]
-    return _point_in_polygon_sphere(np.asarray(point), polygon) != _LOC_OUTSIDE
+    return (
+        _classify_polygon_nodes(point, nodes_idx, node_x, node_y, node_z)
+        != _LOC_OUTSIDE
+    )
 
 
 @njit(cache=True)
 def _face_contains_point(face_edges: np.ndarray, point: np.ndarray) -> bool:
-    """Determine whether a point lies within a face using spherical ray casting.
+    """Determine whether a point lies within a face using signed spherical winding.
 
     Delegates to ``_point_in_polygon_sphere`` after extracting the vertex
     array from the edge array. Returns True for points strictly inside the
@@ -139,15 +144,8 @@ def _face_contains_point(face_edges: np.ndarray, point: np.ndarray) -> bool:
     bool
         True if the point is inside the face or on its boundary.
     """
-    n = face_edges.shape[0]
-    # Build the (n, 3) vertex array from the edge start points.
-    polygon = np.empty((n, 3))
-    for i in range(n):
-        polygon[i, 0] = face_edges[i, 0, 0]
-        polygon[i, 1] = face_edges[i, 0, 1]
-        polygon[i, 2] = face_edges[i, 0, 2]
-    loc = _point_in_polygon_sphere(point, polygon)
-    return loc != _LOC_OUTSIDE
+    # Slicing produces a view, not a new vertex buffer.
+    return _point_in_polygon_sphere(point, face_edges[:, 0, :]) != _LOC_OUTSIDE
 
 
 @njit(cache=True)
