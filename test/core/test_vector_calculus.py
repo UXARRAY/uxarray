@@ -1012,6 +1012,225 @@ class TestCurlDyamondSubset:
         assert curl_field.uxgrid == u_component.uxgrid
 
 
+class TestLaplacianQuadHex:
+
+    def test_laplacian_output_format(self):
+        """Tests the output format of laplacian functionality"""
+        uxds = ux.tutorial.open_dataset("quad-hexagon")
+        q = uxds['t2m']
+        laplacian_da = q.laplacian()
+
+        assert isinstance(laplacian_da, ux.UxDataArray)
+        assert laplacian_da.name == "laplacian"
+        assert laplacian_da.attrs["derivative"] == "laplacian"
+        assert laplacian_da.attrs["long_name"] == "Laplacian of t2m"
+        assert laplacian_da.attrs["description"].startswith("Laplacian of scalar field")
+        assert q.sizes == laplacian_da.sizes
+
+        # units attr checks
+        assert q.attrs["units"] == "K"
+        assert laplacian_da.attrs["units"] == "K/m^2"
+        laplacian_da_no_scaling = q.laplacian(scale_by_radius=False)
+        assert laplacian_da_no_scaling.attrs["units"] == "K/rad^2"
+        q_no_units = q.copy()
+        q_no_units.attrs.pop("units")
+        laplacian_da_no_units_yes_scaling = q_no_units.laplacian()
+        assert laplacian_da_no_units_yes_scaling.attrs["units"] == "1/m^2"
+        laplacian_da_no_units_no_scaling = q_no_units.laplacian(scale_by_radius=False)
+        assert laplacian_da_no_units_no_scaling.attrs["units"] == "1/rad^2"
+        q_ratio_units = q.assign_attrs({"units": "K/s"})
+        laplacian_da_ratio_units = q_ratio_units.laplacian()
+        assert laplacian_da_ratio_units.attrs["units"] == "(K/s)/m^2"
+        # blank units input should become 1/m^2 or 1/rad^2, not "/m^2" or "/rad^2"
+        for blank in ["", " ", "  \t ", "\n"]:
+            q_blank_units = q.assign_attrs({"units": blank})
+            laplacian_da_blank_units = q_blank_units.laplacian()
+            assert laplacian_da_blank_units.attrs["units"] == "1/m^2"
+            laplacian_da_blank_units_no_scaling = q_blank_units.laplacian(scale_by_radius=False)
+            assert laplacian_da_blank_units_no_scaling.attrs["units"] == "1/rad^2"
+        # units of None, False, or 0 should become None/m^2, False/m^2, or 0/m^2, not 1/m^2.
+        # (similarly for rad^2, but just spot-checking m^2 for brevity.)
+        for zero in [None, False, 0]:
+            q_zero_units = q.assign_attrs({"units": zero})
+            laplacian_da_zero_units = q_zero_units.laplacian()
+            assert laplacian_da_zero_units.attrs["units"] == f"{zero}/m^2"
+
+        # other attrs checks - spot check for handling None names:
+        # use "unnamed_array" in long_name; keep name as "laplacian"
+        q_noname = q.rename(None)
+        laplacian_da_noname = q_noname.laplacian()
+        assert laplacian_da_noname.name == "laplacian"
+        assert laplacian_da_noname.attrs["long_name"] == "Laplacian of unnamed_array"
+
+        # other attrs checks - spot check that value-describing attrs get removed
+        # (gradient output format test has more comprehensive checks):
+        q_with_more_attrs = q.copy()
+        q_with_more_attrs.attrs["actual_range"] = (0.0, 100.0)
+        q_with_more_attrs.attrs["some other attr"] = "test"
+        laplacian_with_more_attrs = q_with_more_attrs.laplacian()
+        assert "actual_range" not in laplacian_with_more_attrs.attrs
+        assert "some other attr" in laplacian_with_more_attrs.attrs
+
+
+class TestLaplacianDyamondSubset:
+
+    def test_laplacian_constant_field(self, gridpath, datasetpath):
+        """Laplacian of a constant scalar field reduces to 0.
+        The metric term from div in div(grad(q)) sees v = ∂q/∂y = 0, so
+        the result is identically 0 (or NaN if missing boundaries) everywhere.
+        """
+        uxds = ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc")
+        )
+        # some constant fields:
+        q0 = uxds['face_lat'] * 0
+        q1 = q0 + 1.0
+        q3 = q0 - 3.0
+
+        lap0 = q0.laplacian()
+        lap1 = q1.laplacian()
+        lap3 = q3.laplacian()
+        boundaries = lap0.isnull()
+        assert np.all(boundaries == lap1.isnull())
+        assert np.all(boundaries == lap3.isnull())
+
+        assert np.all(lap0[~boundaries] == 0)
+        assert np.all(lap1[~boundaries] == 0)
+        assert np.all(lap3[~boundaries] == 0)
+
+        # changing scale_by_radius (nontrivial because the radius is not 1.
+        assert uxds.uxgrid.sphere_radius > 1.0
+        lap0r = q0.laplacian(scale_by_radius=False)
+        lap1r = q1.laplacian(scale_by_radius=False)
+        lap3r = q3.laplacian(scale_by_radius=False)
+        assert np.all(lap0r[~boundaries] == 0)
+        assert np.all(lap1r[~boundaries] == 0)
+        assert np.all(lap3r[~boundaries] == 0)
+
+
+class TestLaplacianSphericalHarmonics:
+    """Numerical correctness checks for the Laplacian, using spherical harmonics:
+        laplacian(q) == -l(l+1)/r^2 * q
+    where q is any linear combination of any spherical harmonics of degree l.
+
+    Linear combinations of harmonics of degree 1 include: x, y, z
+    Linear combinations of harmonics of degree 2 include: xy, xz, yz, x^2-y^2, 3z^2-r^2
+    """
+    def grid_and_xyz(self, zoom):
+        """returns (healpix grid, x, y, z) for this zoom.
+        x, y, z are from the grid, converted to UxDataArrays.
+        """
+        grid = ux.Grid.from_healpix(zoom=zoom)
+        grid.sphere_radius = 1.0  # avoid any warnings later about undefined sphere_radius.
+        zero = ux.UxDataArray(xr.DataArray(np.zeros(grid.n_face), dims="n_face"), uxgrid=grid)
+        x = grid.face_x + zero
+        y = grid.face_y + zero
+        z = grid.face_z + zero
+        return grid, x, y, z
+
+    def error_stats(self, q, l=1, *, max_lat=70):
+        """returns (mean, max) of |lap(q) - expected| / max(q),
+        with expected = -l(l+1)/r^2 * q, and the difference is only computed where |lat| < max_lat.
+        Restricting to mid-latitudes large tan(lat) near poles.
+
+        mean gives a decent measurement of overall error, while max tells worst-case error.
+        """
+        max_q = q.max().item()
+        ylm_factor = -l * (l+1) / q.uxgrid.sphere_radius**2
+        diff = q.laplacian() - ylm_factor * q
+        far_from_poles = np.abs(q.uxgrid.face_lat) < max_lat
+        diff_far_from_poles = diff[far_from_poles]
+        err_check = np.abs(diff_far_from_poles)
+        return err_check.mean().item() / max_q, err_check.max().item() / max_q
+
+    def test_laplacian_harmonics_l1_zoom4(self):
+        """checks absolute errors some spherical harmonics on healpix grid at zoom=4.
+        The error bounds here were derived empirically; they are not tiny because uxarray's
+        Laplacian uses a low-order stencil (see test_laplacian_harmonics_l1_convergence).
+        """
+        MEAN_TOL = 0.02
+        MAX_TOL = 0.15
+        grid, x, y, z = self.grid_and_xyz(zoom=4)
+        # various combinations of spherical harmonics
+        fields = [x, y, z, 7*x, y+z, 3*y-10*z, -x-y-z, 2*x-3*y+4*z]
+        for i, q in enumerate(fields):
+            mean_err, max_err = self.error_stats(q, l=1)
+            assert mean_err < MEAN_TOL, f"failure on field i={i}"
+            assert max_err < MAX_TOL, f"failure on field i={i}"
+
+    def test_laplacian_harmonics_l2_zoom4(self):
+        """checks absolute errors some spherical harmonics on healpix grid at zoom=4.
+        The error bounds here were derived empirically; they are not tiny because uxarray's
+        Laplacian uses a low-order stencil (see test_laplacian_harmonics_l2_convergence).
+        """
+        MEAN_TOL = 0.07
+        MAX_TOL = 0.50
+        grid, x, y, z = self.grid_and_xyz(zoom=4)
+        # various combinations of spherical harmonics of degree 2
+        fields = [x*y, x*z, y*z, x**2-y**2, 3*z**2-1, 7*x*y, -3*x*z+5*y*z+7*(x**2-y**2)]
+        for i, q in enumerate(fields):
+            mean_err, max_err = self.error_stats(q, l=2)
+            assert mean_err < MEAN_TOL, f"failure on field i={i}"
+            assert max_err < MAX_TOL, f"failure on field i={i}"
+
+    def test_laplacian_harmonics_l1_convergence(self):
+        """checks that the Laplacian mean errors shrink as the grid is refined,
+        for spherical harmonics of degree 1. (Max errors not tested because the low-order stencil
+        happens to not always cause max errors to decrease as zoom increases. Checking by-eye
+        reveals these max errors occurs near some of few special vertices where only 3 faces meet.)
+        """
+        zooms = [4, 5, 6, 7]
+        # expect at least this much improvement in mean error when zoom increases by 1.
+        MEAN_CONV_TOL = 3.0
+        zoom_to_errors = {}  # {zoom: list of errors for each field}
+        for zoom in zooms:
+            errors = []
+            grid, x, y, z = self.grid_and_xyz(zoom=zoom)
+            fields = [x, y, z, 7*x, y+z]
+            for q in fields:
+                mean_err, max_err = self.error_stats(q, l=1)
+                errors.append(mean_err)
+            zoom_to_errors[zoom] = errors
+        for j in range(len(fields)):
+            for i in range(len(zooms)-1):
+                zoom1, zoom2 = zooms[i], zooms[i+1]
+                err1 = zoom_to_errors[zoom1][j]
+                err2 = zoom_to_errors[zoom2][j]
+                assert err1 / err2 >= MEAN_CONV_TOL, (
+                    f"mean error did not shrink enough from zoom {zoom1} to {zoom2} "
+                    f"for field {j}: {err1} -> {err2}"
+                )
+
+    def test_laplacian_harmonics_l2_convergence(self):
+        """checks that the Laplacian mean errors shrink as the grid is refined,
+        for spherical harmonics of degree 2. (Max errors not tested because the low-order stencil
+        happens to not always cause max errors to decrease as zoom increases. Checking by-eye
+        reveals these max errors occurs near some of few special vertices where only 3 faces meet.)
+        """
+        zooms = [4, 5, 6, 7]
+        # expect at least this much improvement in mean error when zoom increases by 1.
+        MEAN_CONV_TOL = 2.0
+        zoom_to_errors = {}  # {zoom: list of errors for each field}
+        for zoom in zooms:
+            errors = []
+            grid, x, y, z = self.grid_and_xyz(zoom=zoom)
+            fields = [x*y, x*z, y*z, x**2-y**2, 3*z**2-1]
+            for q in fields:
+                mean_err, max_err = self.error_stats(q, l=2)
+                errors.append(mean_err)
+            zoom_to_errors[zoom] = errors
+        for j in range(len(fields)):
+            for i in range(len(zooms)-1):
+                zoom1, zoom2 = zooms[i], zooms[i+1]
+                err1 = zoom_to_errors[zoom1][j]
+                err2 = zoom_to_errors[zoom2][j]
+                assert err1 / err2 >= MEAN_CONV_TOL, (
+                    f"mean error did not shrink enough from zoom {zoom1} to {zoom2} "
+                    f"for field {j}: {err1} -> {err2}"
+                )
+
+
 class TestSphericalManufacturedSolutions:
     """Amplitude checks against closed-form answers on the unit sphere.
 
@@ -1263,6 +1482,33 @@ class TestMoreThan1D:
         arr0j = arr0 * 1j
         resultj = arrj.divergence(arr0j)
         assert np.allclose(resultj.imag, resultA, atol=0, rtol=1e-9)
+
+    def test_laplacian_more_than_1d(self):
+        ds0 = ux.tutorial.open_dataset('outCSne30-vortex')
+        arr0 = ds0['psi']
+        arr0.uxgrid._ds.attrs['sphere_radius'] = 1.0
+        # ^ set 'sphere_radius' to avoid the warning which is irrelevant here:
+        # "scale_by_radius=True but the grid has no 'sphere_radius' attribute"
+        times = xr.DataArray([1,3,5,7], coords={'time': [10,30,50,70]})
+        levels = xr.DataArray([2,4], coords={'level': [2,4]})
+        arr = arr0 * times + levels
+        assert arr.sizes == {'time': 4, 'level': 2, 'n_face': arr0.sizes['n_face']}
+        result = arr.laplacian()
+        assert result.sizes == arr.sizes
+        # ensure full result matches 1D results at each slice
+        for it in range(arr.sizes['time']):
+            for il in range(arr.sizes['level']):
+                arr_it_il_laplacian = arr.isel(time=it, level=il).laplacian()
+                assert result.isel(time=it, level=il).equals(arr_it_il_laplacian)
+        # ensure chunked input stays chunked and produces correct results
+        arrc = arr.chunk({'time': 2, 'level': -1})
+        resultc = arrc.laplacian()
+        assert resultc.chunks == arrc.chunks
+        assert resultc.compute().equals(result)
+        # ensure complex values are allowed :)
+        arrj = arr * 1j
+        resultj = arrj.laplacian()
+        assert np.allclose(resultj.imag, result, atol=0, rtol=1e-9)
 
     def test_scalar_dot_gradient_more_than_1d(self):
         ds0 = ux.tutorial.open_dataset('outCSne30-vortex')
