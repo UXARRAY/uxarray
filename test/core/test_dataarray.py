@@ -643,7 +643,7 @@ class TestUxDataArrayToXarray:
         assert set(new.coords) == set(old.coords)
         for k in old.coords:
             assert type(new.coords[k].variable) is type(old.coords[k].variable), k
-            assert new.coords[k].encoding == old.coords[k].encoding, k
+            np.testing.assert_equal(new.coords[k].values, old.coords[k].values, err_msg=k)
         assert set(new.xindexes) == set(old.xindexes)
         for k in old.xindexes:
             assert type(new.xindexes[k]) is type(old.xindexes[k]), k
