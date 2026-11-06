@@ -301,7 +301,7 @@ class KDTree:
     def query_radius(
         self,
         coords: np.ndarray | list | tuple,
-        r: int = 1.0,
+        r: float = 1.0,
         return_distance: bool = False,
         in_radians: bool = False,
         count_only: bool = False,
@@ -686,7 +686,7 @@ class BallTree:
     def query_radius(
         self,
         coords: np.ndarray | list | tuple,
-        r: int = 1.0,
+        r: float = 1.0,
         in_radians: bool = False,
         return_distance: bool = False,
         count_only: bool = False,
