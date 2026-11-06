@@ -154,7 +154,8 @@ def _fan_triangles(
 ) -> np.ndarray:
     """Splits each face into triangles that share one of its corners.
 
-    Used by ``_triangulation``: Matplotlib contours data on triangles only."""
+    Used by ``_triangulation``: the method ``"interpolated"`` contours data on
+    triangles only."""
     # A fan from one corner covers a face exactly only if that corner can see every other
     # corner. Every convex face is like that, but dented faces occur, mostly among the
     # cells of the dual mesh of irregular meshes (FESOM-style ocean meshes, overlap meshes).
@@ -303,36 +304,86 @@ def _interpolated_contours(
 ) -> list[tuple[float, np.ndarray]]:
     """Contour lines from linear interpolation on a triangulation of the grid.
 
-    The method ``"interpolated"``. The data values sit at the corners of the triangles
-    from ``_triangulation``, and Matplotlib's ``tricontour`` draws each line straight
-    across every triangle it passes, where the values change linearly. The lines are
-    smooth but do not follow the edges of the grid."""
-    _raise_hint_if_optional_deps_missing("matplotlib")
-    from matplotlib.figure import Figure
-    from matplotlib.tri import Triangulation
+    The method ``"interpolated"``. The data values sit at the corners of the
+    triangles from ``_triangulation``, where they change linearly.
 
+    Inside each triangle that a level crosses, the line runs between the points
+    where the level crosses two of its edges. Each point is known by its edge,
+    which the triangles on either side share, so the pieces are joined into
+    lines by their edges. The lines are smooth but do not follow the edges of
+    the grid.
+    """
     lon, lat, triangles, index = _triangulation(uxgrid, dim)
     values = values[index]
 
     # Triangles with a missing value at a corner cannot be contoured
     finite = np.isfinite(values)
-    triangles = triangles[finite[triangles].all(axis=1)]
+    triangles = np.ascontiguousarray(
+        triangles[finite[triangles].all(axis=1)], dtype=INT_DTYPE
+    )
     if len(triangles) == 0 or len(levels) == 0:
         return []
 
-    # The contours are computed on an axes that is never displayed
-    ax = Figure().add_subplot()
-    contour_set = ax.tricontour(
-        Triangulation(lon, lat, triangles), np.where(finite, values, 0.0), levels=levels
-    )
+    n_corner = len(values)
+    contours = []
+    for level in levels:
+        # Each crossed edge as a single number, from its two corners
+        edges = _crossed_edges(triangles, values, float(level), n_corner)
+        if len(edges) == 0:
+            continue
+        crossed, edge_at = np.unique(edges, return_inverse=True)
+        edge_nodes, offsets = _join_segments(edge_at[0::2], edge_at[1::2])
 
-    return [
-        (float(level), part)
-        for level, lines in zip(contour_set.levels, contour_set.allsegs)
-        for line in lines
-        if len(line) > 1
-        for part in _split_at_antimeridian(line)
-    ]
+        # The point where the level crosses each edge
+        first, second = np.divmod(crossed, n_corner)
+        fraction = (level - values[first]) / (values[second] - values[first])
+        x = lon[first] + fraction * (lon[second] - lon[first])
+        y = lat[first] + fraction * (lat[second] - lat[first])
+        points = np.column_stack([x[edge_nodes], y[edge_nodes]])
+        contours.extend(_split_lines_at_antimeridian(float(level), points, offsets))
+    return contours
+
+
+@njit(cache=True, nogil=True)
+def _crossed_edges(triangles, values, level, n_corner):
+    """The edges where a level crosses each triangle that it crosses, two per
+    triangle, each given by its corners ``first < second`` as
+    ``first * n_corner + second``. A corner is above the level if its value is
+    greater than it."""
+    n_crossed = 0
+    for t in range(triangles.shape[0]):
+        a, b, c = triangles[t, 0], triangles[t, 1], triangles[t, 2]
+        above = values[a] > level
+        if (values[b] > level) != above or (values[c] > level) != above:
+            n_crossed += 1
+
+    edges = np.empty(2 * n_crossed, dtype=np.int64)
+    k = 0
+    for t in range(triangles.shape[0]):
+        a, b, c = triangles[t, 0], triangles[t, 1], triangles[t, 2]
+        for first, second in ((a, b), (b, c), (c, a)):
+            if (values[first] > level) != (values[second] > level):
+                if first > second:
+                    first, second = second, first
+                edges[k] = first * n_corner + second
+                k += 1
+    return edges
+
+
+def _split_lines_at_antimeridian(
+    level: float, points: np.ndarray, offsets: np.ndarray
+) -> list[tuple[float, np.ndarray]]:
+    """Splits lines stored one after the other, which start at ``offsets[:-1]``,
+    where they run past -180 or 180 degrees of longitude."""
+    starts, ends = offsets[:-1], offsets[1:]
+    crosses = (np.minimum.reduceat(points[:, 0], starts) < -180.0) | (
+        np.maximum.reduceat(points[:, 0], starts) > 180.0
+    )
+    contours = []
+    for line, crossing in zip(np.split(points, ends[:-1]), crosses):
+        parts = _split_at_antimeridian(line) if crossing else [line]
+        contours.extend((level, part) for part in parts)
+    return contours
 
 
 def _join_segments(start: np.ndarray, end: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -461,19 +512,12 @@ def _edge_contours(
         if len(line_nodes) == 0:
             continue
 
-        # The lines are processed together, as one array of points
-        starts, ends = offsets[:-1], offsets[1:]
+        # The lines are processed together, as one array of points. Unwrapped,
+        # a line that crosses the antimeridian runs past 180 degrees
         points = np.column_stack(
-            [_unwrap_lines(lon[line_nodes], starts), lat[line_nodes]]
+            [_unwrap_lines(lon[line_nodes], offsets[:-1]), lat[line_nodes]]
         )
-
-        # Unwrapped, a line that crosses the antimeridian runs past 180 degrees
-        crosses = (np.minimum.reduceat(points[:, 0], starts) < -180.0) | (
-            np.maximum.reduceat(points[:, 0], starts) > 180.0
-        )
-        for line, crossing in zip(np.split(points, ends[:-1]), crosses):
-            parts = _split_at_antimeridian(line) if crossing else [line]
-            contours.extend((float(level), part) for part in parts)
+        contours.extend(_split_lines_at_antimeridian(float(level), points, offsets))
     return contours
 
 
@@ -526,38 +570,198 @@ def _grid_extents(uxgrid: Grid) -> tuple[float, float, float, float]:
     return tuple(float(np.float32(value)) for value in (west, south, east, north))
 
 
-def _drop_lines_outside_projection(
+# The segment test in _project_lines() is adapted from straightAndDomain(), and
+# its rule for lines with no point that can be projected from bisect() and
+# _project_segment(), in lib/cartopy/trace.pyx of Cartopy 0.25.0, which is
+# released under this license:
+#
+# BSD 3-Clause License
+#
+# Copyright (c) Crown and Cartopy contributors.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# 3. Neither the name of the copyright holder nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+def _project_lines(
     contours: list[tuple[float, np.ndarray]], projection
-) -> list[tuple[float, np.ndarray]]:
-    """Removes the lines that have no extent in a map projection, such as a
-    line that lies along the edge of the map. GeoViews cannot project them."""
+) -> tuple[list[tuple[float, np.ndarray]], np.ndarray]:
+    """Projects contour lines from longitude and latitude to a map projection.
+
+    Cartopy projects a line segment by segment, keeping a segment as it is if it
+    is inside the map and its projection is close to straight, and otherwise
+    splitting it or cutting it where it leaves the map. That is slow for many
+    lines, so the lines whose segments would all be kept are found by applying
+    the same test to all their points at once, and only the other lines, such as
+    those that cross the edge of the map or a seam of the projection, are
+    projected by Cartopy.
+
+    Returns
+    -------
+    projected : list of (level, line)
+        The parts of the lines on the map, in the coordinates of the projection.
+    on_map : np.ndarray
+        Whether each of the lines has a part on the map.
+
+    Notes
+    -----
+    The test for a segment is adapted from ``straightAndDomain()`` in
+    ``lib/cartopy/trace.pyx`` of Cartopy 0.25.0, for a segment that starts on
+    the map, and applied here to all segments at once. The rule that a line
+    with no point that can be projected is not on the map follows ``bisect()``
+    and ``_project_segment()`` in the same file. Cartopy is Copyright (c) Crown
+    and Cartopy contributors, and is released under the BSD 3-Clause License,
+    whose notice is above this function.
+    """
     _raise_hint_if_optional_deps_missing("cartopy")
     import cartopy.crs as ccrs
     import shapely
 
     if not contours:
-        return contours
+        return [], np.zeros(0, dtype=bool)
     source = ccrs.PlateCarree()
 
-    # A line with a point well inside the map has extent on it. Projecting all the
-    # points at once is much faster than projecting each line, so only the other
-    # lines, such as those along the edge of the map, are projected as lines.
-    points = np.concatenate([line for _, line in contours])
-    x, y = projection.transform_points(source, points[:, 0], points[:, 1])[:, :2].T
-    finite = np.isfinite(x) & np.isfinite(y)
-    domain = projection.domain
-    margin = 1e-6 * np.ptp(np.reshape(domain.bounds, (2, 2)), axis=0).max()
-    inside = np.zeros(len(points), dtype=bool)
-    inside[finite] = shapely.contains_xy(domain.buffer(-margin), x[finite], y[finite])
-    starts = np.cumsum([0] + [len(line) for _, line in contours[:-1]])
-    on_map = np.logical_or.reduceat(inside, starts)
+    lines = [line for _, line in contours]
+    counts = np.array([len(line) for line in lines])
+    ends = np.cumsum(counts)
+    starts = ends - counts
+    points = np.concatenate(lines)
+    xy = projection.transform_points(source, points[:, 0], points[:, 1])[:, :2]
 
-    return [
-        (level, line)
-        for (level, line), certain in zip(contours, on_map)
-        if certain
-        or not projection.project_geometry(shapely.LineString(line), source).is_empty
-    ]
+    # Every point on the map, which for Cartopy includes its edge
+    domain = projection.domain
+    finite = np.isfinite(xy).all(axis=1)
+    keep = np.zeros(len(points), dtype=bool)
+    keep[finite] = shapely.intersects_xy(domain, xy[finite, 0], xy[finite, 1])
+
+    # Every segment close to straight once projected, by the test adapted from
+    # Cartopy's straightAndDomain() (see Notes): the projection of its middle
+    # (Cartopy interpolates linearly in longitude and latitude) lies within the
+    # projection's threshold of the projected segment, less so towards its ends
+    middle = (points[:-1] + points[1:]) / 2
+    xy_middle = projection.transform_points(source, middle[:, 0], middle[:, 1])[:, :2]
+    segment = xy[1:] - xy[:-1]
+    to_middle = xy_middle - xy[:-1]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        length_sq = (segment**2).sum(axis=1)
+        along = (segment * to_middle).sum(axis=1) / length_sq
+        separation = np.abs(
+            to_middle[:, 0] * segment[:, 1] - to_middle[:, 1] * segment[:, 0]
+        ) / np.sqrt(length_sq)
+        straight = np.isnan(along) | (
+            (along > 0.0)
+            & (along < 1.0)
+            & (separation <= projection.threshold * 2.0 * (0.5 - np.abs(0.5 - along)))
+        )
+    # The segments between the end of a line and the start of the next do not count
+    straight[ends[:-1] - 1] = True
+    keep[:-1] &= straight
+
+    # On a map that is not convex, a segment between two points on it can leave
+    # it, so Cartopy also requires the map to cover the segment
+    if not domain.equals(domain.convex_hull):
+        covered = np.ones(len(points) - 1, dtype=bool)
+        within_line = keep[:-1] & keep[1:]
+        within_line[ends[:-1] - 1] = False
+        pairs = np.stack([xy[:-1][within_line], xy[1:][within_line]], axis=1)
+        covered[within_line] = shapely.covers(domain, shapely.linestrings(pairs))
+        keep[:-1] &= covered
+
+    as_is = np.logical_and.reduceat(keep, starts)
+
+    # A line none of whose points can be projected, such as one on the far side
+    # of an orthographic map, is not on the map. For a segment whose ends both
+    # cannot be projected, Cartopy's bisection accepts the end at once and adds
+    # nothing, without looking at the points in between (see Notes)
+    off_map = ~np.logical_or.reduceat(finite, starts)
+
+    projected = []
+    on_map = as_is.copy()
+    for i, (level, line) in enumerate(contours):
+        if as_is[i]:
+            projected.append((level, xy[starts[i] : ends[i]]))
+            continue
+        if off_map[i]:
+            continue
+        geometry = projection.project_geometry(shapely.LineString(line), source)
+        for part in shapely.get_parts(geometry):
+            if len(part.coords) > 1:
+                projected.append((level, np.asarray(part.coords)[:, :2]))
+                on_map[i] = True
+    return projected, on_map
+
+
+_projected_contours_class = None
+
+
+def _projected_contours():
+    """The GeoViews element for contour lines that are already projected.
+
+    GeoViews projects the lines of a ``Contours`` element one at a time, through
+    Cartopy, every time it plots them, even when they are already in the
+    coordinates of the plot. For the thousands of lines of a noisy field that is
+    most of the time of a plot. This subclass is plotted by GeoViews' own plot
+    classes with that step turned off, so map extents, options such as
+    ``global_extent`` and overlays behave as for any GeoViews element. It is
+    named ``Contours`` to share the options of other contour lines, and created
+    on first use since GeoViews is optional.
+    """
+    global _projected_contours_class
+    if _projected_contours_class is None:
+        _raise_hint_if_optional_deps_missing("geoviews", "holoviews")
+        import geoviews as gv
+        import geoviews.plotting.bokeh as gv_bokeh
+        import geoviews.plotting.mpl as gv_mpl
+        import holoviews as hv
+
+        contours = type(
+            "Contours",
+            (gv.Contours,),
+            {
+                "__module__": __name__,
+                "__qualname__": "ProjectedContours",
+                "__doc__": "GeoViews contour lines already in the coordinates of their crs.",
+            },
+        )
+        # Importing the GeoViews plotting modules registers both backends
+        # without changing the active one
+        for backend, plot in [
+            ("bokeh", gv_bokeh.GeoContourPlot),
+            ("matplotlib", gv_mpl.GeoContourPlot),
+        ]:
+            hv.Store.registry[backend][contours] = type(
+                f"Projected{plot.__name__}", (plot,), {"_project_operation": None}
+            )
+        _projected_contours_class = contours
+    return _projected_contours_class
+
+
+def __getattr__(name):
+    # Lets pickle find the class of projected contour lines, which is created on first use
+    if name == "ProjectedContours":
+        return _projected_contours()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def _paths_by_level(
