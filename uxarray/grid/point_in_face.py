@@ -1,25 +1,15 @@
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 import numpy as np
 from numba import njit, prange
 
-from uxarray.constants import (
-    ERROR_TOLERANCE,
-    INT_DTYPE,
-    INT_FILL_VALUE,
-    POINT_IN_FACE_CULL_THRESHOLDS,
-)
-from uxarray.grid.arcs import point_within_gca
-from uxarray.grid.utils import _small_angle_of_2_vectors
-from uxarray.utils.numba_math import (
-    _numba_allclose3,
-    _numba_cross3,
-    _numba_dot3,
-    _numba_norm3,
-    _numba_sub3,
-)
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE, POINT_IN_FACE_CULL_THRESHOLDS
+from uxarray.grid.arcs import _normal_dot_value, on_minor_arc
+from uxarray.utils.computing import accucross
+from uxarray.utils.numba_math import _numba_dot3, _numba_sub3
 from uxarray.utils.parallel import parallel_njit
 
 if TYPE_CHECKING:
@@ -27,18 +17,95 @@ if TYPE_CHECKING:
 
     from uxarray.grid.grid import Grid
 
+# Return codes for _point_in_polygon_sphere.
+_LOC_OUTSIDE = 0
+_LOC_INSIDE = 1
+_LOC_ON_VERTEX = 2
+_LOC_ON_EDGE = 3
+
+_VERTEX_TOL = 1e-12
+_EDGE_TOL = 1e-10
+
+
+@njit(cache=True)
+def _point_in_polygon_sphere(q, polygon):
+    """Classify an ordered unit-sphere ring; boundary points count as inside."""
+    return _classify_polygon_nodes(q, None, polygon[:, 0], polygon[:, 1], polygon[:, 2])
+
+
+@njit(cache=True)
+def _classify_polygon_nodes(q, nodes_idx, node_x, node_y, node_z):
+    """Classify a point using signed spherical winding and compensated predicates.
+
+    The signed solid angle determines the ring orientation, preventing the
+    antipodal image from being mistaken for the polygon interior. Faces are
+    simple rings representing the smaller spherical region (less than 2*pi).
+    Boundary checks precede winding and include both vertices and minor arcs.
+
+    Parameters
+    ----------
+    q : np.ndarray, shape (3,)
+        Query point (unit vector).
+    nodes_idx : np.ndarray or None
+        Ordered node indices, or None for already ordered coordinate arrays.
+    node_x, node_y, node_z : np.ndarray
+        Unit-sphere node coordinates.
+
+    Returns
+    -------
+    int
+        Location code: _LOC_OUTSIDE (0), _LOC_INSIDE (1),
+        _LOC_ON_VERTEX (2), _LOC_ON_EDGE (3).
+    """
+    n = len(node_x) if nodes_idx is None else len(nodes_idx)
+    if n < 3:
+        return _LOC_OUTSIDE
+
+    # Access coordinates by node index and use scalar tuples, not per-face arrays.
+    for i in range(n):
+        idx = i if nodes_idx is None else nodes_idx[i]
+        dx = node_x[idx] - q[0]
+        dy = node_y[idx] - q[1]
+        dz = node_z[idx] - q[2]
+        if dx * dx + dy * dy + dz * dz < _VERTEX_TOL * _VERTEX_TOL:
+            return _LOC_ON_VERTEX
+
+    winding = 0.0
+    for i in range(n):
+        ia = i if nodes_idx is None else nodes_idx[i]
+        ib = (i + 1) % n if nodes_idx is None else nodes_idx[(i + 1) % n]
+        a = (node_x[ia], node_y[ia], node_z[ia])
+        b = (node_x[ib], node_y[ib], node_z[ib])
+        if on_minor_arc(q, a, b, _EDGE_TOL):
+            return _LOC_ON_EDGE
+        nx, ny, nz, lx, ly, lz = accucross(a[0], a[1], a[2], b[0], b[1], b[2])
+        numerator = _normal_dot_value(nx, ny, nz, lx, ly, lz, q[0], q[1], q[2])
+        denominator = _numba_dot3(a, b) - _numba_dot3(q, a) * _numba_dot3(q, b)
+        winding += math.atan2(numerator, denominator)
+
+    # Signed area fixes ring orientation independently of q, including concavity.
+    area = 0.0
+    ia = 0 if nodes_idx is None else nodes_idx[0]
+    a = (node_x[ia], node_y[ia], node_z[ia])
+    for i in range(1, n - 1):
+        ib = i if nodes_idx is None else nodes_idx[i]
+        ic = i + 1 if nodes_idx is None else nodes_idx[i + 1]
+        b = (node_x[ib], node_y[ib], node_z[ib])
+        c = (node_x[ic], node_y[ic], node_z[ic])
+        nx, ny, nz, lx, ly, lz = accucross(b[0], b[1], b[2], c[0], c[1], c[2])
+        numerator = _normal_dot_value(nx, ny, nz, lx, ly, lz, a[0], a[1], a[2])
+        denominator = 1.0 + _numba_dot3(a, b) + _numba_dot3(b, c) + _numba_dot3(c, a)
+        area += 2.0 * math.atan2(numerator, denominator)
+    return _LOC_INSIDE if winding * np.sign(area) > math.pi else _LOC_OUTSIDE
+
 
 def _point_in_face_from_grid(point: np.ndarray, grid: Grid, fidx: int):
-    """Returns whether this point lies within the indicated face of this grid.
-    Helper function providing convenient entry point into `_point_in_face`;
-    see `_point_in_face` for full docstring.
-    """
-    n_nodes_in_face = grid.n_nodes_per_face[fidx].item()
-    nodes_idx = grid.face_node_connectivity[fidx][:n_nodes_in_face].values
-    nodes_x = grid.node_x.values
-    nodes_y = grid.node_y.values
-    nodes_z = grid.node_z.values
-    return _point_in_face(point, nodes_idx, nodes_x, nodes_y, nodes_z)
+    """Test a grid face through the node-index-based spherical predicate."""
+    n_nodes = grid.n_nodes_per_face[fidx].item()
+    nodes_idx = grid.face_node_connectivity[fidx][:n_nodes].values
+    return _point_in_face(
+        point, nodes_idx, grid.node_x.values, grid.node_y.values, grid.node_z.values
+    )
 
 
 @njit(cache=True)
@@ -49,86 +116,36 @@ def _point_in_face(
     node_y: np.ndarray,
     node_z: np.ndarray,
 ) -> bool:
-    """Returns whether this point lies within the face formed by these nodes.
+    """Test a face's ordered node indices; edges and vertices count as inside."""
+    return (
+        _classify_polygon_nodes(point, nodes_idx, node_x, node_y, node_z)
+        != _LOC_OUTSIDE
+    )
 
-    Uses the spherical winding-number method, which
-    sums the signed central angles between successive vertices of the face
-    as seen from `point`.  If the total absolute winding exceeds π, the point is inside.
-    Points exactly on a node or edge also count as inside.
+
+@njit(cache=True)
+def _face_contains_point(face_edges: np.ndarray, point: np.ndarray) -> bool:
+    """Determine whether a point lies within a face using signed spherical winding.
+
+    Delegates to ``_point_in_polygon_sphere`` after extracting the vertex
+    array from the edge array. Returns True for points strictly inside the
+    face and for points exactly on an edge or vertex.
 
     Parameters
     ----------
-    point : iterable of length 3
+    face_edges : np.ndarray, shape (n_edges, 2, 3)
+        Cartesian unit-vector coordinates of each great-circle edge.
+        Each row is [start_xyz, end_xyz].
+    point : np.ndarray, shape (3,)
         3D unit-vector of the query point on the unit sphere.
-    nodes_idx : np.ndarray, shape (n_nodes,)
-        Node indices (within node_x, node_y, node_z) for precisely all nodes in this face.
-        Likely from `face_node_connectivity[fidx][:n_nodes_per_face[fidx]]`.
-    node_x, node_y, node_z : np.ndarray, shape (n_nodes,)
-        Cartesian coordinates of all nodes.
-        (This method uses the values at indices indicated by nodes_idx.)
 
     Returns
     -------
-    inside : bool
-        True if the point is inside the face or lies exactly on a node/edge; False otherwise.
+    bool
+        True if the point is inside the face or on its boundary.
     """
-    # Rewritten from _face_contains_point_from_edges to avoids creating tiny numpy arrays.
-    # Creating tiny numpy arrays from scratch inside numba is very inefficient.
-    # (Creating tiny numpy arrays from indexing larger arrays is fine, though.)
-    # This is the main reason to provide inputs as nodes_idx and node_x, ..., instead of
-    # simply asking to provide a single array of x, y, z coordinates for all nodes;
-    # the former avoids any need to create a tiny numpy array to store the coordinates.
-
-    n_nodes = len(nodes_idx)
-    max_i_node = n_nodes - 1
-
-    # Check for an exact hit with any of the corner nodes
-    for i in range(n_nodes):
-        node_idx = nodes_idx[i]
-        node_xyz = (node_x[node_idx], node_y[node_idx], node_z[node_idx])
-        if _numba_allclose3(
-            node_xyz, point, rtol=ERROR_TOLERANCE, atol=ERROR_TOLERANCE
-        ):
-            return True
-
-    # Check whether point lies on any edge of the face
-    # (edges are great-circle arcs between successive nodes)
-    for i in range(n_nodes):
-        # edge is formed by nodes (a, b)
-        ai = nodes_idx[i]
-        bi = nodes_idx[i + 1] if i < max_i_node else nodes_idx[0]
-
-        a = (node_x[ai], node_y[ai], node_z[ai])
-        b = (node_x[bi], node_y[bi], node_z[bi])
-        if point_within_gca(point, a, b):
-            return True
-
-    # Apply spherical winding-number method:
-    total = 0.0
-    for i in range(n_nodes):
-        # edge is formed by nodes (a, b).
-        ai = nodes_idx[i]
-        bi = nodes_idx[i + 1] if i < max_i_node else nodes_idx[0]
-
-        a = (node_x[ai], node_y[ai], node_z[ai])
-        b = (node_x[bi], node_y[bi], node_z[bi])
-
-        vi = _numba_sub3(a, point)
-        vj = _numba_sub3(b, point)
-
-        # check if you’re right on a vertex
-        if _numba_norm3(vi) < ERROR_TOLERANCE or _numba_norm3(vj) < ERROR_TOLERANCE:
-            return True
-
-        ang = _small_angle_of_2_vectors(vi, vj)
-
-        # determine sign from cross
-        c = _numba_cross3(vi, vj)
-        sign = 1.0 if _numba_dot3(c, point) >= 0.0 else -1.0
-
-        total += sign * ang
-
-    return np.abs(total) > np.pi
+    # Slicing produces a view, not a new vertex buffer.
+    return _point_in_polygon_sphere(point, face_edges[:, 0, :]) != _LOC_OUTSIDE
 
 
 @njit(cache=True)

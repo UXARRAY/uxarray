@@ -37,6 +37,18 @@ _X1 = _unit(np.array([1.0, 0.0, 0.3]))
 _X2 = _unit(np.array([0.0, 1.0, 0.3]))
 _CONST_Z = 0.3
 
+# Polygon for point-in-polygon (spherical triangle)
+_POLY = np.array(
+    [
+        _unit(np.array([1.0, 0.0, 0.1])),
+        _unit(np.array([0.0, 1.0, 0.1])),
+        _unit(np.array([-1.0, 0.0, 0.5])),
+    ],
+    dtype=np.float64,
+)
+_Q_INSIDE = _unit(np.array([0.1, 0.3, 0.9]))
+_Q_OUTSIDE = _unit(np.array([-0.5, -0.5, -0.7]))
+
 
 class EFTPrimitives:
     """Benchmark the low-level EFT building blocks: two_sum, two_prod,
@@ -209,6 +221,51 @@ class GCAConstLatIntersection:
         self.gca_const_lat_intersection(self.gca_cart, _CONST_Z)
 
 
+class PointInFaceNodes:
+    """Track the allocation-free node-index predicate used by candidate loops."""
+
+    def setup(self):
+        from numba import njit
+        from uxarray.grid.point_in_face import _point_in_face
+
+        self.nodes = np.arange(len(_POLY))
+        self.x, self.y, self.z = (v.copy() for v in _POLY.T)
+
+        @njit
+        def repeated_queries(nodes, x, y, z):
+            hits = 0
+            for i in range(10000):
+                q = (0.1, 0.3, 0.9) if i % 2 else (-0.5, -0.5, -0.7)
+                norm = np.sqrt(q[0] ** 2 + q[1] ** 2 + q[2] ** 2)
+                point = (q[0] / norm, q[1] / norm, q[2] / norm)
+                hits += _point_in_face(point, nodes, x, y, z)
+            return hits
+
+        self.repeated_queries = repeated_queries
+        repeated_queries(self.nodes, self.x, self.y, self.z)
+
+    def time_repeated_queries(self):
+        self.repeated_queries(self.nodes, self.x, self.y, self.z)
+
+
+class PointInPolygonSphere:
+    """Benchmark the spherical point-in-polygon kernel."""
+
+    def setup(self):
+        from uxarray.grid.point_in_face import _point_in_polygon_sphere
+
+        self._point_in_polygon_sphere = _point_in_polygon_sphere
+
+        _point_in_polygon_sphere(_Q_INSIDE, _POLY)
+        _point_in_polygon_sphere(_Q_OUTSIDE, _POLY)
+
+    def time_point_inside(self):
+        self._point_in_polygon_sphere(_Q_INSIDE, _POLY)
+
+    def time_point_outside(self):
+        self._point_in_polygon_sphere(_Q_OUTSIDE, _POLY)
+
+
 def _warm_classes():
     """Compiles what each class's ``setup`` compiles, once per process.
 
@@ -221,6 +278,7 @@ def _warm_classes():
         OrientPredicates,
         GCAGCAIntersection,
         GCAConstLatIntersection,
+        PointInPolygonSphere,
     ):
         try:
             cls().setup()
