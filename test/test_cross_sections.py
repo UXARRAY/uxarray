@@ -151,7 +151,7 @@ def test_edges_at_constant_lat_lon_chunked_grid(gridpath):
     # leaving both the connectivity and the node coordinates dask-backed.
     _ = chunked.edge_node_connectivity
     _ = chunked.node_x, chunked.node_y, chunked.node_z
-    chunked.chunk(n_node=2, n_edge=4, n_face=2)
+    chunked.chunk(n_node=2, n_edge=4, n_face=2, inplace=True)
 
     assert isinstance(chunked.edge_node_connectivity.data, da.Array)
     for coord in (chunked.node_x, chunked.node_y, chunked.node_z):
