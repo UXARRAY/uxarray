@@ -325,6 +325,10 @@ class ZonalAverage(DatasetBenchmark):
         lat_step = 10
         self.uxds['bottomDepth'].zonal_mean(lat=(-45, 45, lat_step))
 
+    def time_zonal_average_robust(self, resolution):
+        lat_step = 10
+        self.uxds['bottomDepth'].zonal_mean(lat=(-45, 45, lat_step), use_robust_weights=True)
+
 
 class ZonalAveragePeakMem:
     """Peak memory of a cold-start non-conservative zonal-mean sweep.
