@@ -1046,7 +1046,8 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         r2 < d <= r3 are included in calculations for r3.
 
         Dask-backed data is reduced lazily, with the faces inside ``outer_radius``
-        gathered into a single ``n_face`` chunk.
+        gathered into a single ``n_face`` chunk. Other lazily loaded data is read
+        as contiguous slices covering at most twice the faces inside ``outer_radius``.
         """
         from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 

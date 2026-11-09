@@ -27,15 +27,15 @@ def _compute_azimuthal_mean(uxda, center_xyz, chord_radii):
         shape=(n_radius, faces.size),
     )
 
-    # Read the span of ring faces contiguously, then pick them out of it: a
-    # lazily backed (e.g. netCDF) variable reads fancy indices face by face
-    start, stop = (faces[0], faces[-1] + 1) if faces.size else (0, 0)
-    span = uxda.to_xarray().isel(n_face=slice(start, stop))
-    if span.chunks is None:
-        ring_data = span.load().isel(n_face=faces - start)
+    # Only the data variable is gathered: the caller rebuilds the coords, and
+    # loading them here would read any lazy ones once per contiguous read
+    variable = uxda.variable
+    if variable.chunks is None:
+        ring_data = _read_faces(variable, faces)
     else:
-        # the sparse multiply spans every ring face, so keep them in a single chunk
-        ring_data = span.isel(n_face=faces - start).chunk({"n_face": -1})
+        # dask reads only the chunks that hold ring faces; the sparse multiply
+        # spans every ring face, so they're gathered into a single chunk
+        ring_data = variable.isel(n_face=faces).chunk({"n_face": -1})
 
     means = xr.apply_ufunc(
         _apply_ring_weights,
@@ -76,6 +76,32 @@ def _ring_membership(kdtree, center_xyz, chord_radii):
     dist2 = ((kdtree.data[faces] - center_xyz) ** 2).sum(axis=1)
     inside = dist2 <= bounds[-1]
     return faces[inside], np.searchsorted(bounds, dist2[inside])
+
+
+def _read_faces(variable, faces):
+    """Loads the given faces (ascending, unique) of a non-dask variable.
+
+    A lazily backed (e.g. netCDF) variable reads indices face by face,
+    while one slice spanning them all can read far more faces than are
+    selected. So the faces are read as contiguous slices instead, bridging the
+    smallest gaps between them for as long as at most twice the selected faces
+    are read, which keeps the number of reads low.
+    """
+    if faces.size == 0:
+        return variable.isel(n_face=slice(0, 0)).load()
+
+    gaps = np.diff(faces) - 1
+    by_size = np.argsort(gaps)
+    n_bridged = np.searchsorted(np.cumsum(gaps[by_size]), faces.size, side="right")
+    splits = np.sort(by_size[n_bridged:])  # the gaps left between reads
+    starts = np.r_[faces[0], faces[splits + 1]]
+    stops = np.r_[faces[splits], faces[-1]] + 1
+
+    pieces = [variable.isel(n_face=slice(a, b)).load() for a, b in zip(starts, stops)]
+    read = np.concatenate([np.arange(a, b) for a, b in zip(starts, stops)])
+    return xr.Variable.concat(pieces, "n_face").isel(
+        n_face=np.searchsorted(read, faces)
+    )
 
 
 def _apply_ring_weights(values, weights):
