@@ -253,6 +253,12 @@ def _slice_face_indices(
             source_grid_spec=grid.source_grid_spec,
             is_subset=True,
             inverse_indices=inverse_indices_ds,
+            drop_non_grid_data=grid._drop_non_grid_data,
         )
 
-    return Grid.from_dataset(ds, source_grid_spec=grid.source_grid_spec, is_subset=True)
+    return Grid.from_dataset(
+        ds,
+        source_grid_spec=grid.source_grid_spec,
+        is_subset=True,
+        drop_non_grid_data=grid._drop_non_grid_data,
+    )
