@@ -383,7 +383,7 @@ def open_dataset(
     grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.Dataset | Grid
         Specifies the unstructured grid data.
 
-        - Strings and Path objects are interpreted as a path to a data file.
+        - Strings and Path objects are interpreted as a path to a grid data file.
           A path to a directory containing grid files (e.g. a FESOM2 ASCII grid) is also accepted.
           but only when ``filename_or_obj`` is also provided to separately specify the dataset data.
         - A dict must specify UGRID variables ``node_lon``, ``node_lat``, and ``face_node_connectivity``,
@@ -646,7 +646,7 @@ def open_mfdataset(
     if _represents_structured_data(uxgrid):
         warn(
             "ux.open_mfdataset() is not intended for structured (lat/lon) grids or data. "
-            "Consider UxDataset.from_structured(xarray.open_mf_dataset(...)) instead. "
+            "Consider UxDataset.from_structured(xarray.open_mfdataset(...)) instead. "
             "Support for structured grids in open_mfdataset() was officially deprecated in "
             "November 2026 and may be removed in a future release.",
             category=FutureWarning,
