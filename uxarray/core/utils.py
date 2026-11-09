@@ -51,15 +51,21 @@ def _open_dataset_with_fallback(filename_or_obj, chunks=None, **kwargs):
             raise fallback_error from default_engine_error
 
 
+def _represents_structured_data(grid):
+    """returns whether this Grid corresponds with structured data,
+    based on grid.source_grid_spec.
+    """
+    if grid.source_grid_spec == "Structured":
+        return True
+    elif grid.source_grid_spec == "GEOS-CS":
+        return True
+    else:
+        return False
+
+
 def _map_dataset_to_ugrid(ds, grid):
     """Map member dimensions without modifying the Grid's source mapping."""
     source_dims = grid._source_dims_dict.copy()
-    if grid.source_grid_spec == "Structured":
-        lon_dim, lat_dim = source_dims["n_face"]
-        if lon_dim not in ds.dims and lat_dim not in ds.dims:
-            # No source spatial axes remain to flatten, including members
-            # located only on canonical nodes or edges.
-            return ds
     # Already-standardized dimensions must not be inferred by size: nodes and
     # faces can have equal counts. Preserve any explicit source mapping.
     for dim in ("n_face", "n_node", "n_edge"):

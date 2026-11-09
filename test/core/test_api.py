@@ -564,6 +564,46 @@ def test_open_dataset_with_fallback_chains_both_engine_errors(tmp_path):
     )
 
 
+def test_open_dataset_warns_for_structured_inputs():
+    """open_dataset() must raise a FutureWarning when provided structured data.
+    (Update this test when structured data becomes fully deprecated here.)
+    """
+    ds = xr.Dataset(
+        {
+            "var": (("lat", "lon"), np.arange(4*8).reshape(4, 8)),
+        },
+        coords={
+            "lat": ("lat", np.linspace(-80, 80, 4), {"standard_name": "latitude"}),
+            "lon": ("lon", np.linspace(0, 350, 8), {"standard_name": "longitude"}),
+        },
+    )
+
+    with pytest.warns(FutureWarning, match=r"open_dataset\(\) is not intended for structured"):
+        uxds = ux.open_dataset(ds, ds)  # grid, data
+
+
+def test_open_mfdataset_warns_for_structured_inputs(tmp_path):
+    """open_mfdataset() must raise a FutureWarning when provided structured data.
+    (Update this test when structured data becomes fully deprecated here.)
+    """
+    ds = xr.Dataset(
+        {
+            "var": (("lat", "lon"), np.arange(4*8).reshape(4, 8)),
+        },
+        coords={
+            "lat": ("lat", np.linspace(-80, 80, 4), {"standard_name": "latitude"}),
+            "lon": ("lon", np.linspace(0, 350, 8), {"standard_name": "longitude"}),
+        },
+    )
+
+    # Write the dataset to a temporary netCDF file
+    temp_file = tmp_path / "temp.nc"
+    ds.to_netcdf(temp_file)
+
+    with pytest.warns(FutureWarning, match=r"open_mfdataset\(\) is not intended for structured"):
+        uxds = ux.open_mfdataset(ds, [temp_file])  # grid, [paths to data files]
+
+
 def test_list_grid_names_multigrid(gridpath):
     """List grids from an OASIS-style multi-grid file."""
     grid_file = gridpath("scrip", "oasis", "grids.nc")
