@@ -337,8 +337,9 @@ def test_scrip_load_is_deterministic():
     Regression test for issue #1738.
     """
     examples = ["scrip-ne30pg2", "scrip-outCSne8"]
-    for example in examples:
-        for kw in (dict(), dict(chunks="auto")):
+    n_nodes = [21600, 384]
+    for example, n_node in zip(examples, n_nodes):
+        for kw in (dict(), dict(chunks="auto"), dict(chunks={"grid_size": n_node//4})):
             # load 3 times instead of 2, to drastically reduce the odds of
             # non-deterministic results which "just happen" to align.
             gridA = ux.tutorial.open_grid(example, **kw)
