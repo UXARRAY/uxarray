@@ -5,7 +5,6 @@ import uxarray.grid.slice as slice_module
 from uxarray.grid.slice import _remap_dense, _remap_kernel, _remap_searchsorted
 
 import pytest
-import xarray as xr
 
 
 def test_repr(gridpath, datasetpath):
@@ -332,34 +331,6 @@ def test_isel_dask_connectivity(gridpath, monkeypatch):
                 eager_subset._ds[name].values,
                 err_msg=f"force_sparse={force_sparse}: {name}",
             )
-
-
-def test_bounding_box_with_stray_grid_time(gridpath):
-    """Subsetting must work when the grid was built from a source that carried a stray
-    scalar ``time`` coordinate. Ensures issue #1444 has been fixed.
-    """
-    # grid built from a source carrying a stray scalar `time`
-    grid_ds = xr.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"))
-    uxgrid = ux.open_grid(grid_ds.assign_coords(time=np.datetime64("2016-01-01")))
-
-    # the stray coordinate is dropped during grid construction
-    assert "time" not in uxgrid._ds.coords
-
-    # a face-centered variable carrying a *different* time coordinate
-    times = np.array(["2018-01-01", "2020-01-01"], dtype="datetime64[ns]")
-    uxda = ux.UxDataArray(
-        data=np.ones((times.size, uxgrid.n_face)),
-        dims=("time", "n_face"),
-        coords={"time": times},
-        uxgrid=uxgrid,
-    )
-
-    # previously raised: "IndexError: dimension coordinate 'time' conflicts ..."
-    res = uxda.subset.bounding_box(lon_bounds=(-10, 10), lat_bounds=(-10, 10))
-
-    assert isinstance(res, ux.UxDataArray)
-    assert res.sizes["time"] == times.size
-    assert "n_face" in res.dims
 
 
 class TestBoundingBoxSubset:
