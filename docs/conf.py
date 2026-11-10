@@ -14,9 +14,11 @@ from textwrap import dedent, indent
 import matplotlib.pyplot
 import sphinx_autosummary_accessors
 import yaml
+from docutils import nodes
 from sphinx import addnodes
 from sphinx.application import Sphinx
 from sphinx.environment import BuildEnvironment
+from sphinx.transforms import SphinxTransform
 from sphinx.util import logging
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -315,8 +317,55 @@ def prune_generated_toctrees(app: Sphinx, env: BuildEnvironment):
                 toctree.parent.remove(toctree)
 
 
-# Allow for changes to be made to the css in the theme_overrides file
+# Pages whose headings are numbered by ``NumberSections`` below.
+NUMBERED_SECTION_PAGES = frozenset({"api"})
+
+# How many heading levels below the page title to number.
+SECTION_NUMBER_DEPTH = 3
+
+
+def number_subsections(section: nodes.section, prefix: tuple[str, ...] = ()) -> None:
+    """Prepend "1.", "2.", "2.1." ... to the headings nested in ``section``."""
+    if len(prefix) >= SECTION_NUMBER_DEPTH:
+        return
+    subsections = [child for child in section if isinstance(child, nodes.section)]
+    for count, subsection in enumerate(subsections, start=1):
+        numbers = (*prefix, str(count))
+        # The trailing no-break spaces are how Docutils separates the number
+        # from the heading text; its HTML writer trims them back to a single
+        # regular space, and other writers keep them.
+        label = ".".join(numbers) + "." + "\u00a0" * 3
+        subsection[0].insert(0, nodes.generated("", label, classes=["sectnum"]))
+        number_subsections(subsection, numbers)
+
+
+class NumberSections(SphinxTransform):
+    """Number the headings of the pages in ``NUMBERED_SECTION_PAGES``.
+
+    Docutils' own ``.. sectnum::`` directive is the obvious way to do this, but
+    Sphinx keeps a page's title as a section of its own rather than promoting it
+    to a document title. Docutils therefore counts the title as the first level
+    and numbers every heading on the page "1.something" -- "1.2 Tutorial",
+    "1.3.1 Constructors". Numbering the sections *below* the title instead gives
+    the "2. Tutorial", "3.1. Constructors" reading that was wanted.
+    """
+
+    # Docutils numbers sections at priority 710; anything after that and before
+    # the table of contents is collected works just as well.
+    default_priority = 720
+
+    def apply(self) -> None:
+        if self.env.docname not in NUMBERED_SECTION_PAGES:
+            return
+        # The first section of a Sphinx page is the one holding its title.
+        title_section = next(self.document.findall(nodes.section), None)
+        if title_section is not None:
+            number_subsections(title_section)
+
+
 def setup(app):
+    # Allow for changes to be made to the css in the theme_overrides file
     app.add_css_file("theme_overrides.css")
     app.connect("builder-inited", update_gallery)
     app.connect("env-updated", prune_generated_toctrees)
+    app.add_transform(NumberSections)
