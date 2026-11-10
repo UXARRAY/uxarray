@@ -154,3 +154,47 @@ def test_structured_coordinate_name_mapping_mismatch_raises():
     # names for this input. Correcting that metadata is separate from GH1828.
     with pytest.raises(DimensionError, match="selected mapping's spatial dimensions"):
         ux.UxDataset.from_structured(ds)
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("with_time", [False, True])
+@pytest.mark.parametrize("explicit_mapping", [False, True])
+def test_structured_preflattened_faces(lazy, with_time, explicit_mapping):
+    """Already flattened fields retain their values, indexes and shared Grid."""
+    source = _structured_dataset(time_order=("time", "y", "x") if with_time else None)
+    grid = ux.Grid.from_structured(lon=source.x, lat=source.y)
+    ds = source.stack(n_face=("y", "x"))
+    if lazy:
+        ds = ds.chunk({"n_face": 2})
+    original = ds.copy(deep=True)
+    grid_data = grid._ds.copy(deep=True)
+    source_dims = grid._source_dims_dict.copy()
+    mapping = {"n_face": ("column", "row")} if explicit_mapping else None
+
+    mapped = ux.UxDataset.from_xarray(ds, uxgrid=grid, ugrid_dims=mapping)
+
+    assert mapped.uxgrid is grid
+    xr.testing.assert_identical(mapped.to_xarray(), original)
+    xr.testing.assert_identical(ds, original)
+    xr.testing.assert_identical(grid._ds, grid_data)
+    assert grid._source_dims_dict == source_dims
+    if explicit_mapping:
+        assert mapping == {"n_face": ("column", "row")}
+    if lazy:
+        assert all(mapped[name].chunks == ds[name].chunks for name in ds.data_vars)
+    _assert_face_alignment(mapped, source)
+
+
+@pytest.mark.parametrize("remaining", ["x", "y"])
+def test_structured_preflattened_with_partial_source_dimension_raises(remaining):
+    """An n_face dimension must not hide a remaining source spatial axis."""
+    source = _structured_dataset()
+    grid = ux.Grid.from_structured(lon=source.x, lat=source.y)
+    ds = xr.Dataset(
+        {
+            "field": ("n_face", np.arange(grid.n_face)),
+            "partial": (remaining, source[remaining].values),
+        }
+    )
+    with pytest.raises(DimensionError, match="selected mapping's spatial dimensions"):
+        ux.UxDataset.from_xarray(ds, uxgrid=grid)

@@ -62,6 +62,9 @@ def _map_dims_to_ugrid(
 
     if grid.source_grid_spec == "Structured":
         lon_name, lat_name = _source_dims_dict["n_face"]
+        if lon_name not in ds.dims and lat_name not in ds.dims and "n_face" in ds.dims:
+            # Already flattened onto the Grid's faces (as open_dataset accepts).
+            return ds
         if lon_name not in ds.dims or lat_name not in ds.dims:
             raise DimensionError(
                 "Structured data must contain the selected mapping's spatial "
