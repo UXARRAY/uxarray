@@ -4,6 +4,10 @@ on:
   schedule:
      - cron: '0 0 * * *' # Daily “At 00:00”
 
+# Read-only by default; failure-issue is the only job that writes, and only to issues.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -65,6 +69,9 @@ jobs:
       && github.repository == 'UXARRAY/uxarray'
       && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     defaults:
       run:
         shell: bash -l {0}

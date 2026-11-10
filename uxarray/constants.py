@@ -31,3 +31,14 @@ WGS84_CRS = "EPSG:4326"
 # ``size * (size - 1) / 2`` inversions, too few to exhaust the budget, so the plain insertion
 # sort is used instead.
 EDGE_NODE_SORT_THRESHOLD = 8
+
+
+# Minimum thresholds for whether to cull _point_in_face_query candidate faces by their own radii
+# (a face can't contain a point if the point is outside the face's radius).
+# This is for efficiency, only; changing these values will not affect correctness.
+POINT_IN_FACE_CULL_THRESHOLDS = {
+    # Values here were picked as rough estimates without any fine-tuning;
+    # there may be room to optimize further with more tuning, if needed.
+    "CANDS_PER_POINT": 10,  # minimum n_candidates / n_points
+    "CANDS_PER_FACE": 1.0,  # minimum n_candidates / n_face
+}
