@@ -2,6 +2,7 @@ import numpy as np
 from numba import njit, prange
 
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.utils.parallel import parallel_njit
 
 
 def construct_dual(grid):
@@ -61,7 +62,7 @@ def construct_dual(grid):
     return new_node_face_connectivity
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def construct_faces(
     valid_node_indices,
     n_edges,

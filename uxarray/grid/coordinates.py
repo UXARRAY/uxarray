@@ -12,6 +12,7 @@ from uxarray.utils.numba_math import (
     _numba_div3_scalar,
     _numba_norm3,
 )
+from uxarray.utils.parallel import parallel_njit
 
 
 @njit(cache=True, nogil=True)
@@ -50,7 +51,9 @@ def _xyz_to_lonlat_rad_no_norm(
     Returns
     -------
     lon : float
-        Longitude in radians
+        Longitude in radians, in [0, 2*pi]. Nominally [0, 2*pi), but a
+        longitude within rounding of 0 from below comes out as exactly 2*pi.
+        Poles get 0.
     lat: float
         Latitude in radians
     """
@@ -92,7 +95,9 @@ def _xyz_to_lonlat_rad(
     Returns
     -------
     lon : np.ndarray | float
-        Longitude in radians
+        Longitude in radians, in [0, 2*pi]. Nominally [0, 2*pi), but a
+        longitude within rounding of 0 from below comes out as exactly 2*pi.
+        Poles get 0.
     lat: np.ndarray | float
         Latitude in radians
     """
@@ -137,7 +142,9 @@ def _xyz_to_lonlat_deg(
     Returns
     -------
     lon : np.ndarray | float
-        Longitude in degrees
+        Longitude in degrees, in [-180, 180): 180 comes out as -180, and poles
+        get 0. Not ``np.rad2deg`` of ``_xyz_to_lonlat_rad``, which returns
+        [0, 2*pi].
     lat: np.ndarray | float
         Latitude in degrees
     """
@@ -275,7 +282,7 @@ def _populate_face_centroids(grid, repopulate=False):
         )
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _construct_face_centroids(node_x, node_y, node_z, face_nodes, n_nodes_per_face):
     """Constructs the xyz centroid coordinate for each face using Cartesian
     Averaging.
@@ -541,7 +548,7 @@ def _populate_face_centerpoints(grid, repopulate=False):
         )
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _construct_face_centerpoints(node_lon, node_lat, face_nodes, n_nodes_per_face):
     """Constructs the face centerpoint using Welzl's algorithm.
 
@@ -724,8 +731,19 @@ def _is_projected_grid(uxgrid) -> bool:
     return False
 
 
+def _lon_within_range(da) -> bool:
+    """Whether all of ``da`` lies in [-180, 180], making the wrap the identity.
+    Only call it when ``da.chunks is None``.
+    """
+    return bool(da.max() <= 180 and da.min() >= -180)
+
+
 def _set_desired_longitude_range(uxgrid):
     """Sets the longitude range to [-180, 180] for all longitude variables.
+
+    Only values outside [-180, 180] go through the modulo, so in-range values,
+    both endpoints included, pass through bit-for-bit. That makes a whole-array
+    ``max() > 180`` guard unnecessary, which on a dask array would be a compute.
 
     Skipped entirely for projected grids: wrapping meter-scale coordinates
     as if they were degrees silently corrupts the geometry. A ``UserWarning``
@@ -747,16 +765,26 @@ def _set_desired_longitude_range(uxgrid):
             uxgrid._projected_warning_issued = True
         return
 
+    memo = uxgrid._wrapped_lon_vars
+
     with xr.set_options(keep_attrs=True):
         for lon_name in ["node_lon", "edge_lon", "face_lon"]:
             if lon_name in uxgrid._ds:
                 da = uxgrid._ds[lon_name]
                 if da.size == 0:
                     continue
-                if da.max() > 180:
-                    wrapped = (uxgrid._ds[lon_name] + 180) % 360 - 180
-                    wrapped.name = da.name
-                    uxgrid._ds[lon_name] = wrapped
+
+                if memo.get(lon_name) is da.variable._data:
+                    continue
+                if da.chunks is None and _lon_within_range(da):
+                    memo[lon_name] = da.variable._data
+                    continue
+
+                out_of_range = (da > 180) | (da < -180)
+                wrapped = xr.where(out_of_range, (da + 180) % 360 - 180, da)
+                wrapped.name = da.name
+                uxgrid._ds[lon_name] = wrapped
+                memo[lon_name] = uxgrid._ds[lon_name].variable._data
 
 
 def prepare_points(points, normalize):

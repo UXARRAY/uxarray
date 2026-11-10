@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 from numba import njit, prange
 
@@ -7,6 +9,30 @@ from uxarray.utils.numba_math import (
     _numba_dot3,
     _numba_mul3_scalar,
 )
+from uxarray.utils.parallel import parallel_njit
+
+
+def _integration_face_areas(uxgrid, quadrature_rule, order):
+    """Select integration areas, preserving defaults and validating custom rules."""
+    if quadrature_rule is None or order is None:
+        warnings.warn(
+            "Passing None for `quadrature_rule` or `order` in `integrate` is "
+            "deprecated (added November 2026) and support for it may be removed "
+            "in a future release. Omit the argument to use the default "
+            "(`quadrature_rule='triangular'`, `order=4`).",
+            FutureWarning,
+            stacklevel=4,
+        )
+        if quadrature_rule is None:
+            quadrature_rule = "triangular"
+        if order is None:
+            order = 4
+    # The cached property is triangular/4 and preserves HEALPix equal areas.
+    if quadrature_rule == "triangular" and order == 4:
+        return uxgrid.face_areas
+    return uxgrid.compute_face_areas(
+        quadrature_rule=quadrature_rule, order=order, as_uxarray=True
+    )
 
 
 @njit(cache=True)
@@ -206,7 +232,7 @@ def _edge_passes_through_pole(node1, node2):
     )
 
 
-@njit(cache=True, parallel=True, nogil=True)
+@parallel_njit
 def _get_all_face_area_from_coords(
     x,
     y,

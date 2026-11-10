@@ -15,6 +15,7 @@ from uxarray.grid.intersections import (
 )
 from uxarray.grid.point_in_face import _point_in_face
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
+from uxarray.utils.parallel import parallel_njit
 
 POLE_POINTS_XYZ = {
     "North": np.array([0.0, 0.0, 1.0]),
@@ -319,7 +320,6 @@ def _build_geodataframe_with_antimeridian(
     _raise_hint_if_optional_deps_missing("geopandas", "spatialpandas")
     import geopandas
     import spatialpandas
-    from spatialpandas.geometry import MultiPolygonArray
 
     polygons = _build_corrected_shapely_polygons(
         polygon_shells, projected_polygon_shells, antimeridian_face_indices
@@ -329,7 +329,20 @@ def _build_geodataframe_with_antimeridian(
         gdf = geopandas.GeoDataFrame({"geometry": polygons})
     else:
         # Create a spatialpandas.GeoDataFrame
-        geometry = MultiPolygonArray(polygons)
+        # (MultiPolygonArray handles cases where polygons are split across the antimeridian.
+        # But, naively building MultiPolygonArray as:
+        #   geometry = MultiPolygonArray(polygons)
+        # is quite inefficient due to spatialpandas unwrapping every face, without incorporating
+        # the fact that only the antimeridian-crossing faces actually need any adjustment.
+        # The _build_multipolygon_array() helper provides a more efficient implementation.)
+        shells = (
+            projected_polygon_shells
+            if projected_polygon_shells is not None
+            else polygon_shells
+        )
+        geometry = _build_multipolygon_array(
+            polygons, shells, antimeridian_face_indices
+        )
         gdf = spatialpandas.GeoDataFrame({"geometry": geometry})
 
     return gdf
@@ -363,6 +376,51 @@ def _build_corrected_shapely_polygons(
         polygons[i] = corrected_polygons.pop()
 
     return polygons
+
+
+def _build_multipolygon_array(shapely_polygons, shells, antimeridian_face_indices):
+    """Builds a ``spatialpandas`` ``MultiPolygonArray`` without unwrapping every
+    face from shapely.
+
+    Faces that were not modified by the antimeridian correction are taken
+    directly from the ``shells`` array. Only the (few) corrected faces are read
+    back out of their shapely geometries.
+    """
+    _raise_hint_if_optional_deps_missing("spatialpandas")
+    from spatialpandas.geometry import MultiPolygonArray
+
+    # shapely stores coordinates as float64, so use float64 for every face
+    shells = shells.astype(np.float64)
+
+    # (n_face, n_nodes, 2) -> (n_face, n_nodes * 2), i.e. x0, y0, x1, y1, ...
+    n_face = shells.shape[0]
+    flat_rings = shells.reshape(n_face, -1)
+
+    # MultiPolygonArray input: multipolygon -> polygon -> ring -> flat coords.
+    # Every uncorrected face is one multipolygon with one polygon with one ring.
+    data = [[[ring]] for ring in flat_rings]
+
+    # shapely.polygons() closes any ring whose first/last points differ,
+    # so do the same here
+    not_closed = ~(shells[:, 0] == shells[:, -1]).all(axis=1)
+    for i in np.flatnonzero(not_closed):
+        data[i] = [[np.concatenate([flat_rings[i], flat_rings[i, :2]])]]
+
+    # corrected faces come from the shapely output, as before
+    for i in antimeridian_face_indices:
+        data[i] = _shapely_to_nested_coords(shapely_polygons[i])
+
+    return MultiPolygonArray(data)
+
+
+def _shapely_to_nested_coords(geometry):
+    """Converts a shapely Polygon or MultiPolygon into
+    ``[[exterior, *holes], ...]`` where each ring is a flat coordinate array."""
+    parts = geometry.geoms if hasattr(geometry, "geoms") else [geometry]
+    return [
+        [np.asarray(ring.coords).ravel() for ring in (part.exterior, *part.interiors)]
+        for part in parts
+    ]
 
 
 def _build_antimeridian_face_indices(shells_x, projection=None):
@@ -1069,8 +1127,7 @@ def _populate_max_face_radius(grid):
     face_y = grid.face_y.values
     face_z = grid.face_z.values
 
-    # Get the max distance
-    max_distance = calculate_max_face_radius(
+    face_radii2 = _compute_face_radii(
         face_node_connectivity,
         node_x,
         node_y,
@@ -1078,13 +1135,14 @@ def _populate_max_face_radius(grid):
         face_x,
         face_y,
         face_z,
+        squared=True,
+        # (square root below, instead of on every face, for efficiency)
     )
+    return np.sqrt(np.max(face_radii2))
 
-    return max_distance
 
-
-@njit(cache=True, parallel=True, nogil=True)
-def calculate_max_face_radius(
+@parallel_njit
+def _compute_face_radii(
     face_node_connectivity: np.ndarray,
     node_x: np.ndarray,
     node_y: np.ndarray,
@@ -1092,7 +1150,16 @@ def calculate_max_face_radius(
     face_x: np.ndarray,
     face_y: np.ndarray,
     face_z: np.ndarray,
-) -> float:
+    squared: bool = False,
+) -> np.ndarray:
+    """return the radius of each face, defined as
+    the maximum distance from the face center to any of its nodes.
+
+    squared: bool
+        whether to return squared radius instead (default False).
+        squared = True option slightly improves efficiency if can compare values
+        before taking the square root, such as in calculating max_face_radius.
+    """
     n_faces, n_max_nodes = face_node_connectivity.shape
     # workspace to hold the max squared-distance for each face
     max2_per_face = np.empty(n_faces, dtype=np.float64)
@@ -1120,14 +1187,10 @@ def calculate_max_face_radius(
 
         max2_per_face[i] = face_max2
 
-    # now do a simple serial reduction
-    global_max2 = 0.0
-    for i in range(n_faces):
-        if max2_per_face[i] > global_max2:
-            global_max2 = max2_per_face[i]
-
-    # one sqrt at the end
-    return math.sqrt(global_max2)
+    if squared:
+        return max2_per_face
+    else:
+        return np.sqrt(max2_per_face)
 
 
 @njit(cache=True)

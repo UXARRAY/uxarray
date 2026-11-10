@@ -1,5 +1,7 @@
+import cartopy.crs as ccrs
 import numpy as np
 import pytest
+from spatialpandas.geometry import MultiPolygonArray
 import xarray as xr
 
 import uxarray as ux
@@ -8,6 +10,8 @@ from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _normalize_xyz
 from uxarray.grid.geometry import haversine_distance, _pole_point_inside_polygon_cartesian
 from uxarray.grid.point_in_face import _point_in_face_from_grid
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array
+
+import numpy.testing as nt
 
 
 def test_antimeridian_crossing():
@@ -75,9 +79,9 @@ def test_pole_point_inside_polygon_from_vertice_south():
 def test_to_gdf_geodataframe(gridpath):
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
 
-    gdf_with_am = uxgrid.to_geodataframe(exclude_antimeridian=False)
+    gdf_with_am = uxgrid.to_geodataframe(periodic_elements="split")
 
-    gdf_without_am = uxgrid.to_geodataframe(exclude_antimeridian=True)
+    gdf_without_am = uxgrid.to_geodataframe(periodic_elements="exclude")
 
     assert len(gdf_with_am) >= len(gdf_without_am)
 
@@ -85,19 +89,19 @@ def test_to_gdf_geodataframe(gridpath):
 def test_cache_and_override_geodataframe(gridpath):
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
 
-    gdf_a = uxgrid.to_geodataframe(exclude_antimeridian=False)
+    gdf_a = uxgrid.to_geodataframe(periodic_elements="split")
 
-    gdf_b = uxgrid.to_geodataframe(exclude_antimeridian=False)
+    gdf_b = uxgrid.to_geodataframe(periodic_elements="split")
 
     # Should be the same object (cached)
-    gdf_c = uxgrid.to_geodataframe(exclude_antimeridian=True)
+    gdf_c = uxgrid.to_geodataframe(periodic_elements="exclude")
 
     # Should be different from gdf_a and gdf_b
-    gdf_d = uxgrid.to_geodataframe(exclude_antimeridian=True)
+    gdf_d = uxgrid.to_geodataframe(periodic_elements="exclude")
 
-    gdf_e = uxgrid.to_geodataframe(exclude_antimeridian=True, override=True, cache=False)
+    gdf_e = uxgrid.to_geodataframe(periodic_elements="exclude", override=True, cache=False)
 
-    gdf_f = uxgrid.to_geodataframe(exclude_antimeridian=True)
+    gdf_f = uxgrid.to_geodataframe(periodic_elements="exclude")
 
     # gdf_a and gdf_b should be the same (cached)
     assert gdf_a is gdf_b
@@ -110,7 +114,6 @@ def test_cache_and_override_geodataframe(gridpath):
 
     # gdf_f should be the same as gdf_c (cached)
     assert gdf_f is gdf_c
-
 
 
 def test_face_at_antimeridian():
@@ -229,3 +232,77 @@ def test_geodataframe_crashes_when_nnode_equals_nface():
     # ensure to_geodataframe crashes for non-face-centered data, even if n_node==n_face
     with pytest.raises(ValueError):
         uxarr.to_geodataframe()
+
+
+def test_face_radii():
+    """Ensure Grid.max_face_radius and Grid.compute_face_radii() work as expected."""
+
+    # "brute force" check vs. naive, inefficient (but easy to read) python:
+    # face radius is the max distance from face center to any of its nodes.
+    grid = ux.tutorial.open_grid('mpas-QU-1920')
+    assert grid.n_face < 500   # sanity check to avoid long test times
+    expected = np.zeros(grid.n_face)
+    for i in range(grid.n_face):
+        n_nodes = grid.n_nodes_per_face[i].item()
+        node_ids = grid.face_node_connectivity[i, 0:n_nodes]
+        face_x, face_y, face_z = grid.face_x[i], grid.face_y[i], grid.face_z[i]
+        for node in node_ids:
+            node_x, node_y, node_z = grid.node_x[node], grid.node_y[node], grid.node_z[node]
+            dist = ((node_x - face_x) ** 2 + (node_y - face_y) ** 2 + (node_z - face_z) ** 2)**0.5
+            if dist > expected[i]:
+                expected[i] = dist
+
+    actual = grid.compute_face_radii()
+    nt.assert_allclose(expected, actual, atol=0, rtol=1e-13)
+    assert actual.shape == expected.shape == (grid.n_face,)
+    assert isinstance(actual, ux.UxDataArray)
+
+    # the test above is reasonably generic; not all face radii are the same.
+    assert not np.isclose(actual.max().item(), actual.min().item(), rtol=1e-13)
+
+    # grid.max_face_radius agrees
+    assert np.isclose(actual.max().item(), grid.max_face_radius, rtol=1e-13)
+
+
+def test_build_multipolygon_array_matches_spatialpandas_multipolygon_array(monkeypatch):
+    """ensure _build_multipolygon_array is bit-for-bit equal to spatialpandas's MultiPolygonArray,
+    specifically as called from _build_geodataframe_with_antimeridian,
+    from inside to_geodataframe(), when periodic_elements="split",
+    with or without a projection.
+    """
+    import uxarray.grid.geometry  # will be monkeypatched below
+
+    called = []  # tracker to ensure the mock method was actually used
+    def mock_build_multipolygon_array(polygons, shells, antimeridian_face_indices):
+        """returns MultiPolygonArray(polygons), instead of using the
+        more efficient _build_multipolygon_array implementation.
+        """
+        called.append((polygons, shells, antimeridian_face_indices))
+        return MultiPolygonArray(polygons)
+
+    # produce a a nontrivial example; has some antimeridian-crossing faces
+    grid = ux.Grid.from_healpix(zoom=4)
+    arr = grid.compute_face_areas(as_uxarray=True) * np.arange(grid.n_face)
+    # assert there are actually some antimeridian-crossing faces
+    lon_min = grid.face_bounds_lon.isel(min_max=0)
+    lon_max = grid.face_bounds_lon.isel(min_max=1)
+    n_crosses = np.count_nonzero(lon_min > lon_max)
+    assert 0 < n_crosses < grid.n_face
+
+    # test cases with and without a projection
+    kws0 = dict(periodic_elements="split", engine="spatialpandas")
+    kws1 = dict(**kws0, projection=ccrs.Robinson(), project=False)
+    # (project=False because to_geodataframe() otherwise crashes,
+    # when periodic_elements="split" and projection is provided.)
+    result0_orig = arr.to_geodataframe(**kws0)
+    result1_orig = arr.to_geodataframe(**kws1)
+
+    # monkeypatch _build_multipolygon_array to use the mock method.
+    monkeypatch.setattr(uxarray.grid.geometry, "_build_multipolygon_array", mock_build_multipolygon_array)
+
+    result0_mock = arr.to_geodataframe(**kws0)
+    result1_mock = arr.to_geodataframe(**kws1)
+
+    assert len(called) == 2  # ensure mock method was actually called
+    assert result0_orig.equals(result0_mock)
+    assert result1_orig.equals(result1_mock)
