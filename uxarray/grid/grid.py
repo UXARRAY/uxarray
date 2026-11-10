@@ -201,8 +201,7 @@ class Grid:
 
         # internal xarray dataset for storing grid variables.
         # drop variables that don't belong on the grid (e.g. a `time` carried in from a
-        # file holding both grid and data), so they can't collide during subsetting
-        # (see #1444, #1720). Kept on the instance so copies and subsets do the same.
+        # file holding both grid and data), so they can't collide during subsetting.
         self._drop_non_grid_data = drop_non_grid_data
         self._ds = _drop_non_grid_data(grid_ds) if drop_non_grid_data else grid_ds
 

@@ -21,10 +21,7 @@ def _drop_non_grid_data(ds):
     from a file that holds both the grid and its data).
 
     A variable or coordinate is dropped when it has no dimensions, or when any of
-    its dimensions is not a UGRID grid dimension (``ugrid.DIM_NAMES``). This covers
-    a scalar ``time`` coordinate (#1444), a ``time`` dimension coordinate, data
-    variables along ``time``, and coordinates mixing grid and non-grid dimensions
-    (#1720).
+    its dimensions is not a UGRID grid dimension (``ugrid.DIM_NAMES``).
 
     Variables uxarray reads or caches on the grid are always kept, whatever their
     dimensions: grid coordinates, connectivity, descriptors (including MPAS
