@@ -16,7 +16,6 @@ from uxarray.conventions import ugrid
 
 # Import the utility function for opening datasets with fallback
 from uxarray.core.utils import _open_dataset_with_fallback
-from uxarray.cross_sections import GridCrossSectionAccessor
 from uxarray.errors import DimensionError, GridInvalidError
 from uxarray.formatting_html import grid_repr
 from uxarray.grid.angles import (
@@ -24,7 +23,11 @@ from uxarray.grid.angles import (
     _compute_face_node_angles_convex,
 )
 from uxarray.grid.area import _get_all_face_area_from_coords
-from uxarray.grid.bounds import _populate_face_bounds
+from uxarray.grid.bounds import (
+    _face_bounds_lat_degrees,
+    _face_bounds_lon_degrees,
+    _populate_face_bounds,
+)
 from uxarray.grid.connectivity import (
     _populate_edge_face_connectivity,
     _populate_edge_node_connectivity,
@@ -46,6 +49,7 @@ from uxarray.grid.coordinates import (
 )
 from uxarray.grid.dual import construct_dual
 from uxarray.grid.geometry import (
+    _compute_face_radii,
     _construct_boundary_edge_indices,
     _grid_to_matplotlib_linecollection,
     _grid_to_matplotlib_polycollection,
@@ -257,11 +261,8 @@ class Grid:
     # declare subset accessor
     subset = UncachedAccessor(GridSubsetAccessor)
 
-    # declare cross section accessor
-    cross_section = UncachedAccessor(GridCrossSectionAccessor)
-
     @classmethod
-    def from_dataset(cls, dataset, use_dual: bool | None = False, **kwargs):
+    def from_dataset(cls, dataset, use_dual: bool = False, **kwargs):
         """Constructs a ``Grid`` object from a dataset.
 
         Parameters
@@ -355,7 +356,7 @@ class Grid:
     def from_file(
         cls,
         filename: str,
-        backend: str | None = "geopandas",
+        backend: str = "geopandas",
         **kwargs,
     ):
         """Constructs a ``Grid`` object from a using the read_file method with
@@ -475,7 +476,7 @@ class Grid:
         node_lat: np.ndarray,
         face_node_connectivity: np.ndarray,
         fill_value: int | float | None = None,
-        start_index: int | None = 0,
+        start_index: int = 0,
         dims_dict: dict | None = None,
         **kwargs,
     ):
@@ -496,7 +497,7 @@ class Grid:
             Face node connectivity, mapping each face to the nodes that surround them
         fill_value: int | float | None
             Value used for padding connectivity variables when the maximum number of elements in a row is less than the maximum.
-        start_index: int | None, default=0
+        start_index: int, default=0
             Start index (typically 0 or 1)
         dims_dict : dict | None
             Dictionary of dimension names mapped to the ugrid conventions (i.e. {"nVertices": "n_node})
@@ -592,7 +593,7 @@ class Grid:
     def from_face_vertices(
         cls,
         face_vertices: list | tuple | np.ndarray,
-        latlon: bool | None = True,
+        latlon: bool = True,
     ):
         """Constructs a ``Grid`` object from user-defined face vertices.
 
@@ -813,11 +814,10 @@ class Grid:
         if self.source_grid_spec != other.source_grid_spec:
             return False
 
-        if not (
-            self.node_lon.equals(other.node_lon) or self.node_lat.equals(other.node_lat)
-        ):
+        if not self.node_lon.equals(other.node_lon):
             return False
-
+        if not self.node_lat.equals(other.node_lat):
+            return False
         if not self.face_node_connectivity.equals(other.face_node_connectivity):
             return False
 
@@ -875,15 +875,6 @@ class Grid:
         from uxarray.conventions.descriptors import DESCRIPTOR_NAMES
 
         return set([desc for desc in DESCRIPTOR_NAMES if desc in self._ds])
-
-    @property
-    def parsed_attrs(self) -> dict:
-        """Dictionary of parsed attributes from the source grid."""
-        warnings.warn(
-            "Grid.parsed_attrs will be deprecated in a future release. Please use Grid.attrs instead.",
-            DeprecationWarning,
-        )
-        return self._ds.attrs
 
     @property
     def attrs(self) -> dict:
@@ -1639,16 +1630,8 @@ class Grid:
         """
 
         if "face_bounds_lon" not in self._ds:
-            bounds = self.bounds.values
-
-            bounds_deg = np.rad2deg(bounds[:, 1, :])
-            bounds_normalized = (bounds_deg + 180.0) % 360.0 - 180.0
-            bounds_lon = bounds_normalized
-            mask_zero = (bounds_lon[:, 0] == 0) & (bounds_lon[:, 1] == 0)
-            # for faces that span all longitudes (i.e. pole faces)
-            bounds_lon[mask_zero] = [-180.0, 180.0]
             self._ds["face_bounds_lon"] = xr.DataArray(
-                data=bounds_lon,
+                data=_face_bounds_lon_degrees(self.bounds.values),
                 dims=["n_face", "min_max"],
             )
 
@@ -1667,10 +1650,8 @@ class Grid:
         """
 
         if "face_bounds_lat" not in self._ds:
-            bounds = self.bounds.values
-            bounds_lat = np.sort(np.rad2deg(bounds[:, 0, :]), axis=-1)
             self._ds["face_bounds_lat"] = xr.DataArray(
-                data=bounds_lat,
+                data=_face_bounds_lat_degrees(self.bounds.values),
                 dims=["n_face", "min_max"],
             )
         return self._ds["face_bounds_lat"]
@@ -1840,9 +1821,9 @@ class Grid:
 
     def get_ball_tree(
         self,
-        coordinates: str | None = "face centers",
-        coordinate_system: str | None = "spherical",
-        distance_metric: str | None = "haversine",
+        coordinates: str = "face centers",
+        coordinate_system: str = "spherical",
+        distance_metric: str = "haversine",
         reconstruct: bool = False,
     ):
         """Get the BallTree data structure of this Grid that allows for nearest
@@ -1936,9 +1917,7 @@ class Grid:
         """
         return Neighborhood(self, r=r, on=on)
 
-    def _get_scipy_kd_tree(
-        self, coordinates: str | None = "face", reconstruct: bool = False
-    ):
+    def _get_scipy_kd_tree(self, coordinates: str = "face", reconstruct: bool = False):
         """
         Build or retrieve a KDTree for efficient nearest-neighbor searches on grid points.
 
@@ -1990,9 +1969,9 @@ class Grid:
 
     def get_kd_tree(
         self,
-        coordinates: str | None = "face centers",
-        coordinate_system: str | None = "cartesian",
-        distance_metric: str | None = "minkowski",
+        coordinates: str = "face centers",
+        coordinate_system: str = "cartesian",
+        distance_metric: str = "minkowski",
         reconstruct: bool = False,
     ):
         """Get the KDTree data structure of this Grid that allows for nearest
@@ -2171,6 +2150,38 @@ class Grid:
             from uxarray.core.dataarray import UxDataArray
 
             result = UxDataArray(result, uxgrid=self)
+        return result
+
+    def compute_face_radii(self):
+        """Compute the radius of each face in this grid,
+        defined as the maximum distance from the face center to any of its nodes.
+
+        Returns
+        -------
+        face_radii : uxarray.UxDataArray
+            The radius of each face in this grid.
+        """
+        from uxarray.conventions.ugrid import FACE_DIM
+        from uxarray.core.dataarray import UxDataArray
+
+        result = _compute_face_radii(
+            self.face_node_connectivity.values,
+            self.node_x.values,
+            self.node_y.values,
+            self.node_z.values,
+            self.face_x.values,
+            self.face_y.values,
+            self.face_z.values,
+        )
+        result = xr.DataArray(
+            data=result,
+            dims=[FACE_DIM],
+            name="face_radii",
+            attrs={
+                "description": "Radius of each face (max distance from face center to any node)."
+            },
+        )
+        result = UxDataArray(result, uxgrid=self)
         return result
 
     def calculate_total_face_area(
@@ -2453,7 +2464,7 @@ class Grid:
 
         self._ds.attrs["sphere_radius"] = radius
 
-    def to_xarray(self, grid_format: str | None = "ugrid"):
+    def to_xarray(self, grid_format: str = "ugrid"):
         """Returns an ``xarray.Dataset`` with the variables stored under the
         ``Grid`` encoded in a specific grid format.
 
@@ -2500,15 +2511,14 @@ class Grid:
 
     def to_geodataframe(
         self,
-        periodic_elements: str | None = "exclude",
+        periodic_elements: str = "exclude",
         projection=None,
-        cache: bool | None = True,
-        override: bool | None = False,
-        engine: str | None = "spatialpandas",
-        exclude_antimeridian: bool | None = None,
-        return_non_nan_polygon_indices: bool | None = False,
-        exclude_nan_polygons: bool | None = True,
-        **kwargs,
+        cache: bool = True,
+        override: bool = False,
+        engine: str = "spatialpandas",
+        return_non_nan_polygon_indices: bool = False,
+        exclude_nan_polygons: bool = True,
+        project: bool = True,
     ):
         """Constructs a ``GeoDataFrame`` consisting of polygons representing
         the faces of the current ``Grid``
@@ -2518,7 +2528,6 @@ class Grid:
         Setting ``periodic_elements='exclude'`` will exclude any periodic polygon from the computed GeoDataFrame.
         Setting ``periodic_elements='ignore'`` will compute the GeoDataFrame assuming no corrections are needed, which
         is best used for grids that do not initially include any periodic polygons.
-
 
         Parameters
         ----------
@@ -2537,13 +2546,15 @@ class Grid:
         engine: str, optional
             Selects what library to use for creating a GeoDataFrame. One of ['spatialpandas', 'geopandas']. Defaults
             to spatialpandas
-        exclude_antimeridian: bool, optional
-            Flag used to select whether to exclude polygons that cross the antimeridian (Will be deprecated)
         return_non_nan_polygon_indices: bool, optional
             Flag used to select whether to return the indices of any non-nan polygons
         exclude_nan_polygons: bool, optional
             Flag to select whether to exclude any nan polygons
-
+        project: bool, optional
+            Flag to select whether to project the polygons using the provided projection.
+            If False, the projection is only used to determine the central coordinates.
+            Cannot combine project=True (the default), with periodic_elements='split'
+            and a non-None `projection`.
 
         Returns
         -------
@@ -2560,8 +2571,6 @@ class Grid:
             )
 
         # if project is false, projection is only used for determining central coordinates
-        project = kwargs.get("project", True)
-
         if projection and project:
             if periodic_elements == "split":
                 raise ValueError(
@@ -2569,19 +2578,6 @@ class Grid:
                     f"projection is provided; got projection={projection!r} "
                     f"in {type(self).__name__}.to_geodataframe()."
                 )
-
-        if exclude_antimeridian is not None:
-            warnings.warn(
-                DeprecationWarning(
-                    "The parameter ``exclude_antimeridian`` will be deprecated in a future release. Please "
-                    "use ``periodic_elements='exclude'`` or ``periodic_elements='split'`` instead."
-                ),
-                stacklevel=2,
-            )
-            if exclude_antimeridian:
-                periodic_elements = "exclude"
-            else:
-                periodic_elements = "split"
 
         if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
@@ -2632,12 +2628,12 @@ class Grid:
 
     def to_polycollection(
         self,
-        periodic_elements: Optional[str] = "exclude",
+        periodic_elements: str = "exclude",
         projection: Optional[ccrs.Projection] = None,
-        return_indices: Optional[bool] = False,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        return_non_nan_polygon_indices: Optional[bool] = False,
+        return_indices: bool = False,
+        cache: bool = True,
+        override: bool = False,
+        return_non_nan_polygon_indices: bool = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
@@ -2718,10 +2714,10 @@ class Grid:
 
     def to_linecollection(
         self,
-        periodic_elements: Optional[str] = "exclude",
+        periodic_elements: str = "exclude",
         projection: Optional[ccrs.Projection] = None,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
+        cache: bool = True,
+        override: bool = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.LineCollection``` consisting

@@ -3,16 +3,15 @@ name: CI Minimum Dependencies
 # release of each dependency that pyproject.toml allows.  The versions tested
 # only change when pyproject.toml does, so there is nothing to bump by hand.
 #
-# A failure means an older release that pyproject.toml still allows is broken:
-# add a lower bound for it, with a comment saying what breaks.
+# A failure means either an older release that pyproject.toml still allows is
+# broken (add a lower bound, with a comment saying what breaks), or new code
+# relies on a newer API than the current lower bound (raise the bound, or change
+# the code to be compatible with the older version).
 on:
   workflow_dispatch:
   schedule:
      - cron: '0 0 * * 1' # Weekly, Mondays at 00:00
   pull_request:
-    paths:
-      - pyproject.toml
-      - .github/workflows/min-deps-ci.yml
 
 # Read-only by default; failure-issue is the only job that writes, and only to issues.
 permissions:
@@ -37,7 +36,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v10.3.0  # setup-uv doesn't publish major-version tags
+        uses: astral-sh/setup-uv@v10.3.2  # setup-uv doesn't publish major-version tags
 
       - name: Create environment
         run: |
