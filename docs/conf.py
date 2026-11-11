@@ -366,6 +366,7 @@ class NumberSections(SphinxTransform):
 def setup(app):
     # Allow for changes to be made to the css in the theme_overrides file
     app.add_css_file("theme_overrides.css")
+
     app.connect("builder-inited", update_gallery)
     app.connect("env-updated", prune_generated_toctrees)
     app.add_transform(NumberSections)
