@@ -77,6 +77,23 @@ def test_operators_ne(gridpath):
 
     assert grid_mpas != grid_scrip
 
+    # Regression test for #1881: == must check lon AND lat, not just one or the other.
+    # construct some grids with same connectivity, and same lon or same lat, but not both.
+    lonA = [0, 10, 20, 30]
+    lonB = [30, 40, 50, 60]
+    lat0 = [0, 0, 10, 10]
+    lat1 = [30, 30, 40, 40]
+    conn = [[0,1,2],[1,2,3]]
+    gridA0 = ux.Grid.from_topology(node_lon=lonA, node_lat=lat0, face_node_connectivity=conn)
+    gridA1 = ux.Grid.from_topology(node_lon=lonA, node_lat=lat1, face_node_connectivity=conn)
+    gridB0 = ux.Grid.from_topology(node_lon=lonB, node_lat=lat0, face_node_connectivity=conn)
+    gridB1 = ux.Grid.from_topology(node_lon=lonB, node_lat=lat1, face_node_connectivity=conn)
+
+    assert gridA0 != gridA1
+    assert gridA0 != gridB0
+    assert gridA1 != gridB1
+    assert gridB0 != gridB1
+
 
 def test_grid_properties(gridpath):
     """Tests to see if accessing variables through set properties is equal to using the dict."""
