@@ -4,7 +4,19 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from uxarray.constants import INT_FILL_VALUE
 from uxarray.errors import DimensionError
+from uxarray.grid.bounds import (
+    _construct_face_bounds_array,
+    _face_bounds_lat_degrees,
+    _face_bounds_lon_degrees,
+    _faces_with_nodes_within_box,
+)
+from uxarray.grid.coordinates import _lonlat_rad_to_xyz
+from uxarray.grid.intersections import (
+    faces_within_lat_bounds,
+    faces_within_lon_bounds,
+)
 
 if TYPE_CHECKING:
     from uxarray.grid import Grid
@@ -57,10 +69,7 @@ class GridSubsetAccessor:
             - False: No index storage (default)
         """
 
-        faces_between_lons = self.uxgrid.get_faces_between_longitudes(lon_bounds)
-        face_between_lats = self.uxgrid.get_faces_between_latitudes(lat_bounds)
-
-        faces = np.intersect1d(faces_between_lons, face_between_lats)
+        faces = _faces_in_bounding_box(self.uxgrid, lon_bounds, lat_bounds)
 
         return self.uxgrid.isel(n_face=faces, inverse_indices=inverse_indices)
 
@@ -68,7 +77,7 @@ class GridSubsetAccessor:
         self,
         center_coord: tuple | list | np.ndarray,
         r: float | int,
-        element: str | None = "face centers",
+        element: str = "face centers",
         inverse_indices: list[str] | set[str] | bool = False,
         **kwargs,
     ):
@@ -107,7 +116,7 @@ class GridSubsetAccessor:
         self,
         center_coord: tuple | list | np.ndarray,
         k: int,
-        element: str | None = "face centers",
+        element: str = "face centers",
         inverse_indices: list[str] | set[str] | bool = False,
         **kwargs,
     ):
@@ -176,9 +185,9 @@ class GridSubsetAccessor:
         Examples
         --------
         >>> # Extract grid at 25° latitude
-        >>> cross_section = grid.cross_section.constant_latitude(lat=25.0)
+        >>> cross_section = grid.subset.constant_latitude(lat=25.0)
         >>> # With face indices
-        >>> cross_section, faces = grid.cross_section.constant_latitude(
+        >>> cross_section, faces = grid.subset.constant_latitude(
         ...     lat=25.0, return_face_indices=True
         ... )
 
@@ -243,9 +252,9 @@ class GridSubsetAccessor:
         Examples
         --------
         >>> # Extract grid at 0° longitude (Prime Meridian)
-        >>> cross_section = grid.cross_section.constant_longitude(lon=0.0)
+        >>> cross_section = grid.subset.constant_longitude(lon=0.0)
         >>> # With face indices
-        >>> cross_section, faces = grid.cross_section.constant_longitude(
+        >>> cross_section, faces = grid.subset.constant_longitude(
         ...     lon=0.0, return_face_indices=True
         ... )
 
@@ -308,11 +317,9 @@ class GridSubsetAccessor:
         Examples
         --------
         >>> # Extract grid between 30°S and 30°N latitude
-        >>> cross_section = grid.cross_section.constant_latitude_interval(
-        ...     lats=(-30.0, 30.0)
-        ... )
+        >>> cross_section = grid.subset.constant_latitude_interval(lats=(-30.0, 30.0))
         >>> # With face indices
-        >>> cross_section, faces = grid.cross_section.constant_latitude_interval(
+        >>> cross_section, faces = grid.subset.constant_latitude_interval(
         ...     lats=(-30.0, 30.0), return_face_indices=True
         ... )
 
@@ -369,11 +376,9 @@ class GridSubsetAccessor:
         Examples
         --------
         >>> # Extract grid between 0° and 45° longitude
-        >>> cross_section = grid.cross_section.constant_longitude_interval(
-        ...     lons=(0.0, 45.0)
-        ... )
+        >>> cross_section = grid.subset.constant_longitude_interval(lons=(0.0, 45.0))
         >>> # With face indices
-        >>> cross_section, faces = grid.cross_section.constant_longitude_interval(
+        >>> cross_section, faces = grid.subset.constant_longitude_interval(
         ...     lons=(0.0, 45.0), return_face_indices=True
         ... )
 
@@ -418,3 +423,87 @@ class GridSubsetAccessor:
             return self.uxgrid.isel(inverse_indices, n_edge=ind)
         else:
             return self.uxgrid.isel(inverse_indices, n_face=ind)
+
+
+def _faces_in_bounding_box(uxgrid, lon_bounds, lat_bounds):
+    """Indices of the faces whose bounds lie inside a longitude/latitude box.
+
+    Returns the same faces as intersecting ``Grid.get_faces_between_longitudes``
+    with ``Grid.get_faces_between_latitudes``, which need ``Grid.bounds`` for
+    every face in the mesh. Here bounds are computed only for the faces whose
+    nodes all lie inside the box, so bounds work scales with the region
+    (UXARRAY/uxarray#1778). The node screen still scans the whole mesh.
+    A face's bounds contain each of
+    its nodes, so that screen cannot drop a face the exact test keeps, and it
+    needs no margin or assumption about face size or shape. Bounds that are
+    already cached on the grid are used as they are.
+    """
+    if "bounds" in uxgrid._ds:
+        return np.intersect1d(
+            uxgrid.get_faces_between_longitudes(lon_bounds),
+            uxgrid.get_faces_between_latitudes(lat_bounds),
+        )
+
+    face_node_connectivity = uxgrid.face_node_connectivity.values
+    n_nodes_per_face = uxgrid.n_nodes_per_face.values
+    node_lon = uxgrid.node_lon.values
+    node_lat = uxgrid.node_lat.values
+
+    candidates = np.flatnonzero(
+        _faces_with_nodes_within_box(
+            face_node_connectivity,
+            n_nodes_per_face,
+            node_lon,
+            node_lat,
+            float(lon_bounds[0]),
+            float(lon_bounds[1]),
+            float(lat_bounds[0]),
+            float(lat_bounds[1]),
+        )
+    )
+    if candidates.size == 0:
+        return candidates
+
+    bounds = _candidate_face_bounds(
+        uxgrid,
+        face_node_connectivity[candidates],
+        n_nodes_per_face[candidates],
+        node_lon,
+        node_lat,
+    )
+    keep = np.intersect1d(
+        faces_within_lon_bounds(lon_bounds, _face_bounds_lon_degrees(bounds)),
+        faces_within_lat_bounds(lat_bounds, _face_bounds_lat_degrees(bounds)),
+    )
+    return candidates[keep]
+
+
+def _candidate_face_bounds(
+    uxgrid, face_node_connectivity, n_nodes_per_face, node_lon, node_lat
+):
+    """Bounds (radians) of the given faces, computed on the nodes they use.
+
+    The node coordinates are gathered for those faces only, so nothing here is
+    sized by the whole mesh. Cartesian coordinates already on the grid are
+    reused, as ``Grid.bounds`` would; otherwise they are derived from the
+    gathered longitudes and latitudes instead of being populated for every
+    node.
+    """
+    valid = face_node_connectivity != INT_FILL_VALUE
+    nodes, local_index = np.unique(face_node_connectivity[valid], return_inverse=True)
+    local_connectivity = np.full_like(face_node_connectivity, INT_FILL_VALUE)
+    local_connectivity[valid] = local_index
+
+    lon = node_lon[nodes]
+    lat = node_lat[nodes]
+    if "node_x" in uxgrid._ds:
+        uxgrid.normalize_cartesian_coordinates()
+        x = uxgrid.node_x.values[nodes]
+        y = uxgrid.node_y.values[nodes]
+        z = uxgrid.node_z.values[nodes]
+    else:
+        x, y, z = _lonlat_rad_to_xyz(np.deg2rad(lon), np.deg2rad(lat))
+
+    return _construct_face_bounds_array(
+        local_connectivity, n_nodes_per_face, x, y, z, lon, lat, False, None
+    )
