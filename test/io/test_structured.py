@@ -40,9 +40,7 @@ def test_read_structured_uxds_from_ds(ds_name):
     assert uxds.uxgrid.validate()
 
 def test_from_xarray_with_grid_from_latlon():
-    """Regression test for GH #1410: a Grid built via ``from_structured(lon=, lat=)``
-    must record its source dimensions so ``UxDataset.from_xarray`` flattens the
-    structured (lon, lat) data variables onto ``n_face``."""
+    """from_xarray must crash upon receiving structured data; see PR #1887."""
     ds = xr.tutorial.open_dataset("air_temperature")
 
     uxgrid = ux.Grid.from_structured(lon=ds.lon, lat=ds.lat)
