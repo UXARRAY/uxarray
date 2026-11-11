@@ -17,7 +17,7 @@ from uxarray.core.utils import (
     _represents_structured_data,
     match_chunks_to_ugrid,
 )
-from uxarray.errors import GridInvalidError, GridsMismatchError
+from uxarray.errors import DimensionError, GridInvalidError, GridsMismatchError
 from uxarray.grid import Grid
 from uxarray.io._scrip import (
     _detect_multigrid,
@@ -381,9 +381,9 @@ def open_dataset(
     Parameters
     ----------
     grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.Dataset | Grid
-        Specifies the unstructured grid data.
+        Specifies the unstructured grid toplogy.
 
-        - Strings and Path objects are interpreted as a path to a grid data file.
+        - Strings and Path objects are interpreted as a path to a grid file.
           A path to a directory containing grid files (e.g. a FESOM2 ASCII grid) is also accepted.
           but only when ``filename_or_obj`` is also provided to separately specify the dataset data.
         - A dict must specify UGRID variables ``node_lon``, ``node_lat``, and ``face_node_connectivity``,
@@ -446,10 +446,6 @@ def open_dataset(
     a spherical/Earth-science domain. A partial grid can be opened; operations
     requiring information absent from the file will raise when used, but
     unrelated functionality remains available.
-
-    Not intended for structured (lat/lon) grids or data.
-    The intended way to open structured datasets (or grids) in uxarray format is to use
-    :meth:`UxDataset.from_structured` (or :meth:`Grid.from_structured`) instead.
 
     Examples
     --------
@@ -522,12 +518,11 @@ def open_dataset(
             )
 
     if _represents_structured_data(uxgrid):
-        warn(
-            "ux.open_dataset() is not intended for structured (lat/lon) grids or data. "
-            "Consider UxDataset.from_structured() or Grid.from_structured() instead. "
-            "Support for structured grids in open_dataset() was officially deprecated in "
-            "November 2026 and may be removed in a future release.",
-            category=FutureWarning,
+        raise DimensionError(
+            "ux.open_dataset() is not intended for structured (lat/lon) grids or data, "
+            f"but received a grid with source_grid_spec={uxgrid.source_grid_spec!r} "
+            f"and dims {list(uxgrid._ds.dims)}. "
+            "Consider UxDataset.from_structured() or Grid.from_structured() instead."
         )
 
     # Map original dimensions to the UGRID conventions
@@ -556,7 +551,7 @@ def open_mfdataset(
     Parameters
     ----------
     grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.Dataset | Grid
-        Specifies the unstructured grid data.
+        Specifies the unstructured grid topology.
 
         - Strings and Path objects are interpreted as a path to a grid file.
         - A dict must specify UGRID variables ``node_lon``, ``node_lat``, and ``face_node_connectivity``,
@@ -604,12 +599,6 @@ def open_mfdataset(
     uxds : uxarray.UxDataset
         Dataset with the unstructured grid.
 
-    Notes
-    -----
-    Not intended for structured (lat/lon) grids or data. The intended way to open structured
-    multi-file datasets in uxarray format is to use :func:`xarray.open_mfdataset` first
-    then :meth:`UxDataset.from_structured` to convert the result into a UxDataset.
-
     Examples
     --------
     Open grid file along with multiple data files (two or more)
@@ -644,12 +633,11 @@ def open_mfdataset(
     )
 
     if _represents_structured_data(uxgrid):
-        warn(
-            "ux.open_mfdataset() is not intended for structured (lat/lon) grids or data. "
-            "Consider UxDataset.from_structured(xarray.open_mfdataset(...)) instead. "
-            "Support for structured grids in open_mfdataset() was officially deprecated in "
-            "November 2026 and may be removed in a future release.",
-            category=FutureWarning,
+        raise DimensionError(
+            "ux.open_mfdataset() is not intended for structured (lat/lon) grids or data, "
+            f"but received a grid with source_grid_spec={uxgrid.source_grid_spec!r} "
+            f"and dims {list(uxgrid._ds.dims)}. "
+            "Consider UxDataset.from_structured(xarray.open_mfdataset(...)) instead."
         )
 
     # Load the data as a Xarray Dataset
