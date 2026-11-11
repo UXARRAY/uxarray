@@ -148,6 +148,8 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
             because the result will only keep values wherever indexer value is True.
             (Also in this case, if indexer.to_xarray() exists, call it, to avoid recursion.)
     """
+    from uxarray.core.api import asxarray
+
     if isinstance(indexer, xr.DataArray):
         indexing_1d_bool_along_n_face = (
             indexer.ndim == 1
@@ -168,8 +170,7 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
             the_dim = indexer.dims[0]
             if grid_dim == "n_face" and "n_face" in uxarray_obj.dims:
                 if indexer.dtype == bool:
-                    if hasattr(indexer, "to_xarray"):
-                        indexer = indexer.to_xarray()
+                    indexer = asxarray(indexer)
                     indexer = indexer.isel({the_dim: indexer})
                     xr.core.coordinates.assert_coordinate_consistent(
                         uxarray_obj, indexer.coords.variables
