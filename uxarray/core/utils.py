@@ -55,12 +55,7 @@ def _represents_structured_data(grid):
     """returns whether this Grid corresponds with structured data,
     based on grid.source_grid_spec.
     """
-    if grid.source_grid_spec == "Structured":
-        return True
-    elif grid.source_grid_spec == "GEOS-CS":
-        return True
-    else:
-        return False
+    return grid.source_grid_spec == "Structured"
 
 
 def _map_dataset_to_ugrid(ds, grid):
