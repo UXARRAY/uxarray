@@ -22,6 +22,7 @@ from uxarray.core.gradient import (
 )
 from uxarray.core.utils import (
     _map_dims_to_ugrid,
+    _represents_structured_data,
     _resolve_coordinate_labels_to_indices,
     _validate_indexers,
 )
@@ -2412,7 +2413,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
     @classmethod
     def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
         """
-        Converts a ``xarray.DataArray`` into a ``uxarray.UxDataset`` paired with a user-defined ``Grid``
+        Converts a ``xarray.DataArray`` into a ``uxarray.UxDataArray`` paired with a user-defined ``Grid``
 
         Parameters
         ----------
@@ -2431,10 +2432,18 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         if ugrid_dims is None:
             ugrid_dims = uxgrid._source_dims_dict
 
-        # map each dimension to its UGRID equivalent
-        ds = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
+        if _represents_structured_data(uxgrid):
+            raise DimensionError(
+                "UxDataArray.from_xarray() is not intended for structured (lat/lon) grids or data, "
+                f"but received a grid with source_grid_spec={uxgrid.source_grid_spec!r} "
+                f"and dims {list(uxgrid._ds.dims)}. "
+                "Consider UxDataset.from_structured(arr.to_dataset()).to_dataarray() instead."
+            )
 
-        return cls(ds, uxgrid=uxgrid)
+        # map each dimension to its UGRID equivalent
+        da = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
+
+        return cls(da, uxgrid=uxgrid)
 
     @classmethod
     def from_healpix(
