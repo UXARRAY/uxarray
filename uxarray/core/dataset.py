@@ -23,6 +23,7 @@ from uxarray.core.utils import (
 from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
 from uxarray.formatting_html import dataset_repr
 from uxarray.grid import Grid
+from uxarray.grid.area import _integration_face_areas
 from uxarray.grid.dual import _dual_face_indices, construct_dual
 from uxarray.grid.neighbors import DatasetNeighborhood
 from uxarray.grid.validation import _check_duplicate_nodes_indices
@@ -811,9 +812,11 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         Parameters
         ----------
         quadrature_rule : str, optional
-            Quadrature rule to use. Defaults to "triangular".
+            Quadrature rule used to compute the face areas, one of
+            ``"triangular"`` (default) or ``"gaussian"``. Forwarded to
+            :meth:`UxDataArray.integrate`.
         order : int, optional
-            Order of quadrature rule. Defaults to 4.
+            Order of the quadrature rule. Defaults to 4.
 
         Returns
         -------
@@ -836,10 +839,16 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         integrated_vars = {}
         skipped = []
 
+        # Outside the loop so a bad rule/order raises instead of being
+        # reported as skipped variables, and areas are computed once.
+        face_areas = None
+        if any(uxda._face_centered() for uxda in self.values()):
+            face_areas = _integration_face_areas(self.uxgrid, quadrature_rule, order)
+
         for name, uxda in self.items():
             try:
-                integrated_vars[name] = uxda.integrate(
-                    quadrature_rule=quadrature_rule, order=order
+                integrated_vars[name] = uxda._integrate(
+                    quadrature_rule, order, face_areas=face_areas
                 )
             except ValueError:
                 # Variable is not mapped to the grid (or its location is not
