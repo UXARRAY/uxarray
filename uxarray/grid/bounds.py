@@ -259,8 +259,12 @@ def _construct_face_bounds(
 
             # Determine extreme latitudes for GCA edges
             if is_GCA:
-                lat_max = extreme_gca_latitude((n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "max")
-                lat_min = extreme_gca_latitude((n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "min")
+                lat_max = extreme_gca_latitude(
+                    (n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "max"
+                )
+                lat_min = extreme_gca_latitude(
+                    (n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "min"
+                )
             else:
                 lat_max = node1_lat_rad
                 lat_min = node1_lat_rad
@@ -318,8 +322,12 @@ def _construct_face_bounds(
             # A great circle arc can reach a latitude beyond both of its
             # endpoints; that interior extreme widens the box.
             if is_GCA:
-                lat_max = extreme_gca_latitude((n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "max")
-                lat_min = extreme_gca_latitude((n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "min")
+                lat_max = extreme_gca_latitude(
+                    (n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "max"
+                )
+                lat_min = extreme_gca_latitude(
+                    (n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "min"
+                )
                 if (
                     abs(node1_lat_rad - lat_max) > ERROR_TOLERANCE
                     and abs(node2_lat_rad - lat_max) > ERROR_TOLERANCE
