@@ -1,4 +1,3 @@
-
 import dask.array as da
 import numpy as np
 import numpy.testing as nt
@@ -14,10 +13,95 @@ def test_single_dim(gridpath):
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     test_data = np.ones(uxgrid.n_face)
     dims = {"n_face": uxgrid.n_face}
-    uxda = ux.UxDataArray(data=test_data, dims=dims, uxgrid=uxgrid, name='var2')
+    uxda = ux.UxDataArray(data=test_data, dims=dims, uxgrid=uxgrid, name="var2")
     integral = uxda.integrate()
     assert integral.ndim == len(dims) - 1
     nt.assert_almost_equal(integral, 4 * np.pi)
+
+
+@pytest.mark.parametrize(
+    "quadrature_rule, order",
+    [("triangular", 1), ("triangular", 8), ("gaussian", 1), ("gaussian", 4)],
+)
+def test_integrate_honors_quadrature_kwargs(gridpath, quadrature_rule, order):
+    """``quadrature_rule``/``order`` must reach the area computation (issue #1599).
+
+    Before the fix these kwargs were accepted and silently ignored, so every
+    call returned the cached default-quadrature result.
+    """
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    uxda = ux.UxDataArray(
+        data=np.ones(uxgrid.n_face), dims=("n_face",), uxgrid=uxgrid, name="ones"
+    )
+
+    expected = np.einsum(
+        "i,...i",
+        uxgrid.compute_face_areas(quadrature_rule=quadrature_rule, order=order),
+        uxda.values,
+    )
+    got = uxda.integrate(quadrature_rule=quadrature_rule, order=order)
+
+    # Bit-exact: the same reduction over the same freshly computed areas.
+    nt.assert_array_equal(got.values, expected)
+    # ...and actually different from the cached default, or the kwarg did nothing.
+    assert float(got) != float(uxda.integrate())
+
+
+def test_integrate_quadrature_kwargs_stay_lazy(gridpath):
+    """Non-default quadrature must not materialize dask-backed data."""
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    uxda = ux.UxDataArray(
+        data=np.ones(uxgrid.n_face), dims=("n_face",), uxgrid=uxgrid, name="ones"
+    ).chunk({"n_face": 100})
+
+    integral = uxda.integrate(order=8)
+
+    assert isinstance(integral.data, da.Array)
+    nt.assert_allclose(
+        float(integral.compute()),
+        float(uxda.compute().integrate(order=8)),
+        rtol=1e-12,
+        atol=0.0,
+    )
+
+
+def test_dataset_integrate_quadrature_kwargs(gridpath, datasetpath):
+    """UxDataset.integrate forwards quadrature_rule/order to each variable."""
+    uxds = ux.open_dataset(
+        gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+        datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc"),
+    )
+
+    for quadrature_rule, order in [("gaussian", 4), ("triangular", 8)]:
+        got = uxds.integrate(quadrature_rule=quadrature_rule, order=order)
+        expected = uxds["var2"].integrate(quadrature_rule=quadrature_rule, order=order)
+
+        nt.assert_array_equal(got["var2"].values, expected.values)
+        assert float(got["var2"]) != float(uxds.integrate()["var2"])
+
+
+@pytest.mark.parametrize("kwargs", [{"quadrature_rule": None}, {"order": None}])
+def test_integrate_none_is_deprecated(gridpath, kwargs):
+    uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    uxda = ux.UxDataArray(
+        data=np.ones(uxgrid.n_face), dims=("n_face",), uxgrid=uxgrid, name="ones"
+    )
+
+    with pytest.warns(FutureWarning, match="November 2026"):
+        got = uxda.integrate(**kwargs)
+
+    nt.assert_array_equal(got.values, uxda.integrate().values)
+
+
+def test_dataset_integrate_bad_order_raises(gridpath, datasetpath):
+    # Used to come back as an empty dataset with every variable "skipped".
+    uxds = ux.open_dataset(
+        gridpath("ugrid", "outCSne30", "outCSne30.ug"),
+        datasetpath("ugrid", "outCSne30", "outCSne30_var2.nc"),
+    )
+
+    with pytest.raises(ValueError, match="Invalid order"):
+        uxds.integrate(order=3)
 
 
 def test_multi_dim(gridpath):
@@ -25,7 +109,7 @@ def test_multi_dim(gridpath):
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     test_data = np.ones((5, 5, uxgrid.n_face))
     dims = {"a": 5, "b": 5, "n_face": uxgrid.n_face}
-    uxda = ux.UxDataArray(data=test_data, dims=dims, uxgrid=uxgrid, name='var2')
+    uxda = ux.UxDataArray(data=test_data, dims=dims, uxgrid=uxgrid, name="var2")
     integral = uxda.integrate()
     assert integral.ndim == len(dims) - 1
     nt.assert_almost_equal(integral, np.ones((5, 5)) * 4 * np.pi)
@@ -68,16 +152,20 @@ def test_integrate_crashes_when_nnode_equals_nface():
     ]
     # convert to xarray
     ds_vars = {
-        'node_lon': xr.DataArray(node_lon, dims=['n_node']),
-        'node_lat': xr.DataArray(node_lat, dims=['n_node']),
-        'face_node_connectivity': xr.DataArray(face_node_connectivity, dims=['n_face', 'n_max_face_nodes']),
+        "node_lon": xr.DataArray(node_lon, dims=["n_node"]),
+        "node_lat": xr.DataArray(node_lat, dims=["n_node"]),
+        "face_node_connectivity": xr.DataArray(
+            face_node_connectivity, dims=["n_face", "n_max_face_nodes"]
+        ),
     }
     ds = xr.Dataset(ds_vars)
     # convert to uxarray
-    uxgrid = ux.Grid(ds, 'UGRID') # putting 'UGRID' avoids raising warning but does not affect results.
+    uxgrid = ux.Grid(
+        ds, "UGRID"
+    )  # putting 'UGRID' avoids raising warning but does not affect results.
     assert uxgrid.n_node == uxgrid.n_face
     # make array of values, convert to uxarray
-    vals = xr.DataArray([100,200,300,400,500,600], dims=['n_node'])
+    vals = xr.DataArray([100, 200, 300, 400, 500, 600], dims=["n_node"])
     uxarr = ux.UxDataArray(vals, uxgrid=uxgrid)
     # ensure integrate() crashes for non-face-centered data, even if n_node==n_face
     with pytest.raises(ValueError):
@@ -88,9 +176,7 @@ def _random_uxda(gridpath, shape, dims):
     """Non-uniform test data, so a reordered reduction actually shows up."""
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     rng = np.random.default_rng(0)
-    return ux.UxDataArray(
-        data=rng.random(shape), dims=dims, uxgrid=uxgrid, name='var2'
-    )
+    return ux.UxDataArray(data=rng.random(shape), dims=dims, uxgrid=uxgrid, name="var2")
 
 
 @pytest.mark.parametrize(
