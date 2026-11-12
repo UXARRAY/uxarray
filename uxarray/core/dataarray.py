@@ -1669,7 +1669,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             the result carries physical units: [u units]/meter
             (e.g. result has units of 1/s if u represents velocity).
             When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
-            the result caries per-radian units: [u units]/radian.
+            the result carries per-radian units: [u units]/radian.
             (e.g. result has units of (m/s)/rad if u represents velocity).
 
             CAUTION: this scaling does not account for any radius increases
@@ -1859,7 +1859,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             the result carries physical units: [u units]/meter
             (e.g. result has units of 1/s if u represents velocity).
             When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
-            the result caries per-radian units: [u units]/radian.
+            the result carries per-radian units: [u units]/radian.
             (e.g. result has units of (m/s)/rad if u represents velocity).
 
             CAUTION: this scaling does not account for any radius increases
@@ -1961,6 +1961,70 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             "description": (
                 "Divergence of vector field computed as ∂u/∂x + ∂v/∂y - v·tan(φ)/a, "
                 "with u, x zonal; v, y meridional; φ=latitude; a=sphere radius."
+            ),
+        }
+        result = result.assign_attrs(attrs)
+        return result
+
+    def laplacian(self, *, scale_by_radius: bool = True) -> "UxDataArray":
+        """
+        Computes the Laplacian of this UxDataArray in the horizontal direction
+        (i.e., along the unstructured grid dimension).
+
+        The formula is: laplacian(q) = div(grad(q)) = ∂²q/∂x² + ∂²q/∂y² - (∂q/∂y)·tan(φ)/a,
+        where q is a scalar field, φ=latitude, and a=sphere radius.
+        where x corresponds to the zonal direction and y the meridional direction.
+
+        Parameters
+        ----------
+        scale_by_radius : bool, default=True
+            Whether to divide unit-sphere derivatives by ``uxgrid.sphere_radius``.
+            When ``True`` (and the grid's ``sphere_radius`` is set correctly),
+            the result carries physical units: [q units]/meter^2
+            (e.g. result has units of 1/(m*s) if q represents velocity).
+            When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
+            the result carries per-radian^2 units: [q units]/radian^2.
+            (e.g. result has units of (m/s)/rad^2 if q represents velocity).
+
+            CAUTION: this scaling does not account for any radius increases
+            due to vertical levels; it simply divides by ``uxgrid.sphere_radius``.
+
+        Returns
+        -------
+        laplacian : UxDataArray
+            The Laplacian of the scalar field, as a UxDataArray.
+            Units determined by ``scale_by_radius``.
+
+        Example
+        -------
+        >>> uxds["var"].laplacian()
+        """
+        # Compute the gradient of the scalar field
+        grad_q_zonal, grad_q_meridional = _compute_gradient(
+            self, scale_by_radius=scale_by_radius
+        )
+
+        # Compute the divergence of the gradient to get the Laplacian
+        result = grad_q_zonal.divergence(
+            grad_q_meridional, scale_by_radius=scale_by_radius
+        )
+
+        # bookkeeping for units
+        units = grad_q_zonal.attrs["units"]  # ends with "/m" or "/rad".
+        u_numer, u_denom = units.rsplit("/", 1)
+        units = f"{u_numer}/{u_denom}^2"  # e.g., input has "K", output has "K/m^2".
+
+        # bookkeeping for name & attrs
+        result = result.rename("laplacian")
+        self_longname = self.name if self.name is not None else "unnamed_array"
+        attrs = {
+            "long_name": f"Laplacian of {self_longname}",
+            "units": units,
+            "derivative": "laplacian",
+            "description": (
+                "Laplacian of scalar field q computed as div(grad(q)) "
+                "== ∂²q/∂x² + ∂²q/∂y² - (∂q/∂y)·tan(φ)/a, "
+                "with x zonal; y meridional; φ=latitude; a=sphere radius."
             ),
         }
         result = result.assign_attrs(attrs)
