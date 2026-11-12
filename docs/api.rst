@@ -25,6 +25,7 @@ Top Level Functions
    open_multigrid
    open_mfdataset
    concat
+   map_blocks
 
 Tutorial
 --------
@@ -186,6 +187,7 @@ Attributes
    :toctree: generated/
 
    Grid.attrs
+   Grid.chunks
 
 
 Methods
@@ -251,6 +253,15 @@ Selection & Indexing
    UxDataArray.isel
    UxDataArray.sel
    UxDataArray.where
+
+
+Parallel Computing
+~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataArray.map_blocks
 
 
 Grid Accessor
@@ -323,6 +334,15 @@ Selection & Indexing
    UxDataset.isel
    UxDataset.sel
    UxDataset.where
+
+
+Parallel Computing
+~~~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: generated/
+
+   UxDataset.map_blocks
 
 
 Conversion Methods

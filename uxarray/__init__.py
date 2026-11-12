@@ -10,6 +10,7 @@ from .core.api import (
 )
 from .core.dataarray import UxDataArray
 from .core.dataset import UxDataset
+from .core.parallel import map_blocks
 from .grid import Grid
 
 try:
@@ -31,6 +32,7 @@ __all__ = (
     "open_multigrid",
     "list_grid_names",
     "concat",
+    "map_blocks",
     "tutorial",
     "UxDataset",
     "UxDataArray",
