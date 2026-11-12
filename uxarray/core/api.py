@@ -96,6 +96,7 @@ def open_grid(
     return_chunks = kwargs.pop("return_chunks", False)
     chunk_grid = kwargs.pop("chunk_grid", chunks is not None)
     grid_chunks = chunks if chunk_grid else None
+    merge_coincident_nodes = kwargs.pop("merge_coincident_nodes", True)
 
     grid = None
 
@@ -128,14 +129,22 @@ def open_grid(
 
     elif isinstance(grid_filename_or_obj, xr.Dataset):
         # Construct a grid from a dataset file
-        grid = Grid.from_dataset(grid_filename_or_obj, use_dual=use_dual)
+        grid = Grid.from_dataset(
+            grid_filename_or_obj,
+            use_dual=use_dual,
+            merge_coincident_nodes=merge_coincident_nodes,
+        )
 
     else:
         # Attempt to use Xarray directly for remaining input types
         grid_ds = _open_dataset_with_fallback(
             grid_filename_or_obj, chunks=grid_chunks, **kwargs
         )
-        grid = Grid.from_dataset(grid_ds, use_dual=use_dual)
+        grid = Grid.from_dataset(
+            grid_ds,
+            use_dual=use_dual,
+            merge_coincident_nodes=merge_coincident_nodes,
+        )
 
     # Return the grid (and chunks, if requested) in a consistent manner.
     if return_chunks:

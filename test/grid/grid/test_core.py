@@ -363,6 +363,32 @@ def test_merge_rejects_nonconsecutive_repeated_face_corner():
         _merge_coincident_grid_ds_nodes(grid_ds)
 
 
+def test_bowtie_merge_opt_out_reaches_grid_constructor(tmp_path):
+    dataset = xr.Dataset(
+        {
+            "mesh": ((), 0, {"cf_role": "mesh_topology", "topology_dimension": 2,
+                            "node_coordinates": "lon lat", "face_node_connectivity": "faces"}),
+            "lon": ("nodes", [0.0, 1.0, 0.0, 1.0], {"standard_name": "longitude"}),
+            "lat": ("nodes", [0.0, 0.0, 1.0, 0.0], {"standard_name": "latitude"}),
+            "faces": (("faces_dim", "corners"), [[0, 1, 2, 3]], {"start_index": 0}),
+        }
+    )
+    path = tmp_path / "bowtie.nc"
+    dataset.to_netcdf(path)
+    with pytest.raises(GridInvalidError, match="nonconsecutive"):
+        ux.open_grid(path)
+    grids = [
+        ux.Grid.from_dataset(dataset, merge_coincident_nodes=False),
+        ux.open_grid(dataset, merge_coincident_nodes=False),
+        ux.open_grid(path, merge_coincident_nodes=False),
+        ux.open_dataset(path, path, grid_kwargs={"merge_coincident_nodes": False}).uxgrid,
+    ]
+    for grid in grids:
+        nt.assert_equal(grid.face_node_connectivity.values, [[0, 1, 2, 3]])
+        with pytest.raises(GridInvalidError, match="Duplicate nodes"):
+            grid.get_dual()
+
+
 def test_chunked_dual_matches_eager_without_mutating_source(gridpath):
     path = gridpath("ugrid", "geoflow-small", "grid.nc")
     eager = ux.open_grid(path).get_dual()

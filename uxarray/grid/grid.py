@@ -374,6 +374,7 @@ class Grid:
             source_dims_dict,
             is_subset=kwargs.get("is_subset", False),
             inverse_indices=kwargs.get("inverse_indices"),
+            merge_coincident_nodes=kwargs.get("merge_coincident_nodes", True),
         )
 
     @classmethod
