@@ -257,19 +257,10 @@ def _construct_face_bounds(
                 face_latlon_array, np.array([node1_lat_rad, node1_lon_rad])
             )
 
-            # Create n1n2_cart and n1n2_lonlat arrays using preallocation
-            n1n2_cart = np.empty((2, 3), dtype=np.float64)
-            n1n2_cart[0, :] = n1_cart
-            n1n2_cart[1, :] = n2_cart
-
-            n1n2_lonlat = np.empty((2, 2), dtype=np.float64)
-            n1n2_lonlat[0, :] = n1_lonlat
-            n1n2_lonlat[1, :] = n2_lonlat
-
             # Determine extreme latitudes for GCA edges
             if is_GCA:
-                lat_max = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "max")
-                lat_min = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "min")
+                lat_max = extreme_gca_latitude((n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "max")
+                lat_min = extreme_gca_latitude((n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "min")
             else:
                 lat_max = node1_lat_rad
                 lat_min = node1_lat_rad
@@ -319,15 +310,6 @@ def _construct_face_bounds(
             else:
                 is_GCA = not is_latlonface or n1_cart[2] != n2_cart[2]
 
-            # Create n1n2_cart and n1n2_lonlat arrays using preallocation
-            n1n2_cart = np.empty((2, 3), dtype=np.float64)
-            n1n2_cart[0, :] = n1_cart
-            n1n2_cart[1, :] = n2_cart
-
-            n1n2_lonlat = np.empty((2, 2), dtype=np.float64)
-            n1n2_lonlat[0, :] = n1_lonlat
-            n1n2_lonlat[1, :] = n2_lonlat
-
             # The node itself is always inside the box.
             face_latlon_array = insert_pt_in_latlonbox(
                 face_latlon_array, np.array([node1_lat_rad, node1_lon_rad])
@@ -336,8 +318,8 @@ def _construct_face_bounds(
             # A great circle arc can reach a latitude beyond both of its
             # endpoints; that interior extreme widens the box.
             if is_GCA:
-                lat_max = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "max")
-                lat_min = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "min")
+                lat_max = extreme_gca_latitude((n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "max")
+                lat_min = extreme_gca_latitude((n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "min")
                 if (
                     abs(node1_lat_rad - lat_max) > ERROR_TOLERANCE
                     and abs(node2_lat_rad - lat_max) > ERROR_TOLERANCE
