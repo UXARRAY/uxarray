@@ -427,7 +427,7 @@ def test_get_zonal_faces_weight_at_constLat_latlonface():
         face_0_edge_nodes, face_1_edge_nodes, face_2_edge_nodes
     ]), np.sin(np.deg2rad(20)), latlon_bounds, is_latlonface=True)
 
-    nt.assert_array_almost_equal(weight_df, expected_weight_df, decimal=3)
+    nt.assert_array_almost_equal(weight_df, expected_weight_df["weight"], decimal=3)
 
 
 def test_compare_zonal_weights(gridpath):
@@ -468,6 +468,6 @@ def test_compare_zonal_weights(gridpath):
 
             existing_weights = _zonal_face_weights_robust(
                 face_edge_nodes_xyz_candidate, z, bounds_candidate
-            )["weight"].to_numpy()
+            )
 
             nt.assert_allclose(new_weights, existing_weights, atol=ERROR_TOLERANCE)
