@@ -15,24 +15,48 @@ def _read_ugrid(ds):
     grid_topology_name = list(ds.filter_by_attrs(cf_role="mesh_topology").keys())[0]
     ds = ds.rename({grid_topology_name: "grid_topology"})
 
-    # get the names of node_lon and node_lat
-    node_lon_name, node_lat_name = ds["grid_topology"].node_coordinates.split()
-    coord_dict = {
-        node_lon_name: ugrid.NODE_COORDINATES[0],
-        node_lat_name: ugrid.NODE_COORDINATES[1],
-    }
-    if "edge_lon" in ds and "edge_lat" in ds:
-        if "edge_coordinates" in ds["grid_topology"].attrs:
-            # get the names of edge_lon and edge_lat, if they exist
-            edge_lon_name, edge_lat_name = ds["grid_topology"].edge_coordinates.split()
-            coord_dict[edge_lon_name] = ugrid.EDGE_COORDINATES[0]
-            coord_dict[edge_lat_name] = ugrid.EDGE_COORDINATES[1]
-    if "face_lon" in ds and "face_lat" in ds:
-        if "face_coordinates" in ds["grid_topology"].attrs:
-            # get the names of face_lon and face_lat, if they exist
-            face_lon_name, face_lat_name = ds["grid_topology"].face_coordinates.split()
-            coord_dict[face_lon_name] = ugrid.FACE_COORDINATES[0]
-            coord_dict[face_lat_name] = ugrid.FACE_COORDINATES[1]
+    coord_dict = {}
+    for location in ("node", "edge", "face"):
+        attribute = f"{location}_coordinates"
+        if attribute not in ds["grid_topology"].attrs:
+            continue
+        names = ds["grid_topology"].attrs[attribute].split()
+        geographic = {ds[name].attrs.get("standard_name"): name for name in names}
+        if "longitude" in geographic and "latitude" in geographic:
+            lon_name, lat_name = geographic["longitude"], geographic["latitude"]
+        elif len(names) == 2 and all(
+            not ds[name].attrs.get("standard_name")
+            and ds[name].attrs.get("units", "").lower()
+            in {
+                "",
+                "degree",
+                "degrees",
+                "degrees_east",
+                "degree_east",
+                "degrees_north",
+                "degree_north",
+                "degrees_e",
+                "degree_e",
+                "degrees_n",
+                "degree_n",
+                "radian",
+                "radians",
+            }
+            for name in names
+        ):
+            # Retain positional handling for older geographic files without CF metadata.
+            lon_name, lat_name = names
+        elif location == "node":
+            raise GridInvalidError(
+                "UGRID node_coordinates must include longitude and latitude coordinates. "
+                "Projected coordinates are not supported directly; provide geographic "
+                "coordinates with standard_name='longitude' and standard_name='latitude'."
+            )
+        else:
+            # Projected centers may be retained, but are not spherical coordinates.
+            continue
+        coord_dict[lon_name] = f"{location}_lon"
+        coord_dict[lat_name] = f"{location}_lat"
 
     ds = ds.rename(coord_dict)
 
