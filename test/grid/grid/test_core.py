@@ -363,6 +363,18 @@ def test_merge_rejects_nonconsecutive_repeated_face_corner():
         _merge_coincident_grid_ds_nodes(grid_ds)
 
 
+def test_chunked_dual_matches_eager_without_mutating_source(gridpath):
+    path = gridpath("ugrid", "geoflow-small", "grid.nc")
+    eager = ux.open_grid(path).get_dual()
+    lazy = ux.open_grid(path, chunks={})
+    original = lazy.face_node_connectivity.data
+    dual = lazy.get_dual()
+    assert dual.n_face == eager.n_face == 3842
+    nt.assert_equal(dual.face_node_connectivity.values, eager.face_node_connectivity.values)
+    assert lazy.face_node_connectivity.data is original
+    assert lazy.face_node_connectivity.chunks is not None
+
+
 def test_get_dual_rejects_faces_referencing_duplicate_nodes():
     """``construct_dual`` reads ``node_face_connectivity`` with no duplicate
     handling, so a face still pointing at a dead duplicate index would yield a
