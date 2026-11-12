@@ -375,6 +375,39 @@ def test_chunked_dual_matches_eager_without_mutating_source(gridpath):
     assert lazy.face_node_connectivity.chunks is not None
 
 
+def test_chunked_data_dual_matches_eager(gridpath):
+    path = gridpath("ugrid", "geoflow-small", "grid.nc")
+    eager = ux.open_grid(path)
+    lazy = ux.open_grid(path, chunks={})
+    values = np.arange(eager.n_node, dtype=float)
+    array = ux.UxDataArray(values, dims="n_node", uxgrid=lazy).chunk()
+    expected = ux.UxDataArray(values, dims="n_node", uxgrid=eager).get_dual()
+    result = array.get_dual()
+    nt.assert_equal(result.values, expected.values)
+    nt.assert_equal(result.uxgrid.face_node_connectivity.values, expected.uxgrid.face_node_connectivity.values)
+    assert result.chunks is not None
+    dataset = ux.UxDataset({"ids": array}, uxgrid=lazy).get_dual()
+    nt.assert_equal(dataset.ids.values, expected.values)
+    assert lazy.face_node_connectivity.chunks is not None
+
+
+def test_repeated_face_dual_paths_agree(gridpath):
+    primal = ux.open_grid(gridpath("exodus", "outCSne8", "outCSne8.g"))
+    connectivity = np.vstack([
+        primal.face_node_connectivity.values,
+        primal.face_node_connectivity.values[:1],
+    ])
+    grid = ux.Grid.from_topology(primal.node_lon.values, primal.node_lat.values, connectivity)
+    dual = grid.get_dual()
+    ids = ux.UxDataArray(np.arange(grid.n_node), dims="n_node", uxgrid=grid)
+    array_dual = ids.get_dual()
+    dataset_dual = ux.UxDataset({"ids": ids}, uxgrid=grid).get_dual()
+    nt.assert_equal(dual.face_node_connectivity.values, array_dual.uxgrid.face_node_connectivity.values)
+    nt.assert_equal(dual.face_node_connectivity.values, dataset_dual.uxgrid.face_node_connectivity.values)
+    nt.assert_equal(array_dual.values, dataset_dual.ids.values)
+    assert dual.get_dual().n_face > 0
+
+
 def test_get_dual_rejects_faces_referencing_duplicate_nodes():
     """``construct_dual`` reads ``node_face_connectivity`` with no duplicate
     handling, so a face still pointing at a dead duplicate index would yield a

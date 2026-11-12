@@ -24,7 +24,7 @@ from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
 from uxarray.formatting_html import dataset_repr
 from uxarray.grid import Grid
 from uxarray.grid.area import _integration_face_areas
-from uxarray.grid.dual import _dual_face_indices, construct_dual
+from uxarray.grid.dual import _dual_face_indices
 from uxarray.grid.neighbors import DatasetNeighborhood
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
@@ -981,12 +981,13 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         GridInvalidError
             If any face still references a coincident duplicate node.
         """
-        if _check_duplicate_nodes_indices(self.uxgrid):
+        grid = self.uxgrid._prepare_for_dual()
+        if _check_duplicate_nodes_indices(grid):
             raise GridInvalidError(
                 "Duplicate nodes found in UxDataset's uxgrid; cannot get_dual()"
             )
 
-        if self.uxgrid.partial_sphere_coverage:
+        if grid.partial_sphere_coverage:
             warn(
                 "This mesh is partial, which could cause inconsistent results and data will be lost",
                 Warning,
@@ -994,17 +995,8 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
 
         # Get dual mesh node face connectivity and the primal nodes represented
         # by its faces.
-        dual_face_indices = _dual_face_indices(self.uxgrid)
-        dual_node_face_conn = construct_dual(
-            grid=self.uxgrid, valid_node_indices=dual_face_indices
-        )
-
-        # Construct dual mesh
-        dual = self.uxgrid.from_topology(
-            self.uxgrid.face_lon.values,
-            self.uxgrid.face_lat.values,
-            dual_node_face_conn,
-        )
+        dual_face_indices = _dual_face_indices(grid)
+        dual = grid.get_dual()
 
         # Initialize new dataset
         dataset = type(self)(uxgrid=dual)

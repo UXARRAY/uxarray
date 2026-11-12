@@ -2856,16 +2856,13 @@ class Grid:
         # Get dual mesh node face connectivity
         dual_node_face_conn = construct_dual(grid=grid)
 
-        # Construct dual mesh. The dual's nodes are this grid's face centers and
-        # its connectivity comes from ``node_face_connectivity``, which the check
-        # above proves is already free of coincident node indices, so the merge
-        # is skipped rather than re-run over every face center.
+        # Primal face centers become dual nodes. Repeated primal faces can have
+        # coincident centers even when primal nodes are canonical, so the dual
+        # must also canonicalize its connectivity.
         dual_ds = _read_topology(
             grid.face_lon.data, grid.face_lat.data, dual_node_face_conn, None, 0
         )
-        dual = type(self)(
-            dual_ds, "User Defined Topology", merge_coincident_nodes=False
-        )
+        dual = type(self)(dual_ds, "User Defined Topology")
 
         return dual
 
