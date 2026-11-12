@@ -4,14 +4,14 @@ import numpy as np
 from numba import njit
 
 from uxarray.constants import ERROR_TOLERANCE, MACHINE_EPSILON
-from uxarray.grid.coordinates import (
-    _normalize_xyz_scalar,
-)
 from uxarray.grid.utils import _angle_of_2_vectors
 from uxarray.utils.computing import _cdp8, accucross
 from uxarray.utils.numba_math import (
+    _numba_add3,
     _numba_cross3,
     _numba_dot3,
+    _numba_mul3_scalar,
+    _numba_norm3,
     _numba_sub3,
 )
 
@@ -24,17 +24,6 @@ _PREDICATE_ZERO_TOL = 1e-15
 # AccuSphGeom's gca_*_minor_arc_tol (1e-8) so the Python predicate accepts the
 # same candidate set as the C++ reference.
 _ON_MINOR_ARC_TOL = 1e-8
-
-
-def _to_list(obj):
-    if not isinstance(obj, list):
-        if isinstance(obj, np.ndarray):
-            # Convert the NumPy array to a list using .tolist()
-            obj = obj.tolist()
-        else:
-            # If not a list or NumPy array, return the object as-is
-            obj = [obj]
-    return obj
 
 
 @njit(cache=True)
@@ -167,26 +156,6 @@ def _decide_pole_latitude(lat1, lat2):
 
 
 @njit(cache=True)
-def max3(a, b, c):
-    if a >= b and a >= c:
-        return a
-    elif b >= c:
-        return b
-    else:
-        return c
-
-
-@njit(cache=True)
-def min3(a, b, c):
-    if a <= b and a <= c:
-        return a
-    elif b <= c:
-        return b
-    else:
-        return c
-
-
-@njit(cache=True)
 def clip_scalar(a, a_min, a_max):
     if a < a_min:
         return a_min
@@ -204,11 +173,13 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
 
     Parameters
     ----------
-    gca_cart : numpy.ndarray
-        An array containing two 3D vectors that define a great circle arc.
+    gca_cart : iterable of 2 length-3 iterables
+        The x,y,z coords of two points defining a great circle arc.
+        (If numpy array, has shape (2,3). If tuple, contains two length-3 tuples.)
 
-    gca_lonlat : numpy.ndarray
-        An array containing the longitude and latitude of the two points.
+    gca_lonlat : iterable of 2 length-2 iterables
+        The longitude and latitude of the two points defining the great circle arc.
+        (If numpy array, has shape (2,2). If tuple, contains two length-2 tuples.)
 
     extreme_type : str
         The type of extreme latitude to calculate. Must be either 'max' or 'min'.
@@ -240,7 +211,7 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     n2 = gca_cart[1]
 
     # Compute dot product
-    dot_n1_n2 = np.dot(n1, n2)
+    dot_n1_n2 = _numba_dot3(n1, n2)
 
     # Compute denominator
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
@@ -262,23 +233,22 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
         # Check if d_a_max is within the valid range
         if (d_a_max > 0.0) and (d_a_max < 1.0):
             # Compute the intermediate point on the GCA
-            node3 = (1.0 - d_a_max) * n1 + d_a_max * n2
+            node3 = _numba_add3(
+                _numba_mul3_scalar(n1, (1.0 - d_a_max)), _numba_mul3_scalar(n2, d_a_max)
+            )
 
             # Normalize the intermediate point
-            x, y, z = _normalize_xyz_scalar(node3[0], node3[1], node3[2])
-            node3_normalized = np.empty(3)
-            node3_normalized[0] = x
-            node3_normalized[1] = y
-            node3_normalized[2] = z
+            norm = _numba_norm3(node3)
+            z = node3[2] / norm
 
             # Compute latitude of the intermediate point
-            d_lat_rad = math.asin(clip_scalar(node3_normalized[2], -1.0, 1.0))
+            d_lat_rad = math.asin(clip_scalar(z, -1.0, 1.0))
 
             # Return the extreme latitude
             if extreme_type == "max":
-                return max3(d_lat_rad, lat_n1, lat_n2)
+                return max(d_lat_rad, lat_n1, lat_n2)
             else:
-                return min3(d_lat_rad, lat_n1, lat_n2)
+                return min(d_lat_rad, lat_n1, lat_n2)
 
     # If denom is zero or d_a_max is not in (0,1), return max or min of lat_n1 and lat_n2
     if extreme_type == "max":
@@ -295,8 +265,9 @@ def extreme_gca_z(gca_cart, extreme_type):
 
     Parameters
     ----------
-    gca_cart : numpy.ndarray
-        An array containing two 3D vectors that define a great circle arc.
+    gca_cart : iterable of 2 length-3 iterables
+        The x,y,z coords of two points defining a great circle arc.
+        (If numpy array, has shape (2,3). If tuple, contains two length-3 tuples.)
 
     extreme_type : str
         The type of extreme latitude to calculate. Must be either 'max' or 'min'.
@@ -322,7 +293,7 @@ def extreme_gca_z(gca_cart, extreme_type):
     n2 = gca_cart[1]
 
     # Compute dot product
-    dot_n1_n2 = np.dot(n1, n2)
+    dot_n1_n2 = _numba_dot3(n1, n2)
 
     # Compute denominator
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
@@ -344,23 +315,22 @@ def extreme_gca_z(gca_cart, extreme_type):
         # Check if d_a_max is within the valid range
         if (d_a_max > 0.0) and (d_a_max < 1.0):
             # Compute the intermediate point on the GCA
-            node3 = (1.0 - d_a_max) * n1 + d_a_max * n2
+            node3 = _numba_add3(
+                _numba_mul3_scalar(n1, (1.0 - d_a_max)), _numba_mul3_scalar(n2, d_a_max)
+            )
 
             # Normalize the intermediate point
-            x, y, z = _normalize_xyz_scalar(node3[0], node3[1], node3[2])
-            node3_normalized = np.empty(3)
-            node3_normalized[0] = x
-            node3_normalized[1] = y
-            node3_normalized[2] = z
+            norm = _numba_norm3(node3)
+            z = node3[2] / norm
 
-            d_z = clip_scalar(node3_normalized[2], -1.0, 1.0)
+            d_z = clip_scalar(z, -1.0, 1.0)
 
             if extreme_type == "max":
-                return max3(d_z, z_n1, z_n2)
+                return max(d_z, z_n1, z_n2)
             else:
-                return min3(d_z, z_n1, z_n2)
+                return min(d_z, z_n1, z_n2)
 
-    # If denom is zero or d_a_max is not in (0,1), return max or min of lat_n1 and lat_n2
+    # If denom is zero or d_a_max is not in (0,1), return max or min of z_n1 and z_n2
     if extreme_type == "max":
         return max(z_n1, z_n2)
     else:
@@ -398,7 +368,7 @@ def compute_arc_length(pt_a, pt_b):
 def _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q0, q1, q2):
     """Compensated dot of an already-computed ``(hi, lo)`` normal with ``q``.
 
-    This is the second half of :func:`_orient3d_on_sphere_value_xyz`, split out
+    This is the second half of :func:`_orient3d_on_sphere_value`, split out
     so that callers holding a normal that is invariant across many queries (e.g.
     the ray plane ``q x R`` in the spherical point-in-polygon kernel, which is
     the same for every edge of a face) can compute the cross product once and
@@ -432,31 +402,20 @@ def _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q0, q1, q2):
     return s + lo
 
 
-@njit(cache=True, inline="always")
-def _orient3d_on_sphere_value_xyz(a0, a1, a2, b0, b1, b2, q0, q1, q2):
-    """Accurate value of the orient3d-on-sphere predicate: ``(a x b) . q``.
-
-    Takes the nine vector components directly so hot loops can call it without
-    materializing ``(3,)`` arrays. Uses a compensated cross product, so for
-    unit-vector inputs it provides roughly double the effective precision of a
-    naive evaluation. Positive when q is left of the directed arc a->b, negative
-    when right, near zero when q is on the great circle through a and b.
-    """
-    nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(a0, a1, a2, b0, b1, b2)
-    return _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q0, q1, q2)
-
-
 @njit(cache=True)
 def _orient3d_on_sphere_value(a, b, q):
-    """Array form of :func:`_orient3d_on_sphere_value_xyz`: value of ``(a x b) . q``.
+    """Accurate value of the orient3d-on-sphere predicate: ``(a x b) . q``.
 
-    Convenience wrapper taking three ``(3,)`` unit vectors. Positive when q is
+    Convenience wrapper taking three ``(3,)`` unit vectors. Uses a
+    compensated cross product, so for unit-vector inputs it provides roughly
+    double the effective precision of a naive evaluation. Positive when q is
     left of the directed arc a->b, negative when right, near zero when q is on
     the great circle through a and b.
     """
-    return _orient3d_on_sphere_value_xyz(
-        a[0], a[1], a[2], b[0], b[1], b[2], q[0], q[1], q[2]
+    nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo = accucross(
+        a[0], a[1], a[2], b[0], b[1], b[2]
     )
+    return _normal_dot_value(nx_hi, ny_hi, nz_hi, nx_lo, ny_lo, nz_lo, q[0], q[1], q[2])
 
 
 @njit(cache=True)
@@ -472,7 +431,7 @@ def orient3d_on_sphere(a, b, q, tol=_PREDICATE_ZERO_TOL):
 
     Parameters
     ----------
-    a, b, q : np.ndarray, shape (3,)
+    a, b, q : iterables of length 3
         Unit vectors on the unit sphere.
     tol : float, optional
         Magnitude below which the result is classified as zero.
@@ -501,7 +460,7 @@ def orient3d_on_sphere(a, b, q, tol=_PREDICATE_ZERO_TOL):
 def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
     """Return True if q lies on the minor great-circle arc from a to b.
 
-    Uses ``_orient3d_on_sphere_value_xyz`` (a compensated cross product) for the
+    Uses ``_orient3d_on_sphere_value`` (a compensated cross product) for the
     collinearity test and dot products for the interval check. Compared to
     ``point_within_gca``, this avoids the ``arctan2`` call that guards against
     180-degree arcs and avoids the separate plane-membership check via
@@ -559,11 +518,7 @@ def on_minor_arc(q, a, b, tol=_ON_MINOR_ARC_TOL):
     cz = a0 * b1 - a1 * b0
     cross_sq = cx * cx + cy * cy + cz * cz
     degenerate = 1 if cross_sq < 1e-30 else 0
-    orient_ok = (
-        1
-        if abs(_orient3d_on_sphere_value_xyz(a0, a1, a2, b0, b1, b2, q0, q1, q2)) <= tol
-        else 0
-    )
+    orient_ok = 1 if abs(_orient3d_on_sphere_value(a, b, q)) <= tol else 0
     qa = a0 * q0 + a1 * q1 + a2 * q2
     qb = b0 * q0 + b1 * q1 + b2 * q2
     ab = a0 * b0 + a1 * b1 + a2 * b2
