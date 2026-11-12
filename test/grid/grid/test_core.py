@@ -434,6 +434,40 @@ def test_repeated_face_dual_paths_agree(gridpath):
     assert dual.get_dual().n_face > 0
 
 
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("merge", [False, True])
+def test_dual_preserves_merge_setting(gridpath, lazy, merge):
+    primal = ux.open_grid(gridpath("exodus", "outCSne8", "outCSne8.g"))
+    lon = np.append(primal.node_lon.values, primal.node_lon.values[0])
+    lat = np.append(primal.node_lat.values, primal.node_lat.values[0])
+    faces = primal.face_node_connectivity.values.copy()
+    row, column = np.argwhere(faces == 0)[0]
+    faces[row, column] = lon.size - 1
+    dataset = xr.Dataset(
+        {
+            "mesh": ((), 0, {"cf_role": "mesh_topology", "topology_dimension": 2,
+                            "node_coordinates": "lon lat", "face_node_connectivity": "faces"}),
+            "lon": ("nodes", lon, {"standard_name": "longitude"}),
+            "lat": ("nodes", lat, {"standard_name": "latitude"}),
+            "faces": (("cells", "corners"), faces, {"start_index": 0}),
+        }
+    )
+    grid = ux.open_grid(dataset.chunk() if lazy else dataset, merge_coincident_nodes=merge)
+    original = grid.face_node_connectivity.data
+    array = ux.UxDataArray(np.arange(grid.n_node), dims="n_node", uxgrid=grid)
+    data = ux.UxDataset({"ids": array}, uxgrid=grid)
+    for obj in (grid, array, data):
+        if merge:
+            dual = obj.get_dual()
+            dual_grid = dual if isinstance(dual, ux.Grid) else dual.uxgrid
+            assert dual_grid.n_face == 386
+        else:
+            with pytest.raises(GridInvalidError, match="Duplicate nodes"):
+                obj.get_dual()
+    assert grid.face_node_connectivity.data is original
+    assert grid._merge_coincident_nodes is merge
+
+
 def test_get_dual_rejects_faces_referencing_duplicate_nodes():
     """``construct_dual`` reads ``node_face_connectivity`` with no duplicate
     handling, so a face still pointing at a dead duplicate index would yield a

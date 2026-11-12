@@ -191,9 +191,8 @@ class Grid:
         # canonicalize coincident node indices in connectivity before this dataset
         # is wrapped in a Grid, so every construction path benefits and no
         # lazily-computed connectivity is ever built from stale indices.
-        # ``merge_coincident_nodes`` is internal: it is set to False only where
-        # uxarray builds a grid out of another grid's already-canonical data, so
-        # the search is not paid again on nodes that cannot need it.
+        # Users can opt out to retain the original connectivity, including face
+        # rings that would have nonconsecutive repeated corners after merging.
         # Internally generated formats known to have unique vertices skip the
         # search. File-backed formats are checked regardless of their usual layout.
         duplicate_node_map = None
@@ -222,6 +221,7 @@ class Grid:
         self._antimeridian_face_indices = None
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
         self._is_subset = is_subset
+        self._merge_coincident_nodes = merge_coincident_nodes
 
         self._inverse_indices = inverse_indices
 
@@ -296,6 +296,10 @@ class Grid:
               containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
+        merge_coincident_nodes : bool, default=True
+            Passed through ``**kwargs``. Set to False to preserve original node
+            connectivity, including faces that would acquire nonconsecutive repeated
+            corners after merging. Dual construction still rejects referenced duplicates.
         """
 
         if isinstance(dataset, xr.Dataset):
@@ -2816,6 +2820,7 @@ class Grid:
             grid_ds,
             self.source_grid_spec,
             source_dims_dict=self._source_dims_dict,
+            merge_coincident_nodes=self._merge_coincident_nodes,
         )
 
     def get_dual(self, check_duplicate_nodes: bool | None = None):

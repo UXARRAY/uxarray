@@ -64,6 +64,11 @@ def open_grid(
         See dask chunking for more details.
     use_dual : bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is MPAS
+    merge_coincident_nodes : bool, default=True
+        Passed through ``**kwargs`` for dataset and file inputs. Set to False to
+        preserve original node connectivity, including faces that would acquire
+        nonconsecutive repeated corners after merging. Dual construction still
+        rejects referenced duplicates.
     **kwargs
         Additional arguments passed on to ``xarray.open_dataset``.
         Refer to the :func:`xarray docs <xarray.open_dataset>`
