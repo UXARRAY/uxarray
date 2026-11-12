@@ -691,7 +691,21 @@ def _merge_coincident_grid_ds_nodes(
         return (grid_ds, {}) if return_duplicate_map else grid_ds
 
     n_node = points_xyz.shape[0]
-    canonical = _coincident_node_canonical_indices(points_xyz, tolerance)
+    finite = np.isfinite(points_xyz).all(axis=1)
+    if not finite.all():
+        referenced = grid_ds["face_node_connectivity"].values
+        referenced = referenced[referenced != INT_FILL_VALUE]
+        if np.any(~finite[referenced]):
+            raise ValueError(
+                "Referenced node XYZ coordinates must contain only finite values."
+            )
+    # Unused node coordinates are retained for data alignment, but must not enter
+    # the spatial search. Map its results back to the original node indices.
+    finite_indices = np.flatnonzero(finite)
+    canonical = np.arange(n_node, dtype=INT_DTYPE)
+    canonical[finite_indices] = finite_indices[
+        _coincident_node_canonical_indices(points_xyz[finite], tolerance)
+    ]
     duplicate_node_map = {
         INT_DTYPE(index): INT_DTYPE(canonical[index])
         for index in np.flatnonzero(canonical != np.arange(n_node, dtype=INT_DTYPE))

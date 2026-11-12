@@ -451,6 +451,38 @@ def test_merge_normalizes_xyz_fallback():
 
 
 @pytest.mark.parametrize("invalid", [np.nan, np.inf])
+def test_merge_preserves_unused_nonfinite_nodes(invalid):
+    grid = ux.Grid.from_topology(
+        np.array([0.0, 1.0, 1.0, 0.0, invalid]),
+        np.array([0.0, 0.0, 1.0, 1.0, invalid]),
+        np.array([[0, 1, 2, 3]]),
+    )
+    assert grid.n_node == 5
+    nt.assert_equal(grid.face_node_connectivity.values, [[0, 1, 2, 3]])
+    assert _find_duplicate_nodes(grid) == {}
+
+
+def test_merge_maps_finite_nodes_back_to_original_indices():
+    grid = ux.Grid.from_topology(
+        np.array([np.nan, 0.0, 1.0, 1.0, 0.0, 1.0]),
+        np.array([np.nan, 0.0, 0.0, 1.0, 1.0, 0.0]),
+        np.array([[1, 5, 3, 4]]),
+    )
+    nt.assert_equal(grid.face_node_connectivity.values, [[1, 2, 3, 4]])
+    assert _find_duplicate_nodes(grid) == {5: 2}
+
+
+@pytest.mark.parametrize("invalid", [np.nan, np.inf])
+def test_merge_rejects_referenced_nonfinite_lonlat(invalid):
+    with pytest.raises(ValueError, match="finite"):
+        ux.Grid.from_topology(
+            np.array([0.0, 1.0, invalid]),
+            np.array([0.0, 0.0, invalid]),
+            np.array([[0, 1, 2]]),
+        )
+
+
+@pytest.mark.parametrize("invalid", [np.nan, np.inf])
 def test_merge_rejects_invalid_xyz_fallback(invalid):
     grid_ds = xr.Dataset(
         {
