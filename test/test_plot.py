@@ -3,6 +3,7 @@ import xarray as xr
 import holoviews as hv
 import pytest
 import numpy as np
+import shapely
 
 import matplotlib
 matplotlib.use("Agg")
@@ -638,6 +639,16 @@ def test_contour_projection(gridpath):
     assert isinstance(lines, gv.Contours) and isinstance(labels, gv.Labels)
     hv.renderer("matplotlib").get_plot(uxda.plot(projection=projection, backend="matplotlib") * contours)
 
+    # the lines are already in the coordinates of the projection, so GeoViews plots them
+    # as a map without projecting them again, on both backends
+    x_limit = projection.x_limits[1]
+    assert lines.crs == projection
+    assert x_limit / 2 < max(np.abs(x).max() for _, x, _ in _contour_lines(lines)) <= x_limit
+    for backend in ["matplotlib", "bokeh"]:
+        lines = uxda.plot.contour(levels=levels, projection=projection, backend=backend, labels=False)
+        plot = hv.renderer(backend).get_plot(lines)
+        assert plot.geographic and plot._project_operation is None
+
     # seen from above the north pole, the southern line is not on the map.
     # GeoViews raises an IndexError for such a line, so it is dropped
     for method in ["interpolated", "edges"]:
@@ -650,21 +661,46 @@ def test_contour_projection(gridpath):
 @pytest.mark.parametrize("projection", [
     ccrs.Orthographic(0, 90), ccrs.PlateCarree(central_longitude=180), ccrs.LambertConformal(), ccrs.Robinson(-150)
 ])
-def test_contour_projection_drops_same_lines_as_projecting_each(gridpath, projection):
-    """Lines found on the map from their points alone are the lines whose projection is not empty."""
+def test_contour_projected_lines_match_cartopy(gridpath, projection):
+    """Lines projected all at once are the lines Cartopy gives when it projects them one at a time."""
     import shapely
-    from uxarray.plot.contour import _compute_contours, _drop_lines_outside_projection
+    from uxarray.plot.contour import _compute_contours, _project_lines
 
     uxda = _face_latitude(ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug")))
     for method in ["interpolated", "edges"]:
         contours = _compute_contours(uxda, levels=[-45.5, 0.5, 10.5, 45.5], method=method)
-        expected = [
-            line for _, line in contours
-            if not projection.project_geometry(shapely.LineString(line), ccrs.PlateCarree()).is_empty
-        ]
-        kept = [line for _, line in _drop_lines_outside_projection(contours, projection)]
-        assert len(kept) == len(expected)
-        assert all(a is b for a, b in zip(kept, expected))
+        expected, expected_on_map = [], []
+        for level, line in contours:
+            geometry = projection.project_geometry(shapely.LineString(line), ccrs.PlateCarree())
+            parts = [(level, np.asarray(part.coords)) for part in shapely.get_parts(geometry) if len(part.coords) > 1]
+            expected += parts
+            expected_on_map.append(len(parts) > 0)
+
+        projected, on_map = _project_lines(contours, projection)
+        assert on_map.tolist() == expected_on_map
+        assert len(projected) == len(expected)
+        for (level, line), (expected_level, expected_line) in zip(projected, expected):
+            assert level == expected_level
+            np.testing.assert_allclose(line, expected_line, rtol=1e-12)
+
+
+def test_contour_lines_on_far_side_are_dropped_without_cartopy():
+    """A line none of whose points can be projected is not on the map, as Cartopy decides, without asking Cartopy."""
+    from uxarray.plot.contour import _project_lines
+
+    projection = ccrs.Orthographic(0, 90)
+    far_side = np.column_stack([np.linspace(-170, 170, 50), np.full(50, -45.5)])
+    near_side = np.column_stack([np.linspace(-170, 170, 50), np.full(50, 45.5)])
+    assert not np.isfinite(projection.transform_points(ccrs.PlateCarree(), *far_side.T)).all(axis=1).any()
+    assert projection.project_geometry(shapely.LineString(far_side), ccrs.PlateCarree()).is_empty
+
+    def no_cartopy(*args, **kwargs):
+        raise AssertionError("the line was given to Cartopy")
+
+    projection.project_geometry = no_cartopy
+    projected, on_map = _project_lines([(-45.5, far_side), (45.5, near_side)], projection)
+    assert on_map.tolist() == [False, True]
+    assert [level for level, _ in projected] == [45.5]
 
 
 def test_contour_frame(gridpath):
@@ -697,6 +733,26 @@ def test_contour_frame(gridpath):
     uxda = _face_latitude(ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc")))
     shading = uxda.plot(backend="bokeh")
     assert ranges(shading * uxda.plot.contour(levels=[-30.5, 30.5], backend="bokeh")) == ranges(shading)
+
+
+def test_contour_frame_with_lines_at_the_edge_of_the_map(gridpath):
+    """Projected lines that reach closer to the edge of the map than the shaded faces do not
+    widen the frame of the shaded plot, alone or overlaid."""
+    uxgrid = ux.open_grid(gridpath("mpas", "QU", "oQU480.231010.nc"))
+    lon, lat = np.radians(uxgrid.face_lon.values), np.radians(uxgrid.face_lat.values)
+    uxda = ux.UxDataArray(xr.DataArray(np.sin(2 * lat) * np.cos(3 * lon), dims="n_face", name="wave"), uxgrid=uxgrid)
+    projection = ccrs.Robinson()
+
+    def ranges(element):
+        figure = hv.renderer("bokeh").get_plot(element).state
+        return figure.x_range.start, figure.x_range.end, figure.y_range.start, figure.y_range.end
+
+    shading = uxda.plot(projection=projection, backend="bokeh")
+    contours = uxda.plot.contour(levels=[-0.6, -0.2, 0.2, 0.6], projection=projection, backend="bokeh")
+    # the lines do reach past the shaded faces
+    assert np.nanmax(np.abs(contours.get(0).dimension_values("x"))) > max(np.abs(ranges(shading)[:2]))
+    np.testing.assert_allclose(ranges(contours), ranges(shading), rtol=1e-12)
+    np.testing.assert_allclose(ranges(shading * contours), ranges(shading), rtol=1e-12)
 
 
 def test_contour_missing_values(gridpath):
@@ -762,6 +818,40 @@ def test_contour_data_not_on_grid(gridpath):
         assert section.dims == ("time", "lev")
         assert isinstance(section.plot.contour(), QuadContourSet)
         assert isinstance(section.plot.contour(levels=5, colors="k"), QuadContourSet)
+    plt.close("all")
+
+
+def test_contour_interpolated_matches_matplotlib(gridpath, datasetpath):
+    """The interpolated lines are the segments Matplotlib's tricontour gives on the same triangles."""
+    from matplotlib.tri import Triangulation
+    from uxarray.plot.contour import _interpolated_contours, _split_at_antimeridian, _spatial_values, _triangulation
+
+    geoflow = ux.open_dataset(gridpath("ugrid", "geoflow-small", "grid.nc"), datasetpath("ugrid", "geoflow-small", "v1.nc"))
+    cases = [
+        (_face_latitude(ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))), [-30.5, 10.5, 45.5]),
+        (geoflow["v1"].isel(time=0, meshLayers=0), [-12.0, -6.0, 6.0, 12.0]),
+    ]
+
+    def segments(lines):
+        # the ends of each segment of non-zero length, in either order
+        out = []
+        for level, line in lines:
+            for start, end in zip(line[:-1], line[1:]):
+                if not np.allclose(start, end, rtol=0, atol=1e-9):
+                    out.append(sorted([(level, *start), (level, *end)]))
+        return np.array(out).reshape(-1, 6)
+
+    for uxda, levels in cases:
+        values, dim = _spatial_values(uxda)
+        lon, lat, triangles, index = _triangulation(uxda.uxgrid, dim)
+        contour_set = plt.figure().add_subplot().tricontour(Triangulation(lon, lat, triangles), values[index], levels=levels)
+        expected = segments([(level, part) for level, lines in zip(levels, contour_set.allsegs)
+                             for line in lines if len(line) > 1 for part in _split_at_antimeridian(line)])
+        found = segments(_interpolated_contours(values, uxda.uxgrid, dim, np.array(levels)))
+
+        assert len(found) == len(expected)
+        distance = np.abs(found[:, None, :] - expected[None, :, :]).max(axis=2)
+        assert distance.min(axis=1).max() < 1e-9 and distance.min(axis=0).max() < 1e-9
     plt.close("all")
 
 
