@@ -12,11 +12,12 @@ import xarray as xr
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.dataset import UxDataset
 from uxarray.core.utils import (
+    _get_grid,
     _map_dataset_to_ugrid,
     _open_dataset_with_fallback,
     match_chunks_to_ugrid,
 )
-from uxarray.errors import GridInvalidError, GridsMismatchError
+from uxarray.errors import GridInvalidError, GridsMismatchError, GridStructureError
 from uxarray.grid import Grid
 from uxarray.io._scrip import (
     _detect_multigrid,
@@ -136,6 +137,13 @@ def open_grid(
             grid_filename_or_obj, chunks=grid_chunks, **kwargs
         )
         grid = Grid.from_dataset(grid_ds, use_dual=use_dual)
+
+    if grid.source_grid_spec == "Structured":
+        raise GridStructureError(
+            f"open_grid() is not intended for structured (lat/lon) grids or data, but "
+            f"received a grid with source_grid_spec={grid.source_grid_spec!r}. "
+            f"For structured grids, consider ux.Grid.from_structured() instead."
+        )
 
     # Return the grid (and chunks, if requested) in a consistent manner.
     if return_chunks:
@@ -493,12 +501,19 @@ def open_dataset(
                 "in ux.open_dataset(grid_filename_or_obj, filename_or_obj=None)."
             )
 
-        uxgrid, _ = _get_grid(ds, chunks, chunk_grid, use_dual, grid_kwargs)
+        uxgrid, _ = _get_grid(
+            ds, chunks, chunk_grid, use_dual, grid_kwargs, _fname="ux.open_dataset"
+        )
         filename_or_obj = grid_filename_or_obj
     else:
         # Construct a Grid, validate parameters, and correct chunks
         uxgrid, corrected_chunks = _get_grid(
-            grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs
+            grid_filename_or_obj,
+            chunks,
+            chunk_grid,
+            use_dual,
+            grid_kwargs,
+            _fname="ux.open_dataset",
         )
 
         # Load the data as a Xarray Dataset
@@ -621,6 +636,7 @@ def open_mfdataset(
         chunk_grid,
         use_dual,
         grid_kwargs,
+        _fname="ux.open_mfdataset",
     )
 
     # Load the data as a Xarray Dataset
@@ -631,49 +647,6 @@ def open_mfdataset(
 
     # Create a UXarray Dataset by linking the Xarray Dataset with a UXarray Grid
     return UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
-
-
-def _get_grid(
-    grid_filename_or_obj,
-    chunks,
-    chunk_grid,
-    use_dual,
-    grid_kwargs,
-):
-    """Validate input parameters and return the ``(grid, chunks)`` tuple."""
-    if isinstance(grid_filename_or_obj, Grid):
-        if use_dual:
-            raise ValueError(
-                "use_dual=True is not supported with an existing Grid. "
-                "Select the desired mesh when constructing the Grid."
-            )
-        if grid_kwargs:
-            raise ValueError(
-                "grid_kwargs must be empty when passing an existing Grid. "
-                "Apply these options when constructing the Grid."
-            )
-        if chunks is not None and chunk_grid:
-            raise ValueError(
-                "Providing Grid, non-None chunks, and chunk_grid=True simultaneously "
-                "is not supported. Call Grid.chunk() explicitly to change the grid's "
-                "chunking, or set chunk_grid=False to chunk only the data."
-            )
-        if isinstance(chunks, dict):
-            # Keep the caller's options and the shared Grid unchanged. Match
-            # UGRID chunk keys to the data's source dimensions without grid I/O.
-            requested_chunks = chunks
-            chunks = chunks.copy()
-            for source_dim, ugrid_dim in grid_filename_or_obj._source_dims_dict.items():
-                if isinstance(ugrid_dim, str) and ugrid_dim in requested_chunks:
-                    chunks[source_dim] = requested_chunks[ugrid_dim]
-        return grid_filename_or_obj, chunks
-
-    grid_kwargs["data_chunks"] = chunks
-    grid_kwargs["chunk_grid"] = chunk_grid
-    grid_kwargs["return_chunks"] = True
-
-    # Create a Grid
-    return open_grid(grid_filename_or_obj, use_dual=use_dual, **grid_kwargs)
 
 
 def concat(

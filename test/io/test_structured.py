@@ -39,7 +39,7 @@ def test_read_structured_uxds_from_ds(ds_name):
 
     assert uxds.uxgrid.validate()
 
-def test_from_xarray_with_grid_from_latlon():
+def test_from_xarray_fails_with_grid_from_latlon():
     """from_xarray must crash upon receiving structured data; see PR #1887."""
     ds = xr.tutorial.open_dataset("air_temperature")
 

@@ -564,9 +564,10 @@ def test_open_dataset_with_fallback_chains_both_engine_errors(tmp_path):
     )
 
 
-def test_open_dataset_fails_for_structured_inputs():
-    """open_dataset() must crash with DimensionError when provided structured data."""
-    ds = xr.Dataset(
+@pytest.fixture
+def _small_structured_dataset():
+    """Return a small structured dataset for testing."""
+    return xr.Dataset(
         {
             "var": (("lat", "lon"), np.arange(4*8).reshape(4, 8)),
         },
@@ -576,27 +577,29 @@ def test_open_dataset_fails_for_structured_inputs():
         },
     )
 
-    with pytest.raises(ux.errors.DimensionError, match=r"open_dataset\(\) is not intended for structured"):
+
+def test_open_grid_fails_for_structured_inputs(_small_structured_dataset):
+    """open_grid() must crash with GridStructureError when provided structured data."""
+    ds = _small_structured_dataset
+    with pytest.raises(ux.errors.GridStructureError, match=r"open_grid\(\) is not intended for structured"):
+        uxgrid = ux.open_grid(ds)
+
+
+def test_open_dataset_fails_for_structured_inputs(_small_structured_dataset):
+    """open_dataset() must crash with GridStructureError when provided structured data."""
+    ds = _small_structured_dataset
+    with pytest.raises(ux.errors.GridStructureError, match=r"open_dataset\(\) is not intended for structured"):
         uxds = ux.open_dataset(ds, ds)  # grid, data
 
 
-def test_open_mfdataset_warns_for_structured_inputs(tmp_path):
-    """open_mfdataset() must raise a DimensionError when provided structured data."""
-    ds = xr.Dataset(
-        {
-            "var": (("lat", "lon"), np.arange(4*8).reshape(4, 8)),
-        },
-        coords={
-            "lat": ("lat", np.linspace(-80, 80, 4), {"standard_name": "latitude"}),
-            "lon": ("lon", np.linspace(0, 350, 8), {"standard_name": "longitude"}),
-        },
-    )
-
+def test_open_mfdataset_warns_for_structured_inputs(tmp_path, _small_structured_dataset):
+    """open_mfdataset() must raise a GridStructureError when provided structured data."""
+    ds = _small_structured_dataset
     # Write the dataset to a temporary netCDF file
     temp_file = tmp_path / "temp.nc"
     ds.to_netcdf(temp_file)
 
-    with pytest.raises(ux.errors.DimensionError, match=r"open_mfdataset\(\) is not intended for structured"):
+    with pytest.raises(ux.errors.GridStructureError, match=r"open_mfdataset\(\) is not intended for structured"):
         uxds = ux.open_mfdataset(ds, [temp_file])  # grid, [paths to data files]
 
 

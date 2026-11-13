@@ -5,7 +5,12 @@ import xarray as xr
 from xarray.core.utils import either_dict_or_kwargs
 
 from uxarray.constants import GRID_DIMS
-from uxarray.errors import DataCenteringError, DimensionError, GridsMismatchError
+from uxarray.errors import (
+    DataCenteringError,
+    DimensionError,
+    GridsMismatchError,
+    GridStructureError,
+)
 from uxarray.io.utils import _get_source_dims_dict, _parse_grid_type
 
 
@@ -51,6 +56,67 @@ def _open_dataset_with_fallback(filename_or_obj, chunks=None, **kwargs):
             raise fallback_error from default_engine_error
 
 
+def _get_grid(
+    grid_filename_or_obj,
+    chunks,
+    chunk_grid,
+    use_dual,
+    grid_kwargs,
+    _fname=None,
+):
+    """Validate input parameters and return the ``(grid, chunks)`` tuple.
+    _fname: None or str
+        function name to use in error message, if open_grid crashes with GridStructureError.
+        None --> simply re-raise the original GridStructureError.
+        str --> raise a new GridStructureError with a (hopefully) more helpful message.
+    """
+    from uxarray import Grid, open_grid
+
+    if isinstance(grid_filename_or_obj, Grid):
+        if use_dual:
+            raise ValueError(
+                "use_dual=True is not supported with an existing Grid. "
+                "Select the desired mesh when constructing the Grid."
+            )
+        if grid_kwargs:
+            raise ValueError(
+                "grid_kwargs must be empty when passing an existing Grid. "
+                "Apply these options when constructing the Grid."
+            )
+        if chunks is not None and chunk_grid:
+            raise ValueError(
+                "Providing Grid, non-None chunks, and chunk_grid=True simultaneously "
+                "is not supported. Call Grid.chunk() explicitly to change the grid's "
+                "chunking, or set chunk_grid=False to chunk only the data."
+            )
+        if isinstance(chunks, dict):
+            # Keep the caller's options and the shared Grid unchanged. Match
+            # UGRID chunk keys to the data's source dimensions without grid I/O.
+            requested_chunks = chunks
+            chunks = chunks.copy()
+            for source_dim, ugrid_dim in grid_filename_or_obj._source_dims_dict.items():
+                if isinstance(ugrid_dim, str) and ugrid_dim in requested_chunks:
+                    chunks[source_dim] = requested_chunks[ugrid_dim]
+        return grid_filename_or_obj, chunks
+
+    grid_kwargs["data_chunks"] = chunks
+    grid_kwargs["chunk_grid"] = chunk_grid
+    grid_kwargs["return_chunks"] = True
+
+    # Create a Grid
+    try:
+        return open_grid(grid_filename_or_obj, use_dual=use_dual, **grid_kwargs)
+    except GridStructureError:
+        if _fname is None:
+            raise
+        else:
+            raise GridStructureError(
+                f"{_fname}() is not intended for structured (lat/lon) grids or data, but "
+                f"received a grid with source_grid_spec='Structured'. For structured grids or data, "
+                "consider ux.UxDataset.from_structured() or ux.Grid.from_structured() instead."
+            )
+
+
 def _map_dataset_to_ugrid(ds, grid, _fname):
     """Map member dimensions without modifying the Grid's source mapping.
     _fname: str
@@ -82,7 +148,7 @@ def _map_dims_to_ugrid(
 
     if grid.source_grid_spec == "Structured":
         # structured grids not supported here.
-        raise DimensionError(
+        raise GridStructureError(
             f"{_fname}() is not intended for structured (lat/lon) grids or data, "
             f"but received a grid with source_grid_spec={grid.source_grid_spec!r} "
             f"and source dims mapping {_source_dims_dict}. For structured grids or data, "
@@ -148,7 +214,7 @@ def _map_structured_dims_to_ugrid(ds, _source_dims_dict, grid, _fname):
 
         ds = ds.stack(n_face=dim_ordered)
     else:
-        raise DimensionError(
+        raise GridStructureError(
             f"{_fname}() is not intended for unstructured grids or data; "
             f"expected a grid with source_grid_spec='Structured', "
             f"but got source_grid_spec={grid.source_grid_spec!r}. "
