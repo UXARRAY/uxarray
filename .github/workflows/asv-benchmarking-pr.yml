@@ -61,10 +61,12 @@ jobs:
           cache-environment: true
           environment-name: uxarray_build
           cache-environment-key: "${{runner.os}}-${{runner.arch}}-${{hashFiles(env.CONDA_ENV_FILE)}}-benchmark"
+          # asv's "conda" environment_type shells out to a `conda` executable,
+          # which micromamba does not provide. (asv's faster "rattler" backend
+          # cannot read the `nodefaults` channel in the environment file.)
           create-args: >-
             asv
-            python-build
-            mamba
+            conda
 
       - name: Resolve the baseline commit
         id: base
