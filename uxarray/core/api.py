@@ -14,10 +14,9 @@ from uxarray.core.dataset import UxDataset
 from uxarray.core.utils import (
     _map_dataset_to_ugrid,
     _open_dataset_with_fallback,
-    _represents_structured_data,
     match_chunks_to_ugrid,
 )
-from uxarray.errors import DimensionError, GridInvalidError, GridsMismatchError
+from uxarray.errors import GridInvalidError, GridsMismatchError
 from uxarray.grid import Grid
 from uxarray.io._scrip import (
     _detect_multigrid,
@@ -517,16 +516,8 @@ def open_dataset(
                 filename_or_obj, chunks=corrected_chunks, **kwargs
             )
 
-    if _represents_structured_data(uxgrid):
-        raise DimensionError(
-            "ux.open_dataset() is not intended for structured (lat/lon) grids or data, "
-            f"but received a grid with source_grid_spec={uxgrid.source_grid_spec!r} "
-            f"and dims {list(uxgrid._ds.dims)}. "
-            "Consider UxDataset.from_structured() or Grid.from_structured() instead."
-        )
-
     # Map original dimensions to the UGRID conventions
-    ds = _map_dataset_to_ugrid(ds, uxgrid)
+    ds = _map_dataset_to_ugrid(ds, uxgrid, _fname="ux.open_dataset")
 
     # Create a UXarray Dataset by linking the Xarray Dataset with a UXarray Grid
     source_datasets = (
@@ -632,19 +623,11 @@ def open_mfdataset(
         grid_kwargs,
     )
 
-    if _represents_structured_data(uxgrid):
-        raise DimensionError(
-            "ux.open_mfdataset() is not intended for structured (lat/lon) grids or data, "
-            f"but received a grid with source_grid_spec={uxgrid.source_grid_spec!r} "
-            f"and dims {list(uxgrid._ds.dims)}. "
-            "Consider UxDataset.from_structured(xarray.open_mfdataset(...)) instead."
-        )
-
     # Load the data as a Xarray Dataset
     ds = xr.open_mfdataset(paths, chunks=corrected_chunks, **kwargs)
 
     # Map original dimensions to the UGRID conventions
-    ds = _map_dataset_to_ugrid(ds, uxgrid)
+    ds = _map_dataset_to_ugrid(ds, uxgrid, _fname="ux.open_mfdataset")
 
     # Create a UXarray Dataset by linking the Xarray Dataset with a UXarray Grid
     return UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
