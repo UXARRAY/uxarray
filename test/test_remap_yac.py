@@ -3,7 +3,7 @@ import pytest
 
 import uxarray as ux
 from uxarray.errors import YacNotAvailableError
-from uxarray.remap.yac import _import_yac
+from uxarray.remap.yac import _import_yac, _normalize_yac_method
 
 
 try:
@@ -170,6 +170,59 @@ def test_yac_dnn_face_remap(gridpath):
     )
 
     assert out.size == dest.n_face
+
+
+@pytest.mark.parametrize(
+    "method, options",
+    [
+        ("ncc", {}),
+        ("rbf", {}),
+        ("bernstein_bezier", {}),
+        ("nnn", {"creep_distance": -1}),
+    ],
+)
+def test_yac_additional_methods_face_remap(gridpath, method, options):
+    src = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
+    dest = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(
+        np.ones(src.n_face), dims=["n_face"], uxgrid=src, name="ones"
+    )
+
+    out = da.remap(
+        destination_grid=dest,
+        remap_to="faces",
+        backend="yac",
+        yac_method=method,
+        yac_options=options,
+    )
+
+    assert out.size == dest.n_face
+    assert np.isfinite(out.values).all()
+    np.testing.assert_allclose(out.values, 1.0, atol=1e-3)
+
+
+def test_yac_creep_fills_unmatched_targets(gridpath):
+    src = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
+    dest = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(np.ones(src.n_face), dims=["n_face"], uxgrid=src)
+    options = {"search_distance_type": "FIXED", "search_distance": 0.02}
+
+    def n_filled(yac_options):
+        out = da.remap(
+            destination_grid=dest,
+            remap_to="faces",
+            backend="yac",
+            yac_method="dnn",
+            yac_options=yac_options,
+        )
+        return int((out.values == 1.0).sum())
+
+    assert n_filled({**options, "creep_distance": -1}) > n_filled(options)
+
+
+def test_yac_unknown_method_raises():
+    with pytest.raises(ValueError, match="Unsupported YAC method"):
+        _normalize_yac_method("not-a-method")
 
 
 def test_yac_bilinear_rejects_non_average_method(gridpath):
