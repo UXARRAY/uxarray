@@ -5,7 +5,14 @@ from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.utils.parallel import parallel_njit
 
 
-def construct_dual(grid):
+def _dual_face_indices(grid):
+    """Return primal node indices that produce faces in the dual mesh."""
+    node_face_connectivity = grid.node_face_connectivity.values
+    n_edges = np.sum(node_face_connectivity != INT_FILL_VALUE, axis=1)
+    return np.where(n_edges >= 3)[0]
+
+
+def construct_dual(grid, valid_node_indices=None):
     """Constructs a dual mesh from a given grid, by connecting the face centers
     to make a grid centered over the primal mesh face centers, with the nodes
     of the primal mesh being the face centers of the dual mesh.
@@ -14,6 +21,9 @@ def construct_dual(grid):
     ----------
     grid: Grid
         Primal mesh to construct dual from
+    valid_node_indices: ndarray, optional
+        Primal node indices that will become dual faces. If omitted, nodes
+        incident to at least three faces are selected.
 
     Returns
     --------
@@ -38,7 +48,8 @@ def construct_dual(grid):
     max_edges = node_face_connectivity.shape[1]
 
     # Only nodes with 3+ edges can form valid dual faces
-    valid_node_indices = np.where(n_edges >= 3)[0]
+    if valid_node_indices is None:
+        valid_node_indices = _dual_face_indices(grid)
 
     construct_node_face_connectivity = np.full(
         (len(valid_node_indices), max_edges), INT_FILL_VALUE, dtype=INT_DTYPE
