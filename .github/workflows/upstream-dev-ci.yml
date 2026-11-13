@@ -40,9 +40,9 @@ jobs:
           create-args: >-
             python=${{ matrix.python-version }}
 
-      - name: conda list
+      - name: micromamba list
         run: |
-          conda list
+          micromamba list
 
       - name: Install upstream versions
         run: |
@@ -52,9 +52,9 @@ jobs:
         run: |
           python -m pip install . --no-deps
 
-      - name: conda list
+      - name: micromamba list
         run: |
-          conda list
+          micromamba list
 
       - name: Running Tests
         id: tests
