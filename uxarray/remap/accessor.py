@@ -300,7 +300,8 @@ class RemapAccessor:
 
         backend : {'uxarray', 'yac'}, default='uxarray'
             Remapping backend to use. When set to 'yac', bilinear remapping is
-            routed through YAC's average interpolation.
+            routed through YAC's average interpolation with barycentric
+            weights.
         yac_method : {'average'}, optional
             YAC interpolation method for the bilinear convenience wrapper.
             Only ``'average'`` is supported here.
@@ -322,7 +323,7 @@ class RemapAccessor:
                     "bilinear with backend='yac' only supports yac_method='average'. "
                     "Use .remap(..., backend='yac', yac_method=...) for other YAC methods."
                 )
-            yac_kwargs = yac_options or {}
+            yac_kwargs = {"reduction_type": "AVG_BARY", **(yac_options or {})}
             return _yac_remap(
                 self.ux_obj,
                 destination_grid,
