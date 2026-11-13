@@ -814,11 +814,10 @@ class Grid:
         if self.source_grid_spec != other.source_grid_spec:
             return False
 
-        if not (
-            self.node_lon.equals(other.node_lon) or self.node_lat.equals(other.node_lat)
-        ):
+        if not self.node_lon.equals(other.node_lon):
             return False
-
+        if not self.node_lat.equals(other.node_lat):
+            return False
         if not self.face_node_connectivity.equals(other.face_node_connectivity):
             return False
 
