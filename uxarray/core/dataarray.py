@@ -1669,7 +1669,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             the result carries physical units: [u units]/meter
             (e.g. result has units of 1/s if u represents velocity).
             When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
-            the result caries per-radian units: [u units]/radian.
+            the result carries per-radian units: [u units]/radian.
             (e.g. result has units of (m/s)/rad if u represents velocity).
 
             CAUTION: this scaling does not account for any radius increases
@@ -1859,7 +1859,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             the result carries physical units: [u units]/meter
             (e.g. result has units of 1/s if u represents velocity).
             When ``False`` (or if the grid's ``sphere_radius`` is set to 1.0),
-            the result caries per-radian units: [u units]/radian.
+            the result carries per-radian units: [u units]/radian.
             (e.g. result has units of (m/s)/rad if u represents velocity).
 
             CAUTION: this scaling does not account for any radius increases
