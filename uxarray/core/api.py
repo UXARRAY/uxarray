@@ -39,6 +39,7 @@ def open_grid(
     grid_filename_or_obj: str | os.PathLike[Any] | dict | xr.Dataset,
     chunks=None,
     use_dual: bool = False,
+    drop_non_grid_data: bool = True,
     **kwargs: dict[str, Any],
 ):
     """Constructs and returns a ``Grid`` from a grid file.
@@ -64,6 +65,11 @@ def open_grid(
         See dask chunking for more details.
     use_dual : bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is MPAS
+    drop_non_grid_data : bool, default=True
+        Drop variables that don't belong on the grid, such as a ``time`` coordinate or data variables
+        from a file that holds both the grid and its data. Pass ``False`` to keep every variable the
+        reader returns. ``ux.open_dataset`` and ``ux.open_mfdataset`` accept it through
+        ``grid_kwargs``. See :class:`~uxarray.Grid` for what is dropped and kept.
     **kwargs
         Additional arguments passed on to ``xarray.open_dataset``.
         Refer to the :func:`xarray docs <xarray.open_dataset>`
@@ -106,7 +112,9 @@ def open_grid(
         nod2d_path = os.path.join(grid_filename_or_obj, "nod2d.out")
         elem2d_path = os.path.join(grid_filename_or_obj, "elem2d.out")
         if os.path.isfile(nod2d_path) and os.path.isfile(elem2d_path):
-            grid = Grid.from_dataset(grid_filename_or_obj)
+            grid = Grid.from_dataset(
+                grid_filename_or_obj, drop_non_grid_data=drop_non_grid_data
+            )
         else:
             _missing = []
             if not os.path.isfile(nod2d_path):
@@ -128,14 +136,20 @@ def open_grid(
 
     elif isinstance(grid_filename_or_obj, xr.Dataset):
         # Construct a grid from a dataset file
-        grid = Grid.from_dataset(grid_filename_or_obj, use_dual=use_dual)
+        grid = Grid.from_dataset(
+            grid_filename_or_obj,
+            use_dual=use_dual,
+            drop_non_grid_data=drop_non_grid_data,
+        )
 
     else:
         # Attempt to use Xarray directly for remaining input types
         grid_ds = _open_dataset_with_fallback(
             grid_filename_or_obj, chunks=grid_chunks, **kwargs
         )
-        grid = Grid.from_dataset(grid_ds, use_dual=use_dual)
+        grid = Grid.from_dataset(
+            grid_ds, use_dual=use_dual, drop_non_grid_data=drop_non_grid_data
+        )
 
     # Return the grid (and chunks, if requested) in a consistent manner.
     if return_chunks:

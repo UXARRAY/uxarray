@@ -74,7 +74,7 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 from uxarray.grid.point_in_face import _point_in_face_query
-from uxarray.grid.utils import make_setter
+from uxarray.grid.utils import _drop_non_grid_data, make_setter
 from uxarray.grid.validation import (
     _check_area,
     _check_connectivity,
@@ -149,6 +149,13 @@ class Grid:
     inverse_indices: xr.Dataset, default=None
         A dataset of indices that correspond to the original grid, if the grid being constructed is a subset
 
+    drop_non_grid_data : bool, default=True
+        Drop variables that don't belong on the grid, such as a ``time`` coordinate or data
+        variables carried in from a file that holds both the grid and its data. Variables with no
+        dimensions, or with any dimension outside the UGRID grid dimensions, are dropped;
+        variables uxarray reads or caches on the grid are always kept. Pass ``False`` to keep
+        ``grid_ds`` unchanged.
+
     Examples
     --------
 
@@ -174,6 +181,7 @@ class Grid:
         source_dims_dict: dict | None = None,
         is_subset: bool = False,
         inverse_indices: xr.Dataset | None = None,
+        drop_non_grid_data: bool = True,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if source_grid_spec != "HEALPix":
@@ -191,8 +199,11 @@ class Grid:
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
 
-        # internal xarray dataset for storing grid variables
-        self._ds = grid_ds
+        # internal xarray dataset for storing grid variables.
+        # drop variables that don't belong on the grid (e.g. a `time` carried in from a
+        # file holding both grid and data), so they can't collide during subsetting.
+        self._drop_non_grid_data = drop_non_grid_data
+        self._ds = _drop_non_grid_data(grid_ds) if drop_non_grid_data else grid_ds
 
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
@@ -272,7 +283,11 @@ class Grid:
               containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
+        **kwargs
+            ``drop_non_grid_data`` (bool, default=True) is passed on to ``Grid``; see
+            :class:`Grid` for what it drops.
         """
+        drop_non_grid_data = kwargs.get("drop_non_grid_data", True)
 
         if isinstance(dataset, xr.Dataset):
             # determine grid/mesh specification
@@ -328,7 +343,12 @@ class Grid:
                     # FESOM2 ASCII directory.
                     grid_ds, source_dims_dict = _read_fesom2_asci(dataset)
                     source_grid_spec = "FESOM2"
-                    return cls(grid_ds, source_grid_spec, source_dims_dict)
+                    return cls(
+                        grid_ds,
+                        source_grid_spec,
+                        source_dims_dict,
+                        drop_non_grid_data=drop_non_grid_data,
+                    )
                 except TypeError as err:
                     raise GridInvalidError(
                         f"Expected FESOM2 ASCII directory format but could not parse directory "
@@ -350,6 +370,7 @@ class Grid:
             source_dims_dict,
             is_subset=kwargs.get("is_subset", False),
             inverse_indices=kwargs.get("inverse_indices"),
+            drop_non_grid_data=drop_non_grid_data,
         )
 
     @classmethod
@@ -2069,6 +2090,7 @@ class Grid:
             self._ds,
             source_grid_spec=self.source_grid_spec,
             source_dims_dict=self._source_dims_dict,
+            drop_non_grid_data=self._drop_non_grid_data,
         )
 
     def compute_skewness(self, method: str = "equiangle", *, as_uxarray: bool = False):

@@ -3,6 +3,8 @@ import xarray as xr
 from numba import njit, prange
 
 from uxarray.constants import EDGE_NODE_SORT_THRESHOLD, INT_DTYPE, INT_FILL_VALUE
+from uxarray.conventions import ugrid
+from uxarray.conventions.descriptors import DESCRIPTOR_NAMES
 from uxarray.utils.numba_math import (
     _numba_add3,
     _numba_cross3,
@@ -12,6 +14,51 @@ from uxarray.utils.numba_math import (
     _numba_norm3,
 )
 from uxarray.utils.parallel import parallel_njit
+
+
+def _drop_non_grid_data(ds):
+    """Drop variables that don't belong on a ``Grid`` (e.g. a ``time`` carried in
+    from a file that holds both the grid and its data).
+
+    A variable or coordinate is dropped when it has no dimensions, or when any of
+    its dimensions is not a UGRID grid dimension (``ugrid.DIM_NAMES``).
+
+    Variables uxarray reads or caches on the grid are always kept, whatever their
+    dimensions: grid coordinates, connectivity, descriptors (including MPAS
+    ``boundary_node_indices``), the cached ``bounds``, ``face_bounds_lon``,
+    ``face_bounds_lat`` and ``max_face_radius``, ``grid_topology``, and any CRS
+    variable named by a ``grid_mapping`` attribute (read by projected-grid
+    detection).
+    """
+    grid_dims = set(ugrid.DIM_NAMES)
+
+    keep = (
+        set(ugrid.SPHERICAL_COORD_NAMES)
+        | set(ugrid.CARTESIAN_COORD_NAMES)
+        | set(ugrid.CONNECTIVITY_NAMES)
+        | set(DESCRIPTOR_NAMES)
+        | {
+            "grid_topology",
+            "bounds",
+            "face_bounds_lon",
+            "face_bounds_lat",
+            "max_face_radius",
+        }
+    )
+    # CRS variables, referenced by name from a ``grid_mapping`` attribute
+    # (CF also allows the extended form "crs: x y")
+    for name in ds.variables:
+        grid_mapping = ds[name].attrs.get("grid_mapping")
+        if isinstance(grid_mapping, str):
+            keep.update(token.rstrip(":") for token in grid_mapping.split())
+
+    drop = [
+        name
+        for name in ds.variables
+        if name not in keep
+        and (ds[name].ndim == 0 or any(dim not in grid_dims for dim in ds[name].dims))
+    ]
+    return ds.drop_vars(drop)
 
 
 @njit(cache=True)
