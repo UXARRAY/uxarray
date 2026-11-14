@@ -12,11 +12,12 @@ import xarray as xr
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.dataset import UxDataset
 from uxarray.core.utils import (
+    _get_grid,
     _map_dataset_to_ugrid,
     _open_dataset_with_fallback,
     match_chunks_to_ugrid,
 )
-from uxarray.errors import GridInvalidError, GridsMismatchError
+from uxarray.errors import GridInvalidError, GridsMismatchError, GridStructureError
 from uxarray.grid import Grid
 from uxarray.io._scrip import (
     _detect_multigrid,
@@ -136,6 +137,13 @@ def open_grid(
             grid_filename_or_obj, chunks=grid_chunks, **kwargs
         )
         grid = Grid.from_dataset(grid_ds, use_dual=use_dual)
+
+    if grid.source_grid_spec == "Structured":
+        raise GridStructureError(
+            f"open_grid() is not intended for structured (lat/lon) grids or data, but "
+            f"received a grid with source_grid_spec={grid.source_grid_spec!r}. "
+            f"For structured grids, consider ux.Grid.from_structured() instead."
+        )
 
     # Return the grid (and chunks, if requested) in a consistent manner.
     if return_chunks:
@@ -380,22 +388,25 @@ def open_dataset(
     Parameters
     ----------
     grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.Dataset | Grid
-        Grid information for the ``UxDataset``. Strings and Path objects are interpreted as a path to a grid
-        file. An ``xarray.Dataset`` containing grid information in a supported unstructured format is used to
-        create a ``ux.Grid``. Similarly, a dictionary containing UGRID variables can be used to create a
-        ``ux.Grid``. A path to a directory containing grid files (e.g. a FESOM2 ASCII grid) is also accepted,
-        but only when ``filename_or_obj`` is provided; directory input is not supported in the single-argument
-        form below. An existing ``ux.Grid`` can be used directly, allowing its
-        topology and cached properties to be shared across datasets.
+        Specifies the unstructured grid toplogy.
+
+        - Strings and Path objects are interpreted as a path to a grid file.
+          A path to a directory containing grid files (e.g. a FESOM2 ASCII grid) is also accepted.
+          but only when ``filename_or_obj`` is also provided to separately specify the dataset data.
+        - A dict must specify UGRID variables ``node_lon``, ``node_lat``, and ``face_node_connectivity``,
+          as per :meth:`uxarray.Grid.from_topology`.
+        - An ``xarray.Dataset`` must contain grid information in any supported unstructured format.
+        - An existing ``ux.Grid`` is attached directly without reconstructing or modifying it,
+          allowing its cached properties to be shared across datasets.
+
+        Also specifies the dataset data if ``filename_or_obj`` is not provided. This single-argument
+        form requires ``grid_filename_or_obj`` to be a string, Path, or ``xarray.Dataset``, and causes
+        the resulting dataset to be populated with all variables it contains, including grid variables.
     filename_or_obj : str | os.PathLike[Any] | xr.Dataset, optional
         String or Path object as a path to a netCDF file or an OpenDAP URL that
         stores the actual data set, or an already-open ``xarray.Dataset``. It
         is the same ``filename_or_obj`` in ``xarray.open_dataset``. If omitted,
-        ``grid_filename_or_obj`` is also used as the data source, allowing a
-        combined grid-and-data file or ``xarray.Dataset`` to be opened with a
-        single argument. In this single-argument form the file is used to build
-        the grid and also treated as data; all variables it contains, including
-        grid variables, will be included as data.
+        ``grid_filename_or_obj`` is also used as the data source instead.
     chunks : int, dict, 'auto' or None, default: None
         If provided, used to load file-based data into dask arrays. For an
         ``xarray.Dataset`` data input, this parameter is applied when
@@ -433,7 +444,6 @@ def open_dataset(
 
     Returns
     -------
-
     uxds : uxarray.UxDataset
         Dataset with linked `uxgrid` property of type `Grid`.
 
@@ -491,12 +501,19 @@ def open_dataset(
                 "in ux.open_dataset(grid_filename_or_obj, filename_or_obj=None)."
             )
 
-        uxgrid, _ = _get_grid(ds, chunks, chunk_grid, use_dual, grid_kwargs)
+        uxgrid, _ = _get_grid(
+            ds, chunks, chunk_grid, use_dual, grid_kwargs, _fname="ux.open_dataset"
+        )
         filename_or_obj = grid_filename_or_obj
     else:
         # Construct a Grid, validate parameters, and correct chunks
         uxgrid, corrected_chunks = _get_grid(
-            grid_filename_or_obj, chunks, chunk_grid, use_dual, grid_kwargs
+            grid_filename_or_obj,
+            chunks,
+            chunk_grid,
+            use_dual,
+            grid_kwargs,
+            _fname="ux.open_dataset",
         )
 
         # Load the data as a Xarray Dataset
@@ -515,7 +532,7 @@ def open_dataset(
             )
 
     # Map original dimensions to the UGRID conventions
-    ds = _map_dataset_to_ugrid(ds, uxgrid)
+    ds = _map_dataset_to_ugrid(ds, uxgrid, _fname="ux.open_dataset")
 
     # Create a UXarray Dataset by linking the Xarray Dataset with a UXarray Grid
     source_datasets = (
@@ -534,16 +551,21 @@ def open_mfdataset(
     grid_kwargs: dict[str, Any] | None = None,
     **kwargs: dict[str, Any],
 ) -> UxDataset:
-    """Wraps ``xarray.open_dataset()`` to support reading in a grid and
+    """Wraps ``xarray.open_mfdataset()`` to support reading in a grid and
     multiple data files together.
 
     Parameters
     ----------
     grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.Dataset | Grid
-        Strings and Path objects are interpreted as a path to a grid file. An ``xarray.Dataset`` containing
-        grid information in a supported unstructured format is used to create a ``ux.Grid``. Similarly, a
-        dictionary containing UGRID variables can be used to create a ``ux.Grid``. An existing
-        ``ux.Grid`` is attached directly without reconstructing or modifying it.
+        Specifies the unstructured grid topology.
+
+        - Strings and Path objects are interpreted as a path to a grid file.
+        - A dict must specify UGRID variables ``node_lon``, ``node_lat``, and ``face_node_connectivity``,
+          as per :meth:`uxarray.Grid.from_topology`.
+        - An ``xarray.Dataset`` must contain grid information in any supported unstructured format.
+        - An existing ``ux.Grid`` is attached directly without reconstructing or modifying it,
+          allowing its cached properties to be shared across datasets.
+
     paths : string, required
         Either a string glob in the form ``"path/to/my/files/*.nc"`` or an explicit
         list of files to open. It is the same ``paths`` in ``xarray.open_mfdataset``.
@@ -580,13 +602,11 @@ def open_mfdataset(
 
     Returns
     -------
-
-    object : uxarray.UxDataset
+    uxds : uxarray.UxDataset
         Dataset with the unstructured grid.
 
     Examples
     --------
-
     Open grid file along with multiple data files (two or more)
 
     >>> import uxarray as ux
@@ -616,59 +636,17 @@ def open_mfdataset(
         chunk_grid,
         use_dual,
         grid_kwargs,
+        _fname="ux.open_mfdataset",
     )
 
     # Load the data as a Xarray Dataset
     ds = xr.open_mfdataset(paths, chunks=corrected_chunks, **kwargs)
 
     # Map original dimensions to the UGRID conventions
-    ds = _map_dataset_to_ugrid(ds, uxgrid)
+    ds = _map_dataset_to_ugrid(ds, uxgrid, _fname="ux.open_mfdataset")
 
     # Create a UXarray Dataset by linking the Xarray Dataset with a UXarray Grid
     return UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
-
-
-def _get_grid(
-    grid_filename_or_obj,
-    chunks,
-    chunk_grid,
-    use_dual,
-    grid_kwargs,
-):
-    """Validate input parameters and return the ``(grid, chunks)`` tuple."""
-    if isinstance(grid_filename_or_obj, Grid):
-        if use_dual:
-            raise ValueError(
-                "use_dual=True is not supported with an existing Grid. "
-                "Select the desired mesh when constructing the Grid."
-            )
-        if grid_kwargs:
-            raise ValueError(
-                "grid_kwargs must be empty when passing an existing Grid. "
-                "Apply these options when constructing the Grid."
-            )
-        if chunks is not None and chunk_grid:
-            raise ValueError(
-                "Providing Grid, non-None chunks, and chunk_grid=True simultaneously "
-                "is not supported. Call Grid.chunk() explicitly to change the grid's "
-                "chunking, or set chunk_grid=False to chunk only the data."
-            )
-        if isinstance(chunks, dict):
-            # Keep the caller's options and the shared Grid unchanged. Match
-            # UGRID chunk keys to the data's source dimensions without grid I/O.
-            requested_chunks = chunks
-            chunks = chunks.copy()
-            for source_dim, ugrid_dim in grid_filename_or_obj._source_dims_dict.items():
-                if isinstance(ugrid_dim, str) and ugrid_dim in requested_chunks:
-                    chunks[source_dim] = requested_chunks[ugrid_dim]
-        return grid_filename_or_obj, chunks
-
-    grid_kwargs["data_chunks"] = chunks
-    grid_kwargs["chunk_grid"] = chunk_grid
-    grid_kwargs["return_chunks"] = True
-
-    # Create a Grid
-    return open_grid(grid_filename_or_obj, use_dual=use_dual, **grid_kwargs)
 
 
 def concat(

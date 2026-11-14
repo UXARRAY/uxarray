@@ -5,7 +5,12 @@ import xarray as xr
 from xarray.core.utils import either_dict_or_kwargs
 
 from uxarray.constants import GRID_DIMS
-from uxarray.errors import DataCenteringError, DimensionError, GridsMismatchError
+from uxarray.errors import (
+    DataCenteringError,
+    DimensionError,
+    GridsMismatchError,
+    GridStructureError,
+)
 from uxarray.io.utils import _get_source_dims_dict, _parse_grid_type
 
 
@@ -51,45 +56,104 @@ def _open_dataset_with_fallback(filename_or_obj, chunks=None, **kwargs):
             raise fallback_error from default_engine_error
 
 
-def _map_dataset_to_ugrid(ds, grid):
-    """Map member dimensions without modifying the Grid's source mapping."""
+def _get_grid(
+    grid_filename_or_obj,
+    chunks,
+    chunk_grid,
+    use_dual,
+    grid_kwargs,
+    _fname=None,
+):
+    """Validate input parameters and return the ``(grid, chunks)`` tuple.
+    _fname: None or str
+        function name to use in error message, if open_grid crashes with GridStructureError.
+        None --> simply re-raise the original GridStructureError.
+        str --> raise a new GridStructureError with a (hopefully) more helpful message.
+    """
+    from uxarray import Grid, open_grid
+
+    if isinstance(grid_filename_or_obj, Grid):
+        if use_dual:
+            raise ValueError(
+                "use_dual=True is not supported with an existing Grid. "
+                "Select the desired mesh when constructing the Grid."
+            )
+        if grid_kwargs:
+            raise ValueError(
+                "grid_kwargs must be empty when passing an existing Grid. "
+                "Apply these options when constructing the Grid."
+            )
+        if chunks is not None and chunk_grid:
+            raise ValueError(
+                "Providing Grid, non-None chunks, and chunk_grid=True simultaneously "
+                "is not supported. Call Grid.chunk() explicitly to change the grid's "
+                "chunking, or set chunk_grid=False to chunk only the data."
+            )
+        if isinstance(chunks, dict):
+            # Keep the caller's options and the shared Grid unchanged. Match
+            # UGRID chunk keys to the data's source dimensions without grid I/O.
+            requested_chunks = chunks
+            chunks = chunks.copy()
+            for source_dim, ugrid_dim in grid_filename_or_obj._source_dims_dict.items():
+                if isinstance(ugrid_dim, str) and ugrid_dim in requested_chunks:
+                    chunks[source_dim] = requested_chunks[ugrid_dim]
+        return grid_filename_or_obj, chunks
+
+    grid_kwargs["data_chunks"] = chunks
+    grid_kwargs["chunk_grid"] = chunk_grid
+    grid_kwargs["return_chunks"] = True
+
+    # Create a Grid
+    try:
+        return open_grid(grid_filename_or_obj, use_dual=use_dual, **grid_kwargs)
+    except GridStructureError:
+        if _fname is None:
+            raise
+        else:
+            raise GridStructureError(
+                f"{_fname}() is not intended for structured (lat/lon) grids or data, but "
+                f"received a grid with source_grid_spec='Structured'. For structured grids or data, "
+                "consider ux.UxDataset.from_structured() or ux.Grid.from_structured() instead."
+            )
+
+
+def _map_dataset_to_ugrid(ds, grid, _fname):
+    """Map member dimensions without modifying the Grid's source mapping.
+    _fname: str
+        function name to use in error message, if received a structured grid.
+    """
     source_dims = grid._source_dims_dict.copy()
-    if grid.source_grid_spec == "Structured":
-        lon_dim, lat_dim = source_dims["n_face"]
-        if lon_dim not in ds.dims and lat_dim not in ds.dims:
-            # No source spatial axes remain to flatten, including members
-            # located only on canonical nodes or edges.
-            return ds
     # Already-standardized dimensions must not be inferred by size: nodes and
     # faces can have equal counts. Preserve any explicit source mapping.
     for dim in ("n_face", "n_node", "n_edge"):
         if dim in ds.dims:
             source_dims.setdefault(dim, dim)
-    return _map_dims_to_ugrid(ds, source_dims, grid)
+    return _map_dims_to_ugrid(ds, source_dims, grid, _fname)
 
 
 def _map_dims_to_ugrid(
     ds,
     _source_dims_dict,
     grid,
+    _fname,
 ):
     """Given a dataset containing variables residing on an unstructured grid,
-    remaps the original dimension name to match the UGRID conventions (i.e.
-    "nCell": "n_face")"""
+    remaps the original dimension name to match the UGRID conventions (e.g.,
+    "nCell": "n_face")
+
+    _fname: str
+        function name to use in error message, if received a structured grid.
+        Error message starts like f"{_fname}() is not intended for structured grids or data"
+    """
 
     if grid.source_grid_spec == "Structured":
-        # Case for structured grids, flatten bottom two sptial dimensions
-
-        lon_name, lat_name = _source_dims_dict["n_face"]
-
-        for var_name in ds.data_vars:
-            if lon_name in ds[var_name].dims and lat_name in ds[var_name].dims:
-                if ds[var_name].dims[-1] == lon_name:
-                    dim_ordered = [lat_name, lon_name]
-                else:
-                    dim_ordered = [lon_name, lat_name]
-
-        ds = ds.stack(n_face=dim_ordered)
+        # structured grids not supported here.
+        raise GridStructureError(
+            f"{_fname}() is not intended for structured (lat/lon) grids or data, "
+            f"but received a grid with source_grid_spec={grid.source_grid_spec!r} "
+            f"and source dims mapping {_source_dims_dict}. For structured grids or data, "
+            "consider ux.UxDataset.from_structured() or ux.Grid.from_structured() instead."
+        )
 
     elif grid.source_grid_spec == "GEOS-CS":
         # stack dimensions to flatten them to map to nodes or faces
@@ -124,6 +188,40 @@ def _map_dims_to_ugrid(
         # rename dimensions to follow the UGRID conventions
         ds = ds.swap_dims(_source_dims_dict)
 
+    return ds
+
+
+def _map_structured_dims_to_ugrid(ds, _source_dims_dict, grid, _fname):
+    """Given a dataset containing variables residing on a structured (lat/lon) grid,
+    remaps to an unstructured grid following UGRID conventions, by stacking lat/lon dims
+    according to _source_dims_dict.
+
+    _fname: str
+        function name to use in error message, if received an unstructured grid;
+        error message starts like f"{_fname}() is not intended for unstructured grids or data"
+    """
+
+    if grid.source_grid_spec == "Structured":
+        # Flatten bottom two sptial dimensions
+        lon_name, lat_name = _source_dims_dict["n_face"]
+
+        for var_name in ds.data_vars:
+            if lon_name in ds[var_name].dims and lat_name in ds[var_name].dims:
+                if ds[var_name].dims[-1] == lon_name:
+                    dim_ordered = [lat_name, lon_name]
+                else:
+                    dim_ordered = [lon_name, lat_name]
+
+        ds = ds.stack(n_face=dim_ordered)
+    else:
+        raise GridStructureError(
+            f"{_fname}() is not intended for unstructured grids or data; "
+            f"expected a grid with source_grid_spec='Structured', "
+            f"but got source_grid_spec={grid.source_grid_spec!r}. "
+            "For unstructured grids or data, consider using other parts of the core API, "
+            "such as uxarray.open_dataset(), uxarray.open_grid(), UxDataset(), UxDataArray(), "
+            "UxDataset.from_xarray(), or UxDataArray.from_xarray(), instead."
+        )
     return ds
 
 
