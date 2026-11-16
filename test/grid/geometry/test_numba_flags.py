@@ -1,12 +1,21 @@
-"""Guard the numba flags that the compensated (EFT) kernels depend on.
+"""Guard the numba flags that uxarray's compensated (EFT) kernels depend on.
 
-``fastmath`` lets LLVM reassociate ``e = (a - (s - bp)) + (b - bp)`` to 0, silently undoing
-every compensated result from ``uxarray.utils.computing``. ``acc_sqrt_re``, ``_accux_gca``
-and ``_accux_constlat`` need ``error_model="numpy"`` so that 1/0 and sqrt(<0) give inf/nan
-for the status layer to mask, instead of raising.
+A kernel declared ``inline="always"`` is compiled with its *caller's* flags, not its own,
+so every kernel it is inlined into, directly or transitively, needs the same flags.
+Taking ``acc_sqrt_re`` (``uxarray.utils.computing``) as the example:
 
-An ``inline="always"`` callee is compiled with its caller's flags, so both checks apply to
-every kernel this code is inlined into, not just where it is defined.
+- ``error_model="numpy"``: division follows IEEE 754, so ``acc_sqrt_re(0.0)`` returns
+  ``(0.0, nan)`` (the correction is 0/0) and the status layer's isfinite mask rejects it.
+  Under numba's default ``error_model="python"`` the same call raises ZeroDivisionError.
+  (A negative input gives ``(nan, nan)`` under either model; only division raises.)
+- no ``fastmath``: compensated arithmetic relies on IEEE 754 forbidding reassociation.
+  ``fastmath`` lets LLVM simplify two_sum's ``e = (a - (s - bp)) + (b - bp)``, with
+  ``s = a + b``, to 0, discarding the rounding error the term exists to recover:
+  ``acc_sqrt_re(10.0)`` returns correction -1.9e-16 normally, 0.0 under fastmath.
+
+``test_numpy_error_model`` checks every uxarray kernel that inlines one of
+``NUMPY_ERROR_MODEL_KERNELS``; ``test_no_fastmath`` checks every kernel that inlines
+anything from ``uxarray.utils.computing``.
 """
 
 import ast
@@ -23,7 +32,7 @@ from numba.core.registry import CPUDispatcher
 import uxarray
 
 EFT_MODULE = "uxarray.utils.computing"
-# The kernels whose own arithmetic relies on 1/0 -> inf and sqrt(<0) -> nan. This is the
+# The kernels whose own arithmetic relies on 1/0 -> inf and 0/0 -> nan. This is the
 # list of *sources*: the tests scan every kernel in uxarray and flag any one these are
 # inlined into that lacks error_model="numpy". It has to be maintained by hand, because
 # a kernel's own flags can't tell us this: e.g. ``_try_gca_gca_intersection`` sets
@@ -87,14 +96,9 @@ def kernels():
                 found[_qualname(obj)] = (obj, _get_inlined_funcs_in_call_tree(obj))
     return found
 
-# For each inlined caller kernel, look at the included/invoked callee subkernels and
-# filter out caller kernels that don't use numpy error model where at least one of
-# the callee subkernels uses the numpy error model. i.e., instances of
-# InlinedCallerKernelNotUsingNumpyErrorModel where CalleeSubKernelUsesNumpyErrorModel
+
 def test_numpy_error_model(kernels):
-    """Test that functions use error_model==numpy if it calls inline
-    functions with error_model == numpy.
-    """
+    """Every kernel that inlines a NUMPY_ERROR_MODEL_KERNELS entry sets error_model="numpy"."""
     # If a source kernel is renamed, moved or fails to import, nothing would match it
     # below and this test would pass without checking anything.
     missing = NUMPY_ERROR_MODEL_KERNELS - kernels.keys()
@@ -103,16 +107,17 @@ def test_numpy_error_model(kernels):
     offenders = sorted(
         name
         for name, (kernel, is_compiled) in kernels.items()
-        if is_compiled & NUMPY_ERROR_MODEL_KERNELS # Compiled kernel is using numpy error model
-        and kernel.targetoptions.get("error_model") != "numpy" # ...but the current kernel is *not*!
+        if is_compiled & NUMPY_ERROR_MODEL_KERNELS  # inlines a kernel that needs it...
+        and kernel.targetoptions.get("error_model") != "numpy"  # ...but doesn't set it
     )
-    assert not offenders, (f"Missing error_model='numpy' in function decorations of : {offenders}. "
-                           f"Error model numpy is needed for some kernels used in these functions "
-                           f"(to avoid exceptions on inf/nan)")
+    assert not offenders, (
+        f"Missing error_model='numpy' on {offenders}: they inline kernels that rely on "
+        f"1/0 -> inf and 0/0 -> nan, which raise ZeroDivisionError under the default model"
+    )
 
 
 def test_no_fastmath(kernels):
-    """Test that functions don't use fastmath if they call inline functions"""
+    """No kernel that inlines EFT code from uxarray.utils.computing enables fastmath."""
     eft = {
         name: kernel
         for name, (kernel, compiled) in kernels.items()
