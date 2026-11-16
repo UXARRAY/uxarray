@@ -23,6 +23,11 @@ from numba.core.registry import CPUDispatcher
 import uxarray
 
 EFT_MODULE = "uxarray.utils.computing"
+# The kernels whose own arithmetic relies on 1/0 -> inf and sqrt(<0) -> nan. This is the
+# list of *sources*: the tests scan every kernel in uxarray and flag any one these are
+# inlined into that lacks error_model="numpy". It has to be maintained by hand, because
+# a kernel's own flags can't tell us this: e.g. ``_try_gca_gca_intersection`` sets
+# error_model="numpy" only because it inlines ``_accux_gca``, not because it needs it.
 NUMPY_ERROR_MODEL_KERNELS = {
     "uxarray.utils.computing.acc_sqrt_re",
     "uxarray.grid.intersections._accux_gca",
@@ -56,7 +61,7 @@ def _callees(kernel):
             yield target
 
 
-def _compiled_into(kernel):
+def _get_inlined_funcs_in_call_tree(kernel):
     """Names of ``kernel`` and every kernel inlined into it, all built with its flags."""
     names, stack = {_qualname(kernel)}, [kernel]
     while stack:
@@ -79,8 +84,7 @@ def kernels():
             continue
         for obj in vars(module).values():
             if isinstance(obj, CPUDispatcher) and obj.py_func.__module__ == info.name:
-                found[_qualname(obj)] = (obj, _compiled_into(obj))
-    assert NUMPY_ERROR_MODEL_KERNELS <= found.keys()  # else the checks pass vacuously
+                found[_qualname(obj)] = (obj, _get_inlined_funcs_in_call_tree(obj))
     return found
 
 # For each inlined caller kernel, look at the included/invoked callee subkernels and
@@ -91,6 +95,10 @@ def test_numpy_error_model(kernels):
     """Test that functions use error_model==numpy if it calls inline
     functions with error_model == numpy.
     """
+    # If a source kernel is renamed, moved or fails to import, nothing would match it
+    # below and this test would pass without checking anything.
+    missing = NUMPY_ERROR_MODEL_KERNELS - kernels.keys()
+    assert not missing, f"NUMPY_ERROR_MODEL_KERNELS names unknown kernels: {missing}"
 
     offenders = sorted(
         name
@@ -110,6 +118,7 @@ def test_no_fastmath(kernels):
         for name, (kernel, compiled) in kernels.items()
         if any(n.startswith(EFT_MODULE + ".") for n in compiled)
     }
+    assert eft, f"No kernels found in {EFT_MODULE}; was it renamed?"  # else vacuous
     offenders = [
         name for name, kernel in eft.items() if kernel.targetoptions.get("fastmath")
     ]
