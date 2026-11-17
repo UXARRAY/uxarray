@@ -39,7 +39,6 @@ def open_grid(
     grid_filename_or_obj: str | os.PathLike[Any] | dict | xr.Dataset,
     chunks=None,
     use_dual: bool = False,
-    drop_non_grid_data: bool = True,
     **kwargs: dict[str, Any],
 ):
     """Constructs and returns a ``Grid`` from a grid file.
@@ -65,11 +64,6 @@ def open_grid(
         See dask chunking for more details.
     use_dual : bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is MPAS
-    drop_non_grid_data : bool, default=True
-        Drop variables that don't belong on the grid, such as a ``time`` coordinate or data variables
-        from a file that holds both the grid and its data. Pass ``False`` to keep every variable the
-        reader returns. ``ux.open_dataset`` and ``ux.open_mfdataset`` accept it through
-        ``grid_kwargs``. See :class:`~uxarray.Grid` for what is dropped and kept.
     merge_coincident_nodes : bool, default=True
         Passed through ``**kwargs`` for dataset and file inputs. Set to False to
         preserve original node connectivity, including faces that would acquire
@@ -118,9 +112,7 @@ def open_grid(
         nod2d_path = os.path.join(grid_filename_or_obj, "nod2d.out")
         elem2d_path = os.path.join(grid_filename_or_obj, "elem2d.out")
         if os.path.isfile(nod2d_path) and os.path.isfile(elem2d_path):
-            grid = Grid.from_dataset(
-                grid_filename_or_obj, drop_non_grid_data=drop_non_grid_data
-            )
+            grid = Grid.from_dataset(grid_filename_or_obj)
         else:
             _missing = []
             if not os.path.isfile(nod2d_path):
@@ -145,7 +137,6 @@ def open_grid(
         grid = Grid.from_dataset(
             grid_filename_or_obj,
             use_dual=use_dual,
-            drop_non_grid_data=drop_non_grid_data,
             merge_coincident_nodes=merge_coincident_nodes,
         )
 
@@ -157,7 +148,6 @@ def open_grid(
         grid = Grid.from_dataset(
             grid_ds,
             use_dual=use_dual,
-            drop_non_grid_data=drop_non_grid_data,
             merge_coincident_nodes=merge_coincident_nodes,
         )
 

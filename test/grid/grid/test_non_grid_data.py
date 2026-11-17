@@ -6,6 +6,7 @@ import xarray as xr
 
 import uxarray as ux
 from uxarray.conventions.ugrid import DIM_NAMES
+from uxarray.grid.utils import _drop_non_grid_data
 
 TIMES = np.array(["2018-01-01", "2020-01-01"], dtype="datetime64[ns]")
 STRAY_NAMES = {"time", "stray", "temp", "time_since_epoch", "special_index", "z"}
@@ -27,9 +28,6 @@ STRAY_CASES = {
     "coord_mixing_grid_and_non_grid_dims": lambda ds: ds.assign_coords(
         z=(("n_node", "elevation"), np.zeros((ds.sizes["n_node"], 3)))
     ),
-    "scalar_data_var": lambda ds: ds.assign(
-        time=xr.DataArray(np.datetime64("2016-01-01"))
-    ),
 }
 
 
@@ -42,8 +40,8 @@ def quad_hexagon_ds(gridpath):
 @pytest.mark.parametrize("case", STRAY_CASES)
 def test_stray_variables_are_dropped(quad_hexagon_ds, case):
     """Each stray ``time`` shape listed in #1720 should be gone after
-    ``Grid.__init__``, with the grid itself unchanged."""
-    uxgrid = ux.Grid(STRAY_CASES[case](quad_hexagon_ds), source_grid_spec="UGRID")
+    ``Grid.from_dataset``, with the grid itself unchanged."""
+    uxgrid = ux.Grid.from_dataset(STRAY_CASES[case](quad_hexagon_ds))
 
     assert not STRAY_NAMES & set(uxgrid._ds.variables)
     assert set(uxgrid._ds.dims) <= set(DIM_NAMES)
@@ -76,6 +74,53 @@ def test_bounding_box_with_stray_grid_time(gridpath):
     assert isinstance(res, ux.UxDataArray)
     assert res.sizes["time"] == times.size
     assert "n_face" in res.dims
+
+
+def test_scalar_time_data_var_does_not_block_subsetting(gridpath):
+    """A scalar ``time`` stored as a data variable stays on the grid, but it isn't
+    attached to the subset indexer, so subsetting keeps the data's own ``time``."""
+    grid_ds = xr.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc"))
+    uxgrid = ux.open_grid(
+        grid_ds.assign(time=xr.DataArray(np.datetime64("2016-01-01")))
+    )
+    uxda = ux.UxDataArray(
+        np.ones((2, uxgrid.n_face)),
+        dims=("time", "n_face"),
+        coords={"time": TIMES},
+        uxgrid=uxgrid,
+    )
+
+    res = uxda.subset.bounding_box((-10, 10), (-10, 10))
+
+    np.testing.assert_array_equal(res["time"].values, TIMES)
+
+
+def test_directly_built_grid_with_stray_time_can_be_subset(quad_hexagon_ds):
+    """``ux.Grid(ds)`` doesn't filter, so a stray scalar ``time`` stays on the grid;
+    subsetting data with a different ``time`` must still work."""
+    ds = quad_hexagon_ds.assign_coords(time=np.datetime64("2016-01-01"))
+    uxgrid = ux.Grid(ds, source_grid_spec="UGRID")
+    uxda = ux.UxDataArray(
+        np.ones((2, uxgrid.n_face)),
+        dims=("time", "n_face"),
+        coords={"time": TIMES},
+        uxgrid=uxgrid,
+    )
+
+    res = uxda.subset.bounding_box((-10, 10), (-10, 10))
+
+    np.testing.assert_array_equal(res["time"].values, TIMES)
+
+
+def test_grid_coordinates_not_attached_to_data_subset(gridpath):
+    """ICON's ``clon``/``clat`` are coordinates on the grid; slicing data shouldn't
+    copy them onto the result."""
+    uxgrid = ux.open_grid(gridpath("icon", "R02B04", "icon_grid_0010_R02B04_G.nc"))
+    uxda = ux.UxDataArray(np.ones(uxgrid.n_face), dims=("n_face",), uxgrid=uxgrid)
+
+    res = uxda.isel(n_face=[0, 1, 2])
+
+    assert not {"clon", "clat"} & set(res.coords)
 
 
 def test_single_file_with_grid_and_time_varying_data(gridpath, tmp_path):
@@ -136,14 +181,14 @@ def test_known_variable_on_misnamed_dim_kept(quad_hexagon_ds):
         edge_node_connectivity=uxgrid.edge_node_connectivity.rename(two="n2")
     )
 
-    rebuilt = ux.Grid(ds, source_grid_spec="UGRID")
+    cleaned = _drop_non_grid_data(ds)
 
-    assert rebuilt._ds["edge_node_connectivity"].dims == ("n_edge", "n2")
+    assert cleaned["edge_node_connectivity"].dims == ("n_edge", "n2")
 
 
-def test_cached_values_kept(gridpath):
-    """Ensure cached data like ``bounds`` and ``max_face_radius`` is kept when a copy
-    or subset goes back through ``Grid.__init__``, so it isn't recomputed."""
+def test_cached_values_kept_on_reread(gridpath):
+    """Ensure cached data like ``bounds`` and ``max_face_radius`` survives writing the
+    grid out with ``to_xarray()`` and reading it back, so it isn't recomputed."""
     uxgrid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
     uxgrid.bounds
     uxgrid.face_bounds_lon
@@ -151,8 +196,9 @@ def test_cached_values_kept(gridpath):
     uxgrid.max_face_radius
     cached = {"bounds", "face_bounds_lon", "face_bounds_lat", "max_face_radius"}
 
-    for grid in (uxgrid.copy(), uxgrid.isel(n_face=np.arange(50))):
-        assert cached <= set(grid._ds.variables)
+    reread = ux.open_grid(uxgrid.to_xarray())
+
+    assert cached <= set(reread._ds.variables)
 
 
 @pytest.mark.parametrize("as_coord", [False, True], ids=["data_var", "scalar_coord"])
@@ -174,21 +220,3 @@ def test_crs_variable_kept_for_projected_detection(gridpath, tmp_path, as_coord)
 
     assert crs_name in uxgrid._ds
     uxgrid._ds.close()
-
-
-def test_opt_out_keeps_everything(gridpath, datasetpath):
-    """With ``drop_non_grid_data=False`` nothing is dropped, and the setting carries
-    through ``open_dataset(grid_kwargs=...)``, ``Grid.copy()`` and subsets."""
-    grid_ds = xr.open_dataset(gridpath("ugrid", "quad-hexagon", "grid.nc")).load()
-    grid_ds = grid_ds.assign_coords(time=np.datetime64("2016-01-01"))
-
-    uxgrid = ux.open_grid(grid_ds, drop_non_grid_data=False)
-    uxds = ux.open_dataset(
-        grid_ds,
-        datasetpath("ugrid", "quad-hexagon", "data.nc"),
-        grid_kwargs={"drop_non_grid_data": False},
-    )
-
-    # copies and subsets keep the setting
-    for grid in (uxgrid, uxgrid.copy(), uxgrid.isel(n_face=[0, 1]), uxds.uxgrid):
-        assert "time" in grid._ds.coords

@@ -151,13 +151,6 @@ class Grid:
     inverse_indices: xr.Dataset, default=None
         A dataset of indices that correspond to the original grid, if the grid being constructed is a subset
 
-    drop_non_grid_data : bool, default=True
-        Drop variables that don't belong on the grid, such as a ``time`` coordinate or data
-        variables carried in from a file that holds both the grid and its data. Variables with no
-        dimensions, or with any dimension outside the UGRID grid dimensions, are dropped;
-        variables uxarray reads or caches on the grid are always kept. Pass ``False`` to keep
-        ``grid_ds`` unchanged.
-
     Examples
     --------
 
@@ -183,7 +176,6 @@ class Grid:
         source_dims_dict: dict | None = None,
         is_subset: bool = False,
         inverse_indices: xr.Dataset | None = None,
-        drop_non_grid_data: bool = True,
         merge_coincident_nodes: bool = True,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
@@ -218,11 +210,8 @@ class Grid:
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
 
-        # internal xarray dataset for storing grid variables.
-        # drop variables that don't belong on the grid (e.g. a `time` carried in from a
-        # file holding both grid and data), so they can't collide during subsetting.
-        self._drop_non_grid_data = drop_non_grid_data
-        self._ds = _drop_non_grid_data(grid_ds) if drop_non_grid_data else grid_ds
+        # internal xarray dataset for storing grid variables
+        self._ds = grid_ds
 
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
@@ -311,11 +300,7 @@ class Grid:
             Passed through ``**kwargs``. Set to False to preserve original node
             connectivity, including faces that would acquire nonconsecutive repeated
             corners after merging. Dual construction still rejects referenced duplicates.
-        **kwargs
-            ``drop_non_grid_data`` (bool, default=True) is passed on to ``Grid``; see
-            :class:`Grid` for what it drops.
         """
-        drop_non_grid_data = kwargs.get("drop_non_grid_data", True)
 
         if isinstance(dataset, xr.Dataset):
             # determine grid/mesh specification
@@ -353,6 +338,10 @@ class Grid:
                     raise GridInvalidError(
                         f"Unsupported source_grid_spec={source_grid_spec!r}, in {cls.__name__}.from_dataset()"
                     )
+                # drop variables that don't belong on the grid (e.g. a `time` carried in
+                # from a file holding both grid and data), so they can't collide during
+                # subsetting.
+                grid_ds = _drop_non_grid_data(grid_ds)
             else:
                 # custom source grid spec is provided
                 source_grid_spec = kwargs.get("source_grid_spec", None)
@@ -371,12 +360,7 @@ class Grid:
                     # FESOM2 ASCII directory.
                     grid_ds, source_dims_dict = _read_fesom2_asci(dataset)
                     source_grid_spec = "FESOM2"
-                    return cls(
-                        grid_ds,
-                        source_grid_spec,
-                        source_dims_dict,
-                        drop_non_grid_data=drop_non_grid_data,
-                    )
+                    return cls(grid_ds, source_grid_spec, source_dims_dict)
                 except TypeError as err:
                     raise GridInvalidError(
                         f"Expected FESOM2 ASCII directory format but could not parse directory "
@@ -398,7 +382,6 @@ class Grid:
             source_dims_dict,
             is_subset=kwargs.get("is_subset", False),
             inverse_indices=kwargs.get("inverse_indices"),
-            drop_non_grid_data=drop_non_grid_data,
             merge_coincident_nodes=kwargs.get("merge_coincident_nodes", True),
         )
 
@@ -2119,7 +2102,6 @@ class Grid:
             self._ds,
             source_grid_spec=self.source_grid_spec,
             source_dims_dict=self._source_dims_dict,
-            drop_non_grid_data=self._drop_non_grid_data,
         )
 
     def compute_skewness(self, method: str = "equiangle", *, as_uxarray: bool = False):

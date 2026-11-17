@@ -2488,19 +2488,21 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
         indices to correctly slice the data variable."""
 
+        # index with the underlying arrays, so coordinates on the sliced grid
+        # (e.g. a stray ``time``) aren't aligned against, or attached to, the data
         if self._face_centered():
             da_sliced = self.isel(
-                n_face=sliced_grid._ds["_subgrid_face_indices"], ignore_grid=True
+                n_face=sliced_grid._ds["_subgrid_face_indices"].data, ignore_grid=True
             )
 
         elif self._edge_centered():
             da_sliced = self.isel(
-                n_edge=sliced_grid._ds["_subgrid_edge_indices"], ignore_grid=True
+                n_edge=sliced_grid._ds["_subgrid_edge_indices"].data, ignore_grid=True
             )
 
         elif self._node_centered():
             da_sliced = self.isel(
-                n_node=sliced_grid._ds["_subgrid_node_indices"], ignore_grid=True
+                n_node=sliced_grid._ds["_subgrid_node_indices"].data, ignore_grid=True
             )
 
         else:
