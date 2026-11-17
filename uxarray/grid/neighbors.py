@@ -15,6 +15,7 @@ from uxarray.constants import (
     INT_FILL_VALUE,
 )
 from uxarray.errors import DimensionError
+from uxarray.grid.validation import _live_node_indices
 from uxarray.utils.parallel import parallel_njit
 
 
@@ -65,11 +66,18 @@ class KDTree:
         self._tree_from_nodes = None
         self._tree_from_face_centers = None
         self._tree_from_edge_centers = None
+        # maps node-tree-local index -> original grid node index, set only when
+        # the node tree excludes dead duplicate node indices (see _build_from_nodes)
+        self._node_index_map = None
 
         # Build the tree based on nodes, face centers, or edge centers
         if coordinates == "nodes":
             self._tree_from_nodes = self._build_from_nodes()
-            self._n_elements = self._source_grid.n_node
+            self._n_elements = (
+                len(self._node_index_map)
+                if self._node_index_map is not None
+                else self._source_grid.n_node
+            )
         elif coordinates == "face centers":
             self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
@@ -111,6 +119,13 @@ class KDTree:
                 raise ValueError(
                     f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
                 )
+
+            live_indices = _live_node_indices(self._source_grid)
+            if len(live_indices) < len(coords):
+                self._node_index_map = live_indices
+                coords = coords[live_indices]
+            else:
+                self._node_index_map = None
 
             self._tree_from_nodes = SKKDTree(coords, metric=self.distance_metric)
 
@@ -274,6 +289,9 @@ class KDTree:
 
             ind = np.asarray(ind, dtype=INT_DTYPE)
 
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = self._node_index_map[ind]
+
             if coords.shape[0] == 1:
                 ind = ind.squeeze()
 
@@ -293,6 +311,9 @@ class KDTree:
             )
 
             ind = np.asarray(ind, dtype=INT_DTYPE)
+
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = self._node_index_map[ind]
 
             if coords.shape[0] == 1:
                 ind = ind.squeeze()
@@ -360,6 +381,8 @@ class KDTree:
             )
 
             ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = [self._node_index_map[cur_ind] for cur_ind in ind]
             d = [np.asarray(cur_d) for cur_d in d]
 
             if coords.shape[0] == 1:
@@ -376,6 +399,8 @@ class KDTree:
             )
 
             ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = [self._node_index_map[cur_ind] for cur_ind in ind]
 
             if coords.shape[0] == 1:
                 ind = ind[0]
@@ -394,7 +419,11 @@ class KDTree:
         if self._coordinates == "nodes":
             if self._tree_from_nodes is None or self.reconstruct:
                 self._tree_from_nodes = self._build_from_nodes()
-            self._n_elements = self._source_grid.n_node
+            self._n_elements = (
+                len(self._node_index_map)
+                if self._node_index_map is not None
+                else self._source_grid.n_node
+            )
         elif self._coordinates == "face centers":
             if self._tree_from_face_centers is None or self.reconstruct:
                 self._tree_from_face_centers = self._build_from_face_centers()
@@ -455,11 +484,18 @@ class BallTree:
         self._tree_from_nodes = None
         self._tree_from_face_centers = None
         self._tree_from_edge_centers = None
+        # maps node-tree-local index -> original grid node index, set only when
+        # the node tree excludes dead duplicate node indices (see _build_from_nodes)
+        self._node_index_map = None
 
         # set up appropriate reference to tree
         if coordinates == "nodes":
             self._tree_from_nodes = self._build_from_nodes()
-            self._n_elements = self._source_grid.n_node
+            self._n_elements = (
+                len(self._node_index_map)
+                if self._node_index_map is not None
+                else self._source_grid.n_node
+            )
         elif coordinates == "face centers":
             self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
@@ -531,6 +567,14 @@ class BallTree:
                     ),
                     axis=-1,
                 )
+
+            live_indices = _live_node_indices(self._source_grid)
+            if len(live_indices) < len(coords):
+                self._node_index_map = live_indices
+                coords = coords[live_indices]
+            else:
+                self._node_index_map = None
+
             self._tree_from_nodes = SKBallTree(coords, metric=self.distance_metric)
 
         return self._tree_from_nodes
@@ -658,6 +702,9 @@ class BallTree:
 
             ind = np.asarray(ind, dtype=INT_DTYPE)
 
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = self._node_index_map[ind]
+
             if coords.shape[0] == 1:
                 ind = ind.squeeze()
 
@@ -677,6 +724,9 @@ class BallTree:
             )
 
             ind = np.asarray(ind, dtype=INT_DTYPE)
+
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = self._node_index_map[ind]
 
             if coords.shape[0] == 1:
                 ind = ind.squeeze()
@@ -743,6 +793,8 @@ class BallTree:
             )
 
             ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = [self._node_index_map[cur_ind] for cur_ind in ind]
             d = [np.asarray(cur_d) for cur_d in d]
 
             if coords.shape[0] == 1:
@@ -759,6 +811,8 @@ class BallTree:
             )
 
             ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = [self._node_index_map[cur_ind] for cur_ind in ind]
 
             if coords.shape[0] == 1:
                 ind = ind[0]
@@ -777,7 +831,11 @@ class BallTree:
         if self._coordinates == "nodes":
             if self._tree_from_nodes is None or self.reconstruct:
                 self._tree_from_nodes = self._build_from_nodes()
-            self._n_elements = self._source_grid.n_node
+            self._n_elements = (
+                len(self._node_index_map)
+                if self._node_index_map is not None
+                else self._source_grid.n_node
+            )
         elif self._coordinates == "face centers":
             if self._tree_from_face_centers is None or self.reconstruct:
                 self._tree_from_face_centers = self._build_from_face_centers()

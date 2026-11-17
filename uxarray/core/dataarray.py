@@ -39,7 +39,8 @@ from uxarray.errors import (
 )
 from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
-from uxarray.grid.dual import construct_dual
+from uxarray.grid.area import _integration_face_areas
+from uxarray.grid.dual import _dual_face_indices
 from uxarray.grid.neighbors import DataArrayNeighborhood, Neighborhood
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
@@ -668,14 +669,24 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         Parameters
         ----------
         quadrature_rule : str, optional
-            Quadrature rule to use. Defaults to "triangular".
+            Quadrature rule used to compute the face areas, one of
+            ``"triangular"`` (default) or ``"gaussian"``. See
+            :meth:`~uxarray.Grid.compute_face_areas` for what these mean and
+            which orders each supports.
         order : int, optional
-            Order of quadrature rule. Defaults to 4.
+            Order of the quadrature rule. Defaults to 4.
 
         Returns
         -------
         uxda : UxDataArray
             UxDataArray containing the integrated data variable
+
+        Notes
+        -----
+        The default ``quadrature_rule="triangular"`` with ``order=4`` reuses the
+        cached :attr:`~uxarray.Grid.face_areas`. Any other combination computes
+        the areas fresh, which for a HEALPix grid integrates the polygonal face
+        representation rather than the theoretical equal pixel areas.
 
         Examples
         --------
@@ -684,20 +695,32 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         >>> import uxarray as ux
         >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
         >>> integral = uxds["psi"].integrate()
+
+        Integrate with a higher-order quadrature rule
+
+        >>> integral = uxds["psi"].integrate(order=8)
         """
+        return self._integrate(quadrature_rule, order)
+
+    def _integrate(self, quadrature_rule, order, face_areas=None):
+        # face_areas lets UxDataset.integrate compute the areas once for all
+        # variables.
         # TODO: support integration regardless of n_face dimension position,
         #    and remove the self.dims[-1] == "n_face" check.
         #    (uxarray/xarray features should be agnostic to dimension positions.)
         if self._face_centered() and self.dims[-1] == "n_face":
+            if face_areas is None:
+                face_areas = _integration_face_areas(
+                    self.uxgrid, quadrature_rule, order
+                )
+
             # dot product between face areas and the face dimension of the data
             if isinstance(self.data, np.ndarray):
                 # eager data: a direct einsum avoids xr.dot's per-call overhead
-                integral = np.einsum(
-                    "i,...i", self.uxgrid.face_areas.values, self.values
-                )
+                integral = np.einsum("i,...i", face_areas.values, self.values)
             else:
                 # dask-backed data: xr.dot keeps the reduction lazy
-                integral = xr.dot(self, self.uxgrid.face_areas, dim="n_face")
+                integral = xr.dot(self, face_areas, dim="n_face")
 
         elif not self._face_centered():
             raise DataCenteringError(
@@ -1176,10 +1199,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 # otherwise xarray silently only keeps locations where coords agree.
                 try:
                     self, weights = xr.align(self, weights, join="exact")
-                except ValueError as err:
-                    # TODO: update to xr.AlignmentError (a subclass of ValueError) when minimum
-                    # supported xarray is >=2025.04.0 (which introduced xr.AlignmentError.
-                    # ValueError works in the meantime, but is broader than necessary).
+                except xr.AlignmentError as err:
                     raise DimensionError(
                         f"For DataArray weights, expected alignment with data's grid dimension "
                         f"({self._grid_dim!r}), but got mismatch in sizes and/or coords."
@@ -2499,37 +2519,41 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         --------
         dual : uxda
             Dual Mesh `uxda` constructed
-        """
 
-        if _check_duplicate_nodes_indices(self.uxgrid):
+        Raises
+        ------
+        GridInvalidError
+            If any face still references a coincident duplicate node.
+        """
+        grid = self.uxgrid._prepare_for_dual()
+        if _check_duplicate_nodes_indices(grid):
             raise GridInvalidError(
                 "Duplicate nodes found in UxDataArray's uxgrid; cannot get_dual()"
             )
 
-        if self.uxgrid.partial_sphere_coverage:
+        if grid.partial_sphere_coverage:
             warn(
                 "This mesh is partial, which could cause inconsistent results and data will be lost",
                 Warning,
             )
 
-        # Get dual mesh node face connectivity
-        dual_node_face_conn = construct_dual(grid=self.uxgrid)
-
-        # Construct dual mesh
-        dual = self.uxgrid.from_topology(
-            self.uxgrid.face_lon.values,
-            self.uxgrid.face_lat.values,
-            dual_node_face_conn,
-        )
+        # Get dual mesh node face connectivity and the primal nodes represented
+        # by its faces.
+        dual_face_indices = _dual_face_indices(grid)
+        dual = grid.get_dual()
 
         # Dictionary to swap dimensions
         dim_map = {"n_face": "n_node", "n_node": "n_face"}
 
+        data = self
+        if "n_node" in data.dims:
+            data = data.isel(n_node=dual_face_indices, ignore_grid=True)
+
         # Get correct dimensions for the dual
-        dims = [dim_map.get(dim, dim) for dim in self.dims]
+        dims = [dim_map.get(dim, dim) for dim in data.dims]
 
         # Construct the new data array
-        uxda = type(self)(uxgrid=dual, data=self.data, dims=dims, name=self.name)
+        uxda = type(self)(uxgrid=dual, data=data.data, dims=dims, name=self.name)
 
         return uxda
 
