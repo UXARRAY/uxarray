@@ -338,11 +338,14 @@ def test_scrip_load_is_deterministic():
     """
     examples = ["scrip-ne30pg2", "scrip-outCSne8"]
     n_faces = [21600, 384]
-    for example, n_face in zip(examples, n_faces):
-        for kw in (dict(), dict(chunks="auto"), dict(chunks={"grid_size": n_face//4})):
-            # load 3 times instead of 2, to drastically reduce the odds of
-            # non-deterministic results which "just happen" to align.
-            gridA = ux.tutorial.open_grid(example, **kw)
-            gridB = ux.tutorial.open_grid(example, **kw)
-            gridC = ux.tutorial.open_grid(example, **kw)
-            assert gridA == gridB == gridC
+    for config in ({}, {"dataframe.shuffle.method": "disk"}):
+        # "disk" can be more prone to nondeterminism than dask's default.
+        with dask.config.set(config):
+            for example, n_face in zip(examples, n_faces):
+                for kw in (dict(), dict(chunks="auto"), dict(chunks={"grid_size": n_face // 4})):
+                    # load 3 times instead of 2, to drastically reduce the odds of
+                    # non-deterministic results which "just happen" to align.
+                    gridA = ux.tutorial.open_grid(example, **kw)
+                    gridB = ux.tutorial.open_grid(example, **kw)
+                    gridC = ux.tutorial.open_grid(example, **kw)
+                    assert gridA == gridB == gridC
