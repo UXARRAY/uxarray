@@ -70,6 +70,11 @@ def open_grid(
         from a file that holds both the grid and its data. Pass ``False`` to keep every variable the
         reader returns. ``ux.open_dataset`` and ``ux.open_mfdataset`` accept it through
         ``grid_kwargs``. See :class:`~uxarray.Grid` for what is dropped and kept.
+    merge_coincident_nodes : bool, default=True
+        Passed through ``**kwargs`` for dataset and file inputs. Set to False to
+        preserve original node connectivity, including faces that would acquire
+        nonconsecutive repeated corners after merging. Dual construction still
+        rejects referenced duplicates.
     **kwargs
         Additional arguments passed on to ``xarray.open_dataset``.
         Refer to the :func:`xarray docs <xarray.open_dataset>`
@@ -102,6 +107,7 @@ def open_grid(
     return_chunks = kwargs.pop("return_chunks", False)
     chunk_grid = kwargs.pop("chunk_grid", chunks is not None)
     grid_chunks = chunks if chunk_grid else None
+    merge_coincident_nodes = kwargs.pop("merge_coincident_nodes", True)
 
     grid = None
 
@@ -140,6 +146,7 @@ def open_grid(
             grid_filename_or_obj,
             use_dual=use_dual,
             drop_non_grid_data=drop_non_grid_data,
+            merge_coincident_nodes=merge_coincident_nodes,
         )
 
     else:
@@ -148,7 +155,10 @@ def open_grid(
             grid_filename_or_obj, chunks=grid_chunks, **kwargs
         )
         grid = Grid.from_dataset(
-            grid_ds, use_dual=use_dual, drop_non_grid_data=drop_non_grid_data
+            grid_ds,
+            use_dual=use_dual,
+            drop_non_grid_data=drop_non_grid_data,
+            merge_coincident_nodes=merge_coincident_nodes,
         )
 
     # Return the grid (and chunks, if requested) in a consistent manner.

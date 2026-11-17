@@ -375,6 +375,9 @@ def _to_ugrid(in_ds, out_ds):
             corner_lon = np.asarray(corner_lon_raw)
             unq_lon, unq_lat, unq_inv = _dedup_scrip_nodes_eager(corner_lon, corner_lat)
 
+        # Decoded missing corners are padding, not nodes of the face ring.
+        valid_corners = np.isfinite(corner_lon_raw) & np.isfinite(corner_lat_raw)
+        unq_inv = np.where(valid_corners, unq_inv, -1)
         # Reshape face nodes array into original shape for use in 'face_node_connectivity'
         unq_inv = np.reshape(unq_inv, (len(in_ds.grid_size), len(in_ds.grid_corners)))
 
