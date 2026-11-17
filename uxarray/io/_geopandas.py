@@ -216,7 +216,7 @@ def _read_multipolygon(geometry, node_lat, node_lon, connectivity, node_index):
         Updated node index.
     """
     for polygon in geometry.geoms:
-        node_lon, node_lat, connectivity, node_index = _read_polygon(
+        node_lat, node_lon, connectivity, node_index = _read_polygon(
             polygon, node_lat, node_lon, connectivity, node_index
         )
     return np.array(node_lat), np.array(node_lon), connectivity, node_index
