@@ -3,6 +3,7 @@ import xarray as xr
 import holoviews as hv
 import pytest
 import numpy as np
+import warnings
 
 import matplotlib
 matplotlib.use("Agg")
@@ -355,8 +356,54 @@ def test_central_longitude_of_handles_cartopy_026_platecarree():
     assert _central_longitude_of(_FakeProjection({"proj": "eqc", "lon_0": 0.0})) == 0.0
     assert _central_longitude_of(_FakeProjection({"proj": "robin", "lon_0": 45})) == 45.0
 
-    # neither key: fall back rather than raise
-    assert _central_longitude_of(_FakeProjection({"proj": "weird"})) == 0.0
+    # neither key: fall back to 0.0 rather than raise, but warn about it
+    with pytest.warns(UserWarning, match="Could not determine the central longitude"):
+        assert _central_longitude_of(_FakeProjection({"proj": "weird"})) == 0.0
+
+
+@pytest.mark.parametrize("central_longitude", [0, 30, -45, 77])
+def test_central_longitude_of_oblique_mercator(central_longitude):
+    """ObliqueMercator stores its central longitude as ``lonc`` (#1877)."""
+    from uxarray.grid.geometry import _central_longitude_of
+
+    proj = ccrs.ObliqueMercator(central_longitude=central_longitude)
+    assert _central_longitude_of(proj) == central_longitude
+
+
+def test_central_longitude_of_utm_and_europp():
+    """UTM-based projections only carry a zone; use its central meridian."""
+    from uxarray.grid.geometry import _central_longitude_of
+
+    assert _central_longitude_of(ccrs.UTM(zone=1)) == -177.0
+    assert _central_longitude_of(ccrs.UTM(zone=33, southern_hemisphere=True)) == 15.0
+    # EuroPP is UTM zone 32
+    assert _central_longitude_of(ccrs.EuroPP()) == 9.0
+
+
+def test_central_longitude_of_matches_cartopy_projections():
+    """Every projection that accepts ``central_longitude`` reports it back,
+    without falling back to the 0.0 default."""
+    from uxarray.grid.geometry import _central_longitude_of
+
+    checked = 0
+    for name in dir(ccrs):
+        cls = getattr(ccrs, name)
+        if (
+            name.startswith("_")
+            or not isinstance(cls, type)
+            or not issubclass(cls, ccrs.Projection)
+            or cls is ccrs.Projection
+        ):
+            continue
+        try:
+            proj = cls(central_longitude=30)
+        except Exception:
+            continue
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            assert _central_longitude_of(proj) == 30, name
+        checked += 1
+    assert checked >= 25
 
 
 def test_plot_topology_with_explicit_projection(gridpath):

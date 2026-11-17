@@ -1,4 +1,5 @@
 import math
+import warnings
 
 import numpy as np
 from numba import njit, prange
@@ -148,14 +149,28 @@ def _central_longitude_of(projection):
 
     Most projections record it as ``lon_0``, but Cartopy 0.26 changed
     ``PlateCarree`` from ``proj=eqc`` to ``proj=latlong``, which carries the
-    prime meridian as ``pm`` and has no ``lon_0`` at all. Reading ``lon_0``
-    directly raises ``KeyError`` on that projection, so check both and fall back
-    to 0.0 for any projection that declares neither.
+    prime meridian as ``pm`` and has no ``lon_0`` at all. ``ObliqueMercator``
+    (``proj=omerc``) stores it as ``lonc``, and ``UTM`` projections (including
+    the regional ``EuroPP``) only carry their ``zone``, whose central meridian
+    is ``6 * zone - 183``. For any projection that declares none of these, a
+    warning is emitted and 0.0 is assumed.
     """
     params = projection.proj4_params
-    for key in ("lon_0", "pm"):
+    for key in ("lon_0", "lonc", "pm"):
         if key in params:
-            return float(params[key])
+            try:
+                return float(params[key])
+            except (TypeError, ValueError):
+                # e.g. a named prime meridian such as ``pm=paris``
+                continue
+    if params.get("proj") == "utm" and "zone" in params:
+        return 6.0 * int(params["zone"]) - 183.0
+    warnings.warn(
+        f"Could not determine the central longitude of the "
+        f"{type(projection).__name__} projection; assuming 0.0.",
+        UserWarning,
+        stacklevel=2,
+    )
     return 0.0
 
 
