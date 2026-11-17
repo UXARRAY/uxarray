@@ -424,6 +424,22 @@ def test_open_grid(gridpath, mesh_constants):
 
     nt.assert_almost_equal(uxgrid.calculate_total_face_area(), mesh_constants['MESH30_AREA'], decimal=3)
 
+def test_open_grid_geopandas(gridpath):
+    """Calling open_grid with a geopandas file must not crash (see #1754),
+    and should be equivalent to Grid.from_file(..., backend="geopandas").
+    Additionally, passing other kwargs along with a geopandas file should raise TypeError.
+    """
+    path = gridpath("shp", "cb_2018_us_nation_20m", "cb_2018_us_nation_20m.shp")
+    uxgridA = ux.open_grid(path)
+    uxgridB = ux.Grid.from_file(path, backend="geopandas")
+    assert uxgridA == uxgridB
+
+    with pytest.raises(TypeError, match=r"geopandas .+ got unexpected keyword argument"):
+        ux.open_grid(path, chunks="auto")
+    with pytest.raises(TypeError, match=r"geopandas .+ got unexpected keyword argument"):
+        ux.open_grid(path, cache=False)
+
+
 def test_copy_dataset(gridpath, datasetpath):
     """Loads a single dataset with its grid topology file using uxarray's
     open_dataset call and make a copy of the object."""

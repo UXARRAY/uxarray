@@ -46,9 +46,13 @@ def open_grid(
     Parameters
     ----------
     grid_filename_or_obj : str | os.PathLike[Any] | dict | xr.dataset
-        Strings and Path objects are interpreted as a path to a grid file. Xarray Datasets assume that
-        each member variable is in the UGRID conventions and will be used to create a ``ux.Grid``. Similarly, a dictionary
-        containing UGRID variables can be used to create a ``ux.Grid``
+        Specifies the unstructured grid topology.
+        Strings and Path objects are interpreted as a path to a grid file.
+        Most files are opened via ``xr.open_dataset(..., **kwargs)``.
+        Files with special extensions (".shp" or ".geojson") use ``geopandas.read_file`` instead,
+        and reject additional kwargs; see also ``Grid.from_file``.
+        Dictionaries and xarray Datasets assume that each variable is in the UGRID conventions,
+        and will be used to create a ``ux.Grid``.
     chunks : int, dict, 'auto' or None, default: None
         If provided, used to load the grid into dask arrays.
 
@@ -123,6 +127,19 @@ def open_grid(
                 "open_grid(directory) expects FESOM2 ASCII dataset with 'nod2d.out' and 'elem2d.out' files, but "
                 f"got directory={os.path.abspath(grid_filename_or_obj)!r}, which is missing {' and '.join(_missing)}."
             )
+
+    elif (
+        isinstance(grid_filename_or_obj, (str, os.PathLike))
+        and os.path.splitext(grid_filename_or_obj)[1] in Grid._GEOPANDAS_FILE_EXTENSIONS
+    ):
+        # Special case for geopandas files (reject other kwargs, then use geopandas backend)
+        _got_kw = list(kwargs.keys()) + ([] if chunks is None else ["chunks"])
+        if len(_got_kw) > 0:
+            raise TypeError(
+                f"open_grid() for geopandas files (extension one of: {Grid._GEOPANDAS_FILE_EXTENSIONS}) "
+                f"got unexpected keyword argument(s) {_got_kw!r}, when filepath={grid_filename_or_obj!r}."
+            )
+        grid = Grid.from_file(grid_filename_or_obj, backend="geopandas")
 
     elif isinstance(grid_filename_or_obj, dict):
         # Unpack the dictionary and construct a grid from topology
