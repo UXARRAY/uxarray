@@ -143,15 +143,48 @@ def test_scrip_dask_lazy_dedup_matches_eager(gridpath, chunks):
     """Opening a SCRIP grid with ``chunks=`` must produce the same mesh as
     the eager path, even though the underlying dedup algorithm differs
     (dask-native vs. Polars) once the corner arrays are dask-backed.
+
+    The comparison is on corner coordinates *in winding order*, not sorted:
+    the two paths are free to number nodes differently, but the order of
+    corners within a face is what determines area sign and normal
+    direction, so it must be preserved exactly.
     """
     grid_file = gridpath("scrip", "outCSne8", "outCSne8.nc")
+
     grid_eager = ux.open_grid(grid_file)
     grid_lazy = ux.open_grid(grid_file, chunks=chunks)
+
     assert isinstance(grid_lazy._ds["face_node_connectivity"].data, da.Array), (
         f"chunks={chunks!r} did not produce a dask-backed connectivity, so this "
         "test would silently compare the eager path against itself"
     )
-    assert grid_lazy == grid_eager
+
+    assert grid_eager.n_face == grid_lazy.n_face
+    assert grid_eager.n_node == grid_lazy.n_node
+
+    fnc_eager = grid_eager.face_node_connectivity.values
+    fnc_lazy = grid_lazy.face_node_connectivity.values
+
+    # Same set of unique nodes, independent of how each path numbered them.
+    nodes_eager = np.unique(
+        np.stack([grid_eager.node_lon.values, grid_eager.node_lat.values], 1), axis=0
+    )
+    nodes_lazy = np.unique(
+        np.stack([grid_lazy.node_lon.values, grid_lazy.node_lat.values], 1), axis=0
+    )
+    nt.assert_allclose(nodes_eager, nodes_lazy, atol=1e-10)
+
+    # Same corners per face, in the same order.
+    nt.assert_allclose(
+        grid_eager.node_lon.values[fnc_eager],
+        grid_lazy.node_lon.values[fnc_lazy],
+        atol=1e-10,
+    )
+    nt.assert_allclose(
+        grid_eager.node_lat.values[fnc_eager],
+        grid_lazy.node_lat.values[fnc_lazy],
+        atol=1e-10,
+    )
 
 
 def test_scrip_dask_lazy_dedup_matches_eager_radians(gridpath):
@@ -159,10 +192,61 @@ def test_scrip_dask_lazy_dedup_matches_eager_radians(gridpath):
     radians, i.e. when ``_values_in_degrees`` converts a dask array rather
     than returning it untouched."""
     grid_file = gridpath("scrip", "scrip_radians", "scrip_radians_grid.nc")
+
     grid_eager = ux.open_grid(grid_file)
     grid_lazy = ux.open_grid(grid_file, chunks={"grid_size": 3})
+
     assert isinstance(grid_lazy._ds["face_node_connectivity"].data, da.Array)
-    assert grid_eager == grid_lazy
+    assert grid_eager.n_node == grid_lazy.n_node
+
+    fnc_eager = grid_eager.face_node_connectivity.values
+    fnc_lazy = grid_lazy.face_node_connectivity.values
+    nt.assert_allclose(
+        grid_eager.node_lon.values[fnc_eager],
+        grid_lazy.node_lon.values[fnc_lazy],
+        atol=1e-10,
+    )
+    nt.assert_allclose(
+        grid_eager.node_lat.values[fnc_eager],
+        grid_lazy.node_lat.values[fnc_lazy],
+        atol=1e-10,
+    )
+
+
+@pytest.mark.parametrize(
+    "chunks",
+    [
+        {"grid_size": 7},  # many tiny partitions
+        {"grid_size": 10**6},  # one partition, larger than the grid
+        "auto",  # what a caller (and the docstring) would reach for
+        -1,
+    ],
+    ids=["tiny_chunks", "single_chunk", "auto", "minus_one"],
+)
+def test_scrip_dask_and_eager_dedup_assign_identical_node_ids(gridpath, chunks):
+    """The SCRIP reader's eager and dask dedup paths number nodes identically.
+    (Uses ``merge_coincident_nodes=False`` intentionally, to isolate the reader's own dedup.
+    Uusing True would instead also check the default dedup applied to all grids; this is
+    tested elsewhere, see: ``test_scrip_dask_and_eager_grids_match_with_default_settings``.)
+    """
+    grid_file = gridpath("scrip", "outCSne8", "outCSne8.nc")
+    grid_eager = ux.open_grid(grid_file, merge_coincident_nodes=False)
+    grid_lazy = ux.open_grid(grid_file, chunks=chunks, merge_coincident_nodes=False)
+    assert isinstance(grid_lazy._ds["face_node_connectivity"].data, da.Array), (
+        f"chunks={chunks!r} did not produce a dask-backed connectivity, so this "
+        "test would silently compare the eager path against itself"
+    )
+    assert grid_lazy == grid_eager
+
+
+# TODO(#1905): remove the xfail marker once #1905 is fixed. xfail means this
+# test is expected to fail for now and doesn't break CI; strict=True makes it
+# fail if it unexpectedly passes, so the fix can't land without removing it.
+@pytest.mark.xfail(strict=True, reason="#1905")
+def test_scrip_dask_and_eager_grids_match_with_default_settings(gridpath):
+    """Opening a SCRIP grid with or without ``chunks=`` gives the same grid."""
+    grid_file = gridpath("scrip", "outCSne8", "outCSne8.nc")
+    assert ux.open_grid(grid_file) == ux.open_grid(grid_file, chunks=-1)
 
 
 def test_lookup_node_ids_preserves_input_order():
