@@ -279,6 +279,31 @@ def test_duplicate_nodes_tolerance(lon_offset, merges):
     assert grid.face_node_connectivity.values[1][0] == (1 if merges else 6)
 
 
+def test_duplicate_nodes_across_lon_wraps():
+    """Ensures de-duplication properly handles lon value wrapping mod 360.
+    Uses a minimal example, composed of just two triangles sharing an edge,
+    but with nodes on the edge represented at different values (equivalent mod 360).
+    Focuses on "extra suspicious" cases in particular: lon=0 and the antimeridian.
+    """
+    # Two triangles sharing the edge at lon=0, but one side writes it as lon=360
+    node_lon = np.array([300., 360., 360., 0., 0., 60.])
+    node_lat = np.array([  0.,   0.,  30., 0., 30., 0.])
+    fnc = np.array([[0, 1, 2], [3, 5, 4]])
+    gridA = ux.Grid.from_topology(node_lon, node_lat, fnc)
+    assert gridA.n_edge == 5                                # shared edge counted once
+    assert gridA.face_face_connectivity.values[0, 0] == 1   # the two triangles are neighbours
+    assert gridA.face_face_connectivity.values[1, 0] == 0
+
+    # Two triangles sharing the edge at the antimeridian: lon=180 on one side, lon=-180 on the other
+    node_lon = np.array([120., 180., 180., -180., -180., -120.])
+    node_lat = np.array([  0.,   0.,  30.,    0.,   30.,    0.])
+    fnc = np.array([[0, 1, 2], [3, 5, 4]])
+    gridB = ux.Grid.from_topology(node_lon, node_lat, fnc)
+    assert gridB.n_edge == 5                                # shared edge counted once
+    assert gridB.face_face_connectivity.values[0, 0] == 1   # the two triangles are neighbours
+    assert gridB.face_face_connectivity.values[1, 0] == 0
+
+
 def test_merge_warns_when_node_locations_are_unknown():
     """Without node coordinates the merge cannot run; it must say so rather
     than quietly return connectivity that may still hold duplicates."""
