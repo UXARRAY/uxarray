@@ -597,7 +597,7 @@ class UxDataArrayPlotAccessor:
         contours : hv.Overlay, hv.Contours or gv.Contours
             The contour lines, one path per level with the level as its value
             and its lines separated by NaN, overlaid with their labels. With
-            ``labels=False`` the lines alone: an ``hv.Contours``, or a
+            ``labels=False`` the lines alone are an ``hv.Contours``, or a
             ``gv.Contours`` if a ``projection`` is given. Those lines are already
             in the coordinates of the projection, which is their ``crs``.
 

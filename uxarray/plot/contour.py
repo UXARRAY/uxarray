@@ -349,7 +349,32 @@ def _crossed_edges(triangles, values, level, n_corner):
     """The edges where a level crosses each triangle that it crosses, two per
     triangle, each given by its corners ``first < second`` as
     ``first * n_corner + second``. A corner is above the level if its value is
-    greater than it."""
+    greater than it.
+
+    Parameters
+    ----------
+    triangles : np.ndarray
+        Integer array of shape ``(n_triangle, 3)``, C-contiguous: the three
+        corners of each triangle, as indices into ``values``.
+    values : np.ndarray
+        Float array of shape ``(n_corner,)``: the data value at each corner.
+        Must be finite at every corner used by ``triangles``.
+    level : float
+        The contour level.
+    n_corner : int
+        The number of corners, ``len(values)``. The base of the edge numbers,
+        so it must be greater than every index in ``triangles``.
+
+    Returns
+    -------
+    edges : np.ndarray
+        Int64 array of shape ``(2 * n_crossed,)``, where ``n_crossed`` is the
+        number of triangles that the level crosses. ``edges[2 * i]`` and
+        ``edges[2 * i + 1]`` are the two crossed edges of the i-th such
+        triangle, in the order of ``triangles``. Two triangles that share an
+        edge give it the same number, and ``np.divmod(edges, n_corner)`` gives
+        back its corners ``first, second``.
+    """
     n_crossed = 0
     for t in range(triangles.shape[0]):
         a, b, c = triangles[t, 0], triangles[t, 1], triangles[t, 2]
@@ -374,7 +399,31 @@ def _split_lines_at_antimeridian(
     level: float, points: np.ndarray, offsets: np.ndarray
 ) -> list[tuple[float, np.ndarray]]:
     """Splits lines stored one after the other, which start at ``offsets[:-1]``,
-    where they run past -180 or 180 degrees of longitude."""
+    where they run past -180 or 180 degrees of longitude.
+
+    Parameters
+    ----------
+    level : float
+        The contour level of all the lines, paired with each part returned.
+    points : np.ndarray
+        Float array of shape ``(n_point, 2)``: the longitude and latitude, in
+        degrees, of the points of all the lines, one line after the other. A
+        line that crosses the antimeridian is continuous, with longitudes that
+        run past -180 or 180 degrees.
+    offsets : np.ndarray
+        Integer array of shape ``(n_line + 1,)``: where each line starts in
+        ``points``, followed by ``n_point``, as returned by ``_join_segments``.
+        Every line must have at least one point.
+
+    Returns
+    -------
+    contours : list of (float, np.ndarray)
+        ``(level, part)`` for each part, in the order of the lines. A line
+        within [-180, 180] degrees of longitude is one part, a view of
+        ``points``. A line that runs past them is split by
+        ``_split_at_antimeridian`` into new arrays, with longitudes in
+        [-180, 180]. Each part has shape ``(n, 2)``.
+    """
     starts, ends = offsets[:-1], offsets[1:]
     crosses = (np.minimum.reduceat(points[:, 0], starts) < -180.0) | (
         np.maximum.reduceat(points[:, 0], starts) > 180.0
