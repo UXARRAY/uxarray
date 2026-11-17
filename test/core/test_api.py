@@ -440,6 +440,22 @@ def test_open_grid_geopandas(gridpath):
         ux.open_grid(path, cache=False)
 
 
+def test_open_grid_geopandas_uppercase_extension(gridpath, tmp_path):
+    """Shapefiles with uppercase extensions (e.g. from older GIS tools) must
+    also be dispatched to geopandas, rather than failing in xarray as in #1754.
+    """
+    src_dir = Path(gridpath("shp", "cb_2018_us_nation_20m", "cb_2018_us_nation_20m.shp")).parent
+    # A shapefile is several sidecar files; rename all of them to uppercase.
+    for ext in (".shp", ".shx", ".dbf", ".prj", ".cpg"):
+        src = src_dir / f"cb_2018_us_nation_20m{ext}"
+        (tmp_path / f"CB_2018_US_NATION_20M{ext.upper()}").write_bytes(src.read_bytes())
+    upper_path = tmp_path / "CB_2018_US_NATION_20M.SHP"
+
+    uxgrid = ux.open_grid(upper_path)
+    assert uxgrid == ux.Grid.from_file(str(src_dir / "cb_2018_us_nation_20m.shp"))
+    assert uxgrid.source_grid_spec == "Shapefile"
+
+
 def test_copy_dataset(gridpath, datasetpath):
     """Loads a single dataset with its grid topology file using uxarray's
     open_dataset call and make a copy of the object."""

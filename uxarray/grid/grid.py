@@ -414,9 +414,10 @@ class Grid:
 
         # determine grid/mesh specification
         if backend == "geopandas":
-            if str(filename).endswith(".shp"):
+            ext = os.path.splitext(filename)[1].lower()
+            if ext == ".shp":
                 source_grid_spec = "Shapefile"
-            elif str(filename).endswith(".geojson"):
+            elif ext == ".geojson":
                 source_grid_spec = "GeoJSON"
             else:
                 source_grid_spec = "OtherGeoFormat"

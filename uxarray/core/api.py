@@ -130,7 +130,8 @@ def open_grid(
 
     elif (
         isinstance(grid_filename_or_obj, (str, os.PathLike))
-        and os.path.splitext(grid_filename_or_obj)[1] in Grid._GEOPANDAS_FILE_EXTENSIONS
+        and os.path.splitext(grid_filename_or_obj)[1].lower()
+        in Grid._GEOPANDAS_FILE_EXTENSIONS
     ):
         # Special case for geopandas files (reject other kwargs, then use geopandas backend)
         _got_kw = list(kwargs.keys()) + ([] if chunks is None else ["chunks"])
