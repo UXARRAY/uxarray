@@ -14,7 +14,11 @@ from textwrap import dedent, indent
 import matplotlib.pyplot
 import sphinx_autosummary_accessors
 import yaml
+from docutils import nodes
+from sphinx import addnodes
 from sphinx.application import Sphinx
+from sphinx.environment import BuildEnvironment
+from sphinx.transforms import SphinxTransform
 from sphinx.util import logging
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -63,7 +67,6 @@ extensions = [
     "sphinx_design",
     "IPython.sphinxext.ipython_directive",
     "IPython.sphinxext.ipython_console_highlighting",
-    "sphinx_remove_toctrees",
     "sphinx_copybutton",
 ]
 
@@ -102,8 +105,6 @@ intersphinx_mapping = {
 
 # Notebook execution (per cell)
 nb_execution_timeout = 120
-
-remove_from_toctrees = ["generated/*"]
 
 napoleon_use_admonition_for_examples = True
 napoleon_include_special_with_doc = True
@@ -287,7 +288,85 @@ def update_gallery(app: Sphinx):
     LOGGER.info("Gallery page updated.")
 
 
-# Allow for changes to be made to the css in the theme_overrides file
+STUB_DIR = "generated/"
+
+
+def prune_generated_toctrees(app: Sphinx, env: BuildEnvironment):
+    """Keep the autosummary stub pages out of the navigation sidebar.
+
+    ``:toctree: generated/`` is what makes ``autosummary`` write one stub page
+    per API entry, but it also files every stub under the page that summarised
+    it. Left alone, the sidebar entry for the API reference therefore expands
+    into hundreds of ``generated/...`` pages instead of the page's own
+    sections. Drop those entries once the environment is built, which is late
+    enough that the references have been resolved and no "document isn't
+    included in any toctree" warnings are emitted.
+    """
+    for toc in env.tocs.values():
+        # Materialize the iterator before touching the tree: removing a node
+        # while ``findall`` is still walking makes it skip the next siblings.
+        for toctree in list(toc.findall(addnodes.toctree)):
+            entries = [
+                entry
+                for entry in toctree.attributes.get("entries", [])
+                if not entry[1].startswith(STUB_DIR)
+            ]
+            if entries:
+                toctree.attributes["entries"] = entries
+            else:
+                toctree.parent.remove(toctree)
+
+
+# Pages whose headings are numbered by ``NumberSections`` below.
+NUMBERED_SECTION_PAGES = frozenset({"api"})
+
+# How many heading levels below the page title to number.
+SECTION_NUMBER_DEPTH = 3
+
+
+def number_subsections(section: nodes.section, prefix: tuple[str, ...] = ()) -> None:
+    """Prepend "1.", "2.", "2.1." ... to the headings nested in ``section``."""
+    if len(prefix) >= SECTION_NUMBER_DEPTH:
+        return
+    subsections = [child for child in section if isinstance(child, nodes.section)]
+    for count, subsection in enumerate(subsections, start=1):
+        numbers = (*prefix, str(count))
+        # The trailing no-break spaces are how Docutils separates the number
+        # from the heading text; its HTML writer trims them back to a single
+        # regular space, and other writers keep them.
+        label = ".".join(numbers) + "." + "\u00a0" * 3
+        subsection[0].insert(0, nodes.generated("", label, classes=["sectnum"]))
+        number_subsections(subsection, numbers)
+
+
+class NumberSections(SphinxTransform):
+    """Number the headings of the pages in ``NUMBERED_SECTION_PAGES``.
+
+    Docutils' own ``.. sectnum::`` directive is the obvious way to do this, but
+    Sphinx keeps a page's title as a section of its own rather than promoting it
+    to a document title. Docutils therefore counts the title as the first level
+    and numbers every heading on the page "1.something" -- "1.2 Tutorial",
+    "1.3.1 Constructors". Numbering the sections *below* the title instead gives
+    the "2. Tutorial", "3.1. Constructors" reading that was wanted.
+    """
+
+    # Docutils numbers sections at priority 710; anything after that and before
+    # the table of contents is collected works just as well.
+    default_priority = 720
+
+    def apply(self) -> None:
+        if self.env.docname not in NUMBERED_SECTION_PAGES:
+            return
+        # The first section of a Sphinx page is the one holding its title.
+        title_section = next(self.document.findall(nodes.section), None)
+        if title_section is not None:
+            number_subsections(title_section)
+
+
 def setup(app):
+    # Allow for changes to be made to the css in the theme_overrides file
     app.add_css_file("theme_overrides.css")
+
     app.connect("builder-inited", update_gallery)
+    app.connect("env-updated", prune_generated_toctrees)
+    app.add_transform(NumberSections)

@@ -66,7 +66,7 @@ class RemapAccessor:
         destination_grid: Grid,
         remap_to: str = "faces",
         backend: str = "uxarray",
-        yac_method: str | None = "nnn",
+        yac_method: str = "nnn",
         yac_options: dict | None = None,
         **kwargs,
     ) -> UxDataArray | UxDataset:

@@ -200,8 +200,8 @@ def _encode_exodus(ds, outfile=None):
     conn_nofill = []
 
     for row in ds["face_node_connectivity"].values:
-        # Find the index of the first fill value (-1)
-        fill_val_idx = np.where(row == -1)[0]
+        # Find the index of the first fill value.
+        fill_val_idx = np.where(row == INT_FILL_VALUE)[0]
 
         if fill_val_idx.size > 0:
             num_nodes = fill_val_idx[0]
