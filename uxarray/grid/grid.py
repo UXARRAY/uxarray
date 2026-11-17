@@ -397,6 +397,9 @@ class Grid:
             Path to grid file
         backend : str, default='geopandas'
             Backend to use to read the file, xarray or geopandas.
+        **kwargs
+            In geopandas backend, additional keyword arguments are silently discarded;
+            in xarray backend, they are passed to ``xarray.open_dataset``.
 
         Examples
         --------
@@ -411,9 +414,10 @@ class Grid:
 
         # determine grid/mesh specification
         if backend == "geopandas":
-            if str(filename).endswith(".shp"):
+            ext = os.path.splitext(filename)[1].lower()
+            if ext == ".shp":
                 source_grid_spec = "Shapefile"
-            elif str(filename).endswith(".geojson"):
+            elif ext == ".geojson":
                 source_grid_spec = "GeoJSON"
             else:
                 source_grid_spec = "OtherGeoFormat"
@@ -431,6 +435,10 @@ class Grid:
             )
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
+
+    _GEOPANDAS_FILE_EXTENSIONS = {".shp", ".geojson"}
+    # Known geopandas file extensions, used by open_grid() to decide
+    # when to dispatch to Grid.from_file(..., backend='geopandas').
 
     @classmethod
     def from_points(
