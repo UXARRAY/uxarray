@@ -140,5 +140,7 @@ def test_no_fastmath(kernels):
             and not (isinstance(node.value, ast.Constant) and node.value.value is False)
         ]
     assert not offenders, (
-        f"fastmath would cancel the EFT error terms: {sorted(offenders)}"
+        f"fastmath enabled on {sorted(offenders)} (kernels, or module:line of a fastmath= "
+        f"that isn't a literal False): they inline EFT code from {EFT_MODULE}, whose "
+        f"error terms fastmath cancels to 0. Remove fastmath or set it to False."
     )
