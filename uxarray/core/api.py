@@ -69,10 +69,10 @@ def open_grid(
     use_dual : bool, optional
         Specify whether to use the primal (use_dual=False) or dual (use_dual=True) mesh if the file type is MPAS
     merge_coincident_nodes : bool, default=True
-        Passed through ``**kwargs`` for dataset and file inputs. Set to False to
-        preserve original node connectivity, including faces that would acquire
-        nonconsecutive repeated corners after merging. Dual construction still
-        rejects referenced duplicates.
+        Passed through ``**kwargs`` for dataset and file inputs, except for geopandas files
+        (where it is silently ignored). Set to False to preserve original node connectivity,
+        including faces that would acquire nonconsecutive repeated corners after merging.
+        Dual construction still rejects referenced duplicates.
     **kwargs
         Additional arguments passed on to ``xarray.open_dataset``.
         Refer to the :func:`xarray docs <xarray.open_dataset>`
@@ -95,7 +95,32 @@ def open_grid(
 
     >>> uxgrid = ux.open_grid("grid_filename.nc", chunks=-1)
     """
-    # Handle chunk-related kwargs first.
+    # geopandas bookkeeping (must handle this before match_chunks_to_ugrid(),
+    # which calls xr.open_dataset on the file and fails for geopandas files)
+    is_geopandas_file = (
+        isinstance(grid_filename_or_obj, (str, os.PathLike))
+        and os.path.splitext(grid_filename_or_obj)[1].lower()
+        in Grid._GEOPANDAS_FILE_EXTENSIONS
+    )
+    if is_geopandas_file:
+        # crash if any unsupported-for-geopandas kwargs were provided.
+        # (intentionally silently ignore merge_coincident_nodes; see docstring)
+        kwargs.pop("merge_coincident_nodes", None)
+        # special handling for chunks/chunk_grid; no need to crash whenever chunk_grid=False.
+        _got_chunk_grid_kw = ["chunk_grid"] if "chunk_grid" in kwargs else []
+        chunk_grid = kwargs.pop("chunk_grid", chunks is not None)
+        _got_chunk_kw = (["chunks"] + _got_chunk_grid_kw) if chunk_grid else []
+        # generic kw handling
+        _got_kw = list(kwargs.keys()) + _got_chunk_kw
+        if len(_got_kw) > 0:
+            raise TypeError(
+                f"open_grid() for geopandas files (extension one of: {Grid._GEOPANDAS_FILE_EXTENSIONS}) "
+                f"got unexpected keyword argument(s) {_got_kw!r}, when filepath={grid_filename_or_obj!r}."
+            )
+        # geopandas doesn't support chunking; force chunks=None to avoid match_chunks_to_ugrid() below.
+        chunks = None
+
+    # kwargs bookkeeping
     data_chunks = kwargs.pop("data_chunks", None)
     if data_chunks is not None:
         chunks = match_chunks_to_ugrid(grid_filename_or_obj, data_chunks)
@@ -106,8 +131,6 @@ def open_grid(
     chunk_grid = kwargs.pop("chunk_grid", chunks is not None)
     grid_chunks = chunks if chunk_grid else None
     merge_coincident_nodes = kwargs.pop("merge_coincident_nodes", True)
-
-    grid = None
 
     # Special case for FESOM2 ASCII Dataset (stored as a directory)
     if isinstance(grid_filename_or_obj, (str, os.PathLike)) and os.path.isdir(
@@ -128,17 +151,12 @@ def open_grid(
                 f"got directory={os.path.abspath(grid_filename_or_obj)!r}, which is missing {' and '.join(_missing)}."
             )
 
-    elif (
-        isinstance(grid_filename_or_obj, (str, os.PathLike))
-        and os.path.splitext(grid_filename_or_obj)[1].lower()
-        in Grid._GEOPANDAS_FILE_EXTENSIONS
-    ):
-        # Special case for geopandas files (reject other kwargs, then use geopandas backend)
-        _got_kw = list(kwargs.keys()) + ([] if chunks is None else ["chunks"])
-        if len(_got_kw) > 0:
-            raise TypeError(
-                f"open_grid() for geopandas files (extension one of: {Grid._GEOPANDAS_FILE_EXTENSIONS}) "
-                f"got unexpected keyword argument(s) {_got_kw!r}, when filepath={grid_filename_or_obj!r}."
+    elif is_geopandas_file:
+        # Use geopandas backend to read from file
+        if not os.path.exists(grid_filename_or_obj):
+            # (explicit FileNotFoundError instead of pyogrio.errors.DataSourceError)
+            raise FileNotFoundError(
+                f"No such file or directory: {os.path.abspath(grid_filename_or_obj)!r}"
             )
         grid = Grid.from_file(grid_filename_or_obj, backend="geopandas")
 

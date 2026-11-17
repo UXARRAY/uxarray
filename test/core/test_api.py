@@ -424,6 +424,18 @@ def test_open_grid(gridpath, mesh_constants):
 
     nt.assert_almost_equal(uxgrid.calculate_total_face_area(), mesh_constants['MESH30_AREA'], decimal=3)
 
+
+def test_open_grid_raises_when_file_not_found():
+    """open_grid() must raise FileNotFoundError for nonexistent files
+    (not a pyogrio.errors.DataSourceError)
+    """
+    for ext in ["", ".nc", ".ug", ".shp", ".SHP", ".geojson", ".GEOJSON"]:
+        filepath = f"nonexistent_file{ext}"
+        assert not os.path.exists(filepath)
+        with pytest.raises(FileNotFoundError, match=r"No such file or directory"):
+            ux.open_grid(filepath)
+
+
 def test_open_grid_geopandas(gridpath):
     """Calling open_grid with a geopandas file must not crash (see #1754),
     and should be equivalent to Grid.from_file(..., backend="geopandas").
@@ -434,8 +446,21 @@ def test_open_grid_geopandas(gridpath):
     uxgridB = ux.Grid.from_file(path, backend="geopandas")
     assert uxgridA == uxgridB
 
-    with pytest.raises(TypeError, match=r"geopandas .+ got unexpected keyword argument"):
-        ux.open_grid(path, chunks="auto")
+    ## passing kwargs -- special cases which do not crash:
+    # (merge_coincident_nodes is silently ignored for geopandas files)
+    for val in [True, False, None, "a completely unexpected value"]:
+        grid = ux.open_grid(path, merge_coincident_nodes=val)
+        assert grid == uxgridA
+    # (chunks must be ignored whenever chunk_grid=False)
+    chunk_vals = [{}, "auto", -1, {"n_face": 10}]
+    for val in chunk_vals + [None]:
+        grid = ux.open_grid(path, chunks=val, chunk_grid=False)
+        assert grid == uxgridA
+
+    ## passing kwargs -- other cases should crash:
+    for val in chunk_vals:
+        with pytest.raises(TypeError, match=r"geopandas .+ got unexpected keyword argument"):
+            ux.open_grid(path, chunks=val)
     with pytest.raises(TypeError, match=r"geopandas .+ got unexpected keyword argument"):
         ux.open_grid(path, cache=False)
 
