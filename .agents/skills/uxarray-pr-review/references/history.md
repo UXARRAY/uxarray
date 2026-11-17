@@ -69,6 +69,7 @@ Bots to skip, but read for what they tell you:
 - **Focus on the delta.** When the user or anyone else already reviewed, look hardest at the commits after
   that review: fixes made in response to a review are new, often unreviewed code.
 - **Re-review.** If the current `gh` user reviewed before, check each of their own points (addressed? how?)
-  before anything else, and keep the new review to what changed.
+  before anything else, and keep the new review to what changed. In the posted text, one line per earlier
+  point at most; often the verdict alone covers them.
 - **Explain stale text.** A PR description that no longer matches the code after review-driven changes is a
   routine "please update the description", not a mismatch. Say which change made it stale.

@@ -17,15 +17,15 @@ Show exactly what will be posted, nothing more, followed by one short line on th
 If other reviewers have already commented, the summary says which of their points you verified as
 addressed. Replies to existing threads are listed separately from new inline comments.
 Keep the long evidence (tables, scripts, dropped candidates) in a scratch file and mention its path; the
-user can ask for it.
+user can ask for it. What was verified, and how, goes in the briefing to the user, not in the posted text.
 
 ```
 Event: COMMENT | APPROVE | REQUEST_CHANGES   (default COMMENT; the user decides)
 
 Summary (posted as the review body)
-  - One sentence: does it do what the linked issue asks?
-  - 2-4 bullets: what was verified, and how.
+  - One line: the verdict, and whether it does what the linked issue asks.
   - One line: what is requested before merge (or "nothing").
+  - Optional, one sentence each: problems that predate the PR, asking for a separate issue.
 
 Inline comments (at most 5, ordered by severity)
   file:line — one comment each:
@@ -45,6 +45,7 @@ Style rules:
 - Things the author need not change go in the same comment as "no change needed", or are left out.
 - Problems that predate the PR are fine to mention only when the PR touches that exact code; say they
   predate it, and suggest a separate issue rather than growing the PR.
+- Replies to existing threads are one line ("Fixed in <sha>, verified.").
 
 ## Posting
 
