@@ -671,6 +671,24 @@ def _construct_edge_centroids(node_x, node_y, node_z, edge_node_conn):
     return _normalize_xyz(centroid_x, centroid_y, centroid_z)
 
 
+_ANGULAR_UNITS = {
+    "degrees_east",
+    "degree_east",
+    "degree_e",
+    "degrees_north",
+    "degree_north",
+    "degree_n",
+    "degrees",
+    "degree",
+    "deg",
+    "rad",
+    "radian",
+    "radians",
+}
+_RADIAN_UNITS = {"rad", "radian", "radians"}
+_LENGTH_UNITS = {"m", "km", "meter", "meters", "metre", "metres", "ft", "feet"}
+
+
 def _is_projected_grid(uxgrid) -> bool:
     """Return True if the grid uses projected (non-spherical) coordinates.
 
@@ -704,17 +722,6 @@ def _is_projected_grid(uxgrid) -> bool:
     # Guard against non-string values (e.g. None) before calling .lower().
     raw_units = attrs.get("units", "")
     units = raw_units.lower().strip() if isinstance(raw_units, str) else ""
-    _ANGULAR_UNITS = {
-        "degrees_east",
-        "degree_east",
-        "degree_e",
-        "degrees",
-        "degree",
-        "deg",
-        "rad",
-        "radians",
-    }
-    _LENGTH_UNITS = {"m", "km", "meter", "meters", "metre", "metres", "ft", "feet"}
     if units in _LENGTH_UNITS:
         return True
     if units in _ANGULAR_UNITS:

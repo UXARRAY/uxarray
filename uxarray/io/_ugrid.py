@@ -5,6 +5,17 @@ import uxarray.conventions.ugrid as ugrid
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.errors import GridInvalidError
 from uxarray.grid.connectivity import _replace_fill_values
+from uxarray.grid.coordinates import _ANGULAR_UNITS, _RADIAN_UNITS
+
+
+def _is_geographic(ds, names):
+    """Whether coordinates carry no projection metadata (projected standard
+    names or length units), so they can be read as longitude and latitude."""
+    return all(
+        not str(ds[name].attrs.get("standard_name", "")).startswith("projection_")
+        and ds[name].attrs.get("units", "").lower() in _ANGULAR_UNITS | {""}
+        for name in names
+    )
 
 
 def _read_ugrid(ds):
@@ -16,6 +27,12 @@ def _read_ugrid(ds):
     ds = ds.rename({grid_topology_name: "grid_topology"})
 
     coord_dict = {}
+    projected_dict = {}
+    reserved = {
+        *ugrid.CARTESIAN_NODE_COORDINATES,
+        *ugrid.CARTESIAN_EDGE_COORDINATES,
+        *ugrid.CARTESIAN_FACE_COORDINATES,
+    }
     for location in ("node", "edge", "face"):
         attribute = f"{location}_coordinates"
         if attribute not in ds["grid_topology"].attrs:
@@ -24,40 +41,31 @@ def _read_ugrid(ds):
         geographic = {ds[name].attrs.get("standard_name"): name for name in names}
         if "longitude" in geographic and "latitude" in geographic:
             lon_name, lat_name = geographic["longitude"], geographic["latitude"]
-        elif len(names) == 2 and all(
-            not ds[name].attrs.get("standard_name")
-            and ds[name].attrs.get("units", "").lower()
-            in {
-                "",
-                "degree",
-                "degrees",
-                "degrees_east",
-                "degree_east",
-                "degrees_north",
-                "degree_north",
-                "degrees_e",
-                "degree_e",
-                "degrees_n",
-                "degree_n",
-                "radian",
-                "radians",
-            }
-            for name in names
-        ):
-            # Retain positional handling for older geographic files without CF metadata.
+        elif len(names) == 2 and (location == "node" or _is_geographic(ds, names)):
+            # Legacy positional handling. Projected nodes are kept on this path so
+            # that Grid can detect and warn about them.
             lon_name, lat_name = names
         elif location == "node":
             raise GridInvalidError(
-                "UGRID node_coordinates must include longitude and latitude coordinates. "
-                "Projected coordinates are not supported directly; provide geographic "
-                "coordinates with standard_name='longitude' and standard_name='latitude'."
+                "UGRID node_coordinates must name a longitude and latitude "
+                "(standard_name='longitude' and 'latitude') or exactly two coordinates."
             )
         else:
-            # Projected centers may be retained, but are not spherical coordinates.
+            lon_name = lat_name = None
+        for name in names:
+            if name not in (lon_name, lat_name) and name in reserved:
+                projected_dict[name] = f"{name}_projected"
+        if lon_name is None:
             continue
+        for name in (lon_name, lat_name):
+            if ds[name].attrs.get("units", "").lower() in _RADIAN_UNITS:
+                ds[name] = np.rad2deg(ds[name]).assign_attrs(
+                    {**ds[name].attrs, "units": "degrees"}
+                )
         coord_dict[lon_name] = f"{location}_lon"
         coord_dict[lat_name] = f"{location}_lat"
 
+    coord_dict.update(projected_dict)
     ds = ds.rename(coord_dict)
 
     conn_dict = {}
