@@ -23,8 +23,13 @@ from uxarray.grid.angles import (
     _compute_face_node_angles_convex,
 )
 from uxarray.grid.area import _get_all_face_area_from_coords
-from uxarray.grid.bounds import _populate_face_bounds
+from uxarray.grid.bounds import (
+    _face_bounds_lat_degrees,
+    _face_bounds_lon_degrees,
+    _populate_face_bounds,
+)
 from uxarray.grid.connectivity import (
+    _merge_coincident_grid_ds_nodes,
     _populate_edge_face_connectivity,
     _populate_edge_node_connectivity,
     _populate_face_edge_connectivity,
@@ -32,6 +37,7 @@ from uxarray.grid.connectivity import (
     _populate_n_nodes_per_face,
     _populate_node_edge_connectivity,
     _populate_node_face_connectivity,
+    _spec_guarantees_unique_nodes,
 )
 from uxarray.grid.coordinates import (
     _populate_edge_centroids,
@@ -170,6 +176,7 @@ class Grid:
         source_dims_dict: dict | None = None,
         is_subset: bool = False,
         inverse_indices: xr.Dataset | None = None,
+        merge_coincident_nodes: bool = True,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
         if source_grid_spec != "HEALPix":
@@ -180,6 +187,22 @@ class Grid:
                     f"\nbut got grid_ds with data_vars: {list(grid_ds.data_vars)}"
                 )
             # TODO: more checks for validate grid (lat/lon coords, etc)
+
+        # canonicalize coincident node indices in connectivity before this dataset
+        # is wrapped in a Grid, so every construction path benefits and no
+        # lazily-computed connectivity is ever built from stale indices.
+        # Users can opt out to retain the original connectivity, including face
+        # rings that would have nonconsecutive repeated corners after merging.
+        # Internally generated formats known to have unique vertices skip the
+        # search. File-backed formats are checked regardless of their usual layout.
+        duplicate_node_map = None
+        if merge_coincident_nodes:
+            if _spec_guarantees_unique_nodes(source_grid_spec):
+                duplicate_node_map = {}
+            else:
+                grid_ds, duplicate_node_map = _merge_coincident_grid_ds_nodes(
+                    grid_ds, return_duplicate_map=True
+                )
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict or {}
@@ -198,6 +221,7 @@ class Grid:
         self._antimeridian_face_indices = None
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
         self._is_subset = is_subset
+        self._merge_coincident_nodes = merge_coincident_nodes
 
         self._inverse_indices = inverse_indices
 
@@ -242,6 +266,10 @@ class Grid:
         # flag to track if coordinates are normalized
         self._normalized = None
 
+        # Cached map of coincident node indices to their canonical node. Reuse
+        # the construction-time search instead of repeating it in dual/tree paths.
+        self._duplicate_node_map = duplicate_node_map
+
         # flag to ensure projected-grid warning fires only once per instance
         self._projected_warning_issued = False
 
@@ -268,6 +296,10 @@ class Grid:
               containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
+        merge_coincident_nodes : bool, default=True
+            Passed through ``**kwargs``. Set to False to preserve original node
+            connectivity, including faces that would acquire nonconsecutive repeated
+            corners after merging. Dual construction still rejects referenced duplicates.
         """
 
         if isinstance(dataset, xr.Dataset):
@@ -346,6 +378,7 @@ class Grid:
             source_dims_dict,
             is_subset=kwargs.get("is_subset", False),
             inverse_indices=kwargs.get("inverse_indices"),
+            merge_coincident_nodes=kwargs.get("merge_coincident_nodes", True),
         )
 
     @classmethod
@@ -810,11 +843,10 @@ class Grid:
         if self.source_grid_spec != other.source_grid_spec:
             return False
 
-        if not (
-            self.node_lon.equals(other.node_lon) or self.node_lat.equals(other.node_lat)
-        ):
+        if not self.node_lon.equals(other.node_lon):
             return False
-
+        if not self.node_lat.equals(other.node_lat):
+            return False
         if not self.face_node_connectivity.equals(other.face_node_connectivity):
             return False
 
@@ -1627,16 +1659,8 @@ class Grid:
         """
 
         if "face_bounds_lon" not in self._ds:
-            bounds = self.bounds.values
-
-            bounds_deg = np.rad2deg(bounds[:, 1, :])
-            bounds_normalized = (bounds_deg + 180.0) % 360.0 - 180.0
-            bounds_lon = bounds_normalized
-            mask_zero = (bounds_lon[:, 0] == 0) & (bounds_lon[:, 1] == 0)
-            # for faces that span all longitudes (i.e. pole faces)
-            bounds_lon[mask_zero] = [-180.0, 180.0]
             self._ds["face_bounds_lon"] = xr.DataArray(
-                data=bounds_lon,
+                data=_face_bounds_lon_degrees(self.bounds.values),
                 dims=["n_face", "min_max"],
             )
 
@@ -1655,10 +1679,8 @@ class Grid:
         """
 
         if "face_bounds_lat" not in self._ds:
-            bounds = self.bounds.values
-            bounds_lat = np.sort(np.rad2deg(bounds[:, 0, :]), axis=-1)
             self._ds["face_bounds_lat"] = xr.DataArray(
-                data=bounds_lat,
+                data=_face_bounds_lat_degrees(self.bounds.values),
                 dims=["n_face", "min_max"],
             )
         return self._ds["face_bounds_lat"]
@@ -2781,30 +2803,72 @@ class Grid:
 
         return copy.deepcopy(line_collection)
 
-    def get_dual(self, check_duplicate_nodes: bool = False):
+    def _prepare_for_dual(self):
+        """Canonicalize deferred lazy topology without modifying the source grid."""
+        required = ["face_node_connectivity"]
+        if "node_lon" in self._ds and "node_lat" in self._ds:
+            required.extend(["node_lon", "node_lat"])
+        else:
+            required.extend(["node_x", "node_y", "node_z"])
+        if not any(self._ds[name].chunks is not None for name in required):
+            return self
+        grid_ds = self._ds.copy(deep=False)
+        computed = self._ds[required].compute()
+        for name in required:
+            grid_ds[name] = computed[name]
+        return type(self)(
+            grid_ds,
+            self.source_grid_spec,
+            source_dims_dict=self._source_dims_dict,
+            merge_coincident_nodes=self._merge_coincident_nodes,
+        )
+
+    def get_dual(self, check_duplicate_nodes: bool | None = None):
         """Compute the dual for a grid, which constructs a new grid centered
         around the nodes, where the nodes of the primal become the face centers
         of the dual, and the face centers of the primal become the nodes of the
         dual. Returns a new `Grid` object.
 
+        Parameters
+        ----------
+        check_duplicate_nodes : bool, optional
+            Deprecated and ignored. Coincident nodes are merged at grid
+            construction, so the check below always runs and always passes.
+
         Returns
         --------
         dual : Grid
             Dual Mesh Grid constructed
-        """
 
-        if check_duplicate_nodes:
-            if _check_duplicate_nodes_indices(self):
-                # TODO: This is very slow
-                raise GridInvalidError("Duplicate nodes found, cannot construct dual")
+        Raises
+        ------
+        GridInvalidError
+            If any face still references a coincident duplicate node. The dual
+            reads ``node_face_connectivity`` directly, so a dead duplicate index
+            yields a degenerate dual face rather than an error.
+        """
+        if check_duplicate_nodes is not None:
+            warnings.warn(
+                "`check_duplicate_nodes` is deprecated and ignored; coincident "
+                "nodes are merged at grid construction and always checked here.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        grid = self._prepare_for_dual()
+        if _check_duplicate_nodes_indices(grid):
+            raise GridInvalidError("Duplicate nodes found, cannot construct dual")
 
         # Get dual mesh node face connectivity
-        dual_node_face_conn = construct_dual(grid=self)
+        dual_node_face_conn = construct_dual(grid=grid)
 
-        # Construct dual mesh
-        dual = self.from_topology(
-            self.face_lon.data, self.face_lat.data, dual_node_face_conn
+        # Primal face centers become dual nodes. Repeated primal faces can have
+        # coincident centers even when primal nodes are canonical, so the dual
+        # must also canonicalize its connectivity.
+        dual_ds = _read_topology(
+            grid.face_lon.data, grid.face_lat.data, dual_node_face_conn, None, 0
         )
+        dual = type(self)(dual_ds, "User Defined Topology")
 
         return dual
 
