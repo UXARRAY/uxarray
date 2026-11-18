@@ -28,11 +28,11 @@ from uxarray.io._scrip import (
 )
 
 __all__ = [
-    "open_grid",
-    "open_multigrid",
     "list_grid_names",
     "open_dataset",
+    "open_grid",
     "open_mfdataset",
+    "open_multigrid",
 ]
 
 
