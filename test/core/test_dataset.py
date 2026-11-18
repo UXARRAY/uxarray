@@ -481,6 +481,18 @@ class TestUxDatasetToXarray:
             leaked.append(leaked_here)
         assert leaked[0] == leaked[1]
 
+    @pytest.mark.parametrize("grid_format", ["UGRID", "HEALPix"])
+    def test_close_not_shared(self, grid_format):
+        """Just like the old path, closing the result never closes the original."""
+        for i, convert in enumerate((self.old, lambda u: u.to_xarray(grid_format))):
+            uxds = self.get_uxds()
+            closed = []
+            uxds.set_close(lambda: closed.append("uhoh, uxds.close was called!"))
+            result = convert(uxds)
+            result.close()
+            assert len(closed) == 0, f"failed at i={i}"
+            assert result._close is None, f"failed at i={i}"
+
     def test_lazy(self, tmp_path):
         """Just like the old path: dask-backed and file-backed data stay lazy,
         and closing the result doesn't close the original.

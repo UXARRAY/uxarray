@@ -965,7 +965,6 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
             dims=dict(self._dims),
             attrs=dict(self.attrs),
             indexes=dict(self._indexes),
-            close=self._close,
         )
         if grid_format == "HEALPix":
             result = result.rename_dims({"n_face": "cell"})
