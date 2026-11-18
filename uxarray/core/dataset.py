@@ -957,7 +957,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         else:
             ds = self
 
-        # Equivalent to the "naive" xr.DataArray(ds.data_vars, coords=ds.coords, attrs=ds.attrs)
+        # Equivalent to the "naive" xr.Dataset(ds.data_vars, coords=ds.coords, attrs=ds.attrs)
         # but internally here uses _construct_direct() for efficiency, to avoid validation checks,
         # since a valid UxDataset is already guaranteed to be a valid xr.Dataset.
         variables = {k: v.copy(deep=False) for k, v in ds._variables.items()}

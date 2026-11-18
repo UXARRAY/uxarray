@@ -28,6 +28,9 @@ class UxDatasetToXarray:
     def time_to_xarray(self, n_vars_and_n_coords):
         self.uxds.to_xarray()
 
+    def time_to_xarray_healpix(self, n_vars_and_n_coords):
+        self.uxds.to_xarray("HEALPix")
+
 
 class UxDataArrayToXarray:
     """Benchmark ``UxDataArray.to_xarray()`` with many (n_face-sized) coords."""
