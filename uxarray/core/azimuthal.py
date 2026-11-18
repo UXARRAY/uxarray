@@ -27,31 +27,25 @@ def _compute_azimuthal_mean(uxda, center_xyz, chord_radii):
         shape=(n_radius, faces.size),
     )
 
-    # Only the data variable is gathered: the caller rebuilds the coords, and
+    # Only the data variable is used: the caller rebuilds the coords, and
     # loading them here would read any lazy ones once per contiguous read
     variable = uxda.variable
-    if variable.chunks is None:
-        ring_data = _read_faces(variable, faces)
+    if variable.chunks is not None:
+        variable = variable.transpose(..., "n_face")
+        sums = _dask_ring_sums(variable.data, faces, weights)
     else:
-        # dask reads only the chunks that hold ring faces; the sparse multiply
-        # spans every ring face, so they're gathered into a single chunk
-        ring_data = variable.isel(n_face=faces).chunk({"n_face": -1})
+        if variable._in_memory:
+            # one fancy index is cheaper than contiguous reads from memory
+            ring_data = variable.isel(n_face=faces)
+        else:
+            ring_data = _read_faces(variable, faces)
+        variable = ring_data.transpose(..., "n_face")
+        sums = _ring_sums(variable.values, weights)
 
-    means = xr.apply_ufunc(
-        _apply_ring_weights,
-        ring_data,
-        input_core_dims=[["n_face"]],
-        output_core_dims=[["radius"]],
-        dask="parallelized",
-        kwargs={"weights": weights},
-        output_dtypes=[np.result_type(weights.dtype, ring_data.dtype)],
-        # n_face is already one chunk; dask's rechunk divides by zero when it's empty
-        dask_gufunc_kwargs={
-            "output_sizes": {"radius": n_radius},
-            "allow_rechunk": False,
-        },
+    # empty rings are NaN; np.where defers to dask for lazy sums
+    means = xr.Variable(
+        variable.dims[:-1] + ("radius",), np.where(hit_count == 0, np.nan, sums)
     )
-
     dims = ["radius" if dim == "n_face" else dim for dim in uxda.dims]
     return means.transpose(*dims), hit_count
 
@@ -93,24 +87,50 @@ def _read_faces(variable, faces):
     gaps = np.diff(faces) - 1
     by_size = np.argsort(gaps)
     n_bridged = np.searchsorted(np.cumsum(gaps[by_size]), faces.size, side="right")
-    splits = np.sort(by_size[n_bridged:])  # the gaps left between reads
-    starts = np.r_[faces[0], faces[splits + 1]]
-    stops = np.r_[faces[splits], faces[-1]] + 1
+    # one read per run of faces between the gaps left unbridged
+    runs = np.split(faces, np.sort(by_size[n_bridged:]) + 1)
+    pieces = [
+        variable.isel(n_face=slice(run[0], run[-1] + 1))
+        .load()
+        .isel(n_face=run - run[0])
+        for run in runs
+    ]
+    return xr.Variable.concat(pieces, "n_face")
 
-    pieces = [variable.isel(n_face=slice(a, b)).load() for a, b in zip(starts, stops)]
-    read = np.concatenate([np.arange(a, b) for a, b in zip(starts, stops)])
-    return xr.Variable.concat(pieces, "n_face").isel(
-        n_face=np.searchsorted(read, faces)
-    )
+
+def _dask_ring_sums(array, faces, weights):
+    """Applies the sparse ring operator to the ring faces of each input
+    ``n_face`` chunk of a dask array (``n_face`` last) and adds up the partial sums.
+    """
+    import dask.array as da
+
+    n_radius = weights.shape[0]
+    out_chunks = array.chunks[:-1] + ((n_radius,),)
+    meta = np.array((), dtype=np.result_type(weights.dtype, array.dtype))
+    # faces are ascending, so each chunk's ring faces are one slice faces[lo:hi],
+    # and indexing them stays within that chunk
+    edges = np.searchsorted(faces, np.cumsum((0,) + array.chunks[-1]))
+    parts = [
+        array[..., faces[lo:hi]].map_blocks(
+            _ring_sums, weights=weights[:, lo:hi], chunks=out_chunks, meta=meta
+        )
+        for lo, hi in zip(edges[:-1], edges[1:])
+        if lo < hi
+    ]
+
+    if not parts:
+        shape = array.shape[:-1] + (n_radius,)
+        return da.zeros(shape, chunks=out_chunks, dtype=meta.dtype)
+    # stacking makes the sum a tree reduction, where a chain of + would fuse into
+    # one task that needs every input chunk at once
+    return da.stack(parts).sum(axis=0)
 
 
-def _apply_ring_weights(values, weights):
+def _ring_sums(values, weights):
     """Applies the sparse ring operator along the trailing (ring face) dimension."""
     # NaN faces add nothing to the weighted sum but still count toward the ring
     # area, matching the skipna sum of the former per-ring weighted_mean()
     values = np.where(np.isnan(values), 0, values)
     # explicit leading size: -1 is ambiguous when no face falls in any ring
     flat = values.reshape(math.prod(values.shape[:-1]), values.shape[-1])
-    means = (weights @ flat.T).T
-    means[:, np.diff(weights.indptr) == 0] = np.nan  # empty rings
-    return means.reshape(values.shape[:-1] + (weights.shape[0],))
+    return (flat @ weights.T).reshape(values.shape[:-1] + (weights.shape[0],))

@@ -2,6 +2,7 @@ import dask.array as da
 import numpy as np
 import pytest
 import xarray as xr
+from dask.callbacks import Callback
 from xarray.core import indexing
 
 import uxarray as ux
@@ -93,6 +94,31 @@ def test_matches_reference(uxds, center, chunks):
         assert np.all(hits[1:] > 1)
     else:
         assert np.all(hits == 0)
+
+
+def test_dask_holds_one_input_chunk_at_a_time(uxds):
+    # (time, n_face) data in 50-face chunks, with every face within outer_radius
+    data = ux.UxDataArray(
+        xr.concat([uxds["gaussian"], uxds["inverse_gaussian"]] * 2, dim="time"),
+        uxgrid=uxds.uxgrid,
+    ).chunk({"n_face": 50})
+    res, hits = data.azimuthal_mean(
+        center_coord=(45, 0), outer_radius=2, radius_step=0.25, return_hit_counts=True
+    )
+    assert hits.sum() == data.sizes["n_face"]
+
+    # The size of every intermediate result, from input chunks to ring sums.
+    # Unoptimized, as task fusion would hide a gathered block inside one task.
+    result_nbytes = []
+    with Callback(
+        posttask=lambda key, result, *_: result_nbytes.append(
+            getattr(result, "nbytes", 0)
+        )
+    ):
+        res.compute(scheduler="synchronous", optimize_graph=False)
+
+    # no task gathers the ring faces of several input chunks
+    assert max(result_nbytes) <= data.isel(n_face=slice(0, 50)).nbytes
 
 
 class _CountingBackendArray(xr.backends.BackendArray):

@@ -1045,9 +1045,10 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         using bounding circles - for radii = [r1, r2, r3, ...] faces whose centers lie at distance d,
         r2 < d <= r3 are included in calculations for r3.
 
-        Dask-backed data is reduced lazily, with the faces inside ``outer_radius``
-        gathered into a single ``n_face`` chunk. Other lazily loaded data is read
-        as contiguous slices covering at most twice the faces inside ``outer_radius``.
+        Dask-backed data is reduced lazily, one input ``n_face`` chunk at a time,
+        so no task gathers every face inside ``outer_radius``. Other lazily loaded
+        data is read as contiguous slices covering at most twice the faces inside
+        ``outer_radius``.
         """
         from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
