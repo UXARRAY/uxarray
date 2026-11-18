@@ -95,13 +95,8 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     cos_theta = _numba_dot3(pt_a, pt_b)
 
     # Return True if the point lies within the interval (smaller arc)
-    if cos_theta < 0:
-        return True
-    elif np.isclose(cos_theta, 0.0, atol=MACHINE_EPSILON):
-        # set error tolerance to 0.0
-        return True
-    else:
-        return False
+    # (set error tolerance to 0.0)
+    return cos_theta < 0 or np.isclose(cos_theta, 0.0, atol=MACHINE_EPSILON)
 
 
 @njit(cache=True)
