@@ -3,8 +3,9 @@ from __future__ import annotations
 import copy
 import os
 import warnings
+from collections.abc import Sequence
 from html import escape
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import xarray as xr
@@ -506,7 +507,7 @@ class Grid:
         node_lon: np.ndarray,
         node_lat: np.ndarray,
         face_node_connectivity: np.ndarray,
-        fill_value: int | float | None = None,
+        fill_value: float | None = None,
         start_index: int = 0,
         dims_dict: dict | None = None,
         **kwargs,
@@ -2285,7 +2286,7 @@ class Grid:
         latitude_adjusted_area: bool = False,
         return_jacobian: bool = False,
         as_uxarray: bool = False,
-    ) -> "np.ndarray | UxDataArray | tuple[np.ndarray | UxDataArray, np.ndarray]":
+    ) -> np.ndarray | UxDataArray | tuple[np.ndarray | UxDataArray, np.ndarray]:
         """Compute the area of each face in the grid.
 
         Unlike the cached :attr:`face_areas` property (which always uses the
@@ -2660,7 +2661,7 @@ class Grid:
     def to_polycollection(
         self,
         periodic_elements: str = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection: ccrs.Projection | None = None,
         return_indices: bool = False,
         cache: bool = True,
         override: bool = False,
@@ -2746,7 +2747,7 @@ class Grid:
     def to_linecollection(
         self,
         periodic_elements: str = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection: ccrs.Projection | None = None,
         cache: bool = True,
         override: bool = False,
         **kwargs,
