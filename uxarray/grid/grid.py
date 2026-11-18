@@ -180,13 +180,12 @@ class Grid:
         merge_coincident_nodes: bool = True,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
-        if source_grid_spec != "HEALPix":
-            if not _validate_minimum_ugrid(grid_ds):
-                raise GridInvalidError(
-                    "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
-                    "at least the following variables: ['node_lon', 'node_lat', 'face_node_connectivity'],"
-                    f"\nbut got grid_ds with data_vars: {list(grid_ds.data_vars)}"
-                )
+        if source_grid_spec != "HEALPix" and not _validate_minimum_ugrid(grid_ds):
+            raise GridInvalidError(
+                "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
+                "at least the following variables: ['node_lon', 'node_lat', 'face_node_connectivity'],"
+                f"\nbut got grid_ds with data_vars: {list(grid_ds.data_vars)}"
+            )
             # TODO: more checks for validate grid (lat/lon coords, etc)
 
         # canonicalize coincident node indices in connectivity before this dataset
@@ -848,10 +847,7 @@ class Grid:
             return False
         if not self.node_lat.equals(other.node_lat):
             return False
-        if not self.face_node_connectivity.equals(other.face_node_connectivity):
-            return False
-
-        return True
+        return self.face_node_connectivity.equals(other.face_node_connectivity)
 
     def __ne__(self, other) -> bool:
         """Two grids are not equal if they have differing grid topology
@@ -2601,13 +2597,12 @@ class Grid:
             )
 
         # if project is false, projection is only used for determining central coordinates
-        if projection and project:
-            if periodic_elements == "split":
-                raise ValueError(
-                    "Setting ``periodic_elements='split'`` is not supported when a "
-                    f"projection is provided; got projection={projection!r} "
-                    f"in {type(self).__name__}.to_geodataframe()."
-                )
+        if projection and project and periodic_elements == "split":
+            raise ValueError(
+                "Setting ``periodic_elements='split'`` is not supported when a "
+                f"projection is provided; got projection={projection!r} "
+                f"in {type(self).__name__}.to_geodataframe()."
+            )
 
         if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
@@ -2615,14 +2610,13 @@ class Grid:
                 f"but got {periodic_elements!r}, in {type(self).__name__}.to_geodataframe()"
             )
 
-        if self._gdf_cached_parameters["gdf"] is not None:
-            if (
-                self._gdf_cached_parameters["periodic_elements"] != periodic_elements
-                or self._gdf_cached_parameters["projection"] != projection
-                or self._gdf_cached_parameters["engine"] != engine
-            ):
-                # cached GeoDataFrame has a different projection or periodic element handling method
-                override = True
+        if self._gdf_cached_parameters["gdf"] is not None and (
+            self._gdf_cached_parameters["periodic_elements"] != periodic_elements
+            or self._gdf_cached_parameters["projection"] != projection
+            or self._gdf_cached_parameters["engine"] != engine
+        ):
+            # cached GeoDataFrame has a different projection or periodic element handling method
+            override = True
 
         if self._gdf_cached_parameters["gdf"] is not None and not override:
             # use cached PolyCollection
@@ -2694,14 +2688,13 @@ class Grid:
                 f"but got {periodic_elements!r}, in {type(self).__name__}.to_polycollection()"
             )
 
-        if self._poly_collection_cached_parameters["poly_collection"] is not None:
-            if (
-                self._poly_collection_cached_parameters["periodic_elements"]
-                != periodic_elements
-                or self._poly_collection_cached_parameters["projection"] != projection
-            ):
-                # cached PolyCollection has a different projection or periodic element handling method
-                override = True
+        if self._poly_collection_cached_parameters["poly_collection"] is not None and (
+            self._poly_collection_cached_parameters["periodic_elements"]
+            != periodic_elements
+            or self._poly_collection_cached_parameters["projection"] != projection
+        ):
+            # cached PolyCollection has a different projection or periodic element handling method
+            override = True
 
         if (
             self._poly_collection_cached_parameters["poly_collection"] is not None
