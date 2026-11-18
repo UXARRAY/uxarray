@@ -40,8 +40,8 @@ def quad_hexagon_ds(gridpath):
 @pytest.mark.parametrize("case", STRAY_CASES)
 def test_stray_variables_are_dropped(quad_hexagon_ds, case):
     """Each stray ``time`` shape listed in #1720 should be gone after
-    ``Grid.from_dataset``, with the grid itself unchanged."""
-    uxgrid = ux.Grid.from_dataset(STRAY_CASES[case](quad_hexagon_ds))
+    ``Grid.__init__``, with the grid itself unchanged."""
+    uxgrid = ux.Grid(STRAY_CASES[case](quad_hexagon_ds), source_grid_spec="UGRID")
 
     assert not STRAY_NAMES & set(uxgrid._ds.variables)
     assert set(uxgrid._ds.dims) <= set(DIM_NAMES)
@@ -83,23 +83,6 @@ def test_scalar_time_data_var_does_not_block_subsetting(gridpath):
     uxgrid = ux.open_grid(
         grid_ds.assign(time=xr.DataArray(np.datetime64("2016-01-01")))
     )
-    uxda = ux.UxDataArray(
-        np.ones((2, uxgrid.n_face)),
-        dims=("time", "n_face"),
-        coords={"time": TIMES},
-        uxgrid=uxgrid,
-    )
-
-    res = uxda.subset.bounding_box((-10, 10), (-10, 10))
-
-    np.testing.assert_array_equal(res["time"].values, TIMES)
-
-
-def test_directly_built_grid_with_stray_time_can_be_subset(quad_hexagon_ds):
-    """``ux.Grid(ds)`` doesn't filter, so a stray scalar ``time`` stays on the grid;
-    subsetting data with a different ``time`` must still work."""
-    ds = quad_hexagon_ds.assign_coords(time=np.datetime64("2016-01-01"))
-    uxgrid = ux.Grid(ds, source_grid_spec="UGRID")
     uxda = ux.UxDataArray(
         np.ones((2, uxgrid.n_face)),
         dims=("time", "n_face"),
