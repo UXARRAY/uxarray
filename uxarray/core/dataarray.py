@@ -196,7 +196,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         """set of all grid dimensions associated with self.
         This is a (possibly-empty) subset of {"n_face", "n_edge", "n_node"}.
         """
-        return set(d for d in GRID_DIMS if d in self.dims)
+        return {d for d in GRID_DIMS if d in self.dims}
 
     @property
     def _grid_dim(self) -> str:
@@ -2358,7 +2358,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             )
         elif len(grid_dims) == 1:
             # pop off the one grid‐dim indexer
-            grid_dim = list(grid_dims)[0]
+            grid_dim = next(iter(grid_dims))
             indexers = indexers.copy()  # don't modify the original dict
             grid_indexer = indexers.pop(grid_dim)
             if grid_dim in self.coords:  # label-based indexing
@@ -2373,7 +2373,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 # crash if provided `method` or `tolerance`, as promised in docstring;
                 if method is not None or tolerance is not None:
                     raise ValueError(
-                        f"cannot supply selection options {dict(method=method, tolerance=tolerance)} "
+                        f"cannot supply selection options { {"method": method, "tolerance": tolerance} } "
                         f"for dimension {grid_dim!r} that has no associated coordinate or index"
                     )
                 grid_indices = grid_indexer
