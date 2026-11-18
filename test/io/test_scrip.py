@@ -226,7 +226,7 @@ def test_scrip_dask_lazy_dedup_matches_eager_radians(gridpath):
 def test_scrip_dask_and_eager_dedup_assign_identical_node_ids(gridpath, chunks):
     """The SCRIP reader's eager and dask dedup paths number nodes identically.
     (Uses ``merge_coincident_nodes=False`` intentionally, to isolate the reader's own dedup.
-    Uusing True would instead also check the default dedup applied to all grids; this is
+    Using True would instead also check the default dedup applied to all grids; this is
     tested elsewhere, see: ``test_scrip_dask_and_eager_grids_match_with_default_settings``.)
     """
     grid_file = gridpath("scrip", "outCSne8", "outCSne8.nc")
