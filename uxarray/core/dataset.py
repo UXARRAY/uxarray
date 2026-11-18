@@ -210,7 +210,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         """set of all grid dimensions associated with self.
         This is a (possibly-empty) subset of {"n_face", "n_edge", "n_node"}.
         """
-        return set(d for d in GRID_DIMS if d in self.dims)
+        return {d for d in GRID_DIMS if d in self.dims}
 
     @property
     def _grid_dim(self) -> str:
@@ -679,7 +679,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
             )
         elif len(grid_dims) == 1:
             # pop off the one grid‐dim indexer
-            grid_dim = list(grid_dims)[0]
+            grid_dim = next(iter(grid_dims))
             indexers = indexers.copy()  # don't modify the original dict
             grid_indexer = indexers.pop(grid_dim)
             if grid_dim in self.coords:  # label-based indexing
@@ -695,7 +695,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
                 # (this error logic matches xarray's error logic in this case.)
                 if method is not None or tolerance is not None:
                     raise ValueError(
-                        f"cannot supply selection options {dict(method=method, tolerance=tolerance)} "
+                        f"cannot supply selection options { {"method": method, "tolerance": tolerance} } "
                         f"for dimension {grid_dim!r} that has no associated coordinate or index"
                     )
                 grid_indices = grid_indexer
@@ -1173,7 +1173,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
 
         For more details about parameters, see :meth:`UxDataArray.zonal_anomaly`.
         """
-        kw = dict(lat=lat, conservative=conservative)
+        kw = {"lat": lat, "conservative": conservative}
         return self._apply_across_data_vars("zonal_anomaly", ("n_face",), **kw)
 
     def azimuthal_mean(
@@ -1196,11 +1196,11 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
             raise NotImplementedError(
                 f"{type(self).__name__}.azimuthal_mean(..., return_hit_counts=True)"
             )
-        kw = dict(
-            center_coord=center_coord,
-            outer_radius=outer_radius,
-            radius_step=radius_step,
-        )
+        kw = {
+            "center_coord": center_coord,
+            "outer_radius": outer_radius,
+            "radius_step": radius_step,
+        }
         return self._apply_across_data_vars("azimuthal_mean", ("n_face",), **kw)
 
     azimuthal_average = azimuthal_mean  # alias
