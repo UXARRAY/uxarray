@@ -952,26 +952,24 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         xr.Dataset
             The ``ux.UxDataset`` represented as a ``xr.Dataset``
         """
-        if grid_format == "HEALPix":
-            ds = self.rename_dims({"n_face": "cell"})
-        else:
-            ds = self
-
-        # Equivalent to the "naive" xr.Dataset(ds.data_vars, coords=ds.coords, attrs=ds.attrs)
+        # Equivalent to the "naive" xr.Dataset(self.data_vars, coords=self.coords, attrs=self.attrs)
         # but internally here uses _construct_direct() for efficiency, to avoid validation checks,
         # since a valid UxDataset is already guaranteed to be a valid xr.Dataset.
-        variables = {k: v.copy(deep=False) for k, v in ds._variables.items()}
+        variables = {k: v.copy(deep=False) for k, v in self._variables.items()}
         for k, v in variables.items():
-            if k not in ds._coord_names:
+            if k not in self._coord_names:
                 v.encoding = {}  # matches the "naive" implementation's behavior
-        return xr.Dataset._construct_direct(
+        result = xr.Dataset._construct_direct(
             variables=variables,
-            coord_names=set(ds._coord_names),
-            dims=dict(ds._dims),
-            attrs=dict(ds.attrs),
-            indexes=dict(ds._indexes),
-            close=ds._close,
+            coord_names=set(self._coord_names),
+            dims=dict(self._dims),
+            attrs=dict(self.attrs),
+            indexes=dict(self._indexes),
+            close=self._close,
         )
+        if grid_format == "HEALPix":
+            result = result.rename_dims({"n_face": "cell"})
+        return result
 
     def astype(self, dtype, **kw_super):
         """Copy of this uxarray object, with data cast to a specified type.
