@@ -21,7 +21,8 @@ from pathlib import Path
 PACKAGE_DIR = Path(__file__).resolve().parent.parent / "uxarray"
 CACHE_SUFFIXES = {".nbi", ".nbc"}
 # Jitted modules whose kernels are compiled into kernels of *other* modules. Add a module
-# here when another module's jitted code starts calling into it.
+# here when another module's jitted code starts calling into it; test_numba_flags.py's
+# test_shared_modules_complete fails if one is missing.
 SHARED_MODULES = [
     "utils/computing.py",
     "utils/numba_math.py",

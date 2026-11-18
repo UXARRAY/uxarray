@@ -15,11 +15,14 @@ Taking ``acc_sqrt_re`` (``uxarray.utils.computing``) as the example:
 
 ``test_numpy_error_model`` checks every uxarray kernel that inlines one of
 ``NUMPY_ERROR_MODEL_KERNELS``; ``test_no_fastmath`` checks every kernel that inlines
-anything from ``uxarray.utils.computing``.
+anything from ``uxarray.utils.computing``. ``test_shared_modules_complete`` checks that
+the cache clearing in test/conftest.py watches every module whose kernels are compiled
+into another module's.
 """
 
 import ast
 import importlib
+import importlib.util
 import inspect
 import pkgutil
 import sys
@@ -143,4 +146,36 @@ def test_no_fastmath(kernels):
         f"fastmath enabled on {sorted(offenders)} (kernels, or module:line of a fastmath= "
         f"that isn't a literal False): they inline EFT code from {EFT_MODULE}, whose "
         f"error terms fastmath cancels to 0. Remove fastmath or set it to False."
+    )
+
+
+def test_shared_modules_complete(kernels):
+    """SHARED_MODULES lists every module whose kernels another module's kernels call."""
+    script = Path(__file__).parents[3] / "ci" / "clean_numba_cache.py"
+    if not script.exists():
+        pytest.skip("ci/clean_numba_cache.py is not available outside the repository")
+    spec = importlib.util.spec_from_file_location("clean_numba_cache", script)
+    cleaner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cleaner)
+    shared = {
+        "uxarray." + name.removesuffix(".py").replace("/", ".")
+        for name in cleaner.SHARED_MODULES
+    }
+
+    # Any cross-module call counts, not only inline="always": numba links a cached
+    # callee's code into the caller's cached object either way.
+    called_from = {}
+    for kernel, _ in kernels.values():
+        caller = kernel.py_func.__module__
+        for callee in _callees(kernel):
+            if callee.py_func.__module__ != caller:
+                called_from.setdefault(callee.py_func.__module__, set()).add(caller)
+    assert called_from, "found no cross-module kernel calls; is _callees broken?"
+
+    missing = {m: sorted(c) for m, c in sorted(called_from.items()) if m not in shared}
+    assert not missing, (
+        f"Add these to SHARED_MODULES in ci/clean_numba_cache.py: {missing} "
+        f"(module -> its callers). Kernels in the callers compile in code from these "
+        f"modules, and numba won't notice when they change, so pytest must clear the "
+        f"cache whenever they do."
     )
