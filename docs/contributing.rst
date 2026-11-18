@@ -360,13 +360,13 @@ following command::
 
     $ pre-commit run --all-files
 
-One of the hooks, ``clean-numba-cache``, deletes numba's on-disk kernel cache when you stage a
-change to one of the shared jitted modules (``uxarray/utils/computing.py``, ``numba_math.py``
-and the ``uxarray/grid`` modules that call them). Numba only checks a cached kernel against
-the file that defines it, so a kernel that calls a jitted function from another file would
-otherwise keep running the old code after that function is edited. The hook only fires at
-commit time, so after editing one of these files, run the same cleanup by hand before you
-test the change::
+A note on numba's kernel cache: numba only checks a cached kernel against the file that
+defines it, so a kernel that calls a jitted function from another file keeps running the old
+code after that function is edited. ``pytest`` handles this for you: at startup it clears the
+cache if any of the shared jitted modules (``SHARED_MODULES`` in
+``ci/clean_numba_cache.py``) differs from the last run, and leaves a warm cache alone
+otherwise. Outside pytest (a notebook or script), clear it by hand after editing one of
+those modules::
 
     $ python ci/clean_numba_cache.py
 
