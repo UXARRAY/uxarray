@@ -29,8 +29,6 @@ os.environ.setdefault(
 
 import uxarray
 
-__all__ = (uxarray, matplotlib.pyplot)
-
 sys.path.insert(0, os.path.abspath("../"))  # Source code dir relative to this file
 
 LOGGER = logging.getLogger("conf")
