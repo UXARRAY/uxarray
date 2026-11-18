@@ -5,7 +5,7 @@ These classes wrap xarray's groupby/resample/etc objects and ensure that
 operations return UxDataArray/UxDataset objects with preserved uxgrid.
 """
 
-from typing import Any
+from typing import Any, ClassVar
 
 import xarray as xr
 
@@ -37,7 +37,7 @@ class BaseAccessor:
     """Base class for all UXarray accessor classes."""
 
     # Default methods known to return DataArrays/Datasets - optimized for performance
-    _DEFAULT_PRESERVE_METHODS = {
+    _DEFAULT_PRESERVE_METHODS: ClassVar[set[str]] = {
         "mean",
         "sum",
         "std",
