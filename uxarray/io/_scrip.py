@@ -135,13 +135,13 @@ def _dedup_scrip_nodes_eager(corner_lon, corner_lat):
 @njit(cache=True, inline="always")
 def _lt_nan_last(a, b):
     """``a < b`` in numpy's sort order, which places NaN after every number."""
-    return a < b or (b != b and a == a)
+    return a < b or (np.isnan(b) and not np.isnan(a))
 
 
 @njit(cache=True, inline="always")
 def _eq_nan(a, b):
     """``a == b``, except that NaN equals NaN, as it does in the dedup."""
-    return a == b or (a != a and b != b)
+    return a == b or (np.isnan(a) and np.isnan(b))
 
 
 @njit(cache=True, nogil=True)
