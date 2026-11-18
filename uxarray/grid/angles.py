@@ -39,7 +39,7 @@ def _compute_face_node_angles_convex(
         Angles at each node of each face.
         INT_FILL_VALUE elements from face_node_connectivity correspond with np.nan in the result.
     """
-    n_faces, _n_max_face_nodes = face_node_connectivity.shape
+    n_faces, _ = face_node_connectivity.shape
     result = np.full(face_node_connectivity.shape, np.nan, dtype=np.float64)
     for i in prange(n_faces):
         n_nodes = n_nodes_per_face[i]
