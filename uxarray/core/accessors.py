@@ -102,7 +102,7 @@ class BaseAccessor:
         """Determine if a method should be wrapped."""
         if self._auto_wrap:
             # In auto-wrap mode, check if it's callable
-            return hasattr(getattr(self._xr_obj, name, None), "__call__")
+            return callable(getattr(self._xr_obj, name, None))
         return name in self._preserve_methods
 
     def _wrap_method(self, method):

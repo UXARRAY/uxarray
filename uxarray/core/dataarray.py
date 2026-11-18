@@ -1186,7 +1186,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 # if weights and self both have coords on grid dim, ensure exact alignment,
                 # otherwise xarray silently only keeps locations where coords agree.
                 try:
-                    self, weights = xr.align(self, weights, join="exact")
+                    _, weights = xr.align(self, weights, join="exact")
                 except xr.AlignmentError as err:
                     raise DimensionError(
                         f"For DataArray weights, expected alignment with data's grid dimension "
