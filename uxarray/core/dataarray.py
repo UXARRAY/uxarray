@@ -1161,6 +1161,8 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             If provided weights which are not 1D, or incompatible with the data due to
             having wrong size or (if xr.DataArray) wrong dimension name.
         """
+        # self, or its copy aligned with xr.DataArray weights below
+        data = self
         if weights is None:
             if self._face_centered():
                 weights = self.uxgrid.face_areas.data
@@ -1186,7 +1188,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 # if weights and self both have coords on grid dim, ensure exact alignment,
                 # otherwise xarray silently only keeps locations where coords agree.
                 try:
-                    _, weights = xr.align(self, weights, join="exact")
+                    data, weights = xr.align(self, weights, join="exact")
                 except xr.AlignmentError as err:
                     raise DimensionError(
                         f"For DataArray weights, expected alignment with data's grid dimension "
@@ -1195,11 +1197,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         if not isinstance(weights, xr.DataArray):
             # convert to xr.DataArray to ensure operations below align dims properly
-            weights = xr.DataArray(weights, dims=(self._grid_dim,))
+            weights = xr.DataArray(weights, dims=(data._grid_dim,))
 
         total_weight = weights.sum()
-        weighted_mean = (self * weights).sum(self._grid_dim) / total_weight
-        return type(self)(weighted_mean, uxgrid=self.uxgrid)
+        weighted_mean = (data * weights).sum(data._grid_dim) / total_weight
+        return type(data)(weighted_mean, uxgrid=data.uxgrid)
 
     def topological_mean(
         self,
