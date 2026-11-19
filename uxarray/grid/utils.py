@@ -559,7 +559,8 @@ def make_setter(key: str):
 #
 # NOTE: these are inlined into ``cache=True`` kernels in another module, and numba stamps its
 # cache against the defining file alone, so editing them does not invalidate a caller's cached
-# object. Clear ``uxarray/grid/__pycache__/*.nbi *.nbc`` after changing anything here.
+# object. pytest clears the cache when this file changes; outside pytest, run
+# ``python ci/clean_numba_cache.py`` after changing anything here.
 
 
 @njit(cache=True)
