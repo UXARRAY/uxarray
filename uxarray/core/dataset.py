@@ -694,8 +694,9 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
                 # crash if provided `method` or `tolerance`, as promised in docstring;
                 # (this error logic matches xarray's error logic in this case.)
                 if method is not None or tolerance is not None:
+                    options = {"method": method, "tolerance": tolerance}
                     raise ValueError(
-                        f"cannot supply selection options { {'method': method, 'tolerance': tolerance} } "
+                        f"cannot supply selection options {options} "
                         f"for dimension {grid_dim!r} that has no associated coordinate or index"
                     )
                 grid_indices = grid_indexer
