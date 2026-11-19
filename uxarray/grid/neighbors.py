@@ -15,6 +15,7 @@ from uxarray.constants import (
     INT_FILL_VALUE,
 )
 from uxarray.errors import DimensionError
+from uxarray.grid.validation import _live_node_indices
 from uxarray.utils.parallel import parallel_njit
 
 
@@ -50,9 +51,9 @@ class KDTree:
     def __init__(
         self,
         grid,
-        coordinates: str | None = "face centers",
-        coordinate_system: str | None = "cartesian",
-        distance_metric: str | None = "minkowski",
+        coordinates: str = "face centers",
+        coordinate_system: str = "cartesian",
+        distance_metric: str = "minkowski",
         reconstruct: bool = False,
     ):
         # Set up references
@@ -65,11 +66,18 @@ class KDTree:
         self._tree_from_nodes = None
         self._tree_from_face_centers = None
         self._tree_from_edge_centers = None
+        # maps node-tree-local index -> original grid node index, set only when
+        # the node tree excludes dead duplicate node indices (see _build_from_nodes)
+        self._node_index_map = None
 
         # Build the tree based on nodes, face centers, or edge centers
         if coordinates == "nodes":
             self._tree_from_nodes = self._build_from_nodes()
-            self._n_elements = self._source_grid.n_node
+            self._n_elements = (
+                len(self._node_index_map)
+                if self._node_index_map is not None
+                else self._source_grid.n_node
+            )
         elif coordinates == "face centers":
             self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
@@ -111,6 +119,13 @@ class KDTree:
                 raise ValueError(
                     f"Invalid coordinate_system. Expected 'cartesian' or 'spherical', got {self.coordinate_system!r}"
                 )
+
+            live_indices = _live_node_indices(self._source_grid)
+            if len(live_indices) < len(coords):
+                self._node_index_map = live_indices
+                coords = coords[live_indices]
+            else:
+                self._node_index_map = None
 
             self._tree_from_nodes = SKKDTree(coords, metric=self.distance_metric)
 
@@ -217,12 +232,12 @@ class KDTree:
     def query(
         self,
         coords: np.ndarray | list | tuple,
-        k: int | None = 1,
-        return_distance: bool | None = True,
-        in_radians: bool | None = False,
-        dualtree: bool | None = False,
-        breadth_first: bool | None = False,
-        sort_results: bool | None = True,
+        k: int = 1,
+        return_distance: bool = True,
+        in_radians: bool = False,
+        dualtree: bool = False,
+        breadth_first: bool = False,
+        sort_results: bool = True,
     ):
         """Queries the tree for the ``k`` nearest neighbors.
 
@@ -274,6 +289,9 @@ class KDTree:
 
             ind = np.asarray(ind, dtype=INT_DTYPE)
 
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = self._node_index_map[ind]
+
             if coords.shape[0] == 1:
                 ind = ind.squeeze()
 
@@ -294,6 +312,9 @@ class KDTree:
 
             ind = np.asarray(ind, dtype=INT_DTYPE)
 
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = self._node_index_map[ind]
+
             if coords.shape[0] == 1:
                 ind = ind.squeeze()
         return ind
@@ -301,11 +322,11 @@ class KDTree:
     def query_radius(
         self,
         coords: np.ndarray | list | tuple,
-        r: int | None = 1.0,
-        return_distance: bool | None = False,
-        in_radians: bool | None = False,
-        count_only: bool | None = False,
-        sort_results: bool | None = False,
+        r: int = 1.0,
+        return_distance: bool = False,
+        in_radians: bool = False,
+        count_only: bool = False,
+        sort_results: bool = False,
     ):
         """Queries the tree for all neighbors within a radius ``r``.
 
@@ -360,6 +381,8 @@ class KDTree:
             )
 
             ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = [self._node_index_map[cur_ind] for cur_ind in ind]
             d = [np.asarray(cur_d) for cur_d in d]
 
             if coords.shape[0] == 1:
@@ -376,6 +399,8 @@ class KDTree:
             )
 
             ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = [self._node_index_map[cur_ind] for cur_ind in ind]
 
             if coords.shape[0] == 1:
                 ind = ind[0]
@@ -394,7 +419,11 @@ class KDTree:
         if self._coordinates == "nodes":
             if self._tree_from_nodes is None or self.reconstruct:
                 self._tree_from_nodes = self._build_from_nodes()
-            self._n_elements = self._source_grid.n_node
+            self._n_elements = (
+                len(self._node_index_map)
+                if self._node_index_map is not None
+                else self._source_grid.n_node
+            )
         elif self._coordinates == "face centers":
             if self._tree_from_face_centers is None or self.reconstruct:
                 self._tree_from_face_centers = self._build_from_face_centers()
@@ -440,9 +469,9 @@ class BallTree:
     def __init__(
         self,
         grid,
-        coordinates: str | None = "face centers",
-        coordinate_system: str | None = "spherical",
-        distance_metric: str | None = "haversine",
+        coordinates: str = "face centers",
+        coordinate_system: str = "spherical",
+        distance_metric: str = "haversine",
         reconstruct: bool = False,
     ):
         # maintain a reference to the source grid
@@ -455,11 +484,18 @@ class BallTree:
         self._tree_from_nodes = None
         self._tree_from_face_centers = None
         self._tree_from_edge_centers = None
+        # maps node-tree-local index -> original grid node index, set only when
+        # the node tree excludes dead duplicate node indices (see _build_from_nodes)
+        self._node_index_map = None
 
         # set up appropriate reference to tree
         if coordinates == "nodes":
             self._tree_from_nodes = self._build_from_nodes()
-            self._n_elements = self._source_grid.n_node
+            self._n_elements = (
+                len(self._node_index_map)
+                if self._node_index_map is not None
+                else self._source_grid.n_node
+            )
         elif coordinates == "face centers":
             self._tree_from_face_centers = self._build_from_face_centers()
             self._n_elements = self._source_grid.n_face
@@ -531,6 +567,14 @@ class BallTree:
                     ),
                     axis=-1,
                 )
+
+            live_indices = _live_node_indices(self._source_grid)
+            if len(live_indices) < len(coords):
+                self._node_index_map = live_indices
+                coords = coords[live_indices]
+            else:
+                self._node_index_map = None
+
             self._tree_from_nodes = SKBallTree(coords, metric=self.distance_metric)
 
         return self._tree_from_nodes
@@ -602,12 +646,12 @@ class BallTree:
     def query(
         self,
         coords: np.ndarray | list | tuple,
-        k: int | None = 1,
-        in_radians: bool | None = False,
-        return_distance: bool | None = True,
-        dualtree: bool | None = False,
-        breadth_first: bool | None = False,
-        sort_results: bool | None = True,
+        k: int = 1,
+        in_radians: bool = False,
+        return_distance: bool = True,
+        dualtree: bool = False,
+        breadth_first: bool = False,
+        sort_results: bool = True,
     ):
         """Queries the tree for the ``k`` nearest neighbors.
 
@@ -658,6 +702,9 @@ class BallTree:
 
             ind = np.asarray(ind, dtype=INT_DTYPE)
 
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = self._node_index_map[ind]
+
             if coords.shape[0] == 1:
                 ind = ind.squeeze()
 
@@ -678,6 +725,9 @@ class BallTree:
 
             ind = np.asarray(ind, dtype=INT_DTYPE)
 
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = self._node_index_map[ind]
+
             if coords.shape[0] == 1:
                 ind = ind.squeeze()
 
@@ -686,11 +736,11 @@ class BallTree:
     def query_radius(
         self,
         coords: np.ndarray | list | tuple,
-        r: int | None = 1.0,
-        in_radians: bool | None = False,
-        return_distance: bool | None = False,
-        count_only: bool | None = False,
-        sort_results: bool | None = False,
+        r: int = 1.0,
+        in_radians: bool = False,
+        return_distance: bool = False,
+        count_only: bool = False,
+        sort_results: bool = False,
     ):
         """Queries the tree for all neighbors within a radius ``r``.
 
@@ -743,6 +793,8 @@ class BallTree:
             )
 
             ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = [self._node_index_map[cur_ind] for cur_ind in ind]
             d = [np.asarray(cur_d) for cur_d in d]
 
             if coords.shape[0] == 1:
@@ -759,6 +811,8 @@ class BallTree:
             )
 
             ind = [np.asarray(cur_ind, dtype=INT_DTYPE) for cur_ind in ind]
+            if self._coordinates == "nodes" and self._node_index_map is not None:
+                ind = [self._node_index_map[cur_ind] for cur_ind in ind]
 
             if coords.shape[0] == 1:
                 ind = ind[0]
@@ -777,7 +831,11 @@ class BallTree:
         if self._coordinates == "nodes":
             if self._tree_from_nodes is None or self.reconstruct:
                 self._tree_from_nodes = self._build_from_nodes()
-            self._n_elements = self._source_grid.n_node
+            self._n_elements = (
+                len(self._node_index_map)
+                if self._node_index_map is not None
+                else self._source_grid.n_node
+            )
         elif self._coordinates == "face centers":
             if self._tree_from_face_centers is None or self.reconstruct:
                 self._tree_from_face_centers = self._build_from_face_centers()
@@ -905,8 +963,8 @@ class SpatialHash:
     def query(
         self,
         coords: np.ndarray | list | tuple,
-        in_radians: bool | None = False,
-        tol: float | None = 1e-6,
+        in_radians: bool = False,
+        tol: float = 1e-6,
     ):
         """Queries the hash table.
 

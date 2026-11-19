@@ -160,12 +160,12 @@ class GradientColdStartRss:
 
 
 class GeoDataFrame(DatasetBenchmark):
-    param_names = DatasetBenchmark.param_names + ['exclude_antimeridian']
+    param_names = DatasetBenchmark.param_names + ['periodic_elements']
     repeat = SLOW_CALL_REPEAT
-    params = DatasetBenchmark.params + [[True, False]]
+    params = DatasetBenchmark.params + [["exclude", "split"]]
 
-    def time_to_geodataframe(self, resolution, exclude_antimeridian):
-        self.uxds[data_var].to_geodataframe(exclude_antimeridian=exclude_antimeridian)
+    def time_to_geodataframe(self, resolution, periodic_elements):
+        self.uxds[data_var].to_geodataframe(periodic_elements=periodic_elements)
 
 
 class ConnectivityConstruction(DatasetBenchmark):
@@ -284,7 +284,7 @@ class CrossSections(DatasetBenchmark):
 
     def time_const_lat(self, resolution, lat_step):
         for lat in self.lats:
-            self.uxgrid.cross_section.constant_latitude(lat)
+            self.uxgrid.subset.constant_latitude(lat)
 
 
 class PointInPolygon(CachedFixtures):
@@ -330,6 +330,21 @@ class ZonalAverage(DatasetBenchmark):
         self.uxds['bottomDepth'].zonal_mean(lat=(-45, 45, lat_step), use_robust_weights=True)
 
 
+class AzimuthalAverage(DatasetBenchmark):
+    def setup(self, resolution, *args, **kwargs):
+        super().setup(resolution, *args, **kwargs)
+        # Grid caches, so only the per-ring reduction is timed
+        _ = self.uxds.uxgrid.face_areas
+        _ = self.uxds.uxgrid._get_scipy_kd_tree()
+
+    def time_azimuthal_average(self, resolution):
+        # 61 rings around an equatorial Atlantic point, ocean on every oQU mesh.
+        # Wide enough that the ring faces, not per-call overhead, set the cost.
+        self.uxds[data_var].azimuthal_mean(
+            center_coord=(-30, 0), outer_radius=60, radius_step=1
+        )
+
+
 class ZonalAveragePeakMem:
     """Peak memory of a cold-start non-conservative zonal-mean sweep.
     Uses a fresh interpreter per sample."""
@@ -372,7 +387,7 @@ class CrossSectionsPeakMem:
             uxgrid = ux.open_grid(file_path_dict[resolution][0])
             uxgrid.normalize_cartesian_coordinates()
             uxgrid.bounds
-            uxgrid.cross_section.constant_latitude(0.0)
+            uxgrid.subset.constant_latitude(0.0)
 
     setup_cache.timeout = 1800
 
@@ -384,7 +399,7 @@ class CrossSectionsPeakMem:
             "uxgrid.normalize_cartesian_coordinates()\n"
             "uxgrid.bounds\n"
             f"for lat in np.arange(-45, 45, {lat_step}):\n"
-            "    uxgrid.cross_section.constant_latitude(lat)\n"
+            "    uxgrid.subset.constant_latitude(lat)\n"
         )
 
     track_peakmem_const_lat.unit = "bytes"

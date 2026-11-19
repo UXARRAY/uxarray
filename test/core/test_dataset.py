@@ -1,11 +1,11 @@
+import dask
+import numpy as np
 import numpy.testing as nt
 import xarray as xr
 import uxarray as ux
 import uxarray.errors
 from uxarray import UxDataset
 import pytest
-
-import numpy as np
 
 
 @pytest.fixture()
@@ -96,6 +96,43 @@ def test_get_dual(gridpath, datasetpath):
 
     assert isinstance(dual, UxDataset)
     assert len(uxds.data_vars) == len(dual.data_vars)
+
+
+def test_get_dual_aligns_node_data_with_retained_primal_nodes():
+    grid = ux.Grid.from_topology(
+        node_lon=np.array([-1.0, 0.0, 0.0, 1.0, 0.0]),
+        node_lat=np.array([0.0, -1.0, 0.0, 0.0, 1.0]),
+        face_node_connectivity=np.array(
+            [[2, 0, 1], [2, 1, 3], [2, 3, 4], [2, 4, 0]]
+        ),
+    )
+    node_data = np.arange(2 * 5 * 3).reshape(2, 5, 3)
+    face_data = np.arange(8).reshape(2, 4)
+    unrelated_data = np.array([10, 20])
+    uxds = UxDataset(
+        {
+            "node_data": (("time", "n_node", "level"), node_data),
+            "face_data": (("time", "n_face"), face_data),
+            "unrelated": (("time",), unrelated_data),
+        },
+        uxgrid=grid,
+    )
+
+    with pytest.warns(Warning, match="mesh is partial"):
+        dual_array = uxds["node_data"].get_dual()
+    with pytest.warns(Warning, match="mesh is partial"):
+        dual_dataset = uxds.get_dual()
+
+    assert dual_array.dims == ("time", "n_face", "level")
+    nt.assert_array_equal(dual_array.values, node_data[:, [2], :])
+    assert dual_array.sizes["n_face"] == dual_array.uxgrid.n_face == 1
+
+    assert dual_dataset["node_data"].dims == ("time", "n_face", "level")
+    nt.assert_array_equal(dual_dataset["node_data"].values, node_data[:, [2], :])
+    assert dual_dataset["face_data"].dims == ("time", "n_node")
+    nt.assert_array_equal(dual_dataset["face_data"].values, face_data)
+    assert dual_dataset["unrelated"].dims == ("time",)
+    nt.assert_array_equal(dual_dataset["unrelated"].values, unrelated_data)
 
 
 def _load_sel_subset(gridpath, datasetpath):
@@ -335,3 +372,442 @@ def test_uxdataset_astype_returns_uxdataset():
     result = obj.astype('float32')
     assert obj.dtypes['t2m'] == np.float32  # the original dtype was float32
     assert result.identical(obj)  # so astype() should be a no-op.
+
+
+class TestUxDatasetToXarray:
+    """``UxDataset.to_xarray()`` must behave exactly like old "naive" implementation:
+    result = xr.Dataset(uxds.data_vars, coords=uxds.coords, attrs=uxds.attrs)
+    """
+
+    def get_uxds(self):
+        """quad-hexagon plus a time-dependent var, extra coords, attrs and encodings."""
+        uxds = ux.tutorial.open_dataset("quad-hexagon")
+        uxds = uxds.assign(
+            {
+                "var_with_time": uxds["t2m"]
+                * xr.DataArray([10, 20, 30], dims="time", coords={"time": np.arange(3)})
+            }
+        )
+        uxds = uxds.assign_coords(
+            face_id=("n_face", np.arange(uxds.sizes["n_face"]), {"role": "id"}),
+            level=850.0,
+        )
+        uxds.attrs["title"] = "test"
+        uxds.variables["t2m"].attrs["units"] = "K"
+        uxds.variables["t2m"].encoding = {"dtype": "float32", "_FillValue": -999.0}
+        uxds.variables["face_id"].encoding = {"dtype": "int32"}
+        uxds.variables["time"].encoding = {"dtype": "int64"}
+        uxds.encoding = {"unlimited_dims": {"time"}}
+        return uxds
+
+    def old(self, uxds):
+        """The previous, "naive" implementation."""
+        return xr.Dataset(uxds.data_vars, coords=uxds.coords, attrs=uxds.attrs)
+
+    def assert_same_variables(self, new, old):
+        """Variable types, attrs, encodings and index types match."""
+        assert set(new.variables) == set(old.variables)
+        for k in old.variables:
+            assert type(new.variables[k]) is type(old.variables[k]), k
+            assert new.variables[k].attrs == old.variables[k].attrs, k
+            assert new.variables[k].encoding == old.variables[k].encoding, k
+        assert set(new.xindexes) == set(old.xindexes)
+        for k in old.xindexes:
+            assert type(new.xindexes[k]) is type(old.xindexes[k]), k
+
+    def test_identical_to_old(self):
+        """Contents, variable encodings, dataset encoding and ``_close`` match the old result."""
+        uxds = self.get_uxds()
+        new, old = uxds.to_xarray(), self.old(uxds)
+        xr.testing.assert_identical(new, old)
+        self.assert_same_variables(new, old)
+        assert new.encoding == old.encoding == {}
+        assert new._close is old._close is None
+
+    def test_data_sharing_matches_old(self):
+        """Whether each variable's data is shared with the original matches the old path."""
+        uxds = self.get_uxds()
+        new, old = uxds.to_xarray(), self.old(uxds)
+        for k in uxds.variables:
+            shares_new = np.shares_memory(new[k].values, uxds[k].values)
+            shares_old = np.shares_memory(old[k].values, uxds[k].values)
+            assert shares_new == shares_old, k
+
+    def test_modifying_result_leaves_original_unchanged(self):
+        """Mutating or restructuring the result never changes the original, same as the old path."""
+
+        def snapshot(ds):
+            return (
+                dict(ds.attrs),
+                {k: (dict(v.attrs), dict(v.encoding)) for k, v in ds.variables.items()},
+            )
+
+        for convert in (self.old, lambda u: u.to_xarray()):
+            uxds = self.get_uxds()
+            before = snapshot(uxds)
+            result = convert(uxds)
+
+            result.attrs["added"] = 1
+            for k in ("t2m", "face_id", "time"):
+                result.variables[k].attrs["added"] = 1
+                result.variables[k].encoding["added"] = 1
+            result.variables["var_with_time"].attrs = {"replaced": 1}
+            result.variables["var_with_time"].encoding = {"replaced": 1}
+            result["extra"] = ("n_face", np.zeros(uxds.sizes["n_face"]))
+            del result["var_with_time"]
+
+            assert snapshot(uxds) == before
+
+    def test_nested_mutables_match_old(self):
+        """Whether nested attrs/encoding values leak into the original matches the old path."""
+        leaked = []
+        for convert in (self.old, lambda u: u.to_xarray()):
+            uxds = self.get_uxds()
+            uxds.attrs["nested"] = [0]
+            uxds.variables["t2m"].attrs["nested"] = [0]
+            uxds.variables["face_id"].attrs["nested"] = [0]
+            uxds.variables["face_id"].encoding["nested"] = [0]
+            result = convert(uxds)
+            result.attrs["nested"].append(1)
+            result.variables["t2m"].attrs["nested"].append(1)
+            result.variables["face_id"].attrs["nested"].append(1)
+            result.variables["face_id"].encoding["nested"].append(1)
+            leaked_here = (
+                uxds.attrs["nested"],
+                uxds.variables["t2m"].attrs["nested"],
+                uxds.variables["face_id"].attrs["nested"],
+                uxds.variables["face_id"].encoding["nested"],
+            )
+            leaked.append(leaked_here)
+        assert leaked[0] == leaked[1]
+
+    @pytest.mark.parametrize("grid_format", ["UGRID", "HEALPix"])
+    def test_close_not_shared(self, grid_format):
+        """Just like the old path, closing the result never closes the original."""
+        for i, convert in enumerate((self.old, lambda u: u.to_xarray(grid_format))):
+            uxds = self.get_uxds()
+            closed = []
+            uxds.set_close(lambda: closed.append("uhoh, uxds.close was called!"))
+            result = convert(uxds)
+            result.close()
+            assert len(closed) == 0, f"failed at i={i}"
+            assert result._close is None, f"failed at i={i}"
+
+    def test_lazy(self, tmp_path):
+        """Just like the old path: dask-backed and file-backed data stay lazy,
+        and closing the result doesn't close the original.
+        """
+
+        def fail(*args, **kwargs):
+            raise RuntimeError("compute was called")
+
+        # dask-backed variables and coordinates
+        uxds = self.get_uxds()
+        chunked = uxds.chunk({"n_face": 2})
+        with dask.config.set(scheduler=fail):
+            new = chunked.to_xarray()
+        old = self.old(chunked)
+        assert new.chunks == old.chunks == chunked.chunks
+        for k in old.variables:
+            assert type(new[k].variable._data) is type(old[k].variable._data), k
+        xr.testing.assert_identical(new, old)
+
+        # lazily loaded file-backed variables
+        path = tmp_path / "data.nc"
+        uxds.to_netcdf(path)
+        opened = ux.UxDataset(xr.open_dataset(path), uxgrid=uxds.uxgrid)
+        new, old = opened.to_xarray(), self.old(opened)
+        for k in old.data_vars:
+            assert new[k].variable._in_memory == old[k].variable._in_memory is False
+        self.assert_same_variables(new, old)
+
+        new.close()
+        opened.load()  # original's file handles are still open and readable
+        xr.testing.assert_identical(new.load(), old.load())
+        opened.close()
+
+
+class TestUxDatasetMimicsUxDataArrayMethods:
+    """Testing behavior of UxDataset methods which simply apply UxDataArray methods iteratively,
+    such as UxDataset.zonal_mean().
+    """
+    def _uxds_face_with_just_psi(self):
+        uxds = ux.tutorial.open_dataset("outCSne30-timeseries")
+        assert set(uxds.data_vars) == {'psi'}
+        assert 'n_face' in uxds.dims
+        return uxds
+
+    def _uxds_face_with_more_vars_and_coords(self):
+        uxds = ux.tutorial.open_dataset("outCSne30-timeseries")
+        assert set(uxds.data_vars) == {'psi'}
+        uxds = uxds.assign(psi2 = uxds['psi']*2)
+        uxds = uxds.assign(unrelated_time_var = xr.DataArray(10*np.arange(uxds.sizes['time']), dims=['time']))
+        uxds = uxds.assign(unrelated_scalar_var = 7)
+        uxds = uxds.assign_coords(unrelated_scalar_coord = 70)
+        # (will also want to check what happens to coords which are not used by any data_vars!)
+        uxds = uxds.assign_coords(unused_dim_coord = xr.DataArray([1,2,3], dims='unused_dim'))
+        assert set(uxds.data_vars) == {'psi', 'psi2', 'unrelated_time_var', 'unrelated_scalar_var'}
+        return uxds
+
+    def _uxds_hex_face(self):
+        uxds = ux.tutorial.open_dataset('quad-hexagon-random-face')
+        assert set(uxds.data_vars) == {'random_data_face'}
+        assert 'n_face' in uxds.dims
+        return uxds
+
+    def _uxds_hex_edge(self):
+        uxds = ux.tutorial.open_dataset('quad-hexagon-random-edge')
+        assert set(uxds.data_vars) == {'random_data_edge'}
+        assert 'n_edge' in uxds.dims
+        return uxds
+
+    def _uxds_hex_node(self):
+        uxds = ux.tutorial.open_dataset('quad-hexagon-random-node')
+        assert set(uxds.data_vars) == {'random_data_node'}
+        assert 'n_node' in uxds.dims
+        return uxds
+
+    def _uxds_hex_face_and_node(self):
+        arr_face = self._uxds_hex_face()['random_data_face']
+        arr_node = self._uxds_hex_node()['random_data_node']
+        uxds = ux.UxDataset({'face_data': arr_face, 'node_data': arr_node}, uxgrid=arr_face.uxgrid)
+        return uxds
+
+    def _uxds_hex_face_and_edge(self):
+        arr_face = self._uxds_hex_face()['random_data_face']
+        arr_edge = self._uxds_hex_edge()['random_data_edge']
+        uxds = ux.UxDataset({'face_data': arr_face, 'edge_data': arr_edge}, uxgrid=arr_face.uxgrid)
+        return uxds
+
+    def _uxds_hex_node_and_edge(self):
+        arr_node = self._uxds_hex_node()['random_data_node']
+        arr_edge = self._uxds_hex_edge()['random_data_edge']
+        uxds = ux.UxDataset({'node_data': arr_node, 'edge_data': arr_edge}, uxgrid=arr_node.uxgrid)
+        return uxds
+
+    def _uxds_hex_face_and_node_and_edge(self):
+        arr_face = self._uxds_hex_face()['random_data_face']
+        arr_node = self._uxds_hex_node()['random_data_node']
+        arr_edge = self._uxds_hex_edge()['random_data_edge']
+        uxds = ux.UxDataset({'face_data': arr_face, 'node_data': arr_node, 'edge_data': arr_edge}, uxgrid=arr_face.uxgrid)
+        return uxds
+
+    def test_uxds_mimics_uxda_zonal_mean(self):
+        """Ensure UxDataset.zonal_mean() mimics UxDataArray.zonal_mean() for each variable."""
+        ds = self._uxds_face_with_just_psi()
+        psi_result = ds['psi'].zonal_mean()
+        assert ds.zonal_mean()['psi'].equals(psi_result)
+        assert isinstance(psi_result, xr.DataArray)
+        assert isinstance(ds.zonal_mean(), xr.Dataset)
+
+        # quick sanity check: zonal_mean and zonal_average are aliases.
+        # (doing this here instead of making a separate test for zonal_average...)
+        assert ds['psi'].zonal_average().equals(ds['psi'].zonal_mean())
+        assert ds.zonal_average().equals(ds.zonal_mean())
+
+        ds = self._uxds_face_with_more_vars_and_coords()
+        psi_result = ds['psi'].zonal_mean()
+        psi2_result = ds['psi2'].zonal_mean()
+        ds_result = ds.zonal_mean()
+        assert ds_result['psi'].equals(psi_result)
+        assert ds_result['psi2'].equals(psi2_result)
+        assert 'unrelated_scalar_var' not in ds['psi'] and 'unrelated_scalar_var' not in psi_result.coords
+        assert ds_result['unrelated_scalar_var'].equals(ds['unrelated_scalar_var'])
+        assert 'unrelated_time_var' not in ds['psi'] and 'unrelated_time_var' not in psi_result.coords
+        assert ds_result['unrelated_time_var'].equals(ds['unrelated_time_var'])
+        assert ds_result.coords['unrelated_scalar_coord'].equals(ds.coords['unrelated_scalar_coord'])
+        assert ds_result.coords['unused_dim_coord'].equals(ds.coords['unused_dim_coord'])
+
+        # zonal mean doesn't support edge-centered data
+        ds = self._uxds_hex_edge()
+        arr = ds['random_data_edge']
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            arr.zonal_mean()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.zonal_mean()
+
+        # zonal mean doesn't support node-centered data
+        ds = self._uxds_hex_node()
+        arr = ds['random_data_node']
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            arr.zonal_mean()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.zonal_mean()
+
+        # also should crash if any data_vars contain unsupported centering,
+        # even if some data_vars are centered at supported location (faces).
+        ds = self._uxds_hex_face_and_node()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.zonal_mean()
+        ds = self._uxds_hex_face_and_edge()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.zonal_mean()
+
+    def test_uxds_mimics_uxda_zonal_anomaly(self):
+        """Ensure UxDataset.zonal_anomaly() mimics UxDataArray.zonal_anomaly() for each variable."""
+        ds = self._uxds_face_with_just_psi()
+        psi_result = ds['psi'].zonal_anomaly()
+        assert ds.zonal_anomaly()['psi'].equals(psi_result)
+        assert isinstance(psi_result, xr.DataArray)
+        assert isinstance(ds.zonal_anomaly(), xr.Dataset)
+
+        ds = self._uxds_face_with_more_vars_and_coords()
+        psi_result = ds['psi'].zonal_anomaly()
+        psi2_result = ds['psi2'].zonal_anomaly()
+        ds_result = ds.zonal_anomaly()
+        assert ds_result['psi'].equals(psi_result)
+        assert ds_result['psi2'].equals(psi2_result)
+        assert 'unrelated_scalar_var' not in ds['psi'] and 'unrelated_scalar_var' not in psi_result.coords
+        assert ds_result['unrelated_scalar_var'].equals(ds['unrelated_scalar_var'])
+        assert 'unrelated_time_var' not in ds['psi'] and 'unrelated_time_var' not in psi_result.coords
+        assert ds_result['unrelated_time_var'].equals(ds['unrelated_time_var'])
+        assert ds_result.coords['unrelated_scalar_coord'].equals(ds.coords['unrelated_scalar_coord'])
+        assert ds_result.coords['unused_dim_coord'].equals(ds.coords['unused_dim_coord'])
+
+        # zonal anomaly doesn't support edge-centered data
+        ds = self._uxds_hex_edge()
+        arr = ds['random_data_edge']
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            arr.zonal_anomaly()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.zonal_anomaly()
+
+        # zonal anomaly doesn't support node-centered data
+        ds = self._uxds_hex_node()
+        arr = ds['random_data_node']
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            arr.zonal_anomaly()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.zonal_anomaly()
+
+        # also should crash if any data_vars contain unsupported centering,
+        # even if some data_vars are centered at supported location (faces).
+        ds = self._uxds_hex_face_and_node()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.zonal_anomaly()
+        ds = self._uxds_hex_face_and_edge()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.zonal_anomaly()
+
+    def test_uxds_mimics_uxda_azimuthal_mean(self):
+        """Ensure UxDataset.azimuthal_mean() mimics UxDataArray.azimuthal_mean() for each variable."""
+        kw_psi = dict(center_coord=(45, 0), outer_radius=50, radius_step=10)
+        kw_hex = dict(center_coord=(0, 0), outer_radius=0.3, radius_step=0.1)
+
+        ds = self._uxds_face_with_just_psi()
+        psi_result = ds['psi'].azimuthal_mean(**kw_psi)
+        assert ds.azimuthal_mean(**kw_psi)['psi'].equals(psi_result)
+        assert isinstance(psi_result, xr.DataArray)
+        assert isinstance(ds.azimuthal_mean(**kw_psi), xr.Dataset)
+
+        # quick sanity check: azimuthal_mean and azimuthal_average are aliases.
+        # (doing this here instead of making a separate test for azimuthal_average...)
+        assert ds['psi'].azimuthal_average(**kw_psi).equals(ds['psi'].azimuthal_mean(**kw_psi))
+        assert ds.azimuthal_average(**kw_psi).equals(ds.azimuthal_mean(**kw_psi))
+
+        ds = self._uxds_face_with_more_vars_and_coords()
+        psi_result = ds['psi'].azimuthal_mean(**kw_psi)
+        psi2_result = ds['psi2'].azimuthal_mean(**kw_psi)
+        ds_result = ds.azimuthal_mean(**kw_psi)
+        assert ds_result['psi'].equals(psi_result)
+        assert ds_result['psi2'].equals(psi2_result)
+        assert 'unrelated_scalar_var' not in ds['psi'] and 'unrelated_scalar_var' not in psi_result.coords
+        assert ds_result['unrelated_scalar_var'].equals(ds['unrelated_scalar_var'])
+        assert 'unrelated_time_var' not in ds['psi'] and 'unrelated_time_var' not in psi_result.coords
+        assert ds_result['unrelated_time_var'].equals(ds['unrelated_time_var'])
+        assert ds_result.coords['unrelated_scalar_coord'].equals(ds.coords['unrelated_scalar_coord'])
+        assert ds_result.coords['unused_dim_coord'].equals(ds.coords['unused_dim_coord'])
+
+        # azimuthal mean doesn't support edge-centered data
+        ds = self._uxds_hex_edge()
+        arr = ds['random_data_edge']
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            arr.azimuthal_mean(**kw_hex)
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.azimuthal_mean(**kw_hex)
+
+        # azimuthal mean doesn't support node-centered data
+        ds = self._uxds_hex_node()
+        arr = ds['random_data_node']
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            arr.azimuthal_mean(**kw_hex)
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.azimuthal_mean(**kw_hex)
+
+        # also should crash if any data_vars contain unsupported centering,
+        # even if some data_vars are centered at supported location (faces).
+        ds = self._uxds_hex_face_and_node()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.azimuthal_mean(**kw_hex)
+        ds = self._uxds_hex_face_and_edge()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.azimuthal_mean(**kw_hex)
+
+    def test_uxds_mimics_uxda_weighted_mean(self):
+        """Ensure UxDataset.weighted_mean() mimics UxDataArray.weighted_mean() for each variable."""
+        ds = self._uxds_face_with_just_psi()
+        psi_result = ds['psi'].weighted_mean()
+        assert ds.weighted_mean()['psi'].equals(psi_result)
+        assert isinstance(psi_result, ux.UxDataArray)
+        assert isinstance(ds.weighted_mean(), ux.UxDataset)
+
+        ds = self._uxds_face_with_more_vars_and_coords()
+        psi_result = ds['psi'].weighted_mean()
+        psi2_result = ds['psi2'].weighted_mean()
+        ds_result = ds.weighted_mean()
+        assert ds_result['psi'].equals(psi_result)
+        assert ds_result['psi2'].equals(psi2_result)
+        assert 'unrelated_scalar_var' not in ds['psi'] and 'unrelated_scalar_var' not in psi_result.coords
+        assert ds_result['unrelated_scalar_var'].equals(ds['unrelated_scalar_var'])
+        assert 'unrelated_time_var' not in ds['psi'] and 'unrelated_time_var' not in psi_result.coords
+        assert ds_result['unrelated_time_var'].equals(ds['unrelated_time_var'])
+        assert ds_result.coords['unrelated_scalar_coord'].equals(ds.coords['unrelated_scalar_coord'])
+        assert ds_result.coords['unused_dim_coord'].equals(ds.coords['unused_dim_coord'])
+
+        # weighted_mean does support edge-centered data
+        ds = self._uxds_hex_edge()
+        arr = ds['random_data_edge']
+        arr_result = arr.weighted_mean()
+        ds_result = ds.weighted_mean()
+        assert ds_result['random_data_edge'].equals(arr_result)
+
+        # weighted_mean also supports ds with both edge & face data,
+        # but only if weights not provided
+        ds = self._uxds_hex_face_and_edge()
+        arr_face_result = ds['face_data'].weighted_mean()
+        arr_edge_result = ds['edge_data'].weighted_mean()
+        ds_result = ds.weighted_mean()
+        assert ds_result['face_data'].equals(arr_face_result)
+        assert ds_result['edge_data'].equals(arr_edge_result)
+        # when weights provided, usually make DataCenteringError:
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.weighted_mean(weights=np.arange(ds.sizes['n_face']))
+        # but, if weights are a 1D xr.DataArrray with dim='n_face' or 'n_edge',
+        # raise NotImplementedError instead (a clear unambiguous implementation is
+        # possible in these case, but just isn't implemented yet).
+        weights_face = xr.DataArray(np.arange(ds.sizes['n_face']), dims=['n_face'])
+        weights_edge = xr.DataArray(np.arange(ds.sizes['n_edge']), dims=['n_edge'])
+        with pytest.raises(NotImplementedError):
+            ds.weighted_mean(weights=weights_face)
+        with pytest.raises(NotImplementedError):
+            ds.weighted_mean(weights=weights_edge)
+
+        # weighted_mean doesn't support node-centered data
+        ds = self._uxds_hex_node()
+        arr = ds['random_data_node']
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            arr.weighted_mean()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.weighted_mean()
+
+        # also should crash if any data_vars contain unsupported centering,
+        # even if some data_vars are centered at supported location (faces).
+        ds = self._uxds_hex_face_and_node()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.weighted_mean()
+        ds = self._uxds_hex_node_and_edge()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.weighted_mean()
+        ds = self._uxds_hex_face_and_node_and_edge()
+        with pytest.raises(uxarray.errors.DataCenteringError):
+            ds.weighted_mean()

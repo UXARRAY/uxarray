@@ -8,7 +8,7 @@ import uxarray as ux
 from uxarray.grid.connectivity import _replace_fill_values
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.grid.coordinates import _lonlat_rad_to_xyz, _normalize_xyz, _xyz_to_lonlat_rad
-from uxarray.grid.arcs import point_within_gca, _angle_of_2_vectors, in_between
+from uxarray.grid.arcs import point_within_gca, in_between
 from uxarray.grid.utils import _get_cartesian_face_edge_nodes_array, _get_lonlat_rad_face_edge_nodes_array
 from uxarray.grid.geometry import pole_point_inside_polygon, _pole_point_inside_polygon_cartesian
 
@@ -209,41 +209,6 @@ def test_in_between():
     # Test the in_between operator
     assert in_between(0, 1, 2)
     assert in_between(-1, -1.5, -2)
-
-def test_angle_of_2_vectors():
-    # Test the angle between two vectors
-    v1 = np.array([1.0, 0.0, 0.0])
-    v2 = np.array([0.0, 1.0, 0.0])
-    assert pytest.approx(_angle_of_2_vectors(v1, v2)) == np.pi / 2.0
-
-    v1 = np.array([1.0, 0.0, 0.0])
-    v2 = np.array([1.0, 0.0, 0.0])
-    assert pytest.approx(_angle_of_2_vectors(v1, v2)) == 0.0
-
-def test_angle_of_2_vectors_180_degree():
-    GCR1_cart = np.array([
-        _lonlat_rad_to_xyz(np.deg2rad(0.0),
-                                np.deg2rad(0.0)),
-        _lonlat_rad_to_xyz(np.deg2rad(181.0),
-                                np.deg2rad(0.0))
-    ])
-
-    res = _angle_of_2_vectors(GCR1_cart[0], GCR1_cart[1])
-
-    # The angle between the two vectors should be 181 degree
-    assert pytest.approx(res, abs=1e-8) == np.deg2rad(181.0)
-
-    GCR1_cart = np.array([
-        _lonlat_rad_to_xyz(np.deg2rad(170.0),
-                                np.deg2rad(89.0)),
-        _lonlat_rad_to_xyz(np.deg2rad(170.0),
-                                np.deg2rad(-10.0))
-    ])
-
-    res = _angle_of_2_vectors(GCR1_cart[0], GCR1_cart[1])
-
-    # The angle between the two vectors should be 99 degrees
-    assert pytest.approx(res, abs=1e-8) == np.deg2rad(89.0+10.0)
 
 def test_get_cartesian_face_edge_nodes_pipeline():
     vertices = [[0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5]]
