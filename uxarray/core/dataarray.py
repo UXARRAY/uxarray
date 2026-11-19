@@ -15,6 +15,7 @@ from uxarray.constants import GRID_DIMS
 from uxarray.conventions.attrs import _drop_value_describing_attrs
 from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.arithmetic import UxSupportsArithmetic
+from uxarray.core.azimuthal import _compute_azimuthal_mean
 from uxarray.core.gradient import (
     _calculate_edge_face_difference,
     _calculate_edge_node_difference,
@@ -40,7 +41,7 @@ from uxarray.errors import (
 from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
 from uxarray.grid.area import _integration_face_areas
-from uxarray.grid.dual import construct_dual
+from uxarray.grid.dual import _dual_face_indices
 from uxarray.grid.neighbors import DataArrayNeighborhood, Neighborhood
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
@@ -625,7 +626,20 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         return uxds
 
     def to_xarray(self) -> xr.DataArray:
-        return xr.DataArray(self)
+        """returns a shallow copy of this ``UxDataArray`` as a plain ``xr.DataArray``."""
+        # Equivalent to the "naive" xr.DataArray(self), but internally here
+        # uses _construct_direct() for efficiency, to avoid validation checks,
+        # since a valid UxDataArray is already guaranteed to be a valid xr.DataArray.
+        variable = self._variable.copy(deep=False)
+        variable.encoding = {}  # matches xr.DataArray(self) behavior
+        coords = {k: v.copy(deep=True) for k, v in self._coords.items()}
+        # ^ also matches xr.DataArray(self) behavior, which copies coords deeply.
+        return xr.DataArray._construct_direct(
+            variable,
+            coords,
+            self._name,
+            dict(self._indexes),
+        )
 
     def astype(self, dtype, **kw_super):
         """Copy of this uxarray object, with data cast to a specified type.
@@ -1043,6 +1057,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         Only supported for face-centered data variables. Candidate faces are determined
         using bounding circles - for radii = [r1, r2, r3, ...] faces whose centers lie at distance d,
         r2 < d <= r3 are included in calculations for r3.
+
+        Dask-backed data is reduced lazily, one input ``n_face`` chunk at a time,
+        so no task gathers every face inside ``outer_radius``. Other lazily loaded
+        data is read as contiguous slices covering at most twice the faces inside
+        ``outer_radius``.
         """
         from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
@@ -1058,8 +1077,6 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 f"outer_radius must be a positive scalar during azimuthal_mean(); got outer_radius={outer_radius}"
             )
 
-        kdtree = self.uxgrid._get_scipy_kd_tree()
-
         lon_deg, lat_deg = map(float, np.asarray(center_coord))
         center_xyz = np.array(
             _lonlat_rad_to_xyz(np.deg2rad(lon_deg), np.deg2rad(lat_deg))
@@ -1069,50 +1086,20 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         radii_rad = np.deg2rad(radii_deg)
         chord_radii = 2.0 * np.sin(radii_rad / 2.0)
 
-        faces_processed = np.array([], dtype=np.int_)
-        means = np.full(
-            (radii_deg.size, *self.to_xarray().isel(drop=True, n_face=0).shape), np.nan
-        )
-        hit_count = np.zeros_like(radii_deg, dtype=np.int_)
-
-        for ii, r_chord in enumerate(chord_radii):
-            # indices of faces within the bounding circle for this radius
-            within = np.array(
-                kdtree.query_ball_point(center_xyz, r_chord), dtype=np.int_
-            )
-            if within.size:
-                within.sort()
-
-            # include only the new ring: r_(i-1) < d <= r_i
-            faces_in_bin = np.setdiff1d(within, faces_processed, assume_unique=True)
-            hit_count[ii] = faces_in_bin.size
-
-            if hit_count[ii] == 0:
-                continue
-
-            faces_processed = within  # cumulative set for next iteration
-
-            tpose = self.isel(n_face=faces_in_bin).transpose(..., "n_face")
-            means[ii, ...] = tpose.weighted_mean().data
-
-        # swap the leading 'radius' axis into the former n_face position
-        face_axis = self.dims.index("n_face")
-        dims = list(self.dims)
-        dims[face_axis] = "radius"
-        means = np.moveaxis(means, 0, face_axis)
+        means, hit_count = _compute_azimuthal_mean(self, center_xyz, chord_radii)
 
         hit_count = xr.DataArray(
             data=hit_count, dims="radius", coords={"radius": radii_deg}
         )
 
-        # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
+        # Assign coords from `self` to the result except those on n_face
         new_coords = _preserve_valid_coords(self, "n_face")
         # Add radii_deg to the resulting coords
         new_coords["radius"] = radii_deg
 
         uxda = xr.DataArray(
-            means,
-            dims=dims,
+            means.data,
+            dims=means.dims,
             coords=new_coords,
             name=self.name + "_azimuthal_mean"
             if self.name is not None
@@ -2521,37 +2508,41 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         --------
         dual : uxda
             Dual Mesh `uxda` constructed
-        """
 
-        if _check_duplicate_nodes_indices(self.uxgrid):
+        Raises
+        ------
+        GridInvalidError
+            If any face still references a coincident duplicate node.
+        """
+        grid = self.uxgrid._prepare_for_dual()
+        if _check_duplicate_nodes_indices(grid):
             raise GridInvalidError(
                 "Duplicate nodes found in UxDataArray's uxgrid; cannot get_dual()"
             )
 
-        if self.uxgrid.partial_sphere_coverage:
+        if grid.partial_sphere_coverage:
             warn(
                 "This mesh is partial, which could cause inconsistent results and data will be lost",
                 Warning,
             )
 
-        # Get dual mesh node face connectivity
-        dual_node_face_conn = construct_dual(grid=self.uxgrid)
-
-        # Construct dual mesh
-        dual = self.uxgrid.from_topology(
-            self.uxgrid.face_lon.values,
-            self.uxgrid.face_lat.values,
-            dual_node_face_conn,
-        )
+        # Get dual mesh node face connectivity and the primal nodes represented
+        # by its faces.
+        dual_face_indices = _dual_face_indices(grid)
+        dual = grid.get_dual()
 
         # Dictionary to swap dimensions
         dim_map = {"n_face": "n_node", "n_node": "n_face"}
 
+        data = self
+        if "n_node" in data.dims:
+            data = data.isel(n_node=dual_face_indices, ignore_grid=True)
+
         # Get correct dimensions for the dual
-        dims = [dim_map.get(dim, dim) for dim in self.dims]
+        dims = [dim_map.get(dim, dim) for dim in data.dims]
 
         # Construct the new data array
-        uxda = type(self)(uxgrid=dual, data=self.data, dims=dims, name=self.name)
+        uxda = type(self)(uxgrid=dual, data=data.data, dims=dims, name=self.name)
 
         return uxda
 

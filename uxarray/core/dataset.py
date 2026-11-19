@@ -25,7 +25,7 @@ from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
 from uxarray.formatting_html import dataset_repr
 from uxarray.grid import Grid
 from uxarray.grid.area import _integration_face_areas
-from uxarray.grid.dual import construct_dual
+from uxarray.grid.dual import _dual_face_indices
 from uxarray.grid.neighbors import DatasetNeighborhood
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
@@ -941,25 +941,37 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         return DatasetNeighborhood(self, r=r)
 
     def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
-        """
-        Converts a ``ux.UXDataset`` to a ``xr.Dataset``.
+        """returns a shallow copy of this ``UxDataset`` as a plain ``xr.Dataset``.
 
         Parameters
         ----------
         grid_format : str, default="UGRID"
-            The format in which to convert the grid. Supported values are "UGRID" and "HEALPix". The dimensions will
-            match the selected grid format.
+            The format in which to convert the grid. Supported values are "UGRID" and "HEALPix".
+            If "HEALPix", renames "n_face" dimension to "cell" in the result.
+            Otherwise, dimensions are kept unchanged.
 
         Returns
         -------
         xr.Dataset
-            The ``ux.UXDataset`` represented as a ``xr.Dataset``
+            The ``ux.UxDataset`` represented as a ``xr.Dataset``
         """
+        # Equivalent to the "naive" xr.Dataset(self.data_vars, coords=self.coords, attrs=self.attrs)
+        # but internally here uses _construct_direct() for efficiency, to avoid validation checks,
+        # since a valid UxDataset is already guaranteed to be a valid xr.Dataset.
+        variables = {k: v.copy(deep=False) for k, v in self._variables.items()}
+        for k, v in variables.items():
+            if k not in self._coord_names:
+                v.encoding = {}  # matches the "naive" implementation's behavior
+        result = xr.Dataset._construct_direct(
+            variables=variables,
+            coord_names=set(self._coord_names),
+            dims=dict(self._dims),
+            attrs=dict(self.attrs),
+            indexes=dict(self._indexes),
+        )
         if grid_format == "HEALPix":
-            ds = self.rename_dims({"n_face": "cell"})
-            return xr.Dataset(ds.data_vars, coords=ds.coords, attrs=ds.attrs)
-
-        return xr.Dataset(self.data_vars, coords=self.coords, attrs=self.attrs)
+            result = result.rename_dims({"n_face": "cell"})
+        return result
 
     def astype(self, dtype, **kw_super):
         """Copy of this uxarray object, with data cast to a specified type.
@@ -978,28 +990,28 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         --------
         dual : uxds
             Dual Mesh `uxds` constructed
-        """
 
-        if _check_duplicate_nodes_indices(self.uxgrid):
+        Raises
+        ------
+        GridInvalidError
+            If any face still references a coincident duplicate node.
+        """
+        grid = self.uxgrid._prepare_for_dual()
+        if _check_duplicate_nodes_indices(grid):
             raise GridInvalidError(
                 "Duplicate nodes found in UxDataset's uxgrid; cannot get_dual()"
             )
 
-        if self.uxgrid.partial_sphere_coverage:
+        if grid.partial_sphere_coverage:
             warn(
                 "This mesh is partial, which could cause inconsistent results and data will be lost",
                 Warning,
             )
 
-        # Get dual mesh node face connectivity
-        dual_node_face_conn = construct_dual(grid=self.uxgrid)
-
-        # Construct dual mesh
-        dual = self.uxgrid.from_topology(
-            self.uxgrid.face_lon.values,
-            self.uxgrid.face_lat.values,
-            dual_node_face_conn,
-        )
+        # Get dual mesh node face connectivity and the primal nodes represented
+        # by its faces.
+        dual_face_indices = _dual_face_indices(grid)
+        dual = grid.get_dual()
 
         # Initialize new dataset
         dataset = type(self)(uxgrid=dual)
@@ -1009,11 +1021,15 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
 
         # For each data array in the dataset, reconstruct the data array with the dual mesh
         for var in self.data_vars:
+            data = self[var]
+            if "n_node" in data.dims:
+                data = data.isel(n_node=dual_face_indices, ignore_grid=True)
+
             # Get correct dimensions for the dual
-            dims = [dim_map.get(dim, dim) for dim in self[var].dims]
+            dims = [dim_map.get(dim, dim) for dim in data.dims]
 
             # Construct the new data array
-            uxda = UxDataArray(uxgrid=dual, data=self[var].data, dims=dims, name=var)
+            uxda = UxDataArray(uxgrid=dual, data=data.data, dims=dims, name=var)
 
             # Add data array to dataset
             dataset[var] = uxda
