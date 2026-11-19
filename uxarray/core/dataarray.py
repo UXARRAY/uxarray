@@ -1787,8 +1787,12 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         u, v = xr.align(self, other, join="exact", copy=False)
 
         # Compute gradients of both components
-        _, grad_u_meridional = _compute_gradient(u, scale_by_radius=scale_by_radius)
-        grad_v_zonal, _ = _compute_gradient(v, scale_by_radius=scale_by_radius)
+        _grad_u_zonal, grad_u_meridional = _compute_gradient(
+            u, scale_by_radius=scale_by_radius
+        )
+        grad_v_zonal, _grad_v_meridional = _compute_gradient(
+            v, scale_by_radius=scale_by_radius
+        )
 
         # Compute curl = ∂v/∂x - ∂u/∂y + u·tan(φ)/a
         #
@@ -1917,8 +1921,12 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         u, v = xr.align(self, other, join="exact", copy=False)
 
         # Compute gradients of both components
-        grad_u_zonal, _ = _compute_gradient(u, scale_by_radius=scale_by_radius)
-        _, grad_v_meridional = _compute_gradient(v, scale_by_radius=scale_by_radius)
+        grad_u_zonal, _grad_u_meridional = _compute_gradient(
+            u, scale_by_radius=scale_by_radius
+        )
+        _grad_v_zonal, grad_v_meridional = _compute_gradient(
+            v, scale_by_radius=scale_by_radius
+        )
 
         # For divergence: div(V) = ∂u/∂x + ∂v/∂y - v·tan(φ)/a
         # The trailing term is the spherical metric term, the companion
