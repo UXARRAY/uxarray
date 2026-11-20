@@ -1222,7 +1222,7 @@ def haversine_distance(lon_a, lat_a, lon_b, lat_b):
     equation_in_sqrt = (np.sin(dlat / 2) ** 2) + np.cos(lat_a) * np.cos(lat_b) * (
         np.sin(dlon / 2) ** 2
     )
-    distance = 2 * np.arcsin(np.sqrt(equation_in_sqrt))
+    distance = 2 * np.arcsin(equation_in_sqrt**0.5)
 
     # Return the gotten distance
     return distance
@@ -1500,7 +1500,8 @@ def _newton_quadrilateral(quadrilateral, point, max_iterations=150):
         norm2 = 0.0
         for i in range(3):
             norm2 += value_at_x[i] * value_at_x[i]
-        if math.sqrt(norm2) < 1e-15:
+        # sqrt(norm2) < 1e-15, compared squared to skip the sqrt
+        if norm2 < 1e-30:
             break
 
         # build Jacobian J[i,j]

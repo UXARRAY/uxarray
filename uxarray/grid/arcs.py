@@ -386,7 +386,7 @@ def compute_arc_length(pt_a, pt_b):
     """
     x1, y1, z1 = pt_a
     x2, y2, z2 = pt_b
-    rho = np.sqrt(1.0 - z1 * z2)
+    rho = (1.0 - z1 * z2) ** 0.5
     cross_2d = x1 * y2 - y1 * x2
     dot_2d = x1 * x2 + y1 * y2
     delta_theta = np.arctan2(cross_2d, dot_2d)

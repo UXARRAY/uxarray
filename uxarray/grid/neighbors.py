@@ -1362,7 +1362,7 @@ def _reduce_window(window, op, param):
     if op == _Reduction.VAR:
         return _variance(window, param)
     if op == _Reduction.STD:
-        return np.sqrt(_variance(window, param))
+        return _variance(window, param) ** 0.5
     if op == _Reduction.QUANTILE:
         return np.quantile(window, param)
     return np.nan

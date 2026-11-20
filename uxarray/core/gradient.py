@@ -47,7 +47,7 @@ def _compute_arc_length(lat_a, lat_b, lon_a, lon_b):
     lat_b = np.radians(lat_b)
 
     a = np.sin(dlat / 2) ** 2 + np.cos(lat_a) * np.cos(lat_b) * np.sin(dlon / 2) ** 2
-    distance = 2 * np.arcsin(np.sqrt(a))
+    distance = 2 * np.arcsin(a**0.5)
     return distance
 
 

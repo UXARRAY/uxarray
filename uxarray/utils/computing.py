@@ -25,8 +25,6 @@ Shewchuk predicate and exact-arithmetic fallback tiers are not ported):
     Reference implementation: https://github.com/hongyuchen1030/AccuSphGeom
 """
 
-import math
-
 from numba import njit
 
 # Fused multiply-add (FMA) support. ``two_prod`` needs the exact rounding error
@@ -564,11 +562,16 @@ def acc_sqrt_re(value, error=0.0):
     of a vector. Japan Journal of Industrial and Applied Mathematics, 40.
     https://doi.org/10.1007/s13160-023-00593-8
     """
-    # Branch-free, matching AccuSphGeom acc_sqrt_re exactly. Negative value
-    # yields nan via math.sqrt and root==0 yields nan via the 0/0 correction,
+    # Branch-free, matching AccuSphGeom acc_sqrt_re exactly. Negative finite
+    # value yields nan root and root==0 yields nan via the 0/0 correction,
     # both under error_model="numpy"; the isfinite mask in the status layer
     # rejects such candidates.
-    root = math.sqrt(value)
+    #
+    # ``** 0.5`` compiles to the native sqrt instruction where math.sqrt is a
+    # libm call (see _numba_norm3). It equals sqrt bit-for-bit for value >= 0
+    # and differs only on inputs that are already rejected: -0.0 gives root
+    # +0.0 (not -0.0), and -inf gives root +inf (not nan) with a nan correction.
+    root = value**0.5
     sq_hi, sq_lo = two_prod(root, root)
     # Residual accumulation order matches AccuSphGeom acc_sqrt_re exactly:
     # (value - square.hi) - square.lo + error.

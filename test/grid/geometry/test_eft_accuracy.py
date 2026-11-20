@@ -9,15 +9,18 @@ reaches ~1e-30 relative accuracy on well-conditioned inputs; the naive form
 only reaches ~1e-15.
 """
 
+import math
 from fractions import Fraction
 
 import numpy as np
 import pytest
+from numba import njit
 
 from uxarray.utils.computing import (
     _HAS_FMA,
     _sum_of_squares_c,
     _two_prod_veltkamp,
+    acc_sqrt_re,
     accucross,
     two_prod,
 )
@@ -168,3 +171,63 @@ def test_two_prod_fma_matches_veltkamp_bit_for_bit():
         pv, ev = _two_prod_veltkamp(a, b)
         assert np.float64(p).view(np.int64) == np.float64(pv).view(np.int64)
         assert np.float64(e).view(np.int64) == np.float64(ev).view(np.int64)
+
+
+def test_acc_sqrt_re_root_is_correctly_rounded_sqrt():
+    """``acc_sqrt_re`` takes its root as ``value ** 0.5``, not ``math.sqrt``, so
+    numba emits the native sqrt instruction instead of a libm call. For
+    ``value >= 0`` that root must equal ``math.sqrt(value)`` bit for bit,
+    subnormals and exact squares included."""
+    rng = np.random.default_rng(20261119)
+    values = np.concatenate(
+        [
+            rng.random(5000),
+            rng.random(5000) * 1e300,
+            rng.random(5000) * 1e-300,
+            rng.random(1000) * 1e-310,  # subnormal
+            [0.0, 5e-324, 0.25, 1.0, 2.0, 4.0, 1e308, np.inf],
+        ]
+    )
+    for v in values:
+        root, _ = acc_sqrt_re(float(v))
+        root_bits = np.float64(root).view(np.int64)
+        expected_bits = np.float64(math.sqrt(v)).view(np.int64)
+        assert root_bits == expected_bits, f"acc_sqrt_re({v!r}) root is {root!r}"
+
+
+@pytest.mark.parametrize(
+    "value, error",
+    [
+        (0.0, 0.0),
+        (-0.0, 0.0),
+        (-0.0, 1e-20),
+        (-0.0, -1e-20),
+        (-1.0, 0.0),
+        (-1e-300, 0.0),
+        (-np.inf, 0.0),
+        (np.nan, 0.0),
+    ],
+)
+def test_acc_sqrt_re_degenerate_inputs_stay_non_finite(value, error):
+    """The intersection kernels reject a candidate when ``root + correction``
+    is non-finite. ``** 0.5`` differs from ``math.sqrt`` only at -0.0 (root
+    +0.0, not -0.0) and -inf (root +inf, not nan); both must still come out
+    non-finite, as must zero and negative inputs."""
+    root, corr = acc_sqrt_re(value, error)
+    assert not np.isfinite(root + corr)
+    if value < 0 and np.isfinite(value):
+        assert np.isnan(root)
+
+
+def test_acc_sqrt_re_uses_native_sqrt():
+    """Inside ``@njit``, ``math.sqrt`` of an argument LLVM can't prove
+    non-negative stays a libm ``sqrt`` call; ``** 0.5`` folds to the
+    ``llvm.sqrt`` intrinsic. Guard the innermost EFT path against reverting.
+
+    Compiles an uncached copy, since numba returns no IR for kernels loaded
+    from its on-disk cache."""
+    kernel = njit(error_model="numpy")(acc_sqrt_re.py_func)
+    kernel(2.0, 0.0)
+    ir = kernel.inspect_llvm(kernel.signatures[0])
+    assert "llvm.sqrt" in ir
+    assert "@sqrt(" not in ir

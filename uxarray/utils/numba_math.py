@@ -74,7 +74,7 @@ def _numba_div3_scalar(u, scalar):
 @njit(cache=True)
 def _numba_sqrt3(u):
     """component-wise square root of 3-vector; returns (sqrt(u[0]), sqrt(u[1]), sqrt(u[2]))"""
-    return np.sqrt(u[0]), np.sqrt(u[1]), np.sqrt(u[2])
+    return u[0] ** 0.5, u[1] ** 0.5, u[2] ** 0.5
 
 
 # ------- vector arithmetic ------- #
@@ -84,8 +84,13 @@ def _numba_sqrt3(u):
 def _numba_norm3(u):
     """Euclidean norm of a 3-vector; returns sqrt(u[0]**2 + u[1]**2 + u[2]**2)"""
     return (u[0] ** 2 + u[1] ** 2 + u[2] ** 2) ** 0.5
-    # for some reason, using **0.5 instead of np.sqrt makes numba more likely to
-    # properly respect float64 inputs instead of using float32 precision.
+    # Inside @njit, ``math.sqrt``/``np.sqrt`` lower to a libm ``sqrt`` call, which
+    # LLVM turns into the native sqrt instruction only when it can prove the
+    # argument non-negative, as for a plain sum of squares like this one. ``x ** 0.5``
+    # always compiles to the native instruction, plus a fabs and a -inf check, so
+    # use it where the argument is not provably >= 0 and keep ``np.sqrt`` where it
+    # is. Results are bit-identical for x >= 0; they differ only at x == -0.0
+    # (+0.0 vs -0.0) and x == -inf (+inf vs nan).
 
 
 @njit(cache=True)
