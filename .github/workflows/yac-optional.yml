@@ -10,14 +10,14 @@ on:
 
 jobs:
   yac-optional:
-    name: YAC core v3.20.2 (Ubuntu)
+    name: YAC core v3.21.0 (Ubuntu)
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -l {0}
     env:
-      YAC_VERSION: v3.20.2
-      YAXT_VERSION: v0.11.5.1
+      YAC_VERSION: v3.21.0
+      YAXT_VERSION: v0.12.2.2
       MPIEXEC: /usr/bin/mpirun
       MPIRUN: /usr/bin/mpirun
       MPICC: /usr/bin/mpicc

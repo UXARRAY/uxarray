@@ -85,12 +85,14 @@ class RemapAccessor:
         backend : {'uxarray', 'yac'}, default='uxarray'
             Remapping backend to use. When set to 'yac', requires YAC to be
             available on PYTHONPATH.
-        yac_method : {'nnn', 'dnn', 'average', 'conservative'}, optional
+        yac_method : {'nnn', 'dnn', 'average', 'ncc', 'rbf', 'bernstein_bezier', 'conservative'}, optional
             YAC interpolation method. Defaults to 'nnn' when backend='yac'.
             ``'dnn'`` (distance-nearest-neighbour, YAC >= 3.15) averages all
             source points within a search distance of each target.
         yac_options : dict, optional
-            YAC interpolation configuration options.
+            YAC interpolation configuration options. ``creep_distance`` adds a
+            creep fill (YAC ``creep``) after the selected method for targets
+            it left unfilled.
 
         Returns
         -------
@@ -208,7 +210,7 @@ class RemapAccessor:
             remapping before reshaping the result to latitude/longitude axes.
             The YAC backend uses YAC's rectilinear grid support directly and can
             be faster for large targets when YAC is installed.
-        yac_method : {'nnn', 'dnn', 'average', 'conservative'}, optional
+        yac_method : {'nnn', 'dnn', 'average', 'ncc', 'rbf', 'bernstein_bezier', 'conservative'}, optional
             YAC interpolation method. When ``backend='yac'``, defaults to ``'nnn'``
             because nearest-neighbor works for node-, edge-, and face-centered
             source data. ``'dnn'`` (distance-nearest-neighbour) averages source
@@ -300,7 +302,8 @@ class RemapAccessor:
 
         backend : {'uxarray', 'yac'}, default='uxarray'
             Remapping backend to use. When set to 'yac', bilinear remapping is
-            routed through YAC's average interpolation.
+            routed through YAC's average interpolation with barycentric
+            weights.
         yac_method : {'average'}, optional
             YAC interpolation method for the bilinear convenience wrapper.
             Only ``'average'`` is supported here.
@@ -322,7 +325,7 @@ class RemapAccessor:
                     "bilinear with backend='yac' only supports yac_method='average'. "
                     "Use .remap(..., backend='yac', yac_method=...) for other YAC methods."
                 )
-            yac_kwargs = yac_options or {}
+            yac_kwargs = {"reduction_type": "AVG_BARY", **(yac_options or {})}
             return _yac_remap(
                 self.ux_obj,
                 destination_grid,
