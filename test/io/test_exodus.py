@@ -2,12 +2,8 @@ import os
 import numpy as np
 import pytest
 import uxarray as ux
+import xarray as xr
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
-
-
-def _face_rows(grid):
-    """Faces as a sorted list of node-index tuples, ignoring face order."""
-    return sorted(tuple(row.tolist()) for row in grid.face_node_connectivity.values)
 
 
 def test_read_exodus(gridpath):
@@ -71,6 +67,67 @@ def test_encode_exodus_mixed_blocks(fill_value):
         assert values.min() >= 1, f"{name} holds an index below 1"
         assert values.max() <= uxgrid.n_node, f"{name} indexes a node that does not exist"
 
+    # Blocks are written grouped by type, so the original face order has to be
+    # recorded or face-centered data silently misaligns on the way back in.
+    assert "elem_num_map" in exo_ds
+    assert sorted(exo_ds["elem_num_map"].values.tolist()) == [1, 2, 3]
+
+def test_encode_exodus_mixed_round_trip_preserves_face_order(tmp_path):
+    """A regrouped mixed mesh reloads in the order it was handed to the writer.
+
+    Exodus blocks are homogeneous, so writing a mixed mesh permutes the faces.
+    Nothing raises when that permutation is not undone -- the mesh is intact, just
+    reordered -- and any face-centered data then describes the wrong faces.
+    """
+    face_node_connectivity = np.array([
+        [0, 1, 2, 3],
+        [1, 4, 2, INT_FILL_VALUE],
+        [0, 3, 4, INT_FILL_VALUE],
+    ])
+    uxgrid = ux.Grid.from_topology(
+        node_lon=np.array([0.0, 10.0, 10.0, 0.0, 20.0]),
+        node_lat=np.array([0.0, 0.0, 10.0, 10.0, 0.0]),
+        face_node_connectivity=face_node_connectivity,
+        fill_value=INT_FILL_VALUE,
+    )
+
+    # The quad sorts last, so an unrecorded regrouping is visible in row 0
+    path = tmp_path / "mixed_order.exo"
+    uxgrid.to_xarray("Exodus").to_netcdf(path)
+
+    np.testing.assert_array_equal(
+        ux.open_grid(path).face_node_connectivity.values, face_node_connectivity
+    )
+
+def test_read_exodus_ignores_third_party_elem_num_map(gridpath, tmp_path):
+    """Element IDs from another writer must not reorder the mesh.
+
+    ``_encode_exodus`` records the original face order in ``elem_num_map`` to undo
+    its own block grouping. Exodus defines that variable as a user-facing ID, which
+    a third-party file is free to renumber, so the reader only honors it on files
+    it wrote -- identified via ``qa_records``.
+    """
+    source = gridpath("exodus", "mixed", "mixed.exo")
+    original = ux.open_grid(source)
+
+    # Same mesh, same blocks, same connectivity -- only the element IDs change
+    with xr.open_dataset(source) as ds:
+        renumbered = ds.load()
+    n_elem = renumbered["elem_num_map"].sizes["num_elem"]
+    renumbered["elem_num_map"][:] = np.arange(n_elem, 0, -1)
+
+    assert b"uxarray" not in np.asarray(
+        renumbered["qa_records"].values, dtype="S"
+    ).ravel(), "fixture is no longer a third-party file"
+
+    path = tmp_path / "mixed_renumbered.exo"
+    renumbered.to_netcdf(path)
+
+    np.testing.assert_array_equal(
+        ux.open_grid(path).face_node_connectivity.values,
+        original.face_node_connectivity.values,
+    )
+
 def test_mixed_exodus(gridpath):
     """Read/write an exodus file with two types of faces (triangle and quadrilaterals) and writes a ugrid file."""
     uxgrid = ux.open_grid(gridpath("exodus", "mixed", "mixed.exo"))
@@ -86,7 +143,8 @@ def test_mixed_exodus(gridpath):
 
     # Face node connectivity comparison
     assert np.array_equal(ugrid_load_saved.face_node_connectivity.values, uxgrid.face_node_connectivity.values)
-    assert _face_rows(exodus_load_saved) == _face_rows(uxgrid)
+
+    assert np.array_equal(uxgrid.face_node_connectivity.values, exodus_load_saved.face_node_connectivity.values)
 
     # Node coordinates comparison
     assert np.array_equal(ugrid_load_saved.node_lon.values, uxgrid.node_lon.values)
