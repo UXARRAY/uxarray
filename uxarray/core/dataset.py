@@ -993,7 +993,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         GridInvalidError
             If any face still references a coincident duplicate node.
         """
-        grid = self.uxgrid._prepare_for_dual()
+        grid = self.uxgrid
         if _check_duplicate_nodes_indices(grid):
             raise GridInvalidError(
                 "Duplicate nodes found in UxDataset's uxgrid; cannot get_dual()"

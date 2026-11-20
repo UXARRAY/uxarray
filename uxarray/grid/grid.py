@@ -2805,26 +2805,6 @@ class Grid:
 
         return copy.deepcopy(line_collection)
 
-    def _prepare_for_dual(self):
-        """Canonicalize deferred lazy topology without modifying the source grid."""
-        required = ["face_node_connectivity"]
-        if "node_lon" in self._ds and "node_lat" in self._ds:
-            required.extend(["node_lon", "node_lat"])
-        else:
-            required.extend(["node_x", "node_y", "node_z"])
-        if not any(self._ds[name].chunks is not None for name in required):
-            return self
-        grid_ds = self._ds.copy(deep=False)
-        computed = self._ds[required].compute()
-        for name in required:
-            grid_ds[name] = computed[name]
-        return type(self)(
-            grid_ds,
-            self.source_grid_spec,
-            source_dims_dict=self._source_dims_dict,
-            merge_coincident_nodes=self._merge_coincident_nodes,
-        )
-
     def get_dual(self, check_duplicate_nodes: bool | None = None):
         """Compute the dual for a grid, which constructs a new grid centered
         around the nodes, where the nodes of the primal become the face centers
@@ -2857,18 +2837,17 @@ class Grid:
                 stacklevel=2,
             )
 
-        grid = self._prepare_for_dual()
-        if _check_duplicate_nodes_indices(grid):
+        if _check_duplicate_nodes_indices(self):
             raise GridInvalidError("Duplicate nodes found, cannot construct dual")
 
         # Get dual mesh node face connectivity
-        dual_node_face_conn = construct_dual(grid=grid)
+        dual_node_face_conn = construct_dual(grid=self)
 
         # Primal face centers become dual nodes. Repeated primal faces can have
         # coincident centers even when primal nodes are canonical, so the dual
         # must also canonicalize its connectivity.
         dual_ds = _read_topology(
-            grid.face_lon.data, grid.face_lat.data, dual_node_face_conn, None, 0
+            self.face_lon.data, self.face_lat.data, dual_node_face_conn, None, 0
         )
         dual = type(self)(dual_ds, "User Defined Topology")
 
