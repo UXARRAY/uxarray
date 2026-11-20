@@ -100,6 +100,7 @@ def test_geos_cs_dataarray_matches_dataset(gridpath):
     xr.testing.assert_identical(uxda, uxds["T"])
     xr.testing.assert_identical(uxda_t.transpose(*uxda.dims), uxda)
     assert "n_face" not in uxda.indexes
+    assert "n_face" not in uxds["T"].indexes
 
 
 def test_geos_cs_from_xarray_leaves_input_unchanged(gridpath):
