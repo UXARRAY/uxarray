@@ -76,7 +76,7 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 from uxarray.grid.point_in_face import _point_in_face_query
-from uxarray.grid.utils import make_setter
+from uxarray.grid.utils import _drop_non_grid_data, make_setter
 from uxarray.grid.validation import (
     _check_area,
     _check_connectivity,
@@ -210,8 +210,10 @@ class Grid:
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
 
-        # internal xarray dataset for storing grid variables
-        self._ds = grid_ds
+        # internal xarray dataset for storing grid variables.
+        # drop variables that don't belong on the grid (e.g. a `time` carried in from a
+        # file holding both grid and data), so they can't collide during subsetting.
+        self._ds = _drop_non_grid_data(grid_ds)
 
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec

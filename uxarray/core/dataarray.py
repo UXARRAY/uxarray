@@ -2399,7 +2399,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
     @classmethod
     def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
         """
-        Converts a ``xarray.DataArray`` into a ``uxarray.UxDataset`` paired with a user-defined ``Grid``
+        Converts a ``xarray.DataArray`` into a ``uxarray.UxDataArray`` paired with a user-defined ``Grid``
 
         Parameters
         ----------
@@ -2413,15 +2413,15 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         Returns
         -------
         cls
-            A ``ux.UxDataArray`` with data from the ``xr.DataArray` paired with a ``ux.Grid``
+            A ``ux.UxDataArray`` with data from the ``xr.DataArray`` paired with a ``ux.Grid``
         """
         if ugrid_dims is None:
             ugrid_dims = uxgrid._source_dims_dict
 
         # map each dimension to its UGRID equivalent
-        ds = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
+        da = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
 
-        return cls(ds, uxgrid=uxgrid)
+        return cls(da, uxgrid=uxgrid)
 
     @classmethod
     def from_healpix(
@@ -2475,19 +2475,21 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
         indices to correctly slice the data variable."""
 
+        # index with the underlying arrays, so coordinates on the sliced grid
+        # (e.g. a stray ``time``) aren't aligned against, or attached to, the data
         if self._face_centered():
             da_sliced = self.isel(
-                n_face=sliced_grid._ds["_subgrid_face_indices"], ignore_grid=True
+                n_face=sliced_grid._ds["_subgrid_face_indices"].data, ignore_grid=True
             )
 
         elif self._edge_centered():
             da_sliced = self.isel(
-                n_edge=sliced_grid._ds["_subgrid_edge_indices"], ignore_grid=True
+                n_edge=sliced_grid._ds["_subgrid_edge_indices"].data, ignore_grid=True
             )
 
         elif self._node_centered():
             da_sliced = self.isel(
-                n_node=sliced_grid._ds["_subgrid_node_indices"], ignore_grid=True
+                n_node=sliced_grid._ds["_subgrid_node_indices"].data, ignore_grid=True
             )
 
         else:
