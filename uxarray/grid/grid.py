@@ -836,20 +836,15 @@ class Grid:
         -------
         If two grids are equal : bool
         """
-        if self is other:
-            return True
 
-        if not isinstance(other, Grid):
-            return False
-
-        if self.source_grid_spec != other.source_grid_spec:
-            return False
-
-        if not self.node_lon.equals(other.node_lon):
-            return False
-        if not self.node_lat.equals(other.node_lat):
-            return False
-        return self.face_node_connectivity.equals(other.face_node_connectivity)
+        same_id = self is other
+        return same_id or (
+            isinstance(other, Grid)
+            and self.source_grid_spec == other.source_grid_spec
+            and self.node_lon.equals(other.node_lon)
+            and self.node_lat.equals(other.node_lat)
+            and self.face_node_connectivity.equals(other.face_node_connectivity)
+        )
 
     def __ne__(self, other) -> bool:
         """Two grids are not equal if they have differing grid topology
