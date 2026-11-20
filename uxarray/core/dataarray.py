@@ -2434,7 +2434,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         # map each dimension to its UGRID equivalent
         ds = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
 
-        return cls(ds, uxgrid=uxgrid)
+da = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
+
+return cls(da, uxgrid=uxgrid)
 
     @classmethod
     def from_healpix(
