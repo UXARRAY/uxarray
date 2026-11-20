@@ -1,54 +1,15 @@
+import math
+
 import numpy as np
-import polars as pl
-from numba import njit, prange, types
-from numba.typed import List
+from numba import njit, prange
 
 from uxarray.constants import ERROR_TOLERANCE, INT_FILL_VALUE
 from uxarray.grid.arcs import compute_arc_length
-from uxarray.grid.coordinates import _xyz_to_lonlat_rad
 from uxarray.grid.intersections import (
     gca_const_lat_intersection,
     get_number_of_intersections,
 )
 from uxarray.utils.parallel import parallel_njit
-
-DUMMY_EDGE_VALUE = [INT_FILL_VALUE, INT_FILL_VALUE, INT_FILL_VALUE]
-
-point_type = types.UniTuple(types.float64, 3)
-edge_type = types.UniTuple(types.int64, 2)
-
-
-def _is_edge_gca(is_GCA_list, is_latlonface, edges_z):
-    """Determine if each edge is a Great Circle Arc (GCA) or a constant
-    latitude line in a vectorized manner.
-
-    Parameters:
-    ----------
-    is_GCA_list : np.ndarray or None
-        An array indicating whether each edge is a GCA (True) or a constant latitude line (False).
-        Shape: (n_edges). If None, edge types are determined based on `is_latlonface` and the z-coordinates.
-    is_latlonface : bool
-        Flag indicating if all edges should be considered as lat-lon faces, which implies all edges
-        are either constant latitude or longitude lines.
-    edges_z : np.ndarray
-        Array containing the z-coordinates for each vertex of the edges. This is used to determine
-        whether edges are on the equator or if they are aligned in latitude when `is_GCA_list` is None.
-        Shape should be (n_edges, 2).
-
-    Returns:
-    -------
-    np.ndarray
-        A boolean array where each element indicates whether the corresponding edge is considered a GCA.
-        True for GCA, False for constant latitude line.
-    """
-    if is_GCA_list is not None:
-        return is_GCA_list
-    if is_latlonface:
-        return ~np.isclose(edges_z[:, 0], edges_z[:, 1], atol=ERROR_TOLERANCE)
-    return ~(
-        np.isclose(edges_z[:, 0], 0, atol=ERROR_TOLERANCE)
-        & np.isclose(edges_z[:, 1], 0, atol=ERROR_TOLERANCE)
-    )
 
 
 def _zonal_face_weights_robust(
@@ -57,10 +18,10 @@ def _zonal_face_weights_robust(
     face_latlon_bound_candidate: np.ndarray,
     is_latlonface: bool = False,
     is_face_GCA_list: np.ndarray | None = None,
-) -> pl.DataFrame:
+) -> np.ndarray:
     """
     Utilize the sweep line algorithm to calculate the weight of each face at
-    a constant latitude, returning a Polars DataFrame.
+    a constant latitude.
 
     Parameters
     ----------
@@ -79,95 +40,41 @@ def _zonal_face_weights_robust(
 
     Returns
     -------
-    weights_df : pl.DataFrame
-        DataFrame with columns ["face_index", "weight"], containing the per-face weights
-        (as a fraction of the total length of intersection).
+    weights : np.ndarray
+        Shape (n_faces,), the weight of each candidate face as a fraction of the
+        total length of intersection. All NaN when every candidate face is only
+        touched by the latitude, matching `_zonal_face_weights`.
     """
+    n_faces = len(faces_edges_cart_candidate)
 
     # Special case: latitude_cart close to +1 or -1 (near poles)
-    if np.isclose(latitude_cart, 1, atol=ERROR_TOLERANCE) or np.isclose(
-        latitude_cart, -1, atol=ERROR_TOLERANCE
-    ):
+    if np.isclose(abs(latitude_cart), 1, atol=ERROR_TOLERANCE):
         # Evenly distribute weight among candidate faces
-        n_faces = len(faces_edges_cart_candidate)
-        weights = {face_index: 1.0 / n_faces for face_index in range(n_faces)}
-        # Convert dict to Polars DataFrame
-        return pl.DataFrame(
-            list(weights.items()), schema=["face_index", "weight"], orient="row"
-        )
+        return np.full(n_faces, 1.0 / n_faces)
 
-    intervals_list = []
-
-    # Iterate over faces
-    for face_index, face_edges in enumerate(faces_edges_cart_candidate):
-        # Remove edges that contain INT_FILL_VALUE
-        face_edges = face_edges[np.all(face_edges != INT_FILL_VALUE, axis=(1, 2))]
-
-        # Which edges are GCA vs constant-lat?
-        if is_face_GCA_list is not None:
-            is_GCA_list = is_face_GCA_list[face_index]
-        else:
-            is_GCA_list = None
-
-        # Retrieve intervals for the current face
-        face_interval_df = _get_zonal_face_interval(
-            face_edges,
+    starts, ends, face_indices, bad_face = _candidate_intervals_numba(
+        faces_edges_cart_candidate,
+        latitude_cart,
+        face_latlon_bound_candidate,
+        is_face_GCA_list,
+        is_latlonface,
+    )
+    if bad_face >= 0:
+        face_edges = faces_edges_cart_candidate[bad_face]
+        _raise_zonal_face_interval_error(
+            face_edges[np.all(face_edges != INT_FILL_VALUE, axis=(1, 2))],
             latitude_cart,
-            face_latlon_bound_candidate[face_index],
-            is_latlonface=is_latlonface,
-            is_GCA_list=is_GCA_list,
+            is_latlonface,
+            None if is_face_GCA_list is None else is_face_GCA_list[bad_face],
         )
 
-        # Check if there are any null values in face_interval_df
-        has_null = face_interval_df.select(pl.col("*").is_null().any()).row(0)[0]
-        if has_null:
-            # Skip this face (only "touched" by the latitude)
-            continue
+    overlap_contributions, total_length = _process_overlapped_intervals(
+        starts, ends, face_indices, n_faces
+    )
+    if total_length == 0.0:
+        return np.full(n_faces, np.nan)
 
-        # Check if all start == 0 and all end == 0
-        all_start_zero = face_interval_df.select((pl.col("start") == 0).all()).row(0)[0]
-        all_end_zero = face_interval_df.select((pl.col("end") == 0).all()).row(0)[0]
-        if all_start_zero and all_end_zero:
-            # Skip face being merely touched
-            continue
-
-        # Add each interval row to intervals_list
-        for row in face_interval_df.iter_rows(named=True):
-            intervals_list.append(
-                {
-                    "start": row["start"],
-                    "end": row["end"],
-                    "face_index": face_index,
-                }
-            )
-
-    # Build a Polars DataFrame from intervals
-    intervals_df = pl.DataFrame(intervals_list)
-
-    # Process intervals to get overlap contributions
-    try:
-        overlap_contributions, total_length = _process_overlapped_intervals(
-            intervals_df
-        )
-
-        # Build final weights dict
-        weights = {}
-        n_faces = len(faces_edges_cart_candidate)
-        for face_index in range(n_faces):
-            # fraction of total for this face
-            weights[face_index] = (
-                overlap_contributions.get(face_index, 0.0) / total_length
-            )
-
-        # Return as Polars DataFrame
-        weights_df = pl.DataFrame(
-            list(weights.items()), schema=["face_index", "weight"], orient="row"
-        )
-        return weights_df
-
-    except ValueError:
-        # If an exception occurs, you can print debug info here if needed
-        raise
+    return overlap_contributions / total_length
 
 
 def _get_zonal_face_interval(
@@ -176,12 +83,12 @@ def _get_zonal_face_interval(
     face_latlon_bound: np.ndarray,
     is_latlonface: bool = False,
     is_GCA_list: np.ndarray | None = None,
-) -> pl.DataFrame:
+) -> np.ndarray:
     """
     Processes a face polygon represented by edges in Cartesian coordinates
     to find intervals where the face intersects with a given latitude. This
     function handles directed and undirected Great Circle Arcs (GCAs) and edges
-    at constant latitude, returning a Polars DataFrame with columns ["start", "end"].
+    at constant latitude, returning the intervals as (start, end) longitude pairs.
 
     Requires the face edges to be sorted in counter-clockwise order, and the span of the
     face in longitude should be less than pi. Also, all arcs/edges length should be within pi.
@@ -208,83 +115,54 @@ def _get_zonal_face_interval(
 
     Returns
     -------
-    Intervals_df : pl.DataFrame
-        a Polars DataFrame with columns ["start", "end"]
+    intervals : np.ndarray
+        Shape (n_intervals, 2), the (start, end) longitudes in radians of each
+        interval, sorted by start. A face only touched by the latitude has the
+        single interval (0, 0).
     """
-
-    face_lon_bound_left, face_lon_bound_right = face_latlon_bound[1]
-
-    try:
-        unique_intersections, pt_lon_min, pt_lon_max = (
-            _get_faces_constLat_intersection_info(
-                face_edges_cart, latitude_cart, is_GCA_list, is_latlonface
-            )
+    points, longitudes, intervals = _interval_buffers(face_edges_cart.shape[0])
+    n_intervals = _face_intervals_numba(
+        face_edges_cart,
+        latitude_cart,
+        face_latlon_bound[1],
+        is_GCA_list,
+        is_latlonface,
+        points,
+        longitudes,
+        intervals,
+    )
+    if n_intervals < 0:
+        _raise_zonal_face_interval_error(
+            face_edges_cart, latitude_cart, is_latlonface, is_GCA_list
         )
+    if n_intervals == 0:
+        return np.zeros((1, 2))
 
-        # If there's exactly one intersection, the face is only "touched"
-        if len(unique_intersections) == 1:
-            return pl.DataFrame({"start": [0.0], "end": [0.0]})
-
-        # Convert intersection points to (lon, lat) in radians
-        longitudes = np.array(
-            [_xyz_to_lonlat_rad(*pt.tolist())[0] for pt in unique_intersections]
-        )
-
-        # Handle special wrap-around cases (crossing anti-meridian, etc.)
-        if face_lon_bound_left >= face_lon_bound_right or (
-            face_lon_bound_left == 0 and face_lon_bound_right == 2 * np.pi
-        ):
-            if not (
-                (pt_lon_max >= np.pi and pt_lon_min >= np.pi)
-                or (0 <= pt_lon_max <= np.pi and 0 <= pt_lon_min <= np.pi)
-            ):
-                if pt_lon_max != 2 * np.pi and pt_lon_min != 0:
-                    # Add wrap-around points
-                    longitudes = np.append(longitudes, [0.0, 2 * np.pi])
-                elif pt_lon_max >= np.pi and pt_lon_min == 0:
-                    # If min is 0, but we really need 2*pi
-                    longitudes[longitudes == 0] = 2.0 * np.pi
-
-        # Sort unique longitudes
-        longitudes = np.unique(longitudes)
-        longitudes.sort()
-
-        # Pair sorted longitudes into intervals
-        starts = longitudes[::2]
-        ends = longitudes[1::2]
-
-        # Create Polars DataFrame
-        intervals_df = pl.DataFrame({"start": starts, "end": ends})
-        intervals_df_sorted = intervals_df.sort("start")
-
-        return intervals_df_sorted
-
-    except ValueError as e:
-        default_print_options = np.get_printoptions()
-        # TODO: what is build_latlon_box?
-        if str(e) == (
-            "No intersections are found for the face, please make sure the "
-            "build_latlon_box generates the correct results"
-        ):
-            np.set_printoptions(precision=16, suppress=False)
-            print(
-                "ValueError: No intersections are found for the face, make sure build_latlon_box is correct"
-            )
-            print(f"Face edges info:\n{face_edges_cart}")
-            print(f"Constant z_0: {latitude_cart}")
-            print(f"Face latlon bound:\n{face_latlon_bound}")
-            np.set_printoptions(**default_print_options)
-            raise
-        else:
-            np.set_printoptions(precision=17, suppress=False)
-            print(f"Face edges info:\n{face_edges_cart}")
-            print(f"Constant z_0: {latitude_cart}")
-            print(f"Face latlon bound:\n{face_latlon_bound}")
-            np.set_printoptions(**default_print_options)
-            raise
+    return intervals[:n_intervals]
 
 
-def _process_overlapped_intervals(intervals_df: pl.DataFrame):
+def _raise_zonal_face_interval_error(
+    face_edges_cart, latitude_cart, is_latlonface, is_GCA_list
+):
+    """Raise the error for a face `_face_intervals_numba` could not process.
+
+    The kernel cannot format the face into a message, so this re-runs the face's
+    intersection step in Python, which raises if the intersections are invalid.
+    Otherwise it is their longitudes that cannot be paired into intervals.
+    """
+    _get_faces_constLat_intersection_info(
+        face_edges_cart, latitude_cart, is_GCA_list, is_latlonface
+    )
+    raise ValueError(
+        "Found an odd number of intersection longitudes for this face at "
+        f"latitude_cart={latitude_cart}, so they cannot be paired into intervals."
+        f"\nFace edges cartesian coordinates: {face_edges_cart}"
+    )
+
+
+def _process_overlapped_intervals(
+    starts: np.ndarray, ends: np.ndarray, face_indices: np.ndarray, n_faces: int
+):
     """Process the overlapped intervals using the sweep line algorithm.
 
     This function processes multiple intervals per face using a sweep line algorithm,
@@ -294,62 +172,34 @@ def _process_overlapped_intervals(intervals_df: pl.DataFrame):
 
     Parameters
     ----------
-    intervals_df : pl.DataFrame
-        A Polars DataFrame containing the intervals and corresponding face indices.
-        Required columns:
-            - start : numeric
-                Starting position of each interval
-            - end : numeric
-                Ending position of each interval
-            - face_index : int or str
-                Identifier for the face associated with each interval
+    starts : np.ndarray
+        Starting position of each interval.
+    ends : np.ndarray
+        Ending position of each interval.
+    face_indices : np.ndarray
+        Index of the face each interval belongs to, in ``[0, n_faces)``.
+    n_faces : int
+        The number of faces.
 
     Returns
     -------
-    tuple[dict, float]
+    tuple[np.ndarray, float]
         A tuple containing:
-        - dict: Maps face indices to their contributions to the total length,
+        - np.ndarray: Shape (n_faces,), each face's contribution to the total length,
                where overlapping segments are weighted equally among active faces
         - float: The total length of all intervals considering their overlaps
     """
-
-    events = []
-    # Iterate Polars rows as dictionaries
-    for row in intervals_df.iter_rows(named=True):
-        events.append((row["start"], "start", row["face_index"]))
-        events.append((row["end"], "end", row["face_index"]))
-
-    # Sort the events by (position, event_type)
-    # so that 'start' comes before 'end' if position ties
-    events.sort(key=lambda x: (x[0], x[1]))
-
-    active_faces = set()
-    last_position = None
-    total_length = 0.0
-    overlap_contributions = {}
-
-    for position, event_type, face_idx in events:
-        if last_position is not None and active_faces:
-            segment_length = position - last_position
-            # Each face gets an equal share of this segment
-            segment_weight = segment_length / len(active_faces)
-            for active_face in active_faces:
-                overlap_contributions[active_face] = (
-                    overlap_contributions.get(active_face, 0.0) + segment_weight
-                )
-            total_length += segment_length
-
-        if event_type == "start":
-            active_faces.add(face_idx)
-        elif event_type == "end":
-            if face_idx in active_faces:
-                active_faces.remove(face_idx)
-            else:
-                raise ValueError(
-                    f"Cannot end interval for currently-inactive face_idx {face_idx}, at position {position}."
-                )
-
-        last_position = position
+    overlap_contributions, total_length, bad_row = _overlap_sweep_numba(
+        np.asarray(starts, dtype=np.float64),
+        np.asarray(ends, dtype=np.float64),
+        np.asarray(face_indices, dtype=np.int64),
+        n_faces,
+    )
+    if bad_row >= 0:
+        raise ValueError(
+            f"Cannot end interval for currently-inactive face_idx {face_indices[bad_row]}, "
+            f"at position {ends[bad_row]}."
+        )
 
     return overlap_contributions, total_length
 
@@ -357,9 +207,8 @@ def _process_overlapped_intervals(intervals_df: pl.DataFrame):
 def _get_faces_constLat_intersection_info(
     face_edges_cart, latitude_cart, is_GCA_list, is_latlonface
 ):
-    """Processes each edge of a face polygon in a vectorized manner to
-    determine overlaps and calculate the intersections for a given latitude and
-    the faces.
+    """Processes each edge of a face polygon to determine overlaps and
+    calculate the intersections for a given latitude and the faces.
 
     Parameters:
     ----------
@@ -374,149 +223,427 @@ def _get_faces_constLat_intersection_info(
         Flag indicating if all faces are considered as lat-lon faces, meaning all edges are either
         constant latitude or longitude lines. This parameter overwrites the `is_GCA_list` if set to True.
 
-
     Returns:
     -------
     tuple
         A tuple containing:
-        - intersections_pts_list_cart (list): A list of intersection points where each point is where an edge intersects with the latitude.
-        - pt_lon_min (float): The min longnitude of the interseted intercal in radian if any; otherwise, None..
-        - pt_lon_max (float): The max longnitude of the interseted intercal in radian, if any; otherwise, None.
+        - unique_intersections (np.ndarray): Shape (n_points, 3), the points where the face's edges intersect the latitude.
+        - pt_lon_min (float): The min longitude of the intersections in radians, or None if there is only one.
+        - pt_lon_max (float): The max longitude of the intersections in radians, or None if there is only one.
     """
-    valid_edges_mask = ~(np.any(face_edges_cart == DUMMY_EDGE_VALUE, axis=(1, 2)))
-
-    # Apply mask to filter out dummy edges
-    valid_edges = face_edges_cart[valid_edges_mask]
-
-    # Extract Z coordinates for edge determination
-    edges_z = valid_edges[:, :, 2]
-
-    # Determine if each edge is GCA or constant latitude
-    is_GCA = _is_edge_gca(is_GCA_list, is_latlonface, edges_z)
-
-    # Check overlap with latitude
-    overlaps_with_latitude = np.all(
-        np.isclose(edges_z, latitude_cart, atol=ERROR_TOLERANCE), axis=1
+    points, longitudes, _ = _interval_buffers(face_edges_cart.shape[0])
+    n_unique = _face_intersections_numba(
+        face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, points, longitudes
     )
-    overlap_flag = np.any(overlaps_with_latitude & ~is_GCA)
 
-    # Identify overlap edges if needed
-    intersections_pts_list_cart = []
-    if overlap_flag:
-        overlap_index = np.where(overlaps_with_latitude & ~is_GCA)[0][0]
-        intersections_pts_list_cart.extend(valid_edges[overlap_index])
-    else:
-        # Calculate intersections (assuming a batch-capable intersection function)
-        for idx, edge in enumerate(valid_edges):
-            if is_GCA[idx]:
-                intersections = gca_const_lat_intersection(edge, latitude_cart)
-                n_intersections = get_number_of_intersections(intersections)
-                if n_intersections == 0:
-                    continue
-                elif n_intersections == 2:
-                    intersections_pts_list_cart.extend(intersections)
-                else:
-                    intersections_pts_list_cart.append(intersections[0])
-
-    # Find the unique intersection points
-    unique_intersections = np.unique(intersections_pts_list_cart, axis=0)
-
-    if len(unique_intersections) == 2:
-        unique_intersection_lonlat = np.array(
-            [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
-        )
-
-        sorted_lonlat = np.sort(unique_intersection_lonlat, axis=0)
-        pt_lon_min, pt_lon_max = sorted_lonlat[:, 0]
-        return unique_intersections, pt_lon_min, pt_lon_max
-    elif len(unique_intersections) == 1:
-        return unique_intersections, None, None
-    elif len(unique_intersections) != 0 and len(unique_intersections) != 1:
-        # If the unique intersections numbers is larger than n_edges * 2, then it means the face is concave
-        if len(unique_intersections) > len(valid_edges) * 2:
-            raise ValueError(
-                "Concave face found, but not supported by UXarray and would lead to incorrect results "
-                "during _get_faces_constLat_intersection_info."
-                f"\nFace edges cartesian coordinates: {face_edges_cart}"
-            )
-        else:
-            # Now return all the intersections points and the pt_lon_min, pt_lon_max
-            unique_intersection_lonlat = np.array(
-                [_xyz_to_lonlat_rad(pt[0], pt[1], pt[2]) for pt in unique_intersections]
-            )
-
-            sorted_lonlat = np.sort(unique_intersection_lonlat, axis=0)
-            # Extract the minimum and maximum longitudes
-            pt_lon_min, pt_lon_max = (
-                np.min(sorted_lonlat[:, 0]),
-                np.max(sorted_lonlat[:, 0]),
-            )
-
-            return unique_intersections, pt_lon_min, pt_lon_max
-    elif len(unique_intersections) == 0:
+    if n_unique == 0:
         raise ValueError(
             "Found 0 intersections for this face, expected at least 1."
             f"\nFace edges cartesian coordinates: {face_edges_cart}"
         )
+    if n_unique == 1:
+        # The face is only touched by the latitude, so there is no interval
+        return points[:1], None, None
+
+    return points[:n_unique], longitudes[:n_unique].min(), longitudes[:n_unique].max()
+
+
+@njit(cache=True, inline="always")
+def _isclose_scalar(a, b, atol):
+    """Scalar form of ``np.isclose``, including its default relative tolerance."""
+    return abs(a - b) <= atol + 1.0e-5 * abs(b)
+
+
+@njit(cache=True, inline="always")
+def _edge_is_valid(face_edges_cart, e):
+    """Determine whether edge ``e`` is a real edge rather than a dummy one."""
+    for i in range(2):
+        for j in range(3):
+            if face_edges_cart[e, i, j] == INT_FILL_VALUE:
+                return False
+    return True
+
+
+@njit(cache=True, inline="always")
+def _edge_is_gca(z0, z1, is_GCA_list, is_latlonface, edge_index):
+    """Determine if an edge is a Great Circle Arc (GCA) or a constant latitude
+    line, from the z-coordinates of its two vertices.
+
+    An explicit `is_GCA_list` entry wins; lat-lon faces treat edges of equal
+    latitude as constant latitude lines; otherwise only edges lying on the
+    equator are constant latitude lines.
+    """
+    if is_GCA_list is not None:
+        return is_GCA_list[edge_index]
+    if is_latlonface:
+        return not _isclose_scalar(z0, z1, ERROR_TOLERANCE)
+    return not (
+        _isclose_scalar(z0, 0.0, ERROR_TOLERANCE)
+        and _isclose_scalar(z1, 0.0, ERROR_TOLERANCE)
+    )
+
+
+@njit(cache=True, inline="always")
+def _lon_rad_from_xyz(x, y, z):
+    """Longitude of a Cartesian point in radians, in the range [0, 2*pi].
+
+    Scalar counterpart of `_xyz_to_lonlat_rad`, keeping only the longitude.
+    """
+    denom = (x**2 + y**2 + z**2) ** 0.5
+    x_norm = x / denom
+    y_norm = y / denom
+    z_norm = z / denom
+
+    # Longitude is undefined at the poles, matching `_xyz_to_lonlat_rad`
+    if abs(z_norm) > 1.0 - ERROR_TOLERANCE:
+        return 0.0
+
+    lon = math.atan2(y_norm, x_norm)
+    if lon < 0.0:
+        lon += 2.0 * np.pi
+    return lon
 
 
 @njit(cache=True)
-def _add_edge(edges_list, i0, i1):
-    """Insert an edge into a list of edges in sorted order, ensuring no duplicates.
+def _unique_rows(points, n_points):
+    """In-place equivalent of ``np.unique(points[:n_points], axis=0)``.
 
-    Parameters
-    ----------
-    edges_list : List
-        List of edge tuples (i0, i1) where each i represents a point index
-    i0 : int
-        First point index of the edge
-    i1 : int
-        Second point index of the edge
+    Sorts the first `n_points` rows lexicographically and compacts duplicates to
+    the front, returning how many unique rows there are. An insertion sort is
+    used because a face only ever contributes a handful of points.
+    """
+    for i in range(1, n_points):
+        x = points[i, 0]
+        y = points[i, 1]
+        z = points[i, 2]
+        j = i - 1
+        while j >= 0:
+            prev_x = points[j, 0]
+            prev_y = points[j, 1]
+            prev_z = points[j, 2]
+            if prev_x != x:
+                if prev_x < x:
+                    break
+            elif prev_y != y:
+                if prev_y < y:
+                    break
+            elif not prev_z > z:
+                break
+            points[j + 1, 0] = prev_x
+            points[j + 1, 1] = prev_y
+            points[j + 1, 2] = prev_z
+            j -= 1
+        points[j + 1, 0] = x
+        points[j + 1, 1] = y
+        points[j + 1, 2] = z
+
+    # Duplicates are adjacent now that the rows are sorted
+    n_unique = 0
+    for i in range(n_points):
+        if n_unique > 0 and (
+            points[n_unique - 1, 0] == points[i, 0]
+            and points[n_unique - 1, 1] == points[i, 1]
+            and points[n_unique - 1, 2] == points[i, 2]
+        ):
+            continue
+        points[n_unique, 0] = points[i, 0]
+        points[n_unique, 1] = points[i, 1]
+        points[n_unique, 2] = points[i, 2]
+        n_unique += 1
+    return n_unique
+
+
+@njit(cache=True)
+def _sort_unique(values, n_values):
+    """In-place equivalent of ``np.unique(values[:n_values])``, returning how
+    many unique values it leaves at the front. An insertion sort, like
+    `_unique_rows`."""
+    for i in range(1, n_values):
+        value = values[i]
+        j = i - 1
+        while j >= 0 and values[j] > value:
+            values[j + 1] = values[j]
+            j -= 1
+        values[j + 1] = value
+
+    n_unique = 0
+    for i in range(n_values):
+        if n_unique == 0 or values[i] != values[n_unique - 1]:
+            values[n_unique] = values[i]
+            n_unique += 1
+    return n_unique
+
+
+@njit(cache=True)
+def _interval_buffers(n_edges):
+    """Scratch space for the interval kernels on a face of up to `n_edges` edges.
+
+    Each edge adds at most two intersection points, the wrap-around adds two
+    more longitudes, and the longitudes pair up into intervals.
+    """
+    points = np.empty((2 * n_edges, 3))
+    longitudes = np.empty(2 * n_edges + 2)
+    intervals = np.empty((n_edges + 1, 2))
+    return points, longitudes, intervals
+
+
+@njit(cache=True)
+def _face_intersections_numba(
+    face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, points, longitudes
+):
+    """Kernel behind `_get_faces_constLat_intersection_info`.
+
+    Writes the face's unique intersection points with the latitude, sorted, to
+    the front of `points` and their longitudes to the front of `longitudes`,
+    returning how many there are.
+    """
+    n_points = 0
+    n_valid = 0
+
+    for e in range(face_edges_cart.shape[0]):
+        if not _edge_is_valid(face_edges_cart, e):
+            continue
+
+        z0 = face_edges_cart[e, 0, 2]
+        z1 = face_edges_cart[e, 1, 2]
+        is_gca = _edge_is_gca(z0, z1, is_GCA_list, is_latlonface, n_valid)
+        n_valid += 1
+
+        if not is_gca:
+            # A constant latitude edge lying on the latitude is itself the whole
+            # intersection, so it replaces anything the other edges contribute
+            if _isclose_scalar(z0, latitude_cart, ERROR_TOLERANCE) and _isclose_scalar(
+                z1, latitude_cart, ERROR_TOLERANCE
+            ):
+                points[:2] = face_edges_cart[e]
+                n_points = 2
+                break
+            continue
+
+        intersections = gca_const_lat_intersection(face_edges_cart[e], latitude_cart)
+        for r in range(get_number_of_intersections(intersections)):
+            x, y, z = intersections[r]
+            points[n_points, 0] = x
+            points[n_points, 1] = y
+            points[n_points, 2] = z
+            n_points += 1
+
+    n_unique = _unique_rows(points, n_points)
+    for i in range(n_unique):
+        longitudes[i] = _lon_rad_from_xyz(points[i, 0], points[i, 1], points[i, 2])
+    return n_unique
+
+
+@njit(cache=True)
+def _face_intervals_numba(
+    face_edges_cart,
+    latitude_cart,
+    face_lon_bounds,
+    is_GCA_list,
+    is_latlonface,
+    points,
+    longitudes,
+    intervals,
+):
+    """Kernel behind `_get_zonal_face_interval`, given the scratch space from
+    `_interval_buffers`.
+
+    Writes the face's (start, end) intervals, sorted, to the front of `intervals`
+    and returns how many there are: 0 for a face only touched by the latitude,
+    and -1 for a face that cannot be processed, either because it has no
+    intersections or because their longitudes cannot be paired into intervals.
+    The Python wrappers re-run such a face to raise the error.
+    """
+    n_unique = _face_intersections_numba(
+        face_edges_cart, latitude_cart, is_GCA_list, is_latlonface, points, longitudes
+    )
+    if n_unique == 0:
+        return -1
+    if n_unique == 1:
+        return 0
+
+    pt_lon_min = longitudes[0]
+    pt_lon_max = longitudes[0]
+    for i in range(1, n_unique):
+        pt_lon_min = min(pt_lon_min, longitudes[i])
+        pt_lon_max = max(pt_lon_max, longitudes[i])
+    n_longitudes = n_unique
+
+    # Handle special wrap-around cases (crossing anti-meridian, etc.): a face
+    # whose bounds wrap, with intersections on both sides of pi
+    face_lon_bound_left = face_lon_bounds[0]
+    face_lon_bound_right = face_lon_bounds[1]
+    bounds_wrap = face_lon_bound_left >= face_lon_bound_right or (
+        face_lon_bound_left == 0 and face_lon_bound_right == 2 * np.pi
+    )
+    if bounds_wrap and pt_lon_min < np.pi < pt_lon_max:
+        if pt_lon_min == 0:
+            # A minimum of 0 is really 2*pi
+            for i in range(n_longitudes):
+                if longitudes[i] == 0:
+                    longitudes[i] = 2.0 * np.pi
+        elif pt_lon_max != 2 * np.pi:
+            # Add wrap-around points
+            longitudes[n_longitudes] = 0.0
+            longitudes[n_longitudes + 1] = 2 * np.pi
+            n_longitudes += 2
+
+    # Pair the sorted unique longitudes into intervals
+    n_longitudes = _sort_unique(longitudes, n_longitudes)
+    if n_longitudes % 2 != 0:
+        return -1
+
+    n_intervals = n_longitudes // 2
+    for i in range(n_intervals):
+        intervals[i, 0] = longitudes[2 * i]
+        intervals[i, 1] = longitudes[2 * i + 1]
+    return n_intervals
+
+
+@njit(cache=True, nogil=True)
+def _candidate_intervals_numba(
+    faces_edges_cart,
+    latitude_cart,
+    face_latlon_bounds,
+    is_face_GCA_list,
+    is_latlonface,
+):
+    """The intervals of every candidate face along a line of constant latitude.
+
+    Returns the intervals in face order as `starts`, `ends` and the `face_indices`
+    they belong to, leaving out faces only touched by the latitude, along with
+    the index of the first face that cannot be processed (-1 if there is none).
+    """
+    n_faces = faces_edges_cart.shape[0]
+    n_edges = faces_edges_cart.shape[1]
+    points, longitudes, face_intervals = _interval_buffers(n_edges)
+
+    starts = np.empty(n_faces * (n_edges + 1))
+    ends = np.empty(n_faces * (n_edges + 1))
+    face_indices = np.empty(n_faces * (n_edges + 1), dtype=np.int64)
+    n_rows = 0
+
+    for face_index in range(n_faces):
+        if is_face_GCA_list is None:
+            is_GCA_list = None
+        else:
+            is_GCA_list = is_face_GCA_list[face_index]
+
+        n_face_intervals = _face_intervals_numba(
+            faces_edges_cart[face_index],
+            latitude_cart,
+            face_latlon_bounds[face_index, 1],
+            is_GCA_list,
+            is_latlonface,
+            points,
+            longitudes,
+            face_intervals,
+        )
+        if n_face_intervals < 0:
+            return starts[:0], ends[:0], face_indices[:0], face_index
+
+        for i in range(n_face_intervals):
+            starts[n_rows] = face_intervals[i, 0]
+            ends[n_rows] = face_intervals[i, 1]
+            face_indices[n_rows] = face_index
+            n_rows += 1
+
+    return starts[:n_rows], ends[:n_rows], face_indices[:n_rows], -1
+
+
+@njit(cache=True, nogil=True)
+def _overlap_sweep_numba(starts, ends, face_indices, n_faces):
+    """Kernel behind `_process_overlapped_intervals`.
+
+    Returns each face's contribution and the total length, plus the row of the
+    first interval whose end is reached while its face is inactive (-1 if there
+    is none), for the Python wrapper to raise on.
+    """
+    n_rows = starts.shape[0]
+
+    # Events below `n_rows` end that row's interval and the rest start one, so a
+    # stable sort by position puts ends before starts at the same position and
+    # otherwise keeps the rows in order
+    positions = np.concatenate((ends, starts))
+    order = np.argsort(positions, kind="mergesort")
+
+    overlap_contributions = np.zeros(n_faces)
+    is_active = np.zeros(n_faces, dtype=np.bool_)
+    active_faces = np.empty(n_faces, dtype=np.int64)
+    n_active = 0
+    total_length = 0.0
+    last_position = 0.0
+
+    for event in order:
+        position = positions[event]
+        if n_active > 0:
+            segment_length = position - last_position
+            # Each face gets an equal share of this segment
+            segment_weight = segment_length / n_active
+            for a in range(n_active):
+                overlap_contributions[active_faces[a]] += segment_weight
+            total_length += segment_length
+
+        if event >= n_rows:
+            face_index = face_indices[event - n_rows]
+            if not is_active[face_index]:
+                is_active[face_index] = True
+                active_faces[n_active] = face_index
+                n_active += 1
+        else:
+            face_index = face_indices[event]
+            if not is_active[face_index]:
+                return overlap_contributions, total_length, event
+            is_active[face_index] = False
+            for a in range(n_active):
+                if active_faces[a] == face_index:
+                    active_faces[a] = active_faces[n_active - 1]
+                    break
+            n_active -= 1
+
+        last_position = position
+
+    return overlap_contributions, total_length, -1
+
+
+@njit(cache=True, inline="always")
+def _point_index(points, n_points, px, py, pz, tol=1e-12):
+    """Index of the point among the first `n_points` rows of `points` within
+    `tol` of (px, py, pz), appending it if there is none.
+
+    Returns the index and the new number of points.
+    """
+    for i in range(n_points):
+        if (
+            abs(points[i, 0] - px) < tol
+            and abs(points[i, 1] - py) < tol
+            and abs(points[i, 2] - pz) < tol
+        ):
+            return i, n_points
+
+    points[n_points, 0] = px
+    points[n_points, 1] = py
+    points[n_points, 2] = pz
+    return n_points, n_points + 1
+
+
+@njit(cache=True, inline="always")
+def _add_segment(segments, n_segments, i0, i1):
+    """Append the segment between points `i0` and `i1` to the first `n_segments`
+    rows of `segments`, in sorted order, unless it is already there.
+
+    Returns the new number of segments.
     """
     if i1 < i0:
         i0, i1 = i1, i0
 
-    # Linear search for duplicates
-    for k in range(len(edges_list)):
-        e0, e1 = edges_list[k]
-        if e0 == i0 and e1 == i1:
-            return
+    for k in range(n_segments):
+        if segments[k, 0] == i0 and segments[k, 1] == i1:
+            return n_segments
 
-    edges_list.append((i0, i1))
-
-
-@njit(cache=True)
-def _get_point_index(points_list, px, py, pz, tol=1e-12):
-    """
-    Find or create an index for a 3D point, checking for existing points within tolerance.
-
-    Parameters
-    ----------
-    points_list : List
-        List of point tuples (x, y, z)
-    px : float
-        X-coordinate of the point
-    py : float
-        Y-coordinate of the point
-    pz : float
-        Z-coordinate of the point
-    tol : float, optional
-        Tolerance for considering points as identical, default 1e-12
-
-    Returns
-    -------
-    int
-        Index of the matching point if found, or index of newly added point
-    """
-    for i in range(len(points_list)):
-        (ex, ey, ez) = points_list[i]
-        if abs(ex - px) < tol and abs(ey - py) < tol and abs(ez - pz) < tol:
-            return i
-
-    # If no match, add a new point
-    idx_new = len(points_list)
-    points_list.append((px, py, pz))
-    return idx_new
+    segments[n_segments, 0] = i0
+    segments[n_segments, 1] = i1
+    return n_segments + 1
 
 
 @njit(cache=True)
@@ -538,63 +665,58 @@ def _compute_face_arc_length(face_edges_xyz, z):
     """
     n_edges = face_edges_xyz.shape[0]
 
-    # 1) Typed lists for points and edges
-    points_list = List.empty_list(point_type)
-    edges_list = List.empty_list(edge_type)
-    singles_list = List.empty_list(types.int64)
+    # Each edge adds at most two points and one segment, or one single point
+    # that is later joined to its nearest neighbor by one more segment
+    points = np.empty((2 * n_edges, 3))
+    segments = np.empty((2 * n_edges, 2), dtype=np.int64)
+    singles = np.empty(n_edges, dtype=np.int64)
+    n_points = 0
+    n_segments = 0
+    n_singles = 0
 
-    # 2) Gather intersections from each edge
+    # 1) Gather intersections from each edge
     for e in range(n_edges):
-        edge = face_edges_xyz[e]  # shape (2,3)
-        intersections = gca_const_lat_intersection(edge, z)  # shape (2,3)
+        intersections = gca_const_lat_intersection(face_edges_xyz[e], z)
         n_int = get_number_of_intersections(intersections)
 
         if n_int == 1:
             px0, py0, pz0 = intersections[0]
-            idx0 = _get_point_index(points_list, px0, py0, pz0)
-            singles_list.append(idx0)
+            idx0, n_points = _point_index(points, n_points, px0, py0, pz0)
+            singles[n_singles] = idx0
+            n_singles += 1
 
         elif n_int == 2:
             px0, py0, pz0 = intersections[0]
             px1, py1, pz1 = intersections[1]
-            idx0 = _get_point_index(points_list, px0, py0, pz0)
-            idx1 = _get_point_index(points_list, px1, py1, pz1)
-            _add_edge(edges_list, idx0, idx1)
+            idx0, n_points = _point_index(points, n_points, px0, py0, pz0)
+            idx1, n_points = _point_index(points, n_points, px1, py1, pz1)
+            n_segments = _add_segment(segments, n_segments, idx0, idx1)
 
-    # 3) Convert points_list to a (N,3) NumPy array
-    n_points = len(points_list)
-    points_array = np.empty((n_points, 3), dtype=np.float64)
-    for i in range(n_points):
-        (xx, yy, zz) = points_list[i]
-        points_array[i, 0] = xx
-        points_array[i, 1] = yy
-        points_array[i, 2] = zz
-
-    # 4) Finalize singles: connect each single to nearest neighbor
-    for s_idx in singles_list:
-        sx, sy, sz = points_array[s_idx]
+    # 2) Connect each single point to its nearest neighbor
+    for s in range(n_singles):
+        s_idx = singles[s]
         best_i = -1
         best_dist_sq = np.inf
         for i in range(n_points):
             if i == s_idx:
                 continue
-            dx = points_array[i, 0] - sx
-            dy = points_array[i, 1] - sy
-            dz = points_array[i, 2] - sz
+            dx = points[i, 0] - points[s_idx, 0]
+            dy = points[i, 1] - points[s_idx, 1]
+            dz = points[i, 2] - points[s_idx, 2]
             dist_sq = dx * dx + dy * dy + dz * dz
             if dist_sq < best_dist_sq:
                 best_dist_sq = dist_sq
                 best_i = i
 
-        # If we found a neighbor, add the edge in canonical form
-        if best_i >= 0 and best_i != s_idx:
-            _add_edge(edges_list, s_idx, best_i)
+        if best_i >= 0:
+            n_segments = _add_segment(segments, n_segments, s_idx, best_i)
 
-    # 5) Sum arc lengths for all edges
+    # 3) Sum arc lengths for all segments
     total_length = 0.0
-    for k in range(len(edges_list)):
-        i0, i1 = edges_list[k]
-        total_length += compute_arc_length(points_array[i0], points_array[i1])
+    for k in range(n_segments):
+        total_length += compute_arc_length(
+            points[segments[k, 0]], points[segments[k, 1]]
+        )
 
     return total_length
 
@@ -670,11 +792,9 @@ def _zonal_face_weights(
         Array of weights for each face intersecting the latitude line
     """
 
-    if check_equator:
-        # If near equator, use original approach
-        if np.isclose(z, 0.0, atol=ERROR_TOLERANCE):
-            overlap_result = _zonal_face_weights_robust(face_edges_xyz, z, face_bounds)
-            return overlap_result["weight"].to_numpy()
+    # If near equator, use original approach
+    if check_equator and np.isclose(z, 0.0, atol=ERROR_TOLERANCE):
+        return _zonal_face_weights_robust(face_edges_xyz, z, face_bounds)
 
     # Otherwise, use the Numba approach
     return _zonal_face_weights_util_numba(face_edges_xyz, n_edges_per_face, z)
