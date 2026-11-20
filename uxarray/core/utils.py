@@ -94,12 +94,20 @@ def _map_dims_to_ugrid(
     elif grid.source_grid_spec == "GEOS-CS":
         # stack dimensions to flatten them to map to nodes or faces
         if isinstance(ds, xr.DataArray):
-            return _stack_geos_cs(ds)
+            ds = _stack_geos_cs(ds)
+        else:
+            # shallow copy, so the caller's Dataset keeps its original variables
+            ds = ds.copy()
+            for var_name in list(ds.coords) + list(ds.data_vars):
+                ds[var_name] = _stack_geos_cs(ds[var_name])
 
-        # shallow copy, so the caller's Dataset keeps its original variables
-        ds = ds.copy()
-        for var_name in list(ds.coords) + list(ds.data_vars):
-            ds[var_name] = _stack_geos_cs(ds[var_name])
+        for dim, expected in (("n_face", grid.n_face), ("n_node", grid.n_node)):
+            if dim in ds.dims and ds.sizes[dim] != expected:
+                raise DimensionError(
+                    f"GEOS-CS data flattens to {ds.sizes[dim]} elements along '{dim}', "
+                    f"but the Grid has {expected}. Keep all six tiles ('nf') and the "
+                    "full horizontal extent when converting."
+                )
     else:
         keys_to_drop = []
         for key in _source_dims_dict.keys():

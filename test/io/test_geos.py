@@ -2,6 +2,7 @@ import uxarray as ux
 import numpy as np
 import pytest
 import xarray as xr
+from uxarray.errors import DimensionError
 
 
 
@@ -113,3 +114,25 @@ def test_geos_cs_from_xarray_leaves_input_unchanged(gridpath):
         ux.UxDataset.from_xarray(xrds, uxgrid=uxgrid)
 
         assert xrds["T"].dims == dims_before
+
+
+@pytest.mark.parametrize("as_dataset", [False, True])
+@pytest.mark.parametrize(
+    "dims, ugrid_dim",
+    [
+        (("time", "nf", "Ydim", "Xdim"), "n_face"),
+        (("time", "nf", "YCdim", "XCdim"), "n_node"),
+    ],
+)
+def test_geos_cs_from_xarray_partial_tiles_raise(
+    six_tile_grid, dims, ugrid_dim, as_dataset
+):
+    """Data covering only some of the tiles is not paired with the full Grid."""
+    n = 1 if ugrid_dim == "n_face" else 2
+    da = xr.DataArray(np.zeros((2, 6, n, n)), dims=dims, name="signal").isel(nf=[0, 1])
+
+    with pytest.raises(DimensionError, match=ugrid_dim):
+        if as_dataset:
+            ux.UxDataset.from_xarray(da.to_dataset(), uxgrid=six_tile_grid)
+        else:
+            ux.UxDataArray.from_xarray(da, uxgrid=six_tile_grid)
