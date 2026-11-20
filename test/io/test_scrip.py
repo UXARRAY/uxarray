@@ -9,9 +9,10 @@ import pytest
 import xarray as xr
 
 import uxarray as ux
-from uxarray.constants import INT_DTYPE
+from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
 from uxarray.errors import GridInvalidError
 from uxarray.io._scrip import (
+    _collapse_repeated_corners,
     _dedup_scrip_nodes_dask,
     _dedup_scrip_nodes_eager,
     _detect_multigrid,
@@ -378,3 +379,119 @@ def test_open_multigrid_mask_active_value_per_grid_override(gridpath):
 
     assert grids["ocn"].n_face == expected_ocn
     assert grids["atm"].n_face == expected_atm
+
+
+def test_collapse_repeated_corners():
+    """SCRIP pads a short face by repeating a corner; the reader undoes that.
+
+    Duplicates drop keeping the first occurrence, so winding order is preserved
+    and a closed ring collapses like a trailing repeat.
+    """
+    face_nodes = np.array(
+        [
+            [0, 1, 2, 3],  # a real quad, untouched
+            [4, 5, 6, 6],  # trailing repeat, as _encode_scrip writes it
+            [7, 8, 9, 7],  # closed ring, repeating the first corner
+            [1, 1, 2, 3],  # repeat in the middle of the row
+        ],
+        dtype=INT_DTYPE,
+    )
+
+    nt.assert_array_equal(
+        _collapse_repeated_corners(face_nodes),
+        np.array(
+            [
+                [0, 1, 2, 3],
+                [4, 5, 6, INT_FILL_VALUE],
+                [7, 8, 9, INT_FILL_VALUE],
+                [1, 2, 3, INT_FILL_VALUE],
+            ]
+        ),
+    )
+
+
+def test_collapse_repeated_corners_keeps_degenerate_faces():
+    """A cell that would collapse below three vertices is left alone.
+
+    It is degenerate in the source file; packing it to one or two nodes would
+    invent a face no polygon routine can use, so the degeneracy stays visible.
+    """
+    face_nodes = np.array([[0, 0, 0, 0], [1, 1, 2, 2]], dtype=INT_DTYPE)
+
+    nt.assert_array_equal(_collapse_repeated_corners(face_nodes), face_nodes)
+
+
+def test_collapse_repeated_corners_skips_fill_and_keeps_input():
+    """Fill slots (corners missing from the file) are padding, not vertices.
+
+    A missing corner mid-row is packed out like a repeat, and the default call
+    leaves its input untouched.
+    """
+    fv = INT_FILL_VALUE
+    face_nodes = np.array(
+        [
+            [0, 1, 2, fv, fv],  # already packed
+            [3, fv, 4, 5, 5],  # missing corner mid-row, then a repeat
+            [6, 7, fv, fv, fv],  # degenerate: only two vertices
+        ],
+        dtype=INT_DTYPE,
+    )
+    original = face_nodes.copy()
+
+    nt.assert_array_equal(
+        _collapse_repeated_corners(face_nodes),
+        np.array(
+            [[0, 1, 2, fv, fv], [3, 4, 5, fv, fv], [6, 7, fv, fv, fv]],
+            dtype=INT_DTYPE,
+        ),
+    )
+    nt.assert_array_equal(face_nodes, original)
+
+
+def test_collapse_repeated_corners_dask_matches_eager():
+    """The dask path stays lazy and agrees with the eager one, even when the
+    input's blocks split rows across the corner dimension."""
+    import dask.array as da
+
+    rng = np.random.default_rng(0)
+    face_nodes = rng.integers(0, 6, size=(50, 6)).astype(INT_DTYPE)
+    face_nodes[rng.random(face_nodes.shape) < 0.2] = INT_FILL_VALUE
+
+    lazy = _collapse_repeated_corners(da.from_array(face_nodes, chunks=(7, 4)))
+
+    assert isinstance(lazy, da.Array)
+    nt.assert_array_equal(lazy.compute(), _collapse_repeated_corners(face_nodes))
+
+
+@pytest.mark.parametrize("chunks", [None, {"grid_size": 1}])
+def test_read_legacy_nan_padded_scrip(tmp_path, chunks):
+    """Files written before the encoder fix pad short faces with NaN corners.
+
+    Those corners must come back as fill, never as a node index: a stray -1
+    would wrap to the last node instead of raising.
+    """
+    nan = np.nan
+    path = tmp_path / "legacy_nan_padded.scrip.nc"
+    xr.Dataset(
+        {
+            "grid_corner_lon": (
+                ("grid_size", "grid_corners"),
+                [[0.0, 10.0, 10.0, 0.0], [10.0, 20.0, 10.0, nan]],
+            ),
+            "grid_corner_lat": (
+                ("grid_size", "grid_corners"),
+                [[0.0, 0.0, 10.0, 10.0], [0.0, 0.0, 10.0, nan]],
+            ),
+            "grid_center_lon": (("grid_size",), [5.0, 13.3]),
+            "grid_center_lat": (("grid_size",), [5.0, 3.3]),
+            "grid_imask": (("grid_size",), np.ones(2, dtype="i4")),
+        }
+    ).to_netcdf(path)
+
+    kwargs = {} if chunks is None else {"chunks": chunks}
+    grid = ux.open_grid(path, **kwargs)
+    conn = np.asarray(grid.face_node_connectivity.values)
+
+    assert conn[1, 3] == INT_FILL_VALUE
+    assert ((conn >= 0) | (conn == INT_FILL_VALUE)).all()
+    nt.assert_array_equal(grid.n_nodes_per_face.values, [4, 3])
