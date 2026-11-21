@@ -451,6 +451,13 @@ def open_dataset(
     uxds : uxarray.UxDataset
         Dataset with linked `uxgrid` property of type `Grid`.
 
+    Raises
+    ------
+    GridsMismatchError (subclass of ValueError)
+        If the data does not lie on the grid: a face, node or edge dimension of
+        the data has a different size than in the grid, or no data variable is
+        on any of these dimensions.
+
     Notes
     -----
     The grid need not be a complete or fully UGRID-compliant mesh, nor represent
@@ -530,6 +537,7 @@ def open_dataset(
 
     # Map original dimensions to the UGRID conventions
     ds = _map_dataset_to_ugrid(ds, uxgrid)
+    _check_data_on_grid(ds, uxgrid, "open_dataset")
 
     # Create a UXarray Dataset by linking the Xarray Dataset with a UXarray Grid
     source_datasets = (
@@ -598,6 +606,13 @@ def open_mfdataset(
     object : uxarray.UxDataset
         Dataset with the unstructured grid.
 
+    Raises
+    ------
+    GridsMismatchError (subclass of ValueError)
+        If the data does not lie on the grid: a face, node or edge dimension of
+        the data has a different size than in the grid, or no data variable is
+        on any of these dimensions.
+
     Examples
     --------
 
@@ -637,9 +652,37 @@ def open_mfdataset(
 
     # Map original dimensions to the UGRID conventions
     ds = _map_dataset_to_ugrid(ds, uxgrid)
+    _check_data_on_grid(ds, uxgrid, "open_mfdataset")
 
     # Create a UXarray Dataset by linking the Xarray Dataset with a UXarray Grid
     return UxDataset(ds, uxgrid=uxgrid, source_datasets=str(paths))
+
+
+def _check_data_on_grid(ds, uxgrid, func_name):
+    """Raise ``GridsMismatchError`` if the data mapped to UGRID dimensions does
+    not lie on ``uxgrid``."""
+    grid_dims = ("n_face", "n_node", "n_edge")
+    for dim in grid_dims:
+        if dim in ds.dims and ds.sizes[dim] != getattr(uxgrid, dim):
+            raise GridsMismatchError(
+                f"{func_name}(grid, data) expects data on the grid, but got "
+                f"{dim}={ds.sizes[dim]} in the data and {dim}={getattr(uxgrid, dim)} "
+                "in the grid."
+            )
+
+    on_grid = any(dim in grid_dims for var in ds.data_vars.values() for dim in var.dims)
+    if ds.data_vars and not on_grid:
+        data_sizes = ", ".join(f"{dim}={size}" for dim, size in ds.sizes.items())
+        grid_sizes = ", ".join(
+            f"{dim}={uxgrid._ds.sizes[dim]}"
+            for dim in grid_dims
+            if dim in uxgrid._ds.dims
+        )
+        raise GridsMismatchError(
+            f"{func_name}(grid, data) expects data on the grid, but none of the data "
+            f"dimensions ({data_sizes}) matches a face, node or edge dimension of the "
+            f"grid ({grid_sizes})."
+        )
 
 
 def _get_grid(

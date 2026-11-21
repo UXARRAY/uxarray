@@ -418,6 +418,30 @@ def test_open_mf_dataset(gridpath, datasetpath, mesh_constants):
     nt.assert_equal(len(uxds_mf_ne30.uxgrid._ds.data_vars), mesh_constants['DATAVARS_outCSne30'])
     nt.assert_equal(uxds_mf_ne30.source_datasets, str(dsfiles_mf_ne30))
 
+
+def test_open_dataset_rejects_data_from_another_grid(gridpath, datasetpath):
+    """outCSne30 data (ncol=5400) does not lie on the 4 faces of quad-hexagon."""
+    grid_path = gridpath("ugrid", "quad-hexagon", "grid.nc")
+    data_paths = datasetpath(
+        "ugrid", "outCSne30", ["outCSne30_var2.nc", "outCSne30_vortex.nc"]
+    )
+
+    with pytest.raises(ux.errors.GridsMismatchError, match="ncol=5400"):
+        ux.open_dataset(grid_path, data_paths[1])
+    with pytest.raises(ux.errors.GridsMismatchError, match="ncol=5400"):
+        ux.open_mfdataset(grid_path, data_paths)
+
+
+@pytest.mark.parametrize("size", [2, 50])
+@pytest.mark.parametrize("dim", ["n_face", "n_node", "n_edge"])
+def test_open_dataset_rejects_wrong_grid_dimension_size(gridpath, dim, size):
+    grid_path = gridpath("ugrid", "quad-hexagon", "grid.nc")
+    data = xr.Dataset({"var": ((dim,), np.zeros(size))})
+
+    with pytest.raises(ux.errors.GridsMismatchError, match=f"{dim}={size} in the data"):
+        ux.open_dataset(grid_path, data)
+
+
 def test_open_grid(gridpath, mesh_constants):
     """Loads only a grid topology file using uxarray's open_grid call."""
     uxgrid = ux.open_grid(gridpath("ugrid", "geoflow-small", "grid.nc"))
