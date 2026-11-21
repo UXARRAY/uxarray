@@ -26,6 +26,13 @@ class DataArraySubsetAccessor:
 
         return prefix + methods_heading
 
+    def _build_face_edge_connectivity_if_needed(self):
+        """Builds ``face_edge_connectivity`` for edge-centered data, since the
+        subset grid only stores the ``_subgrid_edge_indices`` used to slice
+        that data when the connectivity exists (see #1888)."""
+        if "n_edge" in self.uxda.dims:
+            self.uxda.uxgrid.face_edge_connectivity
+
     def bounding_box(
         self,
         lon_bounds: tuple | list | np.ndarray,
@@ -56,6 +63,7 @@ class DataArraySubsetAccessor:
             - list/set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
         """
+        self._build_face_edge_connectivity_if_needed()
         grid = self.uxda.uxgrid.subset.bounding_box(
             lon_bounds, lat_bounds, inverse_indices=inverse_indices
         )
@@ -87,6 +95,7 @@ class DataArraySubsetAccessor:
             - list/set of strings: Stores specified index types (valid values: "face", "edge", "node")
             - False: No index storage (default)
         """
+        self._build_face_edge_connectivity_if_needed()
         grid = self.uxda.uxgrid.subset.bounding_circle(
             center_coord, r, element, inverse_indices=inverse_indices, **kwargs
         )
@@ -118,6 +127,7 @@ class DataArraySubsetAccessor:
             - False: No index storage (default)
         """
 
+        self._build_face_edge_connectivity_if_needed()
         grid = self.uxda.uxgrid.subset.nearest_neighbor(
             center_coord, k, element, inverse_indices=inverse_indices, **kwargs
         )
