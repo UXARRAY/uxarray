@@ -220,6 +220,30 @@ def test_yac_creep_fills_unmatched_targets(gridpath):
     assert n_filled({**options, "creep_distance": -1}) > n_filled(options)
 
 
+def test_yac_dnn_node_target_requires_fixed_distance(gridpath):
+    grid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(np.ones(grid.n_node), dims=["n_node"], uxgrid=grid)
+    with pytest.raises(ValueError, match="FIXED"):
+        da.remap(
+            destination_grid=grid,
+            remap_to="nodes",
+            backend="yac",
+            yac_method="dnn",
+        )
+
+
+def test_yac_ncc_node_source_raises(gridpath):
+    grid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(np.ones(grid.n_node), dims=["n_node"], uxgrid=grid)
+    with pytest.raises(ValueError, match="face-centered"):
+        da.remap(
+            destination_grid=grid,
+            remap_to="nodes",
+            backend="yac",
+            yac_method="ncc",
+        )
+
+
 def test_yac_unknown_method_raises():
     with pytest.raises(ValueError, match="Unsupported YAC method"):
         _normalize_yac_method("not-a-method")

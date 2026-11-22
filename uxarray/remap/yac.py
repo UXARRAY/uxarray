@@ -254,6 +254,14 @@ class _YacRemapper:
                     yac_core.yac_interp_dnn_search_distance_type,
                     yac_kwargs["search_distance_type"],
                 )
+            if tgt_dim != "n_face" and (
+                dnn_kwargs.get("search_distance_type")
+                != yac_core.yac_interp_dnn_search_distance_type.YAC_INTERP_DNN_SEARCH_DISTANCE_FIXED
+            ):
+                raise ValueError(
+                    "YAC method 'dnn' needs yac_options={'search_distance_type': "
+                    "'FIXED', 'search_distance': ...} when remapping to nodes or edges."
+                )
             if "search_distance" in yac_kwargs:
                 dnn_kwargs["search_distance"] = yac_kwargs["search_distance"]
             if "scale" in yac_kwargs:
@@ -273,6 +281,8 @@ class _YacRemapper:
                 partial_coverage=yac_kwargs.get("partial_coverage", False),
             )
         elif yac_method == "ncc":
+            if src_dim != "n_face":
+                raise ValueError("YAC method 'ncc' requires a face-centered source.")
             weight_type = _coerce_enum(
                 yac_core.yac_interp_ncc_weight_type,
                 yac_kwargs.get("weight_type", yac_kwargs.get("reduction_type")),
