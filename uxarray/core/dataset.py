@@ -554,7 +554,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
                 # ensure uxgrid.face_edge_connectivity exists, otherwise uxgrid.isel()
                 # silently fails to populate _subgrid_edge_indices, causing confusing
                 # errors later (see issue #1758)
-                self.uxgrid.face_edge_connectivity
+                _ = self.uxgrid.face_edge_connectivity
 
             sliced_grid = self.uxgrid.isel(
                 **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
