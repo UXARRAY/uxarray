@@ -202,10 +202,9 @@ def _compute_band_overlap_area(
     # Add face vertices that lie within the band
     for e in range(face_edges_xyz.shape[0]):
         vertex = face_edges_xyz[e, 0]  # First point of edge
-        if z_min <= vertex[2] <= z_max:
-            if point_count < max_points:
-                polygon_points[point_count] = vertex
-                point_count += 1
+        if z_min <= vertex[2] <= z_max and point_count < max_points:
+            polygon_points[point_count] = vertex
+            point_count += 1
 
     if point_count < 3:
         return 0.0
