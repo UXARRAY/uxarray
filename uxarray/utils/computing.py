@@ -8,6 +8,13 @@ recover near-double precision using error-free transformations (``two_sum``,
 hardware FMA when one is available (validated bit-exact at import time) and
 falls back to the Veltkamp split otherwise, so there is no hard FMA dependency.
 
+.. warning::
+    Every primitive here is inlined into ``cache=True`` kernels in other modules. Numba
+    stamps a cache entry against the file that *defines* the kernel only,
+    so after editing this file those callers keep running the old body from their cache,
+    with no warning. pytest clears the cache when this file changes; elsewhere, run
+    ``python ci/clean_numba_cache.py`` before testing changes here.
+
 Python/Numba port of the AccuSphGeom C++ library (EFT tier only; the adaptive
 Shewchuk predicate and exact-arithmetic fallback tiers are not ported):
 
@@ -41,7 +48,7 @@ try:
         return sig, codegen
 
     _FMA_INTRINSIC_OK = True
-except Exception:  # pragma: no cover - toolchain without intrinsic support
+except Exception:  # noqa: BLE001  # pragma: no cover - toolchain without intrinsic support
     _FMA_INTRINSIC_OK = False
 
 
@@ -127,7 +134,7 @@ def _validate_fma(n_samples=2000) -> bool:
             if pf != pv or ef != ev:
                 return False
         return True
-    except Exception:  # pragma: no cover
+    except Exception:  # noqa: BLE001  # pragma: no cover
         return False
 
 

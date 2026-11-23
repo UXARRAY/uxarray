@@ -5,7 +5,7 @@ These classes wrap xarray's groupby/resample/etc objects and ensure that
 operations return UxDataArray/UxDataset objects with preserved uxgrid.
 """
 
-from typing import Any
+from typing import Any, ClassVar
 
 import xarray as xr
 
@@ -37,7 +37,7 @@ class BaseAccessor:
     """Base class for all UXarray accessor classes."""
 
     # Default methods known to return DataArrays/Datasets - optimized for performance
-    _DEFAULT_PRESERVE_METHODS = {
+    _DEFAULT_PRESERVE_METHODS: ClassVar[set[str]] = {
         "mean",
         "sum",
         "std",
@@ -102,7 +102,7 @@ class BaseAccessor:
         """Determine if a method should be wrapped."""
         if self._auto_wrap:
             # In auto-wrap mode, check if it's callable
-            return hasattr(getattr(self._xr_obj, name, None), "__call__")
+            return callable(getattr(self._xr_obj, name, None))
         return name in self._preserve_methods
 
     def _wrap_method(self, method):
@@ -132,7 +132,7 @@ class BaseAccessor:
 
     def __repr__(self):
         # Subclasses should override this for specific names
-        return f"{self.__class__.__name__}({repr(self._xr_obj)})"
+        return f"{self.__class__.__name__}({self._xr_obj!r})"
 
     def __dir__(self):
         # Combine our methods with xarray's for better IDE support
@@ -192,7 +192,7 @@ class UxDataArrayGroupByAccessor(BaseAccessor):
         return result
 
     def __repr__(self):
-        return f"UxDataArrayGroupBy({repr(self._xr_obj)})"
+        return f"UxDataArrayGroupBy({self._xr_obj!r})"
 
 
 class UxDatasetGroupByAccessor(BaseAccessor):
@@ -213,7 +213,7 @@ class UxDatasetGroupByAccessor(BaseAccessor):
         return result
 
     def __repr__(self):
-        return f"UxDatasetGroupBy({repr(self._xr_obj)})"
+        return f"UxDatasetGroupBy({self._xr_obj!r})"
 
 
 # Similar accessors for other operations
@@ -221,67 +221,67 @@ class UxDataArrayResampleAccessor(UxDataArrayGroupByAccessor):
     """Wraps xarray DataArrayResample to preserve uxgrid in results."""
 
     def __repr__(self):
-        return f"UxDataArrayResample({repr(self._xr_obj)})"
+        return f"UxDataArrayResample({self._xr_obj!r})"
 
 
 class UxDatasetResampleAccessor(UxDatasetGroupByAccessor):
     """Wraps xarray DatasetResample to preserve uxgrid in results."""
 
     def __repr__(self):
-        return f"UxDatasetResample({repr(self._xr_obj)})"
+        return f"UxDatasetResample({self._xr_obj!r})"
 
 
 class UxDataArrayRollingAccessor(UxDataArrayGroupByAccessor):
     """Wraps xarray DataArrayRolling to preserve uxgrid in results."""
 
     def __repr__(self):
-        return f"UxDataArrayRolling({repr(self._xr_obj)})"
+        return f"UxDataArrayRolling({self._xr_obj!r})"
 
 
 class UxDatasetRollingAccessor(UxDatasetGroupByAccessor):
     """Wraps xarray DatasetRolling to preserve uxgrid in results."""
 
     def __repr__(self):
-        return f"UxDatasetRolling({repr(self._xr_obj)})"
+        return f"UxDatasetRolling({self._xr_obj!r})"
 
 
 class UxDataArrayCoarsenAccessor(UxDataArrayGroupByAccessor):
     """Wraps xarray DataArrayCoarsen to preserve uxgrid in results."""
 
     def __repr__(self):
-        return f"UxDataArrayCoarsen({repr(self._xr_obj)})"
+        return f"UxDataArrayCoarsen({self._xr_obj!r})"
 
 
 class UxDatasetCoarsenAccessor(UxDatasetGroupByAccessor):
     """Wraps xarray DatasetCoarsen to preserve uxgrid in results."""
 
     def __repr__(self):
-        return f"UxDatasetCoarsen({repr(self._xr_obj)})"
+        return f"UxDatasetCoarsen({self._xr_obj!r})"
 
 
 class UxDataArrayWeightedAccessor(UxDataArrayGroupByAccessor):
     """Wraps xarray DataArrayWeighted to preserve uxgrid in results."""
 
     def __repr__(self):
-        return f"UxDataArrayWeighted({repr(self._xr_obj)})"
+        return f"UxDataArrayWeighted({self._xr_obj!r})"
 
 
 class UxDatasetWeightedAccessor(UxDatasetGroupByAccessor):
     """Wraps xarray DatasetWeighted to preserve uxgrid in results."""
 
     def __repr__(self):
-        return f"UxDatasetWeighted({repr(self._xr_obj)})"
+        return f"UxDatasetWeighted({self._xr_obj!r})"
 
 
 class UxDataArrayRollingExpAccessor(UxDataArrayGroupByAccessor):
     """Wraps xarray DataArrayRollingExp to preserve uxgrid in results."""
 
     def __repr__(self):
-        return f"UxDataArrayRollingExp({repr(self._xr_obj)})"
+        return f"UxDataArrayRollingExp({self._xr_obj!r})"
 
 
 class UxDatasetRollingExpAccessor(UxDatasetGroupByAccessor):
     """Wraps xarray DatasetRollingExp to preserve uxgrid in results."""
 
     def __repr__(self):
-        return f"UxDatasetRollingExp({repr(self._xr_obj)})"
+        return f"UxDatasetRollingExp({self._xr_obj!r})"

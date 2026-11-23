@@ -145,29 +145,20 @@ def _zonal_face_weights_robust(
     intervals_df = pl.DataFrame(intervals_list)
 
     # Process intervals to get overlap contributions
-    try:
-        overlap_contributions, total_length = _process_overlapped_intervals(
-            intervals_df
-        )
+    overlap_contributions, total_length = _process_overlapped_intervals(intervals_df)
 
-        # Build final weights dict
-        weights = {}
-        n_faces = len(faces_edges_cart_candidate)
-        for face_index in range(n_faces):
-            # fraction of total for this face
-            weights[face_index] = (
-                overlap_contributions.get(face_index, 0.0) / total_length
-            )
+    # Build final weights dict
+    weights = {}
+    n_faces = len(faces_edges_cart_candidate)
+    for face_index in range(n_faces):
+        # fraction of total for this face
+        weights[face_index] = overlap_contributions.get(face_index, 0.0) / total_length
 
-        # Return as Polars DataFrame
-        weights_df = pl.DataFrame(
-            list(weights.items()), schema=["face_index", "weight"], orient="row"
-        )
-        return weights_df
-
-    except ValueError:
-        # If an exception occurs, you can print debug info here if needed
-        raise
+    # Return as Polars DataFrame
+    weights_df = pl.DataFrame(
+        list(weights.items()), schema=["face_index", "weight"], orient="row"
+    )
+    return weights_df
 
 
 def _get_zonal_face_interval(
@@ -231,19 +222,19 @@ def _get_zonal_face_interval(
         )
 
         # Handle special wrap-around cases (crossing anti-meridian, etc.)
-        if face_lon_bound_left >= face_lon_bound_right or (
-            face_lon_bound_left == 0 and face_lon_bound_right == 2 * np.pi
+        if (
+            face_lon_bound_left >= face_lon_bound_right
+            or (face_lon_bound_left == 0 and face_lon_bound_right == 2 * np.pi)
+        ) and not (
+            (pt_lon_max >= np.pi and pt_lon_min >= np.pi)
+            or (0 <= pt_lon_max <= np.pi and 0 <= pt_lon_min <= np.pi)
         ):
-            if not (
-                (pt_lon_max >= np.pi and pt_lon_min >= np.pi)
-                or (0 <= pt_lon_max <= np.pi and 0 <= pt_lon_min <= np.pi)
-            ):
-                if pt_lon_max != 2 * np.pi and pt_lon_min != 0:
-                    # Add wrap-around points
-                    longitudes = np.append(longitudes, [0.0, 2 * np.pi])
-                elif pt_lon_max >= np.pi and pt_lon_min == 0:
-                    # If min is 0, but we really need 2*pi
-                    longitudes[longitudes == 0] = 2.0 * np.pi
+            if pt_lon_max != 2 * np.pi and pt_lon_min != 0:
+                # Add wrap-around points
+                longitudes = np.append(longitudes, [0.0, 2 * np.pi])
+            elif pt_lon_max >= np.pi and pt_lon_min == 0:
+                # If min is 0, but we really need 2*pi
+                longitudes[longitudes == 0] = 2.0 * np.pi
 
         # Sort unique longitudes
         longitudes = np.unique(longitudes)
@@ -670,11 +661,10 @@ def _zonal_face_weights(
         Array of weights for each face intersecting the latitude line
     """
 
-    if check_equator:
-        # If near equator, use original approach
-        if np.isclose(z, 0.0, atol=ERROR_TOLERANCE):
-            overlap_result = _zonal_face_weights_robust(face_edges_xyz, z, face_bounds)
-            return overlap_result["weight"].to_numpy()
+    # If near equator, use original approach
+    if check_equator and np.isclose(z, 0.0, atol=ERROR_TOLERANCE):
+        overlap_result = _zonal_face_weights_robust(face_edges_xyz, z, face_bounds)
+        return overlap_result["weight"].to_numpy()
 
     # Otherwise, use the Numba approach
     return _zonal_face_weights_util_numba(face_edges_xyz, n_edges_per_face, z)

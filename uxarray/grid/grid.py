@@ -3,8 +3,9 @@ from __future__ import annotations
 import copy
 import os
 import warnings
+from collections.abc import Sequence
 from html import escape
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import xarray as xr
@@ -76,7 +77,7 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 from uxarray.grid.point_in_face import _point_in_face_query
-from uxarray.grid.utils import make_setter
+from uxarray.grid.utils import _drop_non_grid_data, make_setter
 from uxarray.grid.validation import (
     _check_area,
     _check_connectivity,
@@ -179,13 +180,12 @@ class Grid:
         merge_coincident_nodes: bool = True,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
-        if source_grid_spec != "HEALPix":
-            if not _validate_minimum_ugrid(grid_ds):
-                raise GridInvalidError(
-                    "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
-                    "at least the following variables: ['node_lon', 'node_lat', 'face_node_connectivity'],"
-                    f"\nbut got grid_ds with data_vars: {list(grid_ds.data_vars)}"
-                )
+        if source_grid_spec != "HEALPix" and not _validate_minimum_ugrid(grid_ds):
+            raise GridInvalidError(
+                "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
+                "at least the following variables: ['node_lon', 'node_lat', 'face_node_connectivity'],"
+                f"\nbut got grid_ds with data_vars: {list(grid_ds.data_vars)}"
+            )
             # TODO: more checks for validate grid (lat/lon coords, etc)
 
         # canonicalize coincident node indices in connectivity before this dataset
@@ -210,8 +210,10 @@ class Grid:
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
 
-        # internal xarray dataset for storing grid variables
-        self._ds = grid_ds
+        # internal xarray dataset for storing grid variables.
+        # drop variables that don't belong on the grid (e.g. a `time` carried in from a
+        # file holding both grid and data), so they can't collide during subsetting.
+        self._ds = _drop_non_grid_data(grid_ds)
 
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
@@ -512,7 +514,7 @@ class Grid:
         node_lon: np.ndarray,
         node_lat: np.ndarray,
         face_node_connectivity: np.ndarray,
-        fill_value: int | float | None = None,
+        fill_value: float | None = None,
         start_index: int = 0,
         dims_dict: dict | None = None,
         **kwargs,
@@ -775,15 +777,15 @@ class Grid:
 
         coord_heading = "Grid Coordinates (Spherical):\n"
         coords_str = ""
-        for coord_name in list(
-            [coord for coord in ugrid.SPHERICAL_COORDS if coord in self._ds]
-        ):
+        for coord_name in [
+            coord for coord in ugrid.SPHERICAL_COORDS if coord in self._ds
+        ]:
             coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         coords_str += "Grid Coordinates (Cartesian):\n"
-        for coord_name in list(
-            [coord for coord in ugrid.CARTESIAN_COORDS if coord in self._ds]
-        ):
+        for coord_name in [
+            coord for coord in ugrid.CARTESIAN_COORDS if coord in self._ds
+        ]:
             coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         connectivity_heading = "Grid Connectivity Variables:\n"
@@ -794,9 +796,9 @@ class Grid:
 
         descriptors_heading = "Grid Descriptor Variables:\n"
         descriptors_str = ""
-        for descriptor_name in list(
-            [desc for desc in descriptors.DESCRIPTOR_NAMES if desc in self._ds]
-        ):
+        for descriptor_name in [
+            desc for desc in descriptors.DESCRIPTOR_NAMES if desc in self._ds
+        ]:
             descriptors_str += (
                 f"  * {descriptor_name}: {getattr(self, descriptor_name).shape}\n"
             )
@@ -842,23 +844,15 @@ class Grid:
         -------
         If two grids are equal : bool
         """
-        if self is other:
-            return True
 
-        if not isinstance(other, Grid):
-            return False
-
-        if self.source_grid_spec != other.source_grid_spec:
-            return False
-
-        if not self.node_lon.equals(other.node_lon):
-            return False
-        if not self.node_lat.equals(other.node_lat):
-            return False
-        if not self.face_node_connectivity.equals(other.face_node_connectivity):
-            return False
-
-        return True
+        same_id = self is other
+        return same_id or (
+            isinstance(other, Grid)
+            and self.source_grid_spec == other.source_grid_spec
+            and self.node_lon.equals(other.node_lon)
+            and self.node_lat.equals(other.node_lat)
+            and self.face_node_connectivity.equals(other.face_node_connectivity)
+        )
 
     def __ne__(self, other) -> bool:
         """Two grids are not equal if they have differing grid topology
@@ -880,7 +874,7 @@ class Grid:
         """Names of all unstructured grid dimensions."""
         from uxarray.conventions.ugrid import DIM_NAMES
 
-        return set([dim for dim in DIM_NAMES if dim in self._ds.dims])
+        return {dim for dim in DIM_NAMES if dim in self._ds.dims}
 
     @property
     def sizes(self) -> dict:
@@ -895,23 +889,23 @@ class Grid:
             SPHERICAL_COORD_NAMES,
         )
 
-        return set(
-            [coord for coord in SPHERICAL_COORD_NAMES if coord in self._ds]
-        ).union(set([coord for coord in CARTESIAN_COORD_NAMES if coord in self._ds]))
+        return {coord for coord in SPHERICAL_COORD_NAMES if coord in self._ds}.union(
+            {coord for coord in CARTESIAN_COORD_NAMES if coord in self._ds}
+        )
 
     @property
     def connectivity(self) -> set:
         """Names of all connectivity variables."""
         from uxarray.conventions.ugrid import CONNECTIVITY_NAMES
 
-        return set([conn for conn in CONNECTIVITY_NAMES if conn in self._ds])
+        return {conn for conn in CONNECTIVITY_NAMES if conn in self._ds}
 
     @property
     def descriptors(self) -> set:
         """Names of all descriptor variables."""
         from uxarray.conventions.descriptors import DESCRIPTOR_NAMES
 
-        return set([desc for desc in DESCRIPTOR_NAMES if desc in self._ds])
+        return {desc for desc in DESCRIPTOR_NAMES if desc in self._ds}
 
     @property
     def attrs(self) -> dict:
@@ -2291,7 +2285,7 @@ class Grid:
         latitude_adjusted_area: bool = False,
         return_jacobian: bool = False,
         as_uxarray: bool = False,
-    ) -> "np.ndarray | UxDataArray | tuple[np.ndarray | UxDataArray, np.ndarray]":
+    ) -> np.ndarray | UxDataArray | tuple[np.ndarray | UxDataArray, np.ndarray]:
         """Compute the area of each face in the grid.
 
         Unlike the cached :attr:`face_areas` property (which always uses the
@@ -2608,13 +2602,12 @@ class Grid:
             )
 
         # if project is false, projection is only used for determining central coordinates
-        if projection and project:
-            if periodic_elements == "split":
-                raise ValueError(
-                    "Setting ``periodic_elements='split'`` is not supported when a "
-                    f"projection is provided; got projection={projection!r} "
-                    f"in {type(self).__name__}.to_geodataframe()."
-                )
+        if projection and project and periodic_elements == "split":
+            raise ValueError(
+                "Setting ``periodic_elements='split'`` is not supported when a "
+                f"projection is provided; got projection={projection!r} "
+                f"in {type(self).__name__}.to_geodataframe()."
+            )
 
         if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
@@ -2622,14 +2615,13 @@ class Grid:
                 f"but got {periodic_elements!r}, in {type(self).__name__}.to_geodataframe()"
             )
 
-        if self._gdf_cached_parameters["gdf"] is not None:
-            if (
-                self._gdf_cached_parameters["periodic_elements"] != periodic_elements
-                or self._gdf_cached_parameters["projection"] != projection
-                or self._gdf_cached_parameters["engine"] != engine
-            ):
-                # cached GeoDataFrame has a different projection or periodic element handling method
-                override = True
+        if self._gdf_cached_parameters["gdf"] is not None and (
+            self._gdf_cached_parameters["periodic_elements"] != periodic_elements
+            or self._gdf_cached_parameters["projection"] != projection
+            or self._gdf_cached_parameters["engine"] != engine
+        ):
+            # cached GeoDataFrame has a different projection or periodic element handling method
+            override = True
 
         if self._gdf_cached_parameters["gdf"] is not None and not override:
             # use cached PolyCollection
@@ -2666,7 +2658,7 @@ class Grid:
     def to_polycollection(
         self,
         periodic_elements: str = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection: ccrs.Projection | None = None,
         return_indices: bool = False,
         cache: bool = True,
         override: bool = False,
@@ -2701,14 +2693,13 @@ class Grid:
                 f"but got {periodic_elements!r}, in {type(self).__name__}.to_polycollection()"
             )
 
-        if self._poly_collection_cached_parameters["poly_collection"] is not None:
-            if (
-                self._poly_collection_cached_parameters["periodic_elements"]
-                != periodic_elements
-                or self._poly_collection_cached_parameters["projection"] != projection
-            ):
-                # cached PolyCollection has a different projection or periodic element handling method
-                override = True
+        if self._poly_collection_cached_parameters["poly_collection"] is not None and (
+            self._poly_collection_cached_parameters["periodic_elements"]
+            != periodic_elements
+            or self._poly_collection_cached_parameters["projection"] != projection
+        ):
+            # cached PolyCollection has a different projection or periodic element handling method
+            override = True
 
         if (
             self._poly_collection_cached_parameters["poly_collection"] is not None
@@ -2752,7 +2743,7 @@ class Grid:
     def to_linecollection(
         self,
         periodic_elements: str = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection: ccrs.Projection | None = None,
         cache: bool = True,
         override: bool = False,
         **kwargs,
