@@ -239,12 +239,10 @@ def test_scrip_dask_and_eager_dedup_assign_identical_node_ids(gridpath, chunks):
     assert grid_lazy == grid_eager
 
 
-# TODO(#1905): remove the xfail marker once #1905 is fixed. xfail means this
-# test is expected to fail for now and doesn't break CI; strict=True makes it
-# fail if it unexpectedly passes, so the fix can't land without removing it.
-@pytest.mark.xfail(strict=True, reason="#1905")
 def test_scrip_dask_and_eager_grids_match_with_default_settings(gridpath):
-    """Opening a SCRIP grid with or without ``chunks=`` gives the same grid."""
+    """Opening a SCRIP grid with or without ``chunks=`` gives the same grid.
+    Regression test for #1905.
+    """
     grid_file = gridpath("scrip", "outCSne8", "outCSne8.nc")
     assert ux.open_grid(grid_file) == ux.open_grid(grid_file, chunks=-1)
 
