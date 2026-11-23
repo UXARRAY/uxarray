@@ -84,13 +84,8 @@ def point_within_gca(pt_xyz, gca_a_xyz, gca_b_xyz):
     cos_theta = _numba_dot3(pt_a, pt_b)
 
     # Return True if the point lies within the interval (smaller arc)
-    if cos_theta < 0:
-        return True
-    elif np.isclose(cos_theta, 0.0, atol=MACHINE_EPSILON):
-        # set error tolerance to 0.0
-        return True
-    else:
-        return False
+    # (set error tolerance to 0.0)
+    return cos_theta < 0 or np.isclose(cos_theta, 0.0, atol=MACHINE_EPSILON)
 
 
 @njit(cache=True)
@@ -217,8 +212,8 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     denom = (n1[2] + n2[2]) * (dot_n1_n2 - 1.0)
 
     # Initialize latitudes
-    lon_n1, lat_n1 = gca_lonlat[0]
-    lon_n2, lat_n2 = gca_lonlat[1]
+    _lon_n1, lat_n1 = gca_lonlat[0]
+    _lon_n2, lat_n2 = gca_lonlat[1]
 
     # Check if denominator is zero to avoid division by zero
     if denom != 0.0:
