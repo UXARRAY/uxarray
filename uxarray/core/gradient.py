@@ -59,9 +59,11 @@ def _check_face_on_boundary(
     for node_idx in face_node_connectivity[face_idx]:
         if node_idx != INT_FILL_VALUE:
             for edge_idx in node_edge_connectivity[node_idx]:
-                if edge_idx != INT_FILL_VALUE:
-                    if INT_FILL_VALUE in edge_face_connectivity[edge_idx]:
-                        bool_bdy = True
+                if (
+                    edge_idx != INT_FILL_VALUE
+                    and INT_FILL_VALUE in edge_face_connectivity[edge_idx]
+                ):
+                    bool_bdy = True
     return bool_bdy
 
 
