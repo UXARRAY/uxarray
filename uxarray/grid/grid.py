@@ -872,9 +872,7 @@ class Grid:
     @property
     def dims(self) -> set:
         """Names of all unstructured grid dimensions."""
-        from uxarray.conventions.ugrid import DIM_NAMES
-
-        return set([dim for dim in DIM_NAMES if dim in self._ds.dims])
+        return set([dim for dim in ugrid.DIM_NAMES if dim in self._ds.dims])
 
     @property
     def sizes(self) -> dict:

@@ -15,10 +15,12 @@ BASE_GRID_TOPOLOGY_ATTRS = {
     "face_node_connectivity": "face_node_connectivity",
 }
 
+# standard dimension names a uxarray Grid is allowed to have
 DIM_NAMES = [
     "n_node",
     "n_edge",
     "n_face",
+    # connectivity dims
     "n_max_face_nodes",
     "n_max_face_edges",
     "n_max_face_faces",
@@ -27,6 +29,9 @@ DIM_NAMES = [
     "n_max_node_faces",
     "n_max_node_edges",
     "two",
+    # bounds dims
+    "lat_lon",
+    "min_max",
 ]
 
 NODE_DIM = "n_node"
