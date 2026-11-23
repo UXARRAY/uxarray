@@ -99,7 +99,7 @@ def _raise_hint_if_optional_deps_missing(*packages: str):
                 if "all" not in or_extras:
                     or_extras.append("all")
             else:  # case (4)
-                need_extras = set(["all"])
+                need_extras = {"all"}
                 break
         need_extras_str = ",".join(sorted(need_extras))  # sort is just for style
         errmsg = "Failed to import: " + ", ".join(sorted(missing))

@@ -775,7 +775,7 @@ def _populate_node_face_connectivity(grid):
     and stores it within the internal (``Grid._ds``) and through the attribute
     (``Grid.node_face_connectivity``)."""
 
-    node_faces, n_max_faces_per_node = _build_node_face_connectivity(
+    node_faces, _n_max_faces_per_node = _build_node_face_connectivity(
         grid.face_node_connectivity.values, grid.n_node
     )
 
@@ -801,15 +801,14 @@ def _build_node_face_connectivity(face_nodes, n_node):
     """
 
     node_face_conn = {node_i: [] for node_i in range(n_node)}
-    for face_i, face_nodes in enumerate(face_nodes):
-        for node_i in face_nodes:
+    for face_i, nodes in enumerate(face_nodes):
+        for node_i in nodes:
             if node_i != INT_FILL_VALUE:
                 node_face_conn[node_i].append(face_i)
 
     n_max_node_faces = -1
     for face_indicies in node_face_conn.values():
-        if len(face_indicies) > n_max_node_faces:
-            n_max_node_faces = len(face_indicies)
+        n_max_node_faces = max(n_max_node_faces, len(face_indicies))
 
     node_face_connectivity = np.full(
         (n_node, n_max_node_faces), INT_FILL_VALUE, dtype=INT_DTYPE
@@ -951,8 +950,7 @@ def _build_node_edge_connectivity(edge_nodes, n_node):
     # find the maximum
     max_edges = 0
     for i in range(n_node):
-        if counts[i] > max_edges:
-            max_edges = counts[i]
+        max_edges = max(max_edges, counts[i])
 
     # allocate output, pad with fill
     node_edge = np.full((n_node, max_edges), INT_FILL_VALUE, dtype=INT_DTYPE)

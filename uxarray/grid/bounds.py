@@ -257,19 +257,14 @@ def _construct_face_bounds(
                 face_latlon_array, np.array([node1_lat_rad, node1_lon_rad])
             )
 
-            # Create n1n2_cart and n1n2_lonlat arrays using preallocation
-            n1n2_cart = np.empty((2, 3), dtype=np.float64)
-            n1n2_cart[0, :] = n1_cart
-            n1n2_cart[1, :] = n2_cart
-
-            n1n2_lonlat = np.empty((2, 2), dtype=np.float64)
-            n1n2_lonlat[0, :] = n1_lonlat
-            n1n2_lonlat[1, :] = n2_lonlat
-
             # Determine extreme latitudes for GCA edges
             if is_GCA:
-                lat_max = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "max")
-                lat_min = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "min")
+                lat_max = extreme_gca_latitude(
+                    (n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "max"
+                )
+                lat_min = extreme_gca_latitude(
+                    (n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "min"
+                )
             else:
                 lat_max = node1_lat_rad
                 lat_min = node1_lat_rad
@@ -319,15 +314,6 @@ def _construct_face_bounds(
             else:
                 is_GCA = not is_latlonface or n1_cart[2] != n2_cart[2]
 
-            # Create n1n2_cart and n1n2_lonlat arrays using preallocation
-            n1n2_cart = np.empty((2, 3), dtype=np.float64)
-            n1n2_cart[0, :] = n1_cart
-            n1n2_cart[1, :] = n2_cart
-
-            n1n2_lonlat = np.empty((2, 2), dtype=np.float64)
-            n1n2_lonlat[0, :] = n1_lonlat
-            n1n2_lonlat[1, :] = n2_lonlat
-
             # The node itself is always inside the box.
             face_latlon_array = insert_pt_in_latlonbox(
                 face_latlon_array, np.array([node1_lat_rad, node1_lon_rad])
@@ -336,8 +322,12 @@ def _construct_face_bounds(
             # A great circle arc can reach a latitude beyond both of its
             # endpoints; that interior extreme widens the box.
             if is_GCA:
-                lat_max = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "max")
-                lat_min = extreme_gca_latitude(n1n2_cart, n1n2_lonlat, "min")
+                lat_max = extreme_gca_latitude(
+                    (n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "max"
+                )
+                lat_min = extreme_gca_latitude(
+                    (n1_cart, n2_cart), (n1_lonlat, n2_lonlat), "min"
+                )
                 if (
                     abs(node1_lat_rad - lat_max) > ERROR_TOLERANCE
                     and abs(node2_lat_rad - lat_max) > ERROR_TOLERANCE
@@ -482,10 +472,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
         latlon_box[0, 1] = lat_pt
     else:
         # Update latitude range
-        if lat_pt < latlon_box[0, 0]:
-            latlon_box[0, 0] = lat_pt
-        if lat_pt > latlon_box[0, 1]:
-            latlon_box[0, 1] = lat_pt
+        latlon_box[0, 0] = min(latlon_box[0, 0], lat_pt)
+        latlon_box[0, 1] = max(latlon_box[0, 1], lat_pt)
 
     # Check if the longitude range is uninitialized and update it
     if np.isnan(old_box[1, 0]) and np.isnan(old_box[1, 1]):
@@ -499,9 +487,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
 
         # Check for pole points
         is_pole_point = False
-        if np.isnan(lon_pt):
-            if any_close_lat(lat_pt, ERROR_TOLERANCE):
-                is_pole_point = True
+        if np.isnan(lon_pt) and any_close_lat(lat_pt, ERROR_TOLERANCE):
+            is_pole_point = True
 
         if is_pole_point:
             # Update latitude for pole points
@@ -513,10 +500,8 @@ def insert_pt_in_latlonbox(old_box, new_pt, is_lon_periodic=True):
             # Update longitude range based on periodicity
             if not is_lon_periodic:
                 # Non-periodic: straightforward min and max updates
-                if lon_pt < latlon_box[1, 0]:
-                    latlon_box[1, 0] = lon_pt
-                if lon_pt > latlon_box[1, 1]:
-                    latlon_box[1, 1] = lon_pt
+                latlon_box[1, 0] = min(latlon_box[1, 0], lon_pt)
+                latlon_box[1, 1] = max(latlon_box[1, 1], lon_pt)
             else:
                 # Periodic longitude handling
                 # Determine if the new point extends the current longitude range
