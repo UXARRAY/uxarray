@@ -3,7 +3,7 @@ import math
 import numpy as np
 from numba import njit
 
-from uxarray.constants import ERROR_TOLERANCE, MACHINE_EPSILON
+from uxarray.constants import MACHINE_EPSILON
 from uxarray.grid.utils import _angle_of_2_vectors
 from uxarray.utils.computing import _cdp8, accucross
 from uxarray.utils.numba_math import (
@@ -224,12 +224,6 @@ def extreme_gca_latitude(gca_cart, gca_lonlat, extreme_type):
     if denom != 0.0:
         d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
 
-        # Handle cases where d_a_max is very close to 0 or 1
-        if np.isclose(d_a_max, 0.0, atol=ERROR_TOLERANCE) or np.isclose(
-            d_a_max, 1.0, atol=ERROR_TOLERANCE
-        ):
-            d_a_max = clip_scalar(d_a_max, 0.0, 1.0)
-
         # Check if d_a_max is within the valid range
         if (d_a_max > 0.0) and (d_a_max < 1.0):
             # Compute the intermediate point on the GCA
@@ -305,12 +299,6 @@ def extreme_gca_z(gca_cart, extreme_type):
     # Check if the denominator is zero to avoid division by zero
     if denom != 0.0:
         d_a_max = (n1[2] * dot_n1_n2 - n2[2]) / denom
-
-        # Handle cases where d_a_max is very close to 0 or 1
-        if np.isclose(d_a_max, 0.0, atol=ERROR_TOLERANCE) or np.isclose(
-            d_a_max, 1.0, atol=ERROR_TOLERANCE
-        ):
-            d_a_max = clip_scalar(d_a_max, 0.0, 1.0)
 
         # Check if d_a_max is within the valid range
         if (d_a_max > 0.0) and (d_a_max < 1.0):
