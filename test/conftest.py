@@ -1,8 +1,40 @@
 """Pytest configuration and fixtures for uxarray tests."""
 
+import importlib.util
+import os
+
 import pytest
 import numpy as np
 from pathlib import Path
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_sessionstart(session):
+    """Clear numba's cache if a module other kernels compile in has changed.
+
+    Runs before collection imports uxarray, so no stale kernel is loaded first. See
+    ci/clean_numba_cache.py for why numba's own staleness check misses this.
+    """
+    if hasattr(session.config, "workerinput"):  # pytest-xdist worker; controller did it
+        return
+    script = Path(__file__).parent.parent / "ci" / "clean_numba_cache.py"
+    if not script.exists():  # running from an installed package without the repo
+        return
+    spec = importlib.util.spec_from_file_location("clean_numba_cache", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    removed = module.clear_if_shared_modules_changed()
+    if removed is None:
+        return
+    reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+    if reporter is None:
+        return
+    reporter.write_line(
+        f"uxarray: shared jitted modules changed; removed {removed} numba cache file(s)"
+    )
+    if os.environ.get("NUMBA_CACHE_DIR"):
+        reporter.write_line(f"WARNING: {module.EXTERNAL_CACHE_WARNING}", yellow=True)
 
 
 @pytest.fixture
