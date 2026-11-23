@@ -1956,7 +1956,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         result = result.assign_attrs(attrs)
         return result
 
-    def laplacian(self, *, scale_by_radius: bool = True) -> "UxDataArray":
+    def laplacian(self, *, scale_by_radius: bool = True) -> UxDataArray:
         """
         Computes the Laplacian of this UxDataArray in the horizontal direction
         (i.e., along the unstructured grid dimension).
