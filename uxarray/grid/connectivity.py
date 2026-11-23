@@ -658,8 +658,10 @@ def _merge_coincident_grid_ds_nodes(
     # Only the 1-D node coordinates are loaded for the spatial search. Dask-backed
     # connectivity is remapped blockwise below, so the corner table stays lazy.
     if "node_lon" in grid_ds and "node_lat" in grid_ds:
-        node_lon = np.asarray(grid_ds["node_lon"].values, dtype=np.float64)
-        node_lat = np.asarray(grid_ds["node_lat"].values, dtype=np.float64)
+        # One graph execution for both coordinates, not one each.
+        coords = grid_ds[["node_lon", "node_lat"]].compute()
+        node_lon = np.asarray(coords["node_lon"].values, dtype=np.float64)
+        node_lat = np.asarray(coords["node_lat"].values, dtype=np.float64)
         points_xyz = np.column_stack(
             _lonlat_rad_to_xyz(np.deg2rad(node_lon), np.deg2rad(node_lat))
         )

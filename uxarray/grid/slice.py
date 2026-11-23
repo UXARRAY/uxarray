@@ -248,11 +248,27 @@ def _slice_face_indices(
                         f"but got inverse_indices={inverse_indices}."
                     )
 
-        return Grid.from_dataset(
-            ds,
-            source_grid_spec=grid.source_grid_spec,
-            is_subset=True,
-            inverse_indices=inverse_indices_ds,
-        )
+        return _subgrid(grid, ds, inverse_indices=inverse_indices_ds)
 
-    return Grid.from_dataset(ds, source_grid_spec=grid.source_grid_spec, is_subset=True)
+    return _subgrid(grid, ds)
+
+
+def _subgrid(grid, ds, **kwargs):
+    from uxarray.grid import Grid
+
+    # A face subset only keeps nodes its faces reference, and a merged parent's
+    # faces reference canonical nodes only, so the subset has no coincident
+    # nodes and the search would be wasted (and, when chunked, a load of every
+    # node coordinate).
+    already_merged = grid._merge_coincident_nodes
+    sub = Grid.from_dataset(
+        ds,
+        source_grid_spec=grid.source_grid_spec,
+        is_subset=True,
+        merge_coincident_nodes=not already_merged,
+        **kwargs,
+    )
+    if already_merged:
+        sub._merge_coincident_nodes = True
+        sub._duplicate_node_map = {}
+    return sub
