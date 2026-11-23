@@ -29,7 +29,7 @@ def _drop_non_grid_data(ds):
     ``boundary_node_indices``) and any CRS variable named by a ``grid_mapping``
     attribute (read by projected-grid detection) are always kept.
     """
-    grid_dims = set(ugrid.DIM_NAMES) | {"lat_lon", "min_max", "n_max_node_nodes"}
+    grid_dims = set(ugrid.DIM_NAMES) | {"lat_lon", "min_max"}
 
     keep = (
         set(ugrid.SPHERICAL_COORD_NAMES)
