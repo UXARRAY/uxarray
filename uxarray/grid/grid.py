@@ -1002,6 +1002,17 @@ class Grid:
         return self.edge_edge_connectivity.shape[1]
 
     @property
+    def n_max_node_nodes(self) -> int:
+        """Maximum number of nodes surrounding a single node.
+
+        Returns
+        -------
+        n_max_node_nodes : int
+            The maximum number of nodes that can surround a node.
+        """
+        return self.node_node_connectivity.shape[1]
+
+    @property
     def n_max_node_faces(self) -> int:
         """Maximum number of faces surrounding a single node.
 
