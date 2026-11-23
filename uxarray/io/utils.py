@@ -207,4 +207,4 @@ def _get_source_dims_dict(grid_ds, grid_spec):
         return _esmf_to_ugrid_dims(grid_ds)
 
     else:
-        return dict()
+        return {}
