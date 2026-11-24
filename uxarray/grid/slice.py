@@ -131,7 +131,6 @@ def _slice_face_indices(
         Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
         other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
     """
-    from uxarray.grid import Grid
 
     ds = grid._ds
     # bookkeeping: convert scalar indexers to 1D arrays
