@@ -842,11 +842,10 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
         >>> integral = uxds.integrate()
 
-        Access the integral of a single variable (approximately 4*pi).
-        Format the scalar to four decimal places for a stable display.
+        Access the integral of a single variable (approximately 4*pi)
 
-        >>> f"{integral['psi'].item():.4f}"
-        '12.5664'
+        >>> float(integral["psi"])  # doctest: +NUMBER
+        12.5664
         """
         integrated_vars = {}
         skipped = []
