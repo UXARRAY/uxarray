@@ -32,3 +32,17 @@ def test_dataarray_repr(gridpath, datasetpath):
     out = uxds['t2m']._repr_html_()
 
     assert out is not None
+
+
+def test_grid_repr_bounds_dims():
+    """repr(grid) should not hide existing "lat_lon" and "min_max" dims."""
+    grid = ux.tutorial.open_grid("quad-hexagon")
+    grid.bounds  # populate bounds dims
+    assert "lat_lon" in grid._ds.dims
+    assert "min_max" in grid._ds.dims
+    repr_str = repr(grid)
+    assert "lat_lon" in repr_str
+    assert "min_max" in repr_str
+    # additionally, grid.dims should contain these dims, too:
+    assert "lat_lon" in grid.dims
+    assert "min_max" in grid.dims
