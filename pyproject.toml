@@ -33,7 +33,7 @@ dependencies = [
   "scikit-learn>=1.4.2",  # older releases without a numpy<2 cap fail to import under numpy 2.
   "scipy",
   "shapely>=2.0.6",  # 2.0 API (shapely.polygons()); older 2.0.x fail in create_collection under numpy 2.
-  "xarray>=2024.10.0",  # older releases break resample() and dask-backed weighted_mean().
+  "xarray>=2025.11.0",  # older releases break resample() and dask-backed weighted_mean(), and drop attrs in apply_ufunc and binary ops (gradient/curl/divergence results lose input attrs).
   "polars>=0.20.4",  # DataFrame.with_row_index() is new in 0.20.4.
 ]
 # minimal dependencies end

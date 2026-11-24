@@ -37,7 +37,7 @@ def _open_dataset_with_fallback(filename_or_obj, chunks=None, **kwargs):
     try:
         # Try opening with xarray's default read engine
         return xr.open_dataset(filename_or_obj, chunks=chunks, **kwargs)
-    except Exception as default_engine_error:
+    except Exception as default_engine_error:  # noqa: BLE001
         # If it fails, use the "netcdf4" engine as backup
         # Extract engine from kwargs to prevent duplicate parameter error
         engine = kwargs.pop("engine", "netcdf4")
@@ -93,14 +93,24 @@ def _map_dims_to_ugrid(
 
     elif grid.source_grid_spec == "GEOS-CS":
         # stack dimensions to flatten them to map to nodes or faces
-        for var_name in list(ds.coords) + list(ds.data_vars):
-            if all(key in ds[var_name].sizes for key in ["nf", "Ydim", "Xdim"]):
-                ds[var_name] = ds[var_name].stack(n_face=["nf", "Ydim", "Xdim"])
-            if all(key in ds[var_name].sizes for key in ["nf", "YCdim", "XCdim"]):
-                ds[var_name] = ds[var_name].stack(n_node=["nf", "YCdim", "XCdim"])
+        if isinstance(ds, xr.DataArray):
+            ds = _stack_geos_cs(ds)
+        else:
+            # shallow copy, so the caller's Dataset keeps its original variables
+            ds = ds.copy()
+            for var_name in list(ds.coords) + list(ds.data_vars):
+                ds[var_name] = _stack_geos_cs(ds[var_name])
+
+        for dim, expected in (("n_face", grid.n_face), ("n_node", grid.n_node)):
+            if dim in ds.dims and ds.sizes[dim] != expected:
+                raise DimensionError(
+                    f"GEOS-CS data flattens to {ds.sizes[dim]} elements along '{dim}', "
+                    f"but the Grid has {expected}. Keep all six tiles ('nf') and the "
+                    "full horizontal extent when converting."
+                )
     else:
         keys_to_drop = []
-        for key in _source_dims_dict.keys():
+        for key in _source_dims_dict:
             # obtain all dimensions not present in the original dataset
             if key not in ds.dims:
                 keys_to_drop.append(key)
@@ -125,6 +135,24 @@ def _map_dims_to_ugrid(
         ds = ds.swap_dims(_source_dims_dict)
 
     return ds
+
+
+def _stack_geos_cs(da):
+    """Flattens the GEOS-CS ("nf", "Ydim", "Xdim") dimensions of a DataArray to
+    "n_face" and ("nf", "YCdim", "XCdim") to "n_node", in the order
+    ``_read_geos_cs`` ravels the grid.
+
+    No MultiIndex is created; the per-tile coordinates of the stacked
+    dimensions are dropped.
+    """
+    for ugrid_dim, cs_dims in (
+        ("n_face", ["nf", "Ydim", "Xdim"]),
+        ("n_node", ["nf", "YCdim", "XCdim"]),
+    ):
+        if all(dim in da.dims for dim in cs_dims):
+            da = da.stack({ugrid_dim: cs_dims}, create_index=False)
+            da = da.drop_vars(cs_dims, errors="ignore")
+    return da
 
 
 def match_chunks_to_ugrid(grid_filename_or_obj, chunks):
@@ -331,17 +359,19 @@ def _apply_1dfunc_with_grid_core_dim(
     result_dims = uxarrays[0].dims
     xarrays = [arr.to_xarray() for arr in uxarrays]
     # make a helpful warning if chunked but didn't supply output_dtypes
-    if any(xarr.chunks is not None for xarr in xarrays):
-        if dask != "forbidden":
-            if "output_dtypes" not in kw_apply_ufunc:
-                warnings.warn(
-                    f"Input uxarray objects are chunked while calling {f.__name__}, "
-                    "with dask!='forbidden', but `output_dtypes` was not provided. "
-                    "If this causes a ValueError: `dtype` inference failed in `apply_gufunc`, "
-                    "that most likely indicates an implementation error in the function which "
-                    "called _apply_1dfunc_with_grid_core_dim, but failed to supply output_dtypes "
-                    "to it; that function should be updated accordingly."
-                )
+    if (
+        any(xarr.chunks is not None for xarr in xarrays)
+        and dask != "forbidden"
+        and "output_dtypes" not in kw_apply_ufunc
+    ):
+        warnings.warn(
+            f"Input uxarray objects are chunked while calling {f.__name__}, "
+            "with dask!='forbidden', but `output_dtypes` was not provided. "
+            "If this causes a ValueError: `dtype` inference failed in `apply_gufunc`, "
+            "that most likely indicates an implementation error in the function which "
+            "called _apply_1dfunc_with_grid_core_dim, but failed to supply output_dtypes "
+            "to it; that function should be updated accordingly."
+        )
 
     # actually do the calculations:
     result = xr.apply_ufunc(
