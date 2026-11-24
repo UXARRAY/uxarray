@@ -527,6 +527,23 @@ def _collapse_repeated_face_corners(
     Only rows containing a value in ``canonical_values`` (nodes that
     absorbed at least one duplicate) are inspected, since no other row can
     have gained a repeat from the remap.
+
+    Parameters
+    ----------
+    face_node_connectivity : np.ndarray
+        ``(n_face, n_max_face_nodes)`` corner indices, already remapped to
+        canonical nodes and padded with ``INT_FILL_VALUE``.
+    canonical_values : np.ndarray
+        1-D array of the canonical node indices that absorbed a duplicate.
+    row_offset : int, default=0
+        Global index of the first row, used only so the error message names
+        the right face when called on one dask block.
+
+    Returns
+    -------
+    np.ndarray
+        The input is never modified in place. A modified copy is returned if
+        any row changed, otherwise the input object itself.
     """
     if len(canonical_values) == 0:
         return face_node_connectivity
@@ -570,6 +587,25 @@ def _collapse_repeated_face_corners(
 
 
 def _canonicalize_block(block, lookup, canonical_values, block_info=None):
+    """Canonicalize one block of node-index connectivity.
+
+    Parameters
+    ----------
+    block : np.ndarray
+        ``(n_rows, n_cols)`` node indices padded with ``INT_FILL_VALUE``.
+    lookup : np.ndarray
+        ``(n_node,)`` array where ``lookup[i]`` is the canonical node for ``i``.
+    canonical_values : np.ndarray or None
+        See ``_collapse_repeated_face_corners``. ``None`` skips the collapse.
+    block_info : dict, optional
+        Supplied by ``map_blocks``; gives the global row offset of ``block``.
+
+    Returns
+    -------
+    np.ndarray
+        A new array with the same shape and dtype as ``block``. The copy keeps
+        the in-place remap below from writing into the caller's array.
+    """
     out = np.array(block, copy=True)
     valid = out != INT_FILL_VALUE
     out[valid] = lookup[out[valid]]
@@ -585,6 +621,12 @@ def _canonicalize_connectivity(connectivity, lookup, canonical_values=None):
 
     Both steps are row-local, so dask-backed connectivity is processed
     blockwise and stays lazy with its row chunking preserved.
+
+    ``connectivity`` may be any 2-D node-index connectivity (numpy or dask),
+    but ``canonical_values`` should only be passed for
+    ``face_node_connectivity``, since the collapse treats rows as closed
+    rings. See ``_canonicalize_block`` for ``lookup`` and ``canonical_values``.
+    Returns an array of the same type and shape; the input is not modified.
     """
     if not hasattr(connectivity, "map_blocks"):
         return _canonicalize_block(np.asarray(connectivity), lookup, canonical_values)
@@ -726,7 +768,9 @@ def _merge_coincident_grid_ds_nodes(
     grid_ds = grid_ds.copy(deep=False)
 
     lookup = canonical
-    canonical_values = np.unique(canonical[canonical != np.arange(n_node)])
+    absorbed = np.zeros(n_node, dtype=bool)
+    absorbed[canonical[canonical != np.arange(n_node)]] = True
+    canonical_values = np.flatnonzero(absorbed)
 
     for name in _NODE_INDEX_CONNECTIVITY_TO_REMAP:
         if name not in grid_ds:
