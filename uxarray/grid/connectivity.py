@@ -603,9 +603,9 @@ def _canonicalize_block(block, lookup, canonical_values, block_info=None):
     Returns
     -------
     np.ndarray
-        A new array with the same shape and dtype as ``block``. The copy keeps
-        the in-place remap below from writing into the caller's array.
+        A new array with the same shape and dtype as ``block``.
     """
+    # Copy so the in-place remap below does not modify the caller's array.
     out = np.array(block, copy=True)
     valid = out != INT_FILL_VALUE
     out[valid] = lookup[out[valid]]
