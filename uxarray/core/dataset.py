@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Hashable, Iterable, Mapping
 from html import escape
-from typing import IO, Any, Hashable, Iterable, Mapping
+from typing import IO, Any
 from warnings import warn
 
 import xarray as xr
@@ -16,14 +17,16 @@ from uxarray.core.arithmetic import UxSupportsArithmetic
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.utils import (
     _map_dims_to_ugrid,
+    _map_structured_dims_to_ugrid,
     _open_dataset_with_fallback,
     _resolve_coordinate_labels_to_indices,
     _validate_indexers,
 )
-from uxarray.errors import DimensionError, GridInvalidError
+from uxarray.errors import DataCenteringError, DimensionError, GridInvalidError
 from uxarray.formatting_html import dataset_repr
 from uxarray.grid import Grid
-from uxarray.grid.dual import construct_dual
+from uxarray.grid.area import _integration_face_areas
+from uxarray.grid.dual import _dual_face_indices
 from uxarray.grid.neighbors import DatasetNeighborhood
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
@@ -79,8 +82,8 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
 
     # expected instance attributes, required for subclassing with xarray (as of v0.13.0)
     __slots__ = (
-        "_uxgrid",
         "_source_datasets",
+        "_uxgrid",
     )
 
     def __init__(
@@ -203,6 +206,30 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
             )
         self._uxgrid = ugrid_obj
 
+    @property
+    def _grid_dims(self) -> set[str]:
+        """set of all grid dimensions associated with self.
+        This is a (possibly-empty) subset of {"n_face", "n_edge", "n_node"}.
+        """
+        return {d for d in GRID_DIMS if d in self.dims}
+
+    @property
+    def _grid_dim(self) -> str:
+        """name of the single grid dimension associated with self.
+        This is "n_face", "n_edge", or "n_node" if exactly one is present in self.dims,
+        else raises DataCenteringError.
+        """
+        grid_dims = self._grid_dims
+        if len(grid_dims) == 1:
+            return grid_dims.pop()
+        else:
+            if len(grid_dims) == 0:
+                grid_dims = "none"
+            raise DataCenteringError(
+                f"Expected {type(self).__name__} with exactly 1 grid dimension, but got {grid_dims}, "
+                f"in self.dims={self.dims}. Known grid dimensions are: {GRID_DIMS}."
+            )
+
     def _calculate_binary_op(self, *args, **kwargs):
         """Override to make the result a complete instance of
         ``uxarray.UxDataset``."""
@@ -303,7 +330,9 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
 
         uxgrid = Grid.from_dataset(ds)
 
-        ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
+        ds = _map_structured_dims_to_ugrid(
+            ds, uxgrid._source_dims_dict, uxgrid, _fname="UxDataset.from_structured"
+        )
 
         # Drop spatial coordinates
         coords_to_drop = [
@@ -314,7 +343,9 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         return cls(ds, uxgrid=uxgrid)
 
     @classmethod
-    def from_xarray(cls, ds: xr.Dataset, uxgrid: Grid = None, ugrid_dims: dict = None):
+    def from_xarray(
+        cls, ds: xr.Dataset, uxgrid: Grid | None = None, ugrid_dims: dict | None = None
+    ):
         """
         Converts a ``xarray.Dataset`` into a ``uxarray.UxDataset``, paired with either a user-defined or
         parsed ``Grid``
@@ -344,7 +375,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
             ugrid_dims = uxgrid._source_dims_dict
 
         # map each dimension to its UGRID equivalent
-        ds = _map_dims_to_ugrid(ds, ugrid_dims, uxgrid)
+        ds = _map_dims_to_ugrid(ds, ugrid_dims, uxgrid, _fname="UxDataset.from_xarray")
 
         return cls(ds, uxgrid=uxgrid)
 
@@ -522,6 +553,12 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
 
             _crash_if_1d_xarray_indexer_dim_in_uxarray_obj(self, grid_dim, grid_indexer)
 
+            if "n_edge" in self.dims:
+                # ensure uxgrid.face_edge_connectivity exists, otherwise uxgrid.isel()
+                # silently fails to populate _subgrid_edge_indices, causing confusing
+                # errors later (see issue #1758)
+                _ = self.uxgrid.face_edge_connectivity
+
             sliced_grid = self.uxgrid.isel(
                 **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
             )
@@ -548,7 +585,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         self,
         indexers: Mapping[Any, Any] | None = None,
         method: str | None = None,
-        tolerance: int | float | Iterable[int | float] | None = None,
+        tolerance: float | Iterable[float] | None = None,
         drop: bool = False,
         **indexers_kwargs: Any,
     ):
@@ -651,7 +688,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
             )
         elif len(grid_dims) == 1:
             # pop off the one grid‐dim indexer
-            grid_dim = list(grid_dims)[0]
+            grid_dim = next(iter(grid_dims))
             indexers = indexers.copy()  # don't modify the original dict
             grid_indexer = indexers.pop(grid_dim)
             if grid_dim in self.coords:  # label-based indexing
@@ -666,8 +703,9 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
                 # crash if provided `method` or `tolerance`, as promised in docstring;
                 # (this error logic matches xarray's error logic in this case.)
                 if method is not None or tolerance is not None:
+                    options = {"method": method, "tolerance": tolerance}
                     raise ValueError(
-                        f"cannot supply selection options {dict(method=method, tolerance=tolerance)} "
+                        f"cannot supply selection options {options} "
                         f"for dimension {grid_dim!r} that has no associated coordinate or index"
                     )
                 grid_indices = grid_indexer
@@ -721,7 +759,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         # For all other attributes, use the default behavior
         return super().__getattribute__(name)
 
-    def info(self, buf: IO = None, show_attrs=False) -> None:
+    def info(self, buf: IO | None = None, show_attrs=False) -> None:
         """Concise summary of Dataset variables and attributes including grid
         topology information stored in the ``uxgrid`` property.
 
@@ -787,9 +825,11 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         Parameters
         ----------
         quadrature_rule : str, optional
-            Quadrature rule to use. Defaults to "triangular".
+            Quadrature rule used to compute the face areas, one of
+            ``"triangular"`` (default) or ``"gaussian"``. Forwarded to
+            :meth:`UxDataArray.integrate`.
         order : int, optional
-            Order of quadrature rule. Defaults to 4.
+            Order of the quadrature rule. Defaults to 4.
 
         Returns
         -------
@@ -812,10 +852,16 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         integrated_vars = {}
         skipped = []
 
+        # Outside the loop so a bad rule/order raises instead of being
+        # reported as skipped variables, and areas are computed once.
+        face_areas = None
+        if any(uxda._face_centered() for uxda in self.values()):
+            face_areas = _integration_face_areas(self.uxgrid, quadrature_rule, order)
+
         for name, uxda in self.items():
             try:
-                integrated_vars[name] = uxda.integrate(
-                    quadrature_rule=quadrature_rule, order=order
+                integrated_vars[name] = uxda._integrate(
+                    quadrature_rule, order, face_areas=face_areas
                 )
             except ValueError:
                 # Variable is not mapped to the grid (or its location is not
@@ -905,25 +951,37 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         return DatasetNeighborhood(self, r=r)
 
     def to_xarray(self, grid_format: str = "UGRID") -> xr.Dataset:
-        """
-        Converts a ``ux.UXDataset`` to a ``xr.Dataset``.
+        """returns a shallow copy of this ``UxDataset`` as a plain ``xr.Dataset``.
 
         Parameters
         ----------
         grid_format : str, default="UGRID"
-            The format in which to convert the grid. Supported values are "UGRID" and "HEALPix". The dimensions will
-            match the selected grid format.
+            The format in which to convert the grid. Supported values are "UGRID" and "HEALPix".
+            If "HEALPix", renames "n_face" dimension to "cell" in the result.
+            Otherwise, dimensions are kept unchanged.
 
         Returns
         -------
         xr.Dataset
-            The ``ux.UXDataset`` represented as a ``xr.Dataset``
+            The ``ux.UxDataset`` represented as a ``xr.Dataset``
         """
+        # Equivalent to the "naive" xr.Dataset(self.data_vars, coords=self.coords, attrs=self.attrs)
+        # but internally here uses _construct_direct() for efficiency, to avoid validation checks,
+        # since a valid UxDataset is already guaranteed to be a valid xr.Dataset.
+        variables = {k: v.copy(deep=False) for k, v in self._variables.items()}
+        for k, v in variables.items():
+            if k not in self._coord_names:
+                v.encoding = {}  # matches the "naive" implementation's behavior
+        result = xr.Dataset._construct_direct(
+            variables=variables,
+            coord_names=set(self._coord_names),
+            dims=dict(self._dims),
+            attrs=dict(self.attrs),
+            indexes=dict(self._indexes),
+        )
         if grid_format == "HEALPix":
-            ds = self.rename_dims({"n_face": "cell"})
-            return xr.Dataset(ds.data_vars, coords=ds.coords, attrs=ds.attrs)
-
-        return xr.Dataset(self.data_vars, coords=self.coords, attrs=self.attrs)
+            result = result.rename_dims({"n_face": "cell"})
+        return result
 
     def astype(self, dtype, **kw_super):
         """Copy of this uxarray object, with data cast to a specified type.
@@ -942,28 +1000,28 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         --------
         dual : uxds
             Dual Mesh `uxds` constructed
-        """
 
-        if _check_duplicate_nodes_indices(self.uxgrid):
+        Raises
+        ------
+        GridInvalidError
+            If any face still references a coincident duplicate node.
+        """
+        grid = self.uxgrid._prepare_for_dual()
+        if _check_duplicate_nodes_indices(grid):
             raise GridInvalidError(
                 "Duplicate nodes found in UxDataset's uxgrid; cannot get_dual()"
             )
 
-        if self.uxgrid.partial_sphere_coverage:
+        if grid.partial_sphere_coverage:
             warn(
                 "This mesh is partial, which could cause inconsistent results and data will be lost",
                 Warning,
             )
 
-        # Get dual mesh node face connectivity
-        dual_node_face_conn = construct_dual(grid=self.uxgrid)
-
-        # Construct dual mesh
-        dual = self.uxgrid.from_topology(
-            self.uxgrid.face_lon.values,
-            self.uxgrid.face_lat.values,
-            dual_node_face_conn,
-        )
+        # Get dual mesh node face connectivity and the primal nodes represented
+        # by its faces.
+        dual_face_indices = _dual_face_indices(grid)
+        dual = grid.get_dual()
 
         # Initialize new dataset
         dataset = type(self)(uxgrid=dual)
@@ -973,11 +1031,15 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
 
         # For each data array in the dataset, reconstruct the data array with the dual mesh
         for var in self.data_vars:
+            data = self[var]
+            if "n_node" in data.dims:
+                data = data.isel(n_node=dual_face_indices, ignore_grid=True)
+
             # Get correct dimensions for the dual
-            dims = [dim_map.get(dim, dim) for dim in self[var].dims]
+            dims = [dim_map.get(dim, dim) for dim in data.dims]
 
             # Construct the new data array
-            uxda = UxDataArray(uxgrid=dual, data=self[var].data, dims=dims, name=var)
+            uxda = UxDataArray(uxgrid=dual, data=data.data, dims=dims, name=var)
 
             # Add data array to dataset
             dataset[var] = uxda
@@ -993,3 +1055,215 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         return UxDataset(super().fillna(value), uxgrid=self._uxgrid)
 
     fillna.__doc__ = xr.Dataset.fillna.__doc__
+
+    # --- methods which just apply iteratively across data_vars --- #
+
+    def _apply_across_data_vars(
+        self, method, grid_dims=GRID_DIMS, *method_args, **method_kwargs
+    ):
+        """Apply method to each relevant data_var in self with any grid_dims,
+        returning a Dataset formed by the results, keeping all other data_vars unchanged.
+
+        If any data_var has a grid_dim (one of GRID_DIMS) not in `grid_dims`, crash with
+        DataCenteringError. (E.g. "n_node" but method doesn't support node-centered data.)
+        Also crash with DataCenteringError if any coordinate has a grid_dim not in `grid_dims`.
+        Also crash with DataCenteringError if none of the supported grid_dims appear in self.
+
+        Parameters
+        ----------
+        method : str or callable
+            The method to apply to each relevant data_var.
+            str --> attribute of data_var, e.g. 'zonal_mean' --> data_var.zonal_mean()
+            callable --> called with data_var as first argument.
+        grid_dims : list of str
+            The grid dimensions supported by `method`.
+            The method is applied to all data_vars containing at least one of these dims.
+            If any data_var has a grid_dim not in `grid_dims`, crash with DataCenteringError.
+        remaining args and kwargs get passed to `method`.
+
+        Returns
+        -------
+        UxDataset or xr.Dataset
+            Results of applying `method` where relevant, keeping other data_vars unchanged.
+            Type is UxDataset if `method` returns UxDataArray for any data_var, else xr.Dataset.
+        """
+        assert not isinstance(
+            grid_dims, str
+        )  # made a typo if grid_dims is a single string!
+        _grid_dims_as_a_set = set(grid_dims)
+
+        # eager crash if self not centered properly for method
+        if not any(dim in self.dims for dim in _grid_dims_as_a_set):
+            raise DataCenteringError(
+                f"Expected {type(self).__name__}.dims to contain at least 1 grid dimension "
+                f"supported by {method!r}, i.e. one of {grid_dims}, but got dims={self.dims}."
+            )
+
+        # eager crash if any data_var not centered properly
+        for name, da in self.data_vars.items():
+            da_grid_dims = set(da.dims).intersection(GRID_DIMS)
+            if len(da_grid_dims) > 0 and not (da_grid_dims <= _grid_dims_as_a_set):
+                raise DataCenteringError(
+                    f"Data variable {name!r} has grid dimension(s) {da_grid_dims} which are "
+                    f"not supported by method {method!r}. Supported grid dimensions: {grid_dims}."
+                )
+
+        # separately track coords not attached to any data_var
+        bonus_coords = {}
+        for coord in self.coords:
+            for data_var in self.data_vars.values():
+                if coord in data_var.coords:
+                    break
+            else:  # didn't break
+                bonus_coords[coord] = self.coords[coord]
+
+        # eager crash if any bonus coord not centered properly
+        for name, da in bonus_coords.items():
+            da_grid_dims = set(da.dims).intersection(GRID_DIMS)
+            if len(da_grid_dims) > 0 and not (da_grid_dims <= _grid_dims_as_a_set):
+                raise DataCenteringError(
+                    f"Coordinate {name!r} has grid dimension(s) {da_grid_dims} which are "
+                    f"not supported by method {method!r}. Supported grid dimensions: {grid_dims}"
+                )
+
+        # actually compute the results (for data_vars)
+        results = {}
+        for name, da in self.data_vars.items():
+            if any(dim in da.dims for dim in GRID_DIMS):
+                if isinstance(method, str):
+                    results[name] = getattr(da, method)(*method_args, **method_kwargs)
+                else:
+                    results[name] = method(da, *method_args, **method_kwargs)
+            else:
+                results[name] = da
+
+        # return UxDataset if any result is a UxDataArray, else xr.Dataset
+        _ux_kws = {}
+        if any(isinstance(res, UxDataArray) for res in results.values()):
+            cls = type(self)
+            _ux_kws["uxgrid"] = self._uxgrid
+        else:
+            cls = xr.Dataset
+        return cls(results, coords=bonus_coords, attrs=self.attrs, **_ux_kws)
+
+    def zonal_mean(
+        self, lat=(-90, 90, 10), *, conservative: bool = False, **kw_uxda_zonal_mean
+    ):
+        """Returns averages of face-centered data_vars along lines or bands of constant latitude,
+        as an xr.Dataset with new "latitudes" dimension.
+        Only affects data_vars with grid dimensions; everything else is passed through unchanged.
+
+        The weighting method and the output size depend on the ``conservative`` flag:
+
+        - ``conservative=False``: weight contributions by each face's overlap with a given
+          line of constant latitude. ``lat`` indicates which lines to use.
+          (E.g., the default lat=(-90, 90, 10) produces a result with 19 latitudes,
+          -90, -80, ..., 90, corresponding to means at -90, -80, ..., 90 degrees.)
+        - ``conservative=True``: weight contributions by each face's overlap with a given
+          band of latitude. ``lat`` indicates the edges of the bands to use.
+          (E.g., the default lat=(-90, 90, 10) produces a result with 18 latitudes,
+          -85, -75, ..., 85, corresponding to means over the bands from
+          -90 to -80, -80 to -70, ..., and 80 to 90 degrees.)
+          Using ``conservative=True`` preserves integral quantities.
+
+        For more details about parameters, see :meth:`UxDataArray.zonal_mean`.
+        """
+        kw = dict(lat=lat, conservative=conservative, **kw_uxda_zonal_mean)
+        return self._apply_across_data_vars("zonal_mean", ("n_face",), **kw)
+
+    def zonal_average(
+        self, lat=(-90, 90, 10), *, conservative: bool = False, **kw_uxda_zonal_mean
+    ):
+        """Alias of zonal_mean. For full docstring, see :meth:`UxDataset.zonal_mean`."""
+        return self.zonal_mean(lat=lat, conservative=conservative, **kw_uxda_zonal_mean)
+
+    def zonal_anomaly(self, lat=(-90, 90, 10), *, conservative: bool = False):
+        """Return UxDataset with zonal anomaly of face-centered data_vars (values minus zonal means),
+        Only affects data_vars with grid dimensions; everything else is passed through unchanged.
+
+        For more details about parameters, see :meth:`UxDataArray.zonal_anomaly`.
+        """
+        kw = {"lat": lat, "conservative": conservative}
+        return self._apply_across_data_vars("zonal_anomaly", ("n_face",), **kw)
+
+    def azimuthal_mean(
+        self,
+        center_coord,
+        outer_radius: float,
+        radius_step: float,
+        *,
+        return_hit_counts: bool = False,
+    ) -> xr.Dataset:
+        """Return averages of face-centered data_vars along circles of constant great-circle distance
+        from ``center_coord`` (lon, lat), as an xr.Dataset with new "radius" dimension.
+        Only affects data_vars with grid dimensions; everything else is passed through unchanged.
+
+        (Does not yet support ``return_hit_counts`` option.)
+
+        For more details about parameters, see :meth:`UxDataArray.azimuthal_mean`.
+        """
+        if return_hit_counts:
+            raise NotImplementedError(
+                f"{type(self).__name__}.azimuthal_mean(..., return_hit_counts=True)"
+            )
+        kw = {
+            "center_coord": center_coord,
+            "outer_radius": outer_radius,
+            "radius_step": radius_step,
+        }
+        return self._apply_across_data_vars("azimuthal_mean", ("n_face",), **kw)
+
+    azimuthal_average = azimuthal_mean  # alias
+
+    def weighted_mean(self, weights=None):
+        """Return UxDataset of weighted means of data_vars. If weights are not provided:
+
+        - For face-centered data, use face areas as weights (i.e., area-weighted mean).
+        - For edge-centered data, use edge lengths as weights.
+        - For node-centered data, crash with DataCenteringError.
+
+        If weights are provided, they are treated as weights along the grid dimension,
+        ("n_face", "n_edge", or "n_node") and must be 1D with appropriate length.
+        If weights are provided, and multiple grid dimensions appear throughout data_vars,
+        raise DataCenteringError, or NotImplementedError if weights is a 1D DataArray
+        with a grid dimension that appears in this dataset's dims.
+
+        Mathematically equivalent to sum(self * weights) / sum(weights),
+        where the first sum is taken along the grid dimension.
+
+        For more details and full docstring, see :meth:`UxDataArray.weighted_mean`.
+        """
+        if weights is None:
+            return self._apply_across_data_vars(
+                "weighted_mean", ("n_face", "n_edge"), weights=None
+            )
+        # else:
+        grid_dims = self._grid_dims
+        if len(grid_dims) > 1:
+            if (
+                isinstance(weights, xr.DataArray)
+                and len(weights.dims) == 1
+                and weights.dims[0] in grid_dims
+            ):
+                raise NotImplementedError(
+                    "uxds.weighted_mean(..., weights=1D DataArray with dim in uxds's grid dims) "
+                    f"when uxds (a {type(self).__name__}) has multiple grid dims."
+                )
+                # This case has an intuitive, unambiguous way it could be implemented:
+                # simply apply weighted_mean() only along data_vars with the grid dim from weights,
+                # skipping data_vars with other grid dims.
+                # Doing this would require updating _apply_across_data_vars accordingly first, because
+                # currently it crashes if any data_var has a grid dim not in its input ``grid_dims``.
+            else:
+                raise DataCenteringError(
+                    f"uxds.weighted_mean(..., weights=...) when uxds (a {type(self).__name__}) "
+                    f"has multiple grid dims ({grid_dims}). Provide weights=None, or try again "
+                    f"with a subset of data_vars that all share the same grid dim."
+                )
+                # Note: after filling in the implementation of the 1D xr.DataArray with grid_dim
+                # case above, update this error message too, to also suggest providing weights as
+                # an xr.DataArray with the desired grid dim.
+        else:
+            return self._apply_across_data_vars(
+                "weighted_mean", grid_dims, weights=weights
+            )

@@ -3,21 +3,73 @@ import xarray as xr
 from numba import njit, prange
 
 from uxarray.constants import EDGE_NODE_SORT_THRESHOLD, INT_DTYPE, INT_FILL_VALUE
+from uxarray.conventions import ugrid
+from uxarray.conventions.descriptors import DESCRIPTOR_NAMES
 from uxarray.utils.numba_math import (
     _numba_add3,
     _numba_cross3,
+    _numba_diff_of_products3,
     _numba_dot3,
     _numba_mul3_scalar,
     _numba_norm3,
-    _numba_sub3,
 )
 from uxarray.utils.parallel import parallel_njit
+
+
+def _drop_non_grid_data(ds):
+    """Drop variables that don't belong on a ``Grid`` (e.g. a ``time`` carried in
+    from a file that holds both the grid and its data).
+
+    A variable or coordinate is dropped when any of its dimensions is not a grid
+    dimension. Scalar coordinates are dropped too; scalar data variables are kept.
+
+    Grid coordinates, connectivity, descriptors (including MPAS
+    ``boundary_node_indices``) and any CRS variable named by a ``grid_mapping``
+    attribute (read by projected-grid detection) are always kept.
+    """
+    grid_dims = set(ugrid.DIM_NAMES)
+
+    keep = (
+        set(ugrid.SPHERICAL_COORD_NAMES)
+        | set(ugrid.CARTESIAN_COORD_NAMES)
+        | set(ugrid.CONNECTIVITY_NAMES)
+        | set(DESCRIPTOR_NAMES)
+    )
+    # CRS variables, referenced by name from a ``grid_mapping`` attribute
+    # (CF also allows the extended form "crs: x y")
+    for var in ds.variables.values():
+        grid_mapping = var.attrs.get("grid_mapping")
+        if isinstance(grid_mapping, str):
+            keep.update(token.rstrip(":") for token in grid_mapping.split())
+
+    drop = [
+        name
+        for name, var in ds.variables.items()
+        if name not in keep
+        and (
+            any(dim not in grid_dims for dim in var.dims)
+            or (var.ndim == 0 and name in ds.coords)
+        )
+    ]
+    return ds.drop_vars(drop)
 
 
 @njit(cache=True)
 def _small_angle_of_2_vectors(u, v):
     """
-    Compute the smallest angle between two vectors using the new _angle_of_2_vectors.
+    Compute the angle in [0, pi] between two vectors of arbitrary lengths.
+
+    Uses Kahan's formula
+
+        angle = 2 * atan2(| v |u| - u |v| |, | v |u| + u |v| |),
+
+    which avoids the cancellation of the arcsin/arccos forms and of the cross
+    product in atan2(|u x v|, u . v). When the vectors are nearly parallel,
+    every component of ``v |u| - u |v|`` is a difference of two nearly equal
+    products, so it is evaluated with the FMA-based ``_numba_diff_of_products3``
+    (Kahan's 2x2 determinant per component). The result is accurate to a few ulps for angles
+    down to about 1e-7 rad, for any input lengths; below that, the rounding of
+    the norms adds a second-order relative error of about (eps / angle)^2.
 
     Parameters
     ----------
@@ -29,14 +81,31 @@ def _small_angle_of_2_vectors(u, v):
     Returns
     -------
     float
-        The smallest angle between `u` and `v` in radians.
+        The angle between `u` and `v` in radians. Zero if either vector is zero.
+
+    References
+    ----------
+    Kahan, W. (2006). How Futile are Mindless Assessments of Roundoff in
+    Floating-Point Computation? https://people.eecs.berkeley.edu/~wkahan/Mindless.pdf
+
+    Chen, H., Ullrich, P. A., Panetta, J., Marsico, D., Hanke, M., Jain, R.,
+    Zhang, C., and Jacob, R. L. (2026). Accurate and robust geometric
+    algorithms for regridding on the sphere. Geoscientific Model
+    Development, 19(14), 6545-6570. https://doi.org/10.5194/gmd-19-6545-2026
     """
-    u_times_v_norm = _numba_mul3_scalar(v, _numba_norm3(u))
-    v_times_u_norm = _numba_mul3_scalar(u, _numba_norm3(v))
-    vec_minus = _numba_sub3(u_times_v_norm, v_times_u_norm)
-    vec_sum = _numba_add3(u_times_v_norm, v_times_u_norm)
-    angle_u_v_rad = 2 * np.arctan2(_numba_norm3(vec_minus), _numba_norm3(vec_sum))
-    return angle_u_v_rad
+    nu = _numba_norm3(u)
+    nv = _numba_norm3(v)
+
+    # v|u| - u|v| as a compensated difference of products: m_hi alone is the
+    # naive rounded difference, adding m_lo applies the products' rounding errors.
+    m_hi, m_lo = _numba_diff_of_products3(v, nu, u, nv)
+    m = _numba_add3(m_hi, m_lo)
+
+    # v|u| + u|v|: its cancellation near antiparallel vectors does not affect
+    # the returned angle, so it is evaluated directly.
+    s = _numba_add3(_numba_mul3_scalar(v, nu), _numba_mul3_scalar(u, nv))
+
+    return 2.0 * np.arctan2(_numba_norm3(m), _numba_norm3(s))
 
 
 @njit(cache=True)
@@ -530,7 +599,8 @@ def make_setter(key: str):
 #
 # NOTE: these are inlined into ``cache=True`` kernels in another module, and numba stamps its
 # cache against the defining file alone, so editing them does not invalidate a caller's cached
-# object. Clear ``uxarray/grid/__pycache__/*.nbi *.nbc`` after changing anything here.
+# object. pytest clears the cache when this file changes; outside pytest, run
+# ``python ci/clean_numba_cache.py`` after changing anything here.
 
 
 @njit(cache=True)

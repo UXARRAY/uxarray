@@ -3,8 +3,9 @@ from __future__ import annotations
 import copy
 import os
 import warnings
+from collections.abc import Sequence
 from html import escape
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import xarray as xr
@@ -23,8 +24,13 @@ from uxarray.grid.angles import (
     _compute_face_node_angles_convex,
 )
 from uxarray.grid.area import _get_all_face_area_from_coords
-from uxarray.grid.bounds import _populate_face_bounds
+from uxarray.grid.bounds import (
+    _face_bounds_lat_degrees,
+    _face_bounds_lon_degrees,
+    _populate_face_bounds,
+)
 from uxarray.grid.connectivity import (
+    _merge_coincident_grid_ds_nodes,
     _populate_edge_face_connectivity,
     _populate_edge_node_connectivity,
     _populate_face_edge_connectivity,
@@ -32,6 +38,7 @@ from uxarray.grid.connectivity import (
     _populate_n_nodes_per_face,
     _populate_node_edge_connectivity,
     _populate_node_face_connectivity,
+    _spec_guarantees_unique_nodes,
 )
 from uxarray.grid.coordinates import (
     _populate_edge_centroids,
@@ -70,7 +77,7 @@ from uxarray.grid.neighbors import (
     _populate_edge_node_distances,
 )
 from uxarray.grid.point_in_face import _point_in_face_query
-from uxarray.grid.utils import make_setter
+from uxarray.grid.utils import _drop_non_grid_data, make_setter
 from uxarray.grid.validation import (
     _check_area,
     _check_connectivity,
@@ -170,16 +177,32 @@ class Grid:
         source_dims_dict: dict | None = None,
         is_subset: bool = False,
         inverse_indices: xr.Dataset | None = None,
+        merge_coincident_nodes: bool = True,
     ):
         # check if inputted dataset is a minimum representable 2D UGRID unstructured grid
-        if source_grid_spec != "HEALPix":
-            if not _validate_minimum_ugrid(grid_ds):
-                raise GridInvalidError(
-                    "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
-                    "at least the following variables: ['node_lon', 'node_lat', 'face_node_connectivity'],"
-                    f"\nbut got grid_ds with data_vars: {list(grid_ds.data_vars)}"
-                )
+        if source_grid_spec != "HEALPix" and not _validate_minimum_ugrid(grid_ds):
+            raise GridInvalidError(
+                "Grid unable to be represented in the UGRID conventions. Representing an unstructured grid requires "
+                "at least the following variables: ['node_lon', 'node_lat', 'face_node_connectivity'],"
+                f"\nbut got grid_ds with data_vars: {list(grid_ds.data_vars)}"
+            )
             # TODO: more checks for validate grid (lat/lon coords, etc)
+
+        # canonicalize coincident node indices in connectivity before this dataset
+        # is wrapped in a Grid, so every construction path benefits and no
+        # lazily-computed connectivity is ever built from stale indices.
+        # Users can opt out to retain the original connectivity, including face
+        # rings that would have nonconsecutive repeated corners after merging.
+        # Internally generated formats known to have unique vertices skip the
+        # search. File-backed formats are checked regardless of their usual layout.
+        duplicate_node_map = None
+        if merge_coincident_nodes:
+            if _spec_guarantees_unique_nodes(source_grid_spec):
+                duplicate_node_map = {}
+            else:
+                grid_ds, duplicate_node_map = _merge_coincident_grid_ds_nodes(
+                    grid_ds, return_duplicate_map=True
+                )
 
         # mapping of ugrid dimensions and variables to source dataset's conventions
         self._source_dims_dict = source_dims_dict or {}
@@ -187,8 +210,10 @@ class Grid:
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
 
-        # internal xarray dataset for storing grid variables
-        self._ds = grid_ds
+        # internal xarray dataset for storing grid variables.
+        # drop variables that don't belong on the grid (e.g. a `time` carried in from a
+        # file holding both grid and data), so they can't collide during subsetting.
+        self._ds = _drop_non_grid_data(grid_ds)
 
         # source grid specification (i.e. UGRID, MPAS, SCRIP, etc.)
         self.source_grid_spec = source_grid_spec
@@ -198,6 +223,7 @@ class Grid:
         self._antimeridian_face_indices = None
         self._ds.assign_attrs({"source_grid_spec": self.source_grid_spec})
         self._is_subset = is_subset
+        self._merge_coincident_nodes = merge_coincident_nodes
 
         self._inverse_indices = inverse_indices
 
@@ -242,6 +268,10 @@ class Grid:
         # flag to track if coordinates are normalized
         self._normalized = None
 
+        # Cached map of coincident node indices to their canonical node. Reuse
+        # the construction-time search instead of repeating it in dual/tree paths.
+        self._duplicate_node_map = duplicate_node_map
+
         # flag to ensure projected-grid warning fires only once per instance
         self._projected_warning_issued = False
 
@@ -258,7 +288,7 @@ class Grid:
     subset = UncachedAccessor(GridSubsetAccessor)
 
     @classmethod
-    def from_dataset(cls, dataset, use_dual: bool | None = False, **kwargs):
+    def from_dataset(cls, dataset, use_dual: bool = False, **kwargs):
         """Constructs a ``Grid`` object from a dataset.
 
         Parameters
@@ -268,6 +298,10 @@ class Grid:
               containing ASCII files represents a FESOM2 grid.
         use_dual : bool, default=False
             When reading in MPAS formatted datasets, indicates whether to use the Dual Mesh
+        merge_coincident_nodes : bool, default=True
+            Passed through ``**kwargs``. Set to False to preserve original node
+            connectivity, including faces that would acquire nonconsecutive repeated
+            corners after merging. Dual construction still rejects referenced duplicates.
         """
 
         if isinstance(dataset, xr.Dataset):
@@ -346,13 +380,14 @@ class Grid:
             source_dims_dict,
             is_subset=kwargs.get("is_subset", False),
             inverse_indices=kwargs.get("inverse_indices"),
+            merge_coincident_nodes=kwargs.get("merge_coincident_nodes", True),
         )
 
     @classmethod
     def from_file(
         cls,
         filename: str,
-        backend: str | None = "geopandas",
+        backend: str = "geopandas",
         **kwargs,
     ):
         """Constructs a ``Grid`` object from a using the read_file method with
@@ -471,8 +506,8 @@ class Grid:
         node_lon: np.ndarray,
         node_lat: np.ndarray,
         face_node_connectivity: np.ndarray,
-        fill_value: int | float | None = None,
-        start_index: int | None = 0,
+        fill_value: float | None = None,
+        start_index: int = 0,
         dims_dict: dict | None = None,
         **kwargs,
     ):
@@ -493,7 +528,7 @@ class Grid:
             Face node connectivity, mapping each face to the nodes that surround them
         fill_value: int | float | None
             Value used for padding connectivity variables when the maximum number of elements in a row is less than the maximum.
-        start_index: int | None, default=0
+        start_index: int, default=0
             Start index (typically 0 or 1)
         dims_dict : dict | None
             Dictionary of dimension names mapped to the ugrid conventions (i.e. {"nVertices": "n_node})
@@ -589,7 +624,7 @@ class Grid:
     def from_face_vertices(
         cls,
         face_vertices: list | tuple | np.ndarray,
-        latlon: bool | None = True,
+        latlon: bool = True,
     ):
         """Constructs a ``Grid`` object from user-defined face vertices.
 
@@ -734,15 +769,15 @@ class Grid:
 
         coord_heading = "Grid Coordinates (Spherical):\n"
         coords_str = ""
-        for coord_name in list(
-            [coord for coord in ugrid.SPHERICAL_COORDS if coord in self._ds]
-        ):
+        for coord_name in [
+            coord for coord in ugrid.SPHERICAL_COORDS if coord in self._ds
+        ]:
             coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         coords_str += "Grid Coordinates (Cartesian):\n"
-        for coord_name in list(
-            [coord for coord in ugrid.CARTESIAN_COORDS if coord in self._ds]
-        ):
+        for coord_name in [
+            coord for coord in ugrid.CARTESIAN_COORDS if coord in self._ds
+        ]:
             coords_str += f"  * {coord_name}: {getattr(self, coord_name).shape}\n"
 
         connectivity_heading = "Grid Connectivity Variables:\n"
@@ -753,9 +788,9 @@ class Grid:
 
         descriptors_heading = "Grid Descriptor Variables:\n"
         descriptors_str = ""
-        for descriptor_name in list(
-            [desc for desc in descriptors.DESCRIPTOR_NAMES if desc in self._ds]
-        ):
+        for descriptor_name in [
+            desc for desc in descriptors.DESCRIPTOR_NAMES if desc in self._ds
+        ]:
             descriptors_str += (
                 f"  * {descriptor_name}: {getattr(self, descriptor_name).shape}\n"
             )
@@ -801,24 +836,15 @@ class Grid:
         -------
         If two grids are equal : bool
         """
-        if self is other:
-            return True
 
-        if not isinstance(other, Grid):
-            return False
-
-        if self.source_grid_spec != other.source_grid_spec:
-            return False
-
-        if not (
-            self.node_lon.equals(other.node_lon) or self.node_lat.equals(other.node_lat)
-        ):
-            return False
-
-        if not self.face_node_connectivity.equals(other.face_node_connectivity):
-            return False
-
-        return True
+        same_id = self is other
+        return same_id or (
+            isinstance(other, Grid)
+            and self.source_grid_spec == other.source_grid_spec
+            and self.node_lon.equals(other.node_lon)
+            and self.node_lat.equals(other.node_lat)
+            and self.face_node_connectivity.equals(other.face_node_connectivity)
+        )
 
     def __ne__(self, other) -> bool:
         """Two grids are not equal if they have differing grid topology
@@ -838,9 +864,7 @@ class Grid:
     @property
     def dims(self) -> set:
         """Names of all unstructured grid dimensions."""
-        from uxarray.conventions.ugrid import DIM_NAMES
-
-        return set([dim for dim in DIM_NAMES if dim in self._ds.dims])
+        return {dim for dim in ugrid.DIM_NAMES if dim in self._ds.dims}
 
     @property
     def sizes(self) -> dict:
@@ -855,23 +879,23 @@ class Grid:
             SPHERICAL_COORD_NAMES,
         )
 
-        return set(
-            [coord for coord in SPHERICAL_COORD_NAMES if coord in self._ds]
-        ).union(set([coord for coord in CARTESIAN_COORD_NAMES if coord in self._ds]))
+        return {coord for coord in SPHERICAL_COORD_NAMES if coord in self._ds}.union(
+            {coord for coord in CARTESIAN_COORD_NAMES if coord in self._ds}
+        )
 
     @property
     def connectivity(self) -> set:
         """Names of all connectivity variables."""
         from uxarray.conventions.ugrid import CONNECTIVITY_NAMES
 
-        return set([conn for conn in CONNECTIVITY_NAMES if conn in self._ds])
+        return {conn for conn in CONNECTIVITY_NAMES if conn in self._ds}
 
     @property
     def descriptors(self) -> set:
         """Names of all descriptor variables."""
         from uxarray.conventions.descriptors import DESCRIPTOR_NAMES
 
-        return set([desc for desc in DESCRIPTOR_NAMES if desc in self._ds])
+        return {desc for desc in DESCRIPTOR_NAMES if desc in self._ds}
 
     @property
     def attrs(self) -> dict:
@@ -968,6 +992,17 @@ class Grid:
             The maximum number of edges that can surround an edge.
         """
         return self.edge_edge_connectivity.shape[1]
+
+    @property
+    def n_max_node_nodes(self) -> int:
+        """Maximum number of nodes surrounding a single node.
+
+        Returns
+        -------
+        n_max_node_nodes : int
+            The maximum number of nodes that can surround a node.
+        """
+        return self.node_node_connectivity.shape[1]
 
     @property
     def n_max_node_faces(self) -> int:
@@ -1627,16 +1662,8 @@ class Grid:
         """
 
         if "face_bounds_lon" not in self._ds:
-            bounds = self.bounds.values
-
-            bounds_deg = np.rad2deg(bounds[:, 1, :])
-            bounds_normalized = (bounds_deg + 180.0) % 360.0 - 180.0
-            bounds_lon = bounds_normalized
-            mask_zero = (bounds_lon[:, 0] == 0) & (bounds_lon[:, 1] == 0)
-            # for faces that span all longitudes (i.e. pole faces)
-            bounds_lon[mask_zero] = [-180.0, 180.0]
             self._ds["face_bounds_lon"] = xr.DataArray(
-                data=bounds_lon,
+                data=_face_bounds_lon_degrees(self.bounds.values),
                 dims=["n_face", "min_max"],
             )
 
@@ -1655,10 +1682,8 @@ class Grid:
         """
 
         if "face_bounds_lat" not in self._ds:
-            bounds = self.bounds.values
-            bounds_lat = np.sort(np.rad2deg(bounds[:, 0, :]), axis=-1)
             self._ds["face_bounds_lat"] = xr.DataArray(
-                data=bounds_lat,
+                data=_face_bounds_lat_degrees(self.bounds.values),
                 dims=["n_face", "min_max"],
             )
         return self._ds["face_bounds_lat"]
@@ -1828,9 +1853,9 @@ class Grid:
 
     def get_ball_tree(
         self,
-        coordinates: str | None = "face centers",
-        coordinate_system: str | None = "spherical",
-        distance_metric: str | None = "haversine",
+        coordinates: str = "face centers",
+        coordinate_system: str = "spherical",
+        distance_metric: str = "haversine",
         reconstruct: bool = False,
     ):
         """Get the BallTree data structure of this Grid that allows for nearest
@@ -1924,9 +1949,7 @@ class Grid:
         """
         return Neighborhood(self, r=r, on=on)
 
-    def _get_scipy_kd_tree(
-        self, coordinates: str | None = "face", reconstruct: bool = False
-    ):
+    def _get_scipy_kd_tree(self, coordinates: str = "face", reconstruct: bool = False):
         """
         Build or retrieve a KDTree for efficient nearest-neighbor searches on grid points.
 
@@ -1978,9 +2001,9 @@ class Grid:
 
     def get_kd_tree(
         self,
-        coordinates: str | None = "face centers",
-        coordinate_system: str | None = "cartesian",
-        distance_metric: str | None = "minkowski",
+        coordinates: str = "face centers",
+        coordinate_system: str = "cartesian",
+        distance_metric: str = "minkowski",
         reconstruct: bool = False,
     ):
         """Get the KDTree data structure of this Grid that allows for nearest
@@ -2263,7 +2286,7 @@ class Grid:
         latitude_adjusted_area: bool = False,
         return_jacobian: bool = False,
         as_uxarray: bool = False,
-    ) -> "np.ndarray | UxDataArray | tuple[np.ndarray | UxDataArray, np.ndarray]":
+    ) -> np.ndarray | UxDataArray | tuple[np.ndarray | UxDataArray, np.ndarray]:
         """Compute the area of each face in the grid.
 
         Unlike the cached :attr:`face_areas` property (which always uses the
@@ -2473,7 +2496,7 @@ class Grid:
 
         self._ds.attrs["sphere_radius"] = radius
 
-    def to_xarray(self, grid_format: str | None = "ugrid"):
+    def to_xarray(self, grid_format: str = "ugrid"):
         """Returns an ``xarray.Dataset`` with the variables stored under the
         ``Grid`` encoded in a specific grid format.
 
@@ -2520,13 +2543,13 @@ class Grid:
 
     def to_geodataframe(
         self,
-        periodic_elements: str | None = "exclude",
+        periodic_elements: str = "exclude",
         projection=None,
-        cache: bool | None = True,
-        override: bool | None = False,
-        engine: str | None = "spatialpandas",
-        return_non_nan_polygon_indices: bool | None = False,
-        exclude_nan_polygons: bool | None = True,
+        cache: bool = True,
+        override: bool = False,
+        engine: str = "spatialpandas",
+        return_non_nan_polygon_indices: bool = False,
+        exclude_nan_polygons: bool = True,
         project: bool = True,
     ):
         """Constructs a ``GeoDataFrame`` consisting of polygons representing
@@ -2580,13 +2603,12 @@ class Grid:
             )
 
         # if project is false, projection is only used for determining central coordinates
-        if projection and project:
-            if periodic_elements == "split":
-                raise ValueError(
-                    "Setting ``periodic_elements='split'`` is not supported when a "
-                    f"projection is provided; got projection={projection!r} "
-                    f"in {type(self).__name__}.to_geodataframe()."
-                )
+        if projection and project and periodic_elements == "split":
+            raise ValueError(
+                "Setting ``periodic_elements='split'`` is not supported when a "
+                f"projection is provided; got projection={projection!r} "
+                f"in {type(self).__name__}.to_geodataframe()."
+            )
 
         if periodic_elements not in ["ignore", "exclude", "split"]:
             raise ValueError(
@@ -2594,14 +2616,13 @@ class Grid:
                 f"but got {periodic_elements!r}, in {type(self).__name__}.to_geodataframe()"
             )
 
-        if self._gdf_cached_parameters["gdf"] is not None:
-            if (
-                self._gdf_cached_parameters["periodic_elements"] != periodic_elements
-                or self._gdf_cached_parameters["projection"] != projection
-                or self._gdf_cached_parameters["engine"] != engine
-            ):
-                # cached GeoDataFrame has a different projection or periodic element handling method
-                override = True
+        if self._gdf_cached_parameters["gdf"] is not None and (
+            self._gdf_cached_parameters["periodic_elements"] != periodic_elements
+            or self._gdf_cached_parameters["projection"] != projection
+            or self._gdf_cached_parameters["engine"] != engine
+        ):
+            # cached GeoDataFrame has a different projection or periodic element handling method
+            override = True
 
         if self._gdf_cached_parameters["gdf"] is not None and not override:
             # use cached PolyCollection
@@ -2637,12 +2658,12 @@ class Grid:
 
     def to_polycollection(
         self,
-        periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
-        return_indices: Optional[bool] = False,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
-        return_non_nan_polygon_indices: Optional[bool] = False,
+        periodic_elements: str = "exclude",
+        projection: ccrs.Projection | None = None,
+        return_indices: bool = False,
+        cache: bool = True,
+        override: bool = False,
+        return_non_nan_polygon_indices: bool = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.PolyCollection``` consisting
@@ -2673,14 +2694,13 @@ class Grid:
                 f"but got {periodic_elements!r}, in {type(self).__name__}.to_polycollection()"
             )
 
-        if self._poly_collection_cached_parameters["poly_collection"] is not None:
-            if (
-                self._poly_collection_cached_parameters["periodic_elements"]
-                != periodic_elements
-                or self._poly_collection_cached_parameters["projection"] != projection
-            ):
-                # cached PolyCollection has a different projection or periodic element handling method
-                override = True
+        if self._poly_collection_cached_parameters["poly_collection"] is not None and (
+            self._poly_collection_cached_parameters["periodic_elements"]
+            != periodic_elements
+            or self._poly_collection_cached_parameters["projection"] != projection
+        ):
+            # cached PolyCollection has a different projection or periodic element handling method
+            override = True
 
         if (
             self._poly_collection_cached_parameters["poly_collection"] is not None
@@ -2723,10 +2743,10 @@ class Grid:
 
     def to_linecollection(
         self,
-        periodic_elements: Optional[str] = "exclude",
-        projection: Optional[ccrs.Projection] = None,
-        cache: Optional[bool] = True,
-        override: Optional[bool] = False,
+        periodic_elements: str = "exclude",
+        projection: ccrs.Projection | None = None,
+        cache: bool = True,
+        override: bool = False,
         **kwargs,
     ):
         """Constructs a ``matplotlib.collections.LineCollection``` consisting
@@ -2783,30 +2803,72 @@ class Grid:
 
         return copy.deepcopy(line_collection)
 
-    def get_dual(self, check_duplicate_nodes: bool = False):
+    def _prepare_for_dual(self):
+        """Canonicalize deferred lazy topology without modifying the source grid."""
+        required = ["face_node_connectivity"]
+        if "node_lon" in self._ds and "node_lat" in self._ds:
+            required.extend(["node_lon", "node_lat"])
+        else:
+            required.extend(["node_x", "node_y", "node_z"])
+        if not any(self._ds[name].chunks is not None for name in required):
+            return self
+        grid_ds = self._ds.copy(deep=False)
+        computed = self._ds[required].compute()
+        for name in required:
+            grid_ds[name] = computed[name]
+        return type(self)(
+            grid_ds,
+            self.source_grid_spec,
+            source_dims_dict=self._source_dims_dict,
+            merge_coincident_nodes=self._merge_coincident_nodes,
+        )
+
+    def get_dual(self, check_duplicate_nodes: bool | None = None):
         """Compute the dual for a grid, which constructs a new grid centered
         around the nodes, where the nodes of the primal become the face centers
         of the dual, and the face centers of the primal become the nodes of the
         dual. Returns a new `Grid` object.
 
+        Parameters
+        ----------
+        check_duplicate_nodes : bool, optional
+            Deprecated and ignored. Coincident nodes are merged at grid
+            construction, so the check below always runs and always passes.
+
         Returns
         --------
         dual : Grid
             Dual Mesh Grid constructed
-        """
 
-        if check_duplicate_nodes:
-            if _check_duplicate_nodes_indices(self):
-                # TODO: This is very slow
-                raise GridInvalidError("Duplicate nodes found, cannot construct dual")
+        Raises
+        ------
+        GridInvalidError
+            If any face still references a coincident duplicate node. The dual
+            reads ``node_face_connectivity`` directly, so a dead duplicate index
+            yields a degenerate dual face rather than an error.
+        """
+        if check_duplicate_nodes is not None:
+            warnings.warn(
+                "`check_duplicate_nodes` is deprecated and ignored; coincident "
+                "nodes are merged at grid construction and always checked here.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        grid = self._prepare_for_dual()
+        if _check_duplicate_nodes_indices(grid):
+            raise GridInvalidError("Duplicate nodes found, cannot construct dual")
 
         # Get dual mesh node face connectivity
-        dual_node_face_conn = construct_dual(grid=self)
+        dual_node_face_conn = construct_dual(grid=grid)
 
-        # Construct dual mesh
-        dual = self.from_topology(
-            self.face_lon.data, self.face_lat.data, dual_node_face_conn
+        # Primal face centers become dual nodes. Repeated primal faces can have
+        # coincident centers even when primal nodes are canonical, so the dual
+        # must also canonicalize its connectivity.
+        dual_ds = _read_topology(
+            grid.face_lon.data, grid.face_lat.data, dual_node_face_conn, None, 0
         )
+        dual = type(self)(dual_ds, "User Defined Topology")
 
         return dual
 

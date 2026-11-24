@@ -16,6 +16,7 @@ from uxarray.utils.numba_math import (
     _numba_norm3,
     _numba_dot3,
     _numba_cross3,
+    _numba_diff_of_products3,
 )
 
 def test_numba_add3():
@@ -79,3 +80,16 @@ def test_numba_cross3():
     assert _numba_cross3((1, 2, 30), (4, 0, 6)) == (12, 114, -8)
     assert _numba_cross3([0,1,0],[0,0,10]) == (10,0,0)
     assert _numba_cross3(np.array([1,10,0]), np.array([0,-1,5])) == (50, -5, -1)
+
+def test_numba_diff_of_products3():
+    """ensure _numba_diff_of_products3 gives u*a - v*b accurately when the products nearly cancel."""
+    from fractions import Fraction
+    assert _numba_diff_of_products3((1.0, 2.0, 3.0), 2.0, (0.5, 1.0, 1.0), 4.0) == ((0.0, 0.0, 2.0), (0.0, 0.0, 0.0))
+    u = np.array([0.1, 0.7, -1.3])
+    v = u * (1.0 + 1e-12)       # nearly parallel, so u*a and v*b nearly cancel
+    a, b = 1.0 + 1e-12, 1.0
+    hi, lo = _numba_diff_of_products3(u, a, v, b)
+    for i in range(3):
+        exact = Fraction(u[i]) * Fraction(a) - Fraction(v[i]) * Fraction(b)
+        assert hi[i] == u[i] * a - v[i] * b                     # hi alone is the naive result
+        assert Fraction(hi[i]) + Fraction(lo[i]) == exact       # hi + lo is exact here
