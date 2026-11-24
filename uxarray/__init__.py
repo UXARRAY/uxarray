@@ -1,3 +1,6 @@
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _version
+
 from . import errors, tutorial
 from .constants import INT_DTYPE, INT_FILL_VALUE
 from .core.api import (
@@ -13,29 +16,24 @@ from .core.dataset import UxDataset
 from .grid import Grid
 
 try:
-    from importlib.metadata import version as _version
-except Exception:
-    from importlib_metadata import version as _version
-
-try:
     __version__ = _version("uxarray")
-except Exception:
+except PackageNotFoundError:
     # Placeholder version incase an error occurs, such as the library isn't installed
     __version__ = "999"
 
 
 __all__ = (
-    "open_grid",
-    "open_dataset",
-    "open_mfdataset",
-    "open_multigrid",
-    "list_grid_names",
-    "concat",
-    "tutorial",
-    "UxDataset",
-    "UxDataArray",
     "INT_DTYPE",
     "INT_FILL_VALUE",
     "Grid",
+    "UxDataArray",
+    "UxDataset",
+    "concat",
     "errors",
+    "list_grid_names",
+    "open_dataset",
+    "open_grid",
+    "open_mfdataset",
+    "open_multigrid",
+    "tutorial",
 )

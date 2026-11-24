@@ -66,3 +66,47 @@ class PlotHealpix:
             return peak_allocated(lambda: self._doit())
 
     track_peakmem_default_plot.unit = "bytes"
+
+
+class PlotContour:
+    """Benchmark contour lines of a noisy field on a large grid, on a map.
+
+    One representative case: data on the faces of a HEALPix grid at zoom 7
+    (~200k faces), with noise that gives ~20k lines, as model output often does.
+    The method ``"interpolated"`` and a projection cover both the computing of
+    the lines and their projection, and rendering covers GeoViews' plotting.
+    """
+
+    LEVELS = np.linspace(-1.0, 1.0, 12)[1:-1]
+
+    def make_array(self, zoom):
+        """returns UxDataArray on a HEALPix grid with the given zoom level,
+        filled with waves plus noise. Contouring needs the corners of the pixels."""
+        grid = ux.Grid.from_healpix(zoom, pixels_only=False)
+        lon = np.radians(grid.face_lon.values)
+        lat = np.radians(grid.face_lat.values)
+        waves = 0.7 * np.sin(3 * lat) * np.cos(4 * lon)
+        waves += 0.3 * np.sin(9 * lat) * np.sin(7 * lon)
+        noise = np.random.default_rng(0).normal(0.0, 0.08, grid.n_face)
+        return ux.UxDataArray(xr.DataArray(waves + noise, dims="n_face"), uxgrid=grid)
+
+    def _call_contour(self, data):
+        plot_obj = data.plot.contour(
+            levels=self.LEVELS,
+            method="interpolated",
+            projection=ccrs.Robinson(),
+            backend="bokeh",
+        )
+        hv.renderer("bokeh").get_plot(plot_obj)
+
+    def setup(self):
+        # warm up numba and plotting imports, using a small example.
+        self._call_contour(self.make_array(zoom=2))
+        self.data = self.make_array(zoom=7)
+
+    def teardown(self):
+        del self.data
+
+    def time_contour_projected(self):
+        """time taken to compute contour lines on a map projection and render them"""
+        self._call_contour(self.data)

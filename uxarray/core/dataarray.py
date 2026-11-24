@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Hashable, Iterable, Mapping
 from html import escape
-from typing import TYPE_CHECKING, Any, Hashable, Iterable, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Literal
 from warnings import warn
 
 import numpy as np
@@ -15,6 +16,7 @@ from uxarray.constants import GRID_DIMS
 from uxarray.conventions.attrs import _drop_value_describing_attrs
 from uxarray.core.aggregation import _uxda_grid_aggregate
 from uxarray.core.arithmetic import UxSupportsArithmetic
+from uxarray.core.azimuthal import _compute_azimuthal_mean
 from uxarray.core.gradient import (
     _calculate_edge_face_difference,
     _calculate_edge_node_difference,
@@ -40,7 +42,7 @@ from uxarray.errors import (
 from uxarray.formatting_html import array_repr
 from uxarray.grid import Grid
 from uxarray.grid.area import _integration_face_areas
-from uxarray.grid.dual import construct_dual
+from uxarray.grid.dual import _dual_face_indices
 from uxarray.grid.neighbors import DataArrayNeighborhood, Neighborhood
 from uxarray.grid.validation import _check_duplicate_nodes_indices
 from uxarray.io._healpix import get_zoom_from_cells
@@ -194,7 +196,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         """set of all grid dimensions associated with self.
         This is a (possibly-empty) subset of {"n_face", "n_edge", "n_node"}.
         """
-        return set(d for d in GRID_DIMS if d in self.dims)
+        return {d for d in GRID_DIMS if d in self.dims}
 
     @property
     def _grid_dim(self) -> str:
@@ -343,7 +345,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
     def to_polycollection(
         self,
         periodic_elements: str = "exclude",
-        projection: Optional[ccrs.Projection] = None,
+        projection: ccrs.Projection | None = None,
         return_indices: bool = False,
         cache: bool = True,
         override: bool = False,
@@ -563,7 +565,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                         "ax.set_extent(...), or ax.set_xlim(...) + ax.set_ylim(...).",
                         stacklevel=2,
                     )
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     warn(
                         f"Failed to auto-set extent from grid bounds: {e}",
                         stacklevel=2,
@@ -627,7 +629,20 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         return uxds
 
     def to_xarray(self) -> xr.DataArray:
-        return xr.DataArray(self)
+        """returns a shallow copy of this ``UxDataArray`` as a plain ``xr.DataArray``."""
+        # Equivalent to the "naive" xr.DataArray(self), but internally here
+        # uses _construct_direct() for efficiency, to avoid validation checks,
+        # since a valid UxDataArray is already guaranteed to be a valid xr.DataArray.
+        variable = self._variable.copy(deep=False)
+        variable.encoding = {}  # matches xr.DataArray(self) behavior
+        coords = {k: v.copy(deep=True) for k, v in self._coords.items()}
+        # ^ also matches xr.DataArray(self) behavior, which copies coords deeply.
+        return xr.DataArray._construct_direct(
+            variable,
+            coords,
+            self._name,
+            dict(self._indexes),
+        )
 
     def astype(self, dtype, **kw_super):
         """Copy of this uxarray object, with data cast to a specified type.
@@ -834,7 +849,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                         UserWarning,
                         stacklevel=2,
                     )
-                num_points = int(round((end - start) / step)) + 1
+                num_points = round((end - start) / step) + 1
                 latitudes = np.linspace(start, end, num_points)
                 latitudes = np.clip(latitudes, -90, 90)
             elif isinstance(lat, (float, int)):
@@ -883,7 +898,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                         UserWarning,
                         stacklevel=2,
                     )
-                num_points = int(round((end - start) / step)) + 1
+                num_points = round((end - start) / step) + 1
                 edges = np.linspace(start, end, num_points)
                 edges = np.clip(edges, -90, 90)
             elif isinstance(lat, (list, np.ndarray)):
@@ -984,7 +999,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 raise ValueError(
                     f"Expected step>0 when lat=(min_lat, max_lat, step); got step={step}"
                 )
-            num_points = int(round((end - start) / step)) + 1
+            num_points = round((end - start) / step) + 1
             edges = np.linspace(start, end, num_points)
             edges = np.clip(edges, -90, 90)
         elif isinstance(lat, (list, np.ndarray)):
@@ -1017,8 +1032,8 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
     def azimuthal_mean(
         self,
         center_coord,
-        outer_radius: int | float,
-        radius_step: int | float,
+        outer_radius: float,
+        radius_step: float,
         return_hit_counts: bool = False,
     ):
         """Compute averages along circles of constant great-circle distance from a point.
@@ -1060,6 +1075,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         Only supported for face-centered data variables. Candidate faces are determined
         using bounding circles - for radii = [r1, r2, r3, ...] faces whose centers lie at distance d,
         r2 < d <= r3 are included in calculations for r3.
+
+        Dask-backed data is reduced lazily, one input ``n_face`` chunk at a time,
+        so no task gathers every face inside ``outer_radius``. Other lazily loaded
+        data is read as contiguous slices covering at most twice the faces inside
+        ``outer_radius``.
         """
         from uxarray.grid.coordinates import _lonlat_rad_to_xyz
 
@@ -1075,8 +1095,6 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 f"outer_radius must be a positive scalar during azimuthal_mean(); got outer_radius={outer_radius}"
             )
 
-        kdtree = self.uxgrid._get_scipy_kd_tree()
-
         lon_deg, lat_deg = map(float, np.asarray(center_coord))
         center_xyz = np.array(
             _lonlat_rad_to_xyz(np.deg2rad(lon_deg), np.deg2rad(lat_deg))
@@ -1086,50 +1104,20 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         radii_rad = np.deg2rad(radii_deg)
         chord_radii = 2.0 * np.sin(radii_rad / 2.0)
 
-        faces_processed = np.array([], dtype=np.int_)
-        means = np.full(
-            (radii_deg.size, *self.to_xarray().isel(drop=True, n_face=0).shape), np.nan
-        )
-        hit_count = np.zeros_like(radii_deg, dtype=np.int_)
-
-        for ii, r_chord in enumerate(chord_radii):
-            # indices of faces within the bounding circle for this radius
-            within = np.array(
-                kdtree.query_ball_point(center_xyz, r_chord), dtype=np.int_
-            )
-            if within.size:
-                within.sort()
-
-            # include only the new ring: r_(i-1) < d <= r_i
-            faces_in_bin = np.setdiff1d(within, faces_processed, assume_unique=True)
-            hit_count[ii] = faces_in_bin.size
-
-            if hit_count[ii] == 0:
-                continue
-
-            faces_processed = within  # cumulative set for next iteration
-
-            tpose = self.isel(n_face=faces_in_bin).transpose(..., "n_face")
-            means[ii, ...] = tpose.weighted_mean().data
-
-        # swap the leading 'radius' axis into the former n_face position
-        face_axis = self.dims.index("n_face")
-        dims = list(self.dims)
-        dims[face_axis] = "radius"
-        means = np.moveaxis(means, 0, face_axis)
+        means, hit_count = _compute_azimuthal_mean(self, center_xyz, chord_radii)
 
         hit_count = xr.DataArray(
             data=hit_count, dims="radius", coords={"radius": radii_deg}
         )
 
-        # Assign coords from `self` to the result except one that corresponds to `dims[face_axis]`
+        # Assign coords from `self` to the result except those on n_face
         new_coords = _preserve_valid_coords(self, "n_face")
         # Add radii_deg to the resulting coords
         new_coords["radius"] = radii_deg
 
         uxda = xr.DataArray(
-            means,
-            dims=dims,
+            means.data,
+            dims=means.dims,
             coords=new_coords,
             name=self.name + "_azimuthal_mean"
             if self.name is not None
@@ -1192,6 +1180,8 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             If provided weights which are not 1D, or incompatible with the data due to
             having wrong size or (if xr.DataArray) wrong dimension name.
         """
+        # self, or its copy aligned with xr.DataArray weights below
+        aligned = self
         if weights is None:
             if self._face_centered():
                 weights = self.uxgrid.face_areas.data
@@ -1217,11 +1207,8 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
                 # if weights and self both have coords on grid dim, ensure exact alignment,
                 # otherwise xarray silently only keeps locations where coords agree.
                 try:
-                    self, weights = xr.align(self, weights, join="exact")
-                except ValueError as err:
-                    # TODO: update to xr.AlignmentError (a subclass of ValueError) when minimum
-                    # supported xarray is >=2025.04.0 (which introduced xr.AlignmentError.
-                    # ValueError works in the meantime, but is broader than necessary).
+                    aligned, weights = xr.align(self, weights, join="exact")
+                except xr.AlignmentError as err:
                     raise DimensionError(
                         f"For DataArray weights, expected alignment with data's grid dimension "
                         f"({self._grid_dim!r}), but got mismatch in sizes and/or coords."
@@ -1229,11 +1216,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
         if not isinstance(weights, xr.DataArray):
             # convert to xr.DataArray to ensure operations below align dims properly
-            weights = xr.DataArray(weights, dims=(self._grid_dim,))
+            weights = xr.DataArray(weights, dims=(aligned._grid_dim,))
 
         total_weight = weights.sum()
-        weighted_mean = (self * weights).sum(self._grid_dim) / total_weight
-        return type(self)(weighted_mean, uxgrid=self.uxgrid)
+        weighted_mean = (aligned * weights).sum(aligned._grid_dim) / total_weight
+        return type(aligned)(weighted_mean, uxgrid=aligned.uxgrid)
 
     def topological_mean(
         self,
@@ -1745,9 +1732,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
     def curl(
         self,
-        other: "UxDataArray",
+        other: UxDataArray,
         scale_by_radius: bool = True,
-    ) -> "UxDataArray":
+    ) -> UxDataArray:
         """
         Computes the curl of the vector field defined by this UxDataArray and ``other``,
         in the horizontal direction (i.e., along the unstructured grid dimension).
@@ -1831,10 +1818,10 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         u, v = xr.align(self, other, join="exact", copy=False)
 
         # Compute gradients of both components
-        grad_u_zonal, grad_u_meridional = _compute_gradient(
+        _grad_u_zonal, grad_u_meridional = _compute_gradient(
             u, scale_by_radius=scale_by_radius
         )
-        grad_v_zonal, grad_v_meridional = _compute_gradient(
+        grad_v_zonal, _grad_v_meridional = _compute_gradient(
             v, scale_by_radius=scale_by_radius
         )
 
@@ -1868,8 +1855,8 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         return result
 
     def divergence(
-        self, other: "UxDataArray", scale_by_radius: bool = True, **kw_unused
-    ) -> "UxDataArray":
+        self, other: UxDataArray, scale_by_radius: bool = True, **kw_unused
+    ) -> UxDataArray:
         """
         Computes the divergence of the vector field defined by this UxDataArray and ``other``,
         in the horizontal direction (i.e., along the unstructured grid dimension).
@@ -1971,10 +1958,10 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         u, v = xr.align(self, other, join="exact", copy=False)
 
         # Compute gradients of both components
-        grad_u_zonal, grad_u_meridional = _compute_gradient(
+        grad_u_zonal, _grad_u_meridional = _compute_gradient(
             u, scale_by_radius=scale_by_radius
         )
-        grad_v_zonal, grad_v_meridional = _compute_gradient(
+        _grad_v_zonal, grad_v_meridional = _compute_gradient(
             v, scale_by_radius=scale_by_radius
         )
 
@@ -2004,7 +1991,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         result = result.assign_attrs(attrs)
         return result
 
-    def scalardotgradient(self, v: "UxDataArray", q: "UxDataArray") -> "UxDataArray":
+    def scalardotgradient(self, v: UxDataArray, q: UxDataArray) -> UxDataArray:
         """
         Compute the dot product between a vector field and the gradient of a scalar field.
         The formula is: scalar_dot_gradient = u * (dq/dx) + v * (dq/dy),
@@ -2282,6 +2269,12 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
 
             _crash_if_1d_xarray_indexer_dim_in_uxarray_obj(self, grid_dim, grid_indexer)
 
+            if "n_edge" in self.dims:
+                # ensure uxgrid.face_edge_connectivity exists, otherwise uxgrid.isel()
+                # silently fails to populate _subgrid_edge_indices, causing confusing
+                # errors later (see issue #1758)
+                _ = self.uxgrid.face_edge_connectivity
+
             sliced_grid = self.uxgrid.isel(
                 **{grid_dim: grid_indexer}, inverse_indices=inverse_indices
             )
@@ -2308,7 +2301,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         self,
         indexers: Mapping[Any, Any] | None = None,
         method: str | None = None,
-        tolerance: int | float | Iterable[int | float] | None = None,
+        tolerance: float | Iterable[float] | None = None,
         drop: bool = False,
         **indexers_kwargs: Any,
     ):
@@ -2408,7 +2401,7 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             )
         elif len(grid_dims) == 1:
             # pop off the one grid‐dim indexer
-            grid_dim = list(grid_dims)[0]
+            grid_dim = next(iter(grid_dims))
             indexers = indexers.copy()  # don't modify the original dict
             grid_indexer = indexers.pop(grid_dim)
             if grid_dim in self.coords:  # label-based indexing
@@ -2422,8 +2415,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             else:  # index-based indexing
                 # crash if provided `method` or `tolerance`, as promised in docstring;
                 if method is not None or tolerance is not None:
+                    options = {"method": method, "tolerance": tolerance}
                     raise ValueError(
-                        f"cannot supply selection options {dict(method=method, tolerance=tolerance)} "
+                        f"cannot supply selection options {options} "
                         f"for dimension {grid_dim!r} that has no associated coordinate or index"
                     )
                 grid_indices = grid_indexer
@@ -2448,9 +2442,11 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             raise AssertionError("internal implementation error if reached this line")
 
     @classmethod
-    def from_xarray(cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict = None):
+    def from_xarray(
+        cls, da: xr.DataArray, uxgrid: Grid, ugrid_dims: dict | None = None
+    ):
         """
-        Converts a ``xarray.DataArray`` into a ``uxarray.UxDataset`` paired with a user-defined ``Grid``
+        Converts a ``xarray.DataArray`` into a ``uxarray.UxDataArray`` paired with a user-defined ``Grid``
 
         Parameters
         ----------
@@ -2464,15 +2460,15 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         Returns
         -------
         cls
-            A ``ux.UxDataArray`` with data from the ``xr.DataArray` paired with a ``ux.Grid``
+            A ``ux.UxDataArray`` with data from the ``xr.DataArray`` paired with a ``ux.Grid``
         """
         if ugrid_dims is None:
             ugrid_dims = uxgrid._source_dims_dict
 
         # map each dimension to its UGRID equivalent
-        ds = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
+        da = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
 
-        return cls(ds, uxgrid=uxgrid)
+        return cls(da, uxgrid=uxgrid)
 
     @classmethod
     def from_healpix(
@@ -2526,19 +2522,21 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         """Slices a  ``UxDataArray`` from a sliced ``Grid``, using cached
         indices to correctly slice the data variable."""
 
+        # index with the underlying arrays, so coordinates on the sliced grid
+        # (e.g. a stray ``time``) aren't aligned against, or attached to, the data
         if self._face_centered():
             da_sliced = self.isel(
-                n_face=sliced_grid._ds["_subgrid_face_indices"], ignore_grid=True
+                n_face=sliced_grid._ds["_subgrid_face_indices"].data, ignore_grid=True
             )
 
         elif self._edge_centered():
             da_sliced = self.isel(
-                n_edge=sliced_grid._ds["_subgrid_edge_indices"], ignore_grid=True
+                n_edge=sliced_grid._ds["_subgrid_edge_indices"].data, ignore_grid=True
             )
 
         elif self._node_centered():
             da_sliced = self.isel(
-                n_node=sliced_grid._ds["_subgrid_node_indices"], ignore_grid=True
+                n_node=sliced_grid._ds["_subgrid_node_indices"].data, ignore_grid=True
             )
 
         else:
@@ -2557,37 +2555,41 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
         --------
         dual : uxda
             Dual Mesh `uxda` constructed
-        """
 
-        if _check_duplicate_nodes_indices(self.uxgrid):
+        Raises
+        ------
+        GridInvalidError
+            If any face still references a coincident duplicate node.
+        """
+        grid = self.uxgrid._prepare_for_dual()
+        if _check_duplicate_nodes_indices(grid):
             raise GridInvalidError(
                 "Duplicate nodes found in UxDataArray's uxgrid; cannot get_dual()"
             )
 
-        if self.uxgrid.partial_sphere_coverage:
+        if grid.partial_sphere_coverage:
             warn(
                 "This mesh is partial, which could cause inconsistent results and data will be lost",
                 Warning,
             )
 
-        # Get dual mesh node face connectivity
-        dual_node_face_conn = construct_dual(grid=self.uxgrid)
-
-        # Construct dual mesh
-        dual = self.uxgrid.from_topology(
-            self.uxgrid.face_lon.values,
-            self.uxgrid.face_lat.values,
-            dual_node_face_conn,
-        )
+        # Get dual mesh node face connectivity and the primal nodes represented
+        # by its faces.
+        dual_face_indices = _dual_face_indices(grid)
+        dual = grid.get_dual()
 
         # Dictionary to swap dimensions
         dim_map = {"n_face": "n_node", "n_node": "n_face"}
 
+        data = self
+        if "n_node" in data.dims:
+            data = data.isel(n_node=dual_face_indices, ignore_grid=True)
+
         # Get correct dimensions for the dual
-        dims = [dim_map.get(dim, dim) for dim in self.dims]
+        dims = [dim_map.get(dim, dim) for dim in data.dims]
 
         # Construct the new data array
-        uxda = type(self)(uxgrid=dual, data=self.data, dims=dims, name=self.name)
+        uxda = type(self)(uxgrid=dual, data=data.data, dims=dims, name=self.name)
 
         return uxda
 
