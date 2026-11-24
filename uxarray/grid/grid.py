@@ -864,9 +864,7 @@ class Grid:
     @property
     def dims(self) -> set:
         """Names of all unstructured grid dimensions."""
-        from uxarray.conventions.ugrid import DIM_NAMES
-
-        return {dim for dim in DIM_NAMES if dim in self._ds.dims}
+        return {dim for dim in ugrid.DIM_NAMES if dim in self._ds.dims}
 
     @property
     def sizes(self) -> dict:
@@ -994,6 +992,17 @@ class Grid:
             The maximum number of edges that can surround an edge.
         """
         return self.edge_edge_connectivity.shape[1]
+
+    @property
+    def n_max_node_nodes(self) -> int:
+        """Maximum number of nodes surrounding a single node.
+
+        Returns
+        -------
+        n_max_node_nodes : int
+            The maximum number of nodes that can surround a node.
+        """
+        return self.node_node_connectivity.shape[1]
 
     @property
     def n_max_node_faces(self) -> int:

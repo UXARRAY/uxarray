@@ -17,6 +17,7 @@ from uxarray.core.arithmetic import UxSupportsArithmetic
 from uxarray.core.dataarray import UxDataArray
 from uxarray.core.utils import (
     _map_dims_to_ugrid,
+    _map_structured_dims_to_ugrid,
     _open_dataset_with_fallback,
     _resolve_coordinate_labels_to_indices,
     _validate_indexers,
@@ -329,7 +330,9 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
 
         uxgrid = Grid.from_dataset(ds)
 
-        ds = _map_dims_to_ugrid(ds, uxgrid._source_dims_dict, uxgrid)
+        ds = _map_structured_dims_to_ugrid(
+            ds, uxgrid._source_dims_dict, uxgrid, _fname="UxDataset.from_structured"
+        )
 
         # Drop spatial coordinates
         coords_to_drop = [
@@ -372,7 +375,7 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
             ugrid_dims = uxgrid._source_dims_dict
 
         # map each dimension to its UGRID equivalent
-        ds = _map_dims_to_ugrid(ds, ugrid_dims, uxgrid)
+        ds = _map_dims_to_ugrid(ds, ugrid_dims, uxgrid, _fname="UxDataset.from_xarray")
 
         return cls(ds, uxgrid=uxgrid)
 
