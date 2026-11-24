@@ -256,6 +256,5 @@ on PRs but doesn't push fixes; comment `pre-commit.ci autofix` to get them.
 ## Agent skills
 
 Task-specific instructions live in `.agents/skills/` (see `.agents/README.md`): `uxarray-pr-review`
-(review a PR and verify each finding by running code) and `uxarray-issue-triage`. Claude Code finds them
-through symlinks in `.claude/skills/` and reads this file itself. Keep this the only project
-instructions file (no `CLAUDE.md`), so every agent sees the same text.
+(review a PR and verify each finding by running code) and `uxarray-issue-triage`. Agents that support skills discover them in `.agents/skills/`. Keep this the only project
+instructions file, so every agent sees the same text.
