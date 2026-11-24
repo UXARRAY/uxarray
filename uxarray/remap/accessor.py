@@ -301,14 +301,34 @@ class RemapAccessor:
             Which grid element receives the remapped values.
 
         backend : {'uxarray', 'yac'}, default='uxarray'
-            Remapping backend to use. When set to 'yac', bilinear remapping is
-            routed through YAC's average interpolation with barycentric
-            weights.
+            Remapping backend to use. ``'uxarray'`` builds the dual mesh of the
+            source grid (face centers become nodes), finds the dual face that
+            contains each target point, and interpolates from its corners:
+            barycentric weights on triangles, bilinear weights on
+            quadrilaterals, and barycentric weights on a fan triangulation
+            for larger polygons. It takes no further options. ``'yac'``
+            routes the remap through YAC's ``average`` method with
+            barycentric weights by default.
         yac_method : {'average'}, optional
             YAC interpolation method for the bilinear convenience wrapper.
             Only ``'average'`` is supported here.
         yac_options : dict, optional
-            YAC interpolation configuration options for the average method.
+            Options for YAC's ``average`` method, which combines the corner
+            values of the source cell containing each target point.
+            ``reduction_type`` (alias ``weight_type``) selects the weights:
+
+            - ``'AVG_BARY'`` (default here): YAC triangulates the source
+              cell and uses the spherical barycentric coordinates of the
+              target within the matching triangle, i.e. linear
+              interpolation.
+            - ``'AVG_ARITHMETIC'``: unweighted mean of the corner values.
+              This is YAC's own default and the default for
+              ``.remap(..., backend='yac', yac_method='average')``.
+            - ``'AVG_DIST'``: inverse-distance weighted mean of the corner
+              values.
+
+            ``partial_coverage`` (default ``False``) leaves a target
+            unfilled if any corner of its source cell is masked.
 
         Returns
         -------
@@ -325,7 +345,9 @@ class RemapAccessor:
                     "bilinear with backend='yac' only supports yac_method='average'. "
                     "Use .remap(..., backend='yac', yac_method=...) for other YAC methods."
                 )
-            yac_kwargs = {"reduction_type": "AVG_BARY", **(yac_options or {})}
+            yac_kwargs = dict(yac_options or {})
+            if "reduction_type" not in yac_kwargs and "weight_type" not in yac_kwargs:
+                yac_kwargs["reduction_type"] = "AVG_BARY"
             return _yac_remap(
                 self.ux_obj,
                 destination_grid,

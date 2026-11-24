@@ -155,6 +155,56 @@ def test_yac_bilinear_matches_uxarray(gridpath):
     np.testing.assert_allclose(yac.values, native.values, atol=1e-2)
 
 
+def _yac_bilinear_source(gridpath):
+    src = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
+    dest = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    values = np.cos(np.deg2rad(src.face_lat.values))
+    return ux.UxDataArray(values, dims=["n_face"], uxgrid=src), dest
+
+
+def test_yac_bilinear_defaults_to_barycentric(gridpath):
+    da, dest = _yac_bilinear_source(gridpath)
+
+    default = da.remap.bilinear(dest, backend="yac")
+    bary = da.remap.bilinear(
+        dest, backend="yac", yac_options={"reduction_type": "AVG_BARY"}
+    )
+    arithmetic = da.remap.bilinear(
+        dest, backend="yac", yac_options={"reduction_type": "AVG_ARITHMETIC"}
+    )
+
+    np.testing.assert_array_equal(default.values, bary.values)
+    assert not np.allclose(default.values, arithmetic.values)
+
+
+@pytest.mark.parametrize("weights", ["AVG_ARITHMETIC", "AVG_DIST"])
+def test_yac_bilinear_weight_type_overrides_default(gridpath, weights):
+    da, dest = _yac_bilinear_source(gridpath)
+
+    via_weight_type = da.remap.bilinear(
+        dest, backend="yac", yac_options={"weight_type": weights}
+    )
+    via_reduction_type = da.remap.bilinear(
+        dest, backend="yac", yac_options={"reduction_type": weights}
+    )
+
+    np.testing.assert_array_equal(via_weight_type.values, via_reduction_type.values)
+
+
+def test_yac_average_defaults_to_arithmetic(gridpath):
+    da, dest = _yac_bilinear_source(gridpath)
+
+    average = da.remap(dest, backend="yac", yac_method="average")
+    arithmetic = da.remap(
+        dest,
+        backend="yac",
+        yac_method="average",
+        yac_options={"reduction_type": "AVG_ARITHMETIC"},
+    )
+
+    np.testing.assert_array_equal(average.values, arithmetic.values)
+
+
 def test_yac_dnn_face_remap(gridpath):
     # distance-nearest-neighbour (YAC >= 3.15); the default CELL_AREA search
     # distance requires a face-centered target.
