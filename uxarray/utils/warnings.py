@@ -1,9 +1,9 @@
 import inspect
 import os
-from functools import lru_cache
+from functools import cache
 
 
-@lru_cache(maxsize=None)
+@cache
 def _package_dir():
     import uxarray
 
