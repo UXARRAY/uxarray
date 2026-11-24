@@ -438,7 +438,7 @@ class Grid:
 
         return cls(grid_ds, source_grid_spec, source_dims_dict)
 
-    _GEOPANDAS_FILE_EXTENSIONS = {".shp", ".geojson"}
+    _GEOPANDAS_FILE_EXTENSIONS = frozenset({".shp", ".geojson"})
     # Known geopandas file extensions, used by open_grid() to decide
     # when to dispatch to Grid.from_file(..., backend='geopandas').
 
