@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Hashable, Iterable, Mapping
+from collections.abc import Hashable, Iterable, Mapping
 
 import numpy as np
 import xarray as xr
@@ -107,23 +107,22 @@ def _crash_if_1d_xarray_indexer_dim_in_uxarray_obj(uxarray_obj, grid_dim, indexe
 
     (Only handles 1D xr.DataArray indexers; 0D, 2D+, and non-DataArray indexers are handled elsewhere.)
     """
-    if isinstance(indexer, xr.DataArray):
-        if indexer.ndim == 1:
-            the_dim = indexer.dims[0]
-            nonscalar_coords = [
-                c for c in uxarray_obj.coords if len(uxarray_obj.coords[c].dims) > 0
-            ]
-            if the_dim != grid_dim and (
-                the_dim in uxarray_obj.dims or the_dim in nonscalar_coords
-            ):
-                raise NotImplementedError(
-                    f"Indexing a {type(uxarray_obj).__name__} along a grid dimension ({grid_dim!r}), using "
-                    f"an xarray DataArray whose dimension ({the_dim!r}) is already present in the original "
-                    f"{type(uxarray_obj).__name__}'s dims or non-scalar coords, is not yet supported. "
-                    f"Consider using obj.to_xarray() for basic xarray indexing, "
-                    f"using indexer.data to convert to indexer to a non-DataArray object, "
-                    f"or using indexer.rename({{{the_dim!r}: 'any_unused_dim_name'}}) to avoid matching dims."
-                )
+    if isinstance(indexer, xr.DataArray) and indexer.ndim == 1:
+        the_dim = indexer.dims[0]
+        nonscalar_coords = [
+            c for c in uxarray_obj.coords if len(uxarray_obj.coords[c].dims) > 0
+        ]
+        if the_dim != grid_dim and (
+            the_dim in uxarray_obj.dims or the_dim in nonscalar_coords
+        ):
+            raise NotImplementedError(
+                f"Indexing a {type(uxarray_obj).__name__} along a grid dimension ({grid_dim!r}), using "
+                f"an xarray DataArray whose dimension ({the_dim!r}) is already present in the original "
+                f"{type(uxarray_obj).__name__}'s dims or non-scalar coords, is not yet supported. "
+                f"Consider using obj.to_xarray() for basic xarray indexing, "
+                f"using indexer.data to convert to indexer to a non-DataArray object, "
+                f"or using indexer.rename({{{the_dim!r}: 'any_unused_dim_name'}}) to avoid matching dims."
+            )
     # all other cases handled elsewhere.
 
 
@@ -181,7 +180,7 @@ def _assign_grid_dim_indexer_coords_if_appropriate(uxarray_obj, grid_dim, indexe
                     raise DimensionError(
                         f"The indexer's dimension ({the_dim!r}) already exists as a scalar "
                         f"coordinate in the {type(uxarray_obj).__name__} object being indexed."
-                    )  #
+                    )
                 coords = indexer.swap_dims({the_dim: "n_face"}).coords
             else:
                 # remove any 1D coords (but keep scalar coords).
@@ -205,8 +204,11 @@ def _assert_grid_dim_coord_consistent_if_in_both(uxarray_obj, grid_dim, indexer)
     """assert grid_dim's coordinate is consistent if in both uxarray_obj and indexer.
     Otherwise, does nothing.
     """
-    if isinstance(indexer, xr.DataArray):
-        if grid_dim in uxarray_obj.coords and grid_dim in indexer.coords:
-            xr.core.coordinates.assert_coordinate_consistent(
-                uxarray_obj, {grid_dim: indexer.coords.variables[grid_dim]}
-            )
+    if (
+        isinstance(indexer, xr.DataArray)
+        and grid_dim in uxarray_obj.coords
+        and grid_dim in indexer.coords
+    ):
+        xr.core.coordinates.assert_coordinate_consistent(
+            uxarray_obj, {grid_dim: indexer.coords.variables[grid_dim]}
+        )

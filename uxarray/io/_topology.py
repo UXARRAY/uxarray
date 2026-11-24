@@ -1,7 +1,7 @@
 import xarray as xr
 
-import uxarray.conventions.ugrid as ugrid
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.conventions import ugrid
 from uxarray.grid.connectivity import _replace_fill_values
 
 

@@ -1,7 +1,7 @@
 import enum
 import math
 import warnings
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 import xarray as xr
@@ -1054,7 +1054,7 @@ def _barycentric_coordinates(nodes, point):
     sum_wi = 0
     w = []
 
-    for i in range(0, n):
+    for i in range(n):
         vim1 = nodes[i - 1]
         vi = nodes[i]
         vi1 = nodes[(i + 1) % n]
@@ -1142,11 +1142,11 @@ def _construct_edge_node_distances(node_lon, node_lat, edge_nodes):
     """Helper for computing the arc-distance between nodes compose each
     edge."""
 
-    edge_lon_a = np.deg2rad((node_lon[edge_nodes[:, 0]]))
-    edge_lon_b = np.deg2rad((node_lon[edge_nodes[:, 1]]))
+    edge_lon_a = np.deg2rad(node_lon[edge_nodes[:, 0]])
+    edge_lon_b = np.deg2rad(node_lon[edge_nodes[:, 1]])
 
-    edge_lat_a = np.deg2rad((node_lat[edge_nodes[:, 0]]))
-    edge_lat_b = np.deg2rad((node_lat[edge_nodes[:, 1]]))
+    edge_lat_a = np.deg2rad(node_lat[edge_nodes[:, 0]])
+    edge_lat_b = np.deg2rad(node_lat[edge_nodes[:, 1]])
 
     # arc length
     edge_node_distances = np.arccos(
@@ -1181,11 +1181,11 @@ def _construct_edge_face_distances(face_lon, face_lat, edge_faces):
 
     edge_face_distances = np.zeros(edge_faces.shape[0])
 
-    edge_lon_a = np.deg2rad((face_lon[edge_faces[saddle_mask, 0]]))
-    edge_lon_b = np.deg2rad((face_lon[edge_faces[saddle_mask, 1]]))
+    edge_lon_a = np.deg2rad(face_lon[edge_faces[saddle_mask, 0]])
+    edge_lon_b = np.deg2rad(face_lon[edge_faces[saddle_mask, 1]])
 
-    edge_lat_a = np.deg2rad((face_lat[edge_faces[saddle_mask, 0]]))
-    edge_lat_b = np.deg2rad((face_lat[edge_faces[saddle_mask, 1]]))
+    edge_lat_a = np.deg2rad(face_lat[edge_faces[saddle_mask, 0]])
+    edge_lat_b = np.deg2rad(face_lat[edge_faces[saddle_mask, 1]])
 
     # arc length
     edge_face_distances[saddle_mask] = np.arccos(
@@ -1284,8 +1284,7 @@ def _widest(counts):
     """Largest neighborhood, so each kernel allocates its buffer once."""
     widest = 0
     for i in range(counts.shape[0]):
-        if counts[i] > widest:
-            widest = counts[i]
+        widest = max(widest, counts[i])
     return widest
 
 

@@ -1,8 +1,8 @@
 import numpy as np
 import xarray as xr
 
-import uxarray.conventions.ugrid as ugrid
 from uxarray.constants import INT_DTYPE, INT_FILL_VALUE
+from uxarray.conventions import ugrid
 from uxarray.errors import GridInvalidError
 from uxarray.grid.connectivity import _replace_fill_values
 
@@ -12,7 +12,7 @@ def _read_ugrid(ds):
     conventions."""
 
     # Extract grid topology attributes
-    grid_topology_name = list(ds.filter_by_attrs(cf_role="mesh_topology").keys())[0]
+    grid_topology_name = next(iter(ds.filter_by_attrs(cf_role="mesh_topology").keys()))
     ds = ds.rename({grid_topology_name: "grid_topology"})
 
     # get the names of node_lon and node_lat
@@ -21,18 +21,24 @@ def _read_ugrid(ds):
         node_lon_name: ugrid.NODE_COORDINATES[0],
         node_lat_name: ugrid.NODE_COORDINATES[1],
     }
-    if "edge_lon" in ds and "edge_lat" in ds:
-        if "edge_coordinates" in ds["grid_topology"].attrs:
-            # get the names of edge_lon and edge_lat, if they exist
-            edge_lon_name, edge_lat_name = ds["grid_topology"].edge_coordinates.split()
-            coord_dict[edge_lon_name] = ugrid.EDGE_COORDINATES[0]
-            coord_dict[edge_lat_name] = ugrid.EDGE_COORDINATES[1]
-    if "face_lon" in ds and "face_lat" in ds:
-        if "face_coordinates" in ds["grid_topology"].attrs:
-            # get the names of face_lon and face_lat, if they exist
-            face_lon_name, face_lat_name = ds["grid_topology"].face_coordinates.split()
-            coord_dict[face_lon_name] = ugrid.FACE_COORDINATES[0]
-            coord_dict[face_lat_name] = ugrid.FACE_COORDINATES[1]
+    if (
+        "edge_lon" in ds
+        and "edge_lat" in ds
+        and "edge_coordinates" in ds["grid_topology"].attrs
+    ):
+        # get the names of edge_lon and edge_lat, if they exist
+        edge_lon_name, edge_lat_name = ds["grid_topology"].edge_coordinates.split()
+        coord_dict[edge_lon_name] = ugrid.EDGE_COORDINATES[0]
+        coord_dict[edge_lat_name] = ugrid.EDGE_COORDINATES[1]
+    if (
+        "face_lon" in ds
+        and "face_lat" in ds
+        and "face_coordinates" in ds["grid_topology"].attrs
+    ):
+        # get the names of face_lon and face_lat, if they exist
+        face_lon_name, face_lat_name = ds["grid_topology"].face_coordinates.split()
+        coord_dict[face_lon_name] = ugrid.FACE_COORDINATES[0]
+        coord_dict[face_lat_name] = ugrid.FACE_COORDINATES[1]
 
     ds = ds.rename(coord_dict)
 
@@ -42,7 +48,7 @@ def _read_ugrid(ds):
             orig_conn_name = ds.grid_topology.attrs[conn_name]
             conn_dict[orig_conn_name] = conn_name
         elif len(ds.filter_by_attrs(cf_role=conn_name).keys()):
-            orig_conn_name = list(ds.filter_by_attrs(cf_role=conn_name).keys())[0]
+            orig_conn_name = next(iter(ds.filter_by_attrs(cf_role=conn_name).keys()))
             conn_dict[orig_conn_name] = conn_name
 
     ds = ds.rename(conn_dict)
@@ -75,7 +81,7 @@ def _read_ugrid(ds):
         da = ds[conn_name]
         dims = da.dims
 
-        for grid_dim in dim_dict.keys():
+        for grid_dim in dim_dict:
             if dims[1] == grid_dim:
                 ds[conn_name] = da.T
 
@@ -260,15 +266,12 @@ def _is_ugrid(ds):
     face_conn_dv = ds.filter_by_attrs(face_node_connectivity=lambda v: v is not None)
     topo_dim_dv = ds.filter_by_attrs(topology_dimension=lambda v: v is not None)
     mesh_topo_dv = ds.filter_by_attrs(cf_role="mesh_topology")
-    if (
+    return (
         len(mesh_topo_dv) != 0
         and len(topo_dim_dv) != 0
         and len(face_conn_dv) != 0
         and len(node_coords_dv) != 0
-    ):
-        return True
-    else:
-        return False
+    )
 
 
 def _validate_minimum_ugrid(grid_ds):
