@@ -134,7 +134,7 @@ def test_no_fastmath(kernels):
     # ``two_prod`` variant not selected on this machine. Only a literal ``False`` is known
     # to be safe; anything else (``True``, a flag set, a variable) is flagged.
     for module in {kernel.py_func.__module__ for kernel in eft.values()}:
-        tree = ast.parse(Path(sys.modules[module].__file__).read_text())
+        tree = ast.parse(Path(sys.modules[module].__file__).read_text(encoding="utf-8"))
         offenders += [
             f"{module}:{node.lineno}"
             for node in ast.walk(tree)
