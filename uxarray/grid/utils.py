@@ -3,6 +3,8 @@ import xarray as xr
 from numba import njit, prange
 
 from uxarray.constants import EDGE_NODE_SORT_THRESHOLD, INT_DTYPE, INT_FILL_VALUE
+from uxarray.conventions import ugrid
+from uxarray.conventions.descriptors import DESCRIPTOR_NAMES
 from uxarray.utils.numba_math import (
     _numba_add3,
     _numba_cross3,
@@ -12,6 +14,44 @@ from uxarray.utils.numba_math import (
     _numba_norm3,
 )
 from uxarray.utils.parallel import parallel_njit
+
+
+def _drop_non_grid_data(ds):
+    """Drop variables that don't belong on a ``Grid`` (e.g. a ``time`` carried in
+    from a file that holds both the grid and its data).
+
+    A variable or coordinate is dropped when any of its dimensions is not a grid
+    dimension. Scalar coordinates are dropped too; scalar data variables are kept.
+
+    Grid coordinates, connectivity, descriptors (including MPAS
+    ``boundary_node_indices``) and any CRS variable named by a ``grid_mapping``
+    attribute (read by projected-grid detection) are always kept.
+    """
+    grid_dims = set(ugrid.DIM_NAMES)
+
+    keep = (
+        set(ugrid.SPHERICAL_COORD_NAMES)
+        | set(ugrid.CARTESIAN_COORD_NAMES)
+        | set(ugrid.CONNECTIVITY_NAMES)
+        | set(DESCRIPTOR_NAMES)
+    )
+    # CRS variables, referenced by name from a ``grid_mapping`` attribute
+    # (CF also allows the extended form "crs: x y")
+    for var in ds.variables.values():
+        grid_mapping = var.attrs.get("grid_mapping")
+        if isinstance(grid_mapping, str):
+            keep.update(token.rstrip(":") for token in grid_mapping.split())
+
+    drop = [
+        name
+        for name, var in ds.variables.items()
+        if name not in keep
+        and (
+            any(dim not in grid_dims for dim in var.dims)
+            or (var.ndim == 0 and name in ds.coords)
+        )
+    ]
+    return ds.drop_vars(drop)
 
 
 @njit(cache=True)
@@ -559,7 +599,8 @@ def make_setter(key: str):
 #
 # NOTE: these are inlined into ``cache=True`` kernels in another module, and numba stamps its
 # cache against the defining file alone, so editing them does not invalidate a caller's cached
-# object. Clear ``uxarray/grid/__pycache__/*.nbi *.nbc`` after changing anything here.
+# object. pytest clears the cache when this file changes; outside pytest, run
+# ``python ci/clean_numba_cache.py`` after changing anything here.
 
 
 @njit(cache=True)

@@ -4,8 +4,8 @@ import numpy as np
 import polars as pl
 import xarray as xr
 
-import uxarray.conventions.ugrid as ugrid
 from uxarray.constants import INT_DTYPE
+from uxarray.conventions import ugrid
 from uxarray.utils.imports import _raise_hint_if_optional_deps_missing
 
 

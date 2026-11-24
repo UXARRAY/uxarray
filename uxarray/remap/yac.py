@@ -63,7 +63,7 @@ def _load_yac_core_from_file() -> ModuleType | None:
         module = importlib.util.module_from_spec(spec)
         sys.modules["yac.core"] = module
         spec.loader.exec_module(module)
-        setattr(pkg, "core", module)
+        pkg.core = module
         return module
 
     return None
