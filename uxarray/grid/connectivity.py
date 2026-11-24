@@ -691,7 +691,6 @@ def _merge_coincident_grid_ds_nodes(
     fidelity and leaves node-centered data index-aligned, at the cost of leaving
     unreferenced coordinates behind (see ``_live_node_indices``).
     """
-    from uxarray.grid.coordinates import _lonlat_rad_to_xyz
     from uxarray.grid.validation import _coincident_node_canonical_indices
 
     if "face_node_connectivity" not in grid_ds:
@@ -702,13 +701,29 @@ def _merge_coincident_grid_ds_nodes(
     if "node_lon" in grid_ds and "node_lat" in grid_ds:
         # One graph execution for both coordinates, not one each.
         coords = grid_ds[["node_lon", "node_lat"]].compute()
-        node_lon = np.asarray(coords["node_lon"].values, dtype=np.float64)
-        node_lat = np.asarray(coords["node_lat"].values, dtype=np.float64)
-        points_xyz = np.column_stack(
-            _lonlat_rad_to_xyz(np.deg2rad(node_lon), np.deg2rad(node_lat))
+        lon_rad = np.deg2rad(np.asarray(coords["node_lon"].values, dtype=np.float64))
+        lat_rad = np.deg2rad(np.asarray(coords["node_lat"].values, dtype=np.float64))
+        # On the dask path these are the only degree copies; drop them first.
+        del coords
+        n_node = len(lon_rad)
+        finite = np.isfinite(lon_rad)
+        finite &= np.isfinite(lat_rad)
+        if finite.all():
+            finite = None
+        else:
+            referenced = grid_ds["face_node_connectivity"].values
+            referenced = referenced[referenced != INT_FILL_VALUE]
+            if np.any(~finite[referenced]):
+                raise ValueError(
+                    "Referenced node XYZ coordinates must contain only finite values."
+                )
+            del referenced
+        # Unused non-finite node coordinates are retained for data alignment, but
+        # stay out of the spatial search and map to themselves.
+        canonical = _coincident_node_canonical_indices(
+            lonlat_rad=(lon_rad, lat_rad), tolerance=tolerance, finite=finite
         )
-        # On the dask path these are the only copies; drop them before the search.
-        del coords, node_lon, node_lat
+        del lon_rad, lat_rad, finite
     elif {"node_x", "node_y", "node_z"} <= set(grid_ds.variables):
         points_xyz = np.column_stack(
             (
@@ -725,6 +740,10 @@ def _merge_coincident_grid_ds_nodes(
             # geometry, where spherical coincidence matching is not defined.
             return (grid_ds, {}) if return_duplicate_map else grid_ds
         points_xyz /= norms[:, np.newaxis]
+        del norms
+        n_node = points_xyz.shape[0]
+        canonical = _coincident_node_canonical_indices(points_xyz, tolerance)
+        del points_xyz
     else:
         # Defensive: Grid construction validates minimum UGRID (node_lon,
         # node_lat, face_node_connectivity) before reaching here, so this is
@@ -740,26 +759,6 @@ def _merge_coincident_grid_ds_nodes(
         )
         return (grid_ds, {}) if return_duplicate_map else grid_ds
 
-    n_node = points_xyz.shape[0]
-    finite = np.isfinite(points_xyz).all(axis=1)
-    if not finite.all():
-        referenced = grid_ds["face_node_connectivity"].values
-        referenced = referenced[referenced != INT_FILL_VALUE]
-        if np.any(~finite[referenced]):
-            raise ValueError(
-                "Referenced node XYZ coordinates must contain only finite values."
-            )
-    # Unused node coordinates are retained for data alignment, but must not enter
-    # the spatial search. Map its results back to the original node indices.
-    finite_indices = np.flatnonzero(finite)
-    if len(finite_indices) == n_node:
-        # Skip the (n_node, 3) copy that boolean indexing would make.
-        canonical = _coincident_node_canonical_indices(points_xyz, tolerance)
-    else:
-        canonical = np.arange(n_node, dtype=INT_DTYPE)
-        canonical[finite_indices] = finite_indices[
-            _coincident_node_canonical_indices(points_xyz[finite], tolerance)
-        ]
     moved = canonical != np.arange(n_node, dtype=INT_DTYPE)
     duplicate_node_map = {
         INT_DTYPE(index): INT_DTYPE(canonical[index]) for index in np.flatnonzero(moved)
