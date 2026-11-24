@@ -157,7 +157,7 @@ optional extras `[geo]` / `[viz]` (#1548). Rules, enforced by `test/utils/test_i
   `OptionalDependencyNotFoundError` with a `pip install "uxarray[viz]"`-style hint. A new optional
   dependency must also be added to `_OPTIONAL_DEPS_TO_EXTRAS`.
 - YAC is a remap **backend** (`backend="yac"`), not in any extra; it is imported lazily and raises
-  `YacNotAvailableError`, and its tests run only in `.github/workflows/yac-optional.yml`.
+  `YacNotAvailableError`. Its tests (`test/test_remap_yac.py`) skip without `yac.core`; they run in `.github/workflows/yac-optional.yml`, which builds YAC from source on `uxarray/remap/**` changes.
 - Lower bounds on dependencies are added only for a known failure, with a comment saying what breaks.
   Min-deps CI (`min-deps-ci.yml`) tests the oldest allowed versions on every PR, so using a newer API of
   a dependency may require raising its bound.
