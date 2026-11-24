@@ -791,8 +791,6 @@ def _pole_point_inside_polygon_cartesian(pole, face_edges_xyz):
 
     return pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat)
 
-    pass
-
 
 @njit(cache=True)
 def pole_point_inside_polygon(pole, face_edges_xyz, face_edges_lonlat):
@@ -1182,8 +1180,7 @@ def _compute_face_radii(
             dy = node_y[idx] - fy
             dz = node_z[idx] - fz
             d2 = dx * dx + dy * dy + dz * dz
-            if d2 > face_max2:
-                face_max2 = d2
+            face_max2 = max(face_max2, d2)
 
         max2_per_face[i] = face_max2
 
@@ -1314,7 +1311,7 @@ def barycentric_coordinates_cartesian(polygon_xyz, point_xyz):
     # find the triangle containing the point,
     # and use`triangle_line_intersection` algorithm to calculate the weights
     else:
-        for i in range(0, n - 2):
+        for i in range(n - 2):
             # Get the three points of the triangle
             node_0, node_1, node_2 = (
                 polygon_xyz[0],

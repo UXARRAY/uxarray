@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Hashable, Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Any, Hashable, Iterable, Mapping, Sequence, TypeAlias
+from typing import Any
 from warnings import warn
 
 import numpy as np
@@ -28,11 +29,11 @@ from uxarray.io._scrip import (
 )
 
 __all__ = [
-    "open_grid",
-    "open_multigrid",
     "list_grid_names",
     "open_dataset",
+    "open_grid",
     "open_mfdataset",
+    "open_multigrid",
 ]
 
 
@@ -166,8 +167,8 @@ def open_grid(
         return grid
 
 
-MaskValue: TypeAlias = Any | Sequence[Any]
-MaskActiveValue: TypeAlias = MaskValue | Mapping[str, MaskValue] | None
+type MaskValue = Any | Sequence[Any]
+type MaskActiveValue = MaskValue | Mapping[str, MaskValue] | None
 
 
 def open_multigrid(

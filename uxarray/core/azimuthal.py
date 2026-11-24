@@ -1,4 +1,5 @@
 import math
+from itertools import pairwise
 
 import numpy as np
 import xarray as xr
@@ -114,7 +115,7 @@ def _dask_ring_sums(array, faces, weights):
         array[..., faces[lo:hi]].map_blocks(
             _ring_sums, weights=weights[:, lo:hi], chunks=out_chunks, meta=meta
         )
-        for lo, hi in zip(edges[:-1], edges[1:])
+        for lo, hi in pairwise(edges)
         if lo < hi
     ]
 
