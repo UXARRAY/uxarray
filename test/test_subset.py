@@ -432,7 +432,7 @@ class TestBoundingBoxSubset:
     def test_bounds_are_computed_for_candidates_only(self, gridpath, monkeypatch):
         """The bounds kernel must see only the candidate faces, never the mesh.
 
-        Counts the faces handed to ``_construct_face_bounds_array`` and asserts
+        Counts the faces handed to ``_construct_face_bounds_array_gca`` and asserts
         it equals the number of faces whose every node lies in the box, and
         that ``Grid.bounds`` is never populated along the way.
         """
@@ -454,14 +454,14 @@ class TestBoundingBoxSubset:
         assert 0 < n_candidates < grid.n_face
 
         sizes = []
-        kernel = accessor_module._construct_face_bounds_array
+        kernel = accessor_module._construct_face_bounds_array_gca
 
         def counting_kernel(face_node_connectivity, *args):
             sizes.append(face_node_connectivity.shape[0])
             return kernel(face_node_connectivity, *args)
 
         monkeypatch.setattr(
-            accessor_module, "_construct_face_bounds_array", counting_kernel
+            accessor_module, "_construct_face_bounds_array_gca", counting_kernel
         )
 
         sub = grid.subset.bounding_box(lon_bounds, lat_bounds)

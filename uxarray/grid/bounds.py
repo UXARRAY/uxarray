@@ -31,6 +31,9 @@ from uxarray.utils.parallel import parallel_njit
 # remain tight and vertex-aligned.
 _SNAP_TOL_DEG = 1e-4
 
+# Faces reaching past this latitude are checked for an enclosed pole.
+_POLAR_CAP_Z = math.sin(math.radians(80.0))
+
 # Face location codes used by _face_location_info.
 _FACE_LOC_LOCAL = 0
 _FACE_LOC_NORTH_POLAR = 1
@@ -90,20 +93,12 @@ def _face_location_info(face_vertices, polar_cap_z):
         norm = math.sqrt(y0 * y0 + y1 * y1 + y2 * y2)
         z_ext = y2 / norm
 
-        z_edge_max = z1 if z1 > z2 else z2
-        z_edge_min = z1 if z1 < z2 else z2
-
+        # Endpoints always count; an interior extremum widens the range.
+        z_max = max(z_max, z1, z2)
+        z_min = min(z_min, z1, z2)
         if 0.0 < a_raw < 1.0:
-            z_max_candidate = z_ext
-            z_min_candidate = z_ext
-        else:
-            z_max_candidate = z_edge_max
-            z_min_candidate = z_edge_min
-
-        if z_max_candidate > z_max:
-            z_max = z_max_candidate
-        if z_min_candidate < z_min:
-            z_min = z_min_candidate
+            z_max = max(z_max, z_ext)
+            z_min = min(z_min, z_ext)
 
     north_pole_candidate = z_max >= polar_cap_z
     south_pole_candidate = z_min <= -polar_cap_z
@@ -192,10 +187,8 @@ def _generate_lat_lon_bounds_local(face_vertices, z_min, z_max, snap_tol_deg):
         elif zc < -1.0:
             zc = -1.0
         lat = math.asin(zc) * rad_to_deg
-        if lat > ep_lat_max:
-            ep_lat_max = lat
-        if lat < ep_lat_min:
-            ep_lat_min = lat
+        ep_lat_max = max(ep_lat_max, lat)
+        ep_lat_min = min(ep_lat_min, lat)
 
     lon_min, lon_max = _lon_bounds_from_vertices(face_vertices)
 
@@ -266,10 +259,8 @@ def _generate_lat_lon_bounds_pole(face_vertices, label, z_min, z_max, snap_tol_d
         elif zc < -1.0:
             zc = -1.0
         lat = math.asin(zc) * rad_to_deg
-        if lat > ep_lat_max:
-            ep_lat_max = lat
-        if lat < ep_lat_min:
-            ep_lat_min = lat
+        ep_lat_max = max(ep_lat_max, lat)
+        ep_lat_min = min(ep_lat_min, lat)
 
     lon_min, lon_max = _lon_bounds_from_vertices(face_vertices)
 
@@ -429,7 +420,7 @@ def _populate_face_bounds(
             grid.node_x.values,
             grid.node_y.values,
             grid.node_z.values,
-            math.sin(80.0 * math.pi / 180.0),
+            _POLAR_CAP_Z,
             _SNAP_TOL_DEG,
         )
     else:
