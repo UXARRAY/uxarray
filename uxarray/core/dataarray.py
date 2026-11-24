@@ -2495,7 +2495,9 @@ class UxDataArray(UxSupportsArithmetic, xr.DataArray):
             ugrid_dims = uxgrid._source_dims_dict
 
         # map each dimension to its UGRID equivalent
-        da = _map_dims_to_ugrid(da, ugrid_dims, uxgrid)
+        da = _map_dims_to_ugrid(
+            da, ugrid_dims, uxgrid, _fname="UxDataArray.from_xarray"
+        )
 
         return cls(da, uxgrid=uxgrid)
 
