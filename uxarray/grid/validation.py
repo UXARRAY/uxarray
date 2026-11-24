@@ -112,6 +112,7 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
     norms = np.hypot(np.hypot(points_xyz[:, 0], points_xyz[:, 1]), points_xyz[:, 2])
     if np.any(norms == 0.0):
         raise ValueError("Node XYZ coordinates must be non-zero vectors.")
+    del norms
 
     # ``tolerance`` is a chord radius (see the ``query_pairs`` call below), so it
     # cannot be used directly as a deviation of |z| from 1. For a point at
@@ -125,12 +126,20 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
             points_xyz[pole_indices], axis=0, return_index=True, return_inverse=True
         )
         canonical[pole_indices] = pole_indices[first_indices[inverse.ravel()]]
-    mergeable_indices = np.flatnonzero(~pole_mask)
+    if len(pole_indices) == 0:
+        # Common case: search ``points_xyz`` itself rather than a full copy, and
+        # leave ``mergeable_indices`` as None to mean "every point".
+        mergeable_indices = None
+        mergeable_xyz = points_xyz
+        n_mergeable = n_points
+    else:
+        mergeable_indices = np.flatnonzero(~pole_mask)
+        mergeable_xyz = points_xyz[mergeable_indices]
+        n_mergeable = len(mergeable_indices)
+    del pole_mask
 
-    if len(mergeable_indices) < 2:
+    if n_mergeable < 2:
         return canonical
-
-    mergeable_xyz = points_xyz[mergeable_indices]
 
     # Prescreen on x before paying for a KDTree. Two points within a chord of
     # ``tolerance`` differ by at most ``tolerance`` in x, so in x-sorted order every
@@ -167,9 +176,8 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
 
     unique_labels, first_indices = np.unique(labels, return_index=True)
     sub_canonical = first_indices[np.searchsorted(unique_labels, labels)]
-    canonical[mergeable_indices[candidates]] = mergeable_indices[
-        candidates[sub_canonical]
-    ]
+    members = candidates if mergeable_indices is None else mergeable_indices[candidates]
+    canonical[members] = members[sub_canonical]
     return canonical
 
 

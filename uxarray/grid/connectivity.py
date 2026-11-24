@@ -707,6 +707,8 @@ def _merge_coincident_grid_ds_nodes(
         points_xyz = np.column_stack(
             _lonlat_rad_to_xyz(np.deg2rad(node_lon), np.deg2rad(node_lat))
         )
+        # On the dask path these are the only copies; drop them before the search.
+        del coords, node_lon, node_lat
     elif {"node_x", "node_y", "node_z"} <= set(grid_ds.variables):
         points_xyz = np.column_stack(
             (
@@ -750,13 +752,17 @@ def _merge_coincident_grid_ds_nodes(
     # Unused node coordinates are retained for data alignment, but must not enter
     # the spatial search. Map its results back to the original node indices.
     finite_indices = np.flatnonzero(finite)
-    canonical = np.arange(n_node, dtype=INT_DTYPE)
-    canonical[finite_indices] = finite_indices[
-        _coincident_node_canonical_indices(points_xyz[finite], tolerance)
-    ]
+    if len(finite_indices) == n_node:
+        # Skip the (n_node, 3) copy that boolean indexing would make.
+        canonical = _coincident_node_canonical_indices(points_xyz, tolerance)
+    else:
+        canonical = np.arange(n_node, dtype=INT_DTYPE)
+        canonical[finite_indices] = finite_indices[
+            _coincident_node_canonical_indices(points_xyz[finite], tolerance)
+        ]
+    moved = canonical != np.arange(n_node, dtype=INT_DTYPE)
     duplicate_node_map = {
-        INT_DTYPE(index): INT_DTYPE(canonical[index])
-        for index in np.flatnonzero(canonical != np.arange(n_node, dtype=INT_DTYPE))
+        INT_DTYPE(index): INT_DTYPE(canonical[index]) for index in np.flatnonzero(moved)
     }
     if not duplicate_node_map:
         # No coincident nodes: return ``grid_ds`` untouched. Everything below --
@@ -769,7 +775,7 @@ def _merge_coincident_grid_ds_nodes(
 
     lookup = canonical
     absorbed = np.zeros(n_node, dtype=bool)
-    absorbed[canonical[canonical != np.arange(n_node)]] = True
+    absorbed[canonical[moved]] = True
     canonical_values = np.flatnonzero(absorbed)
 
     for name in _NODE_INDEX_CONNECTIVITY_TO_REMAP:
