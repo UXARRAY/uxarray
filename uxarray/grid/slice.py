@@ -257,8 +257,8 @@ def _subgrid(grid, ds, **kwargs):
 
     # A face subset only keeps nodes its faces reference, and a merged parent's
     # faces reference canonical nodes only, so the subset has no coincident
-    # nodes and the search would be wasted (and, when chunked, a load of every
-    # node coordinate).
+    # nodes. Skipping the search saves a sort and, when chunked, a graph
+    # execution to load the subset's node coordinates.
     already_merged = grid._merge_coincident_nodes
     sub = Grid.from_dataset(
         ds,
