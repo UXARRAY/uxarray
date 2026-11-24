@@ -1,4 +1,5 @@
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import polars as pl
@@ -134,13 +135,13 @@ def _dedup_scrip_nodes_eager(corner_lon, corner_lat):
 @njit(cache=True, inline="always")
 def _lt_nan_last(a, b):
     """``a < b`` in numpy's sort order, which places NaN after every number."""
-    return a < b or (b != b and a == a)
+    return a < b or (np.isnan(b) and not np.isnan(a))
 
 
 @njit(cache=True, inline="always")
 def _eq_nan(a, b):
     """``a == b``, except that NaN equals NaN, as it does in the dedup."""
-    return a == b or (a != a and b != b)
+    return a == b or (np.isnan(a) and np.isnan(b))
 
 
 @njit(cache=True, nogil=True)
@@ -375,6 +376,9 @@ def _to_ugrid(in_ds, out_ds):
             corner_lon = np.asarray(corner_lon_raw)
             unq_lon, unq_lat, unq_inv = _dedup_scrip_nodes_eager(corner_lon, corner_lat)
 
+        # Decoded missing corners are padding, not nodes of the face ring.
+        valid_corners = np.isfinite(corner_lon_raw) & np.isfinite(corner_lat_raw)
+        unq_inv = np.where(valid_corners, unq_inv, -1)
         # Reshape face nodes array into original shape for use in 'face_node_connectivity'
         unq_inv = np.reshape(unq_inv, (len(in_ds.grid_size), len(in_ds.grid_corners)))
 

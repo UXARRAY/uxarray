@@ -213,6 +213,42 @@ def test_scrip_dask_lazy_dedup_matches_eager_radians(gridpath):
     )
 
 
+@pytest.mark.parametrize(
+    "chunks",
+    [
+        {"grid_size": 7},  # many tiny partitions
+        {"grid_size": 10**6},  # one partition, larger than the grid
+        "auto",  # what a caller (and the docstring) would reach for
+        -1,
+    ],
+    ids=["tiny_chunks", "single_chunk", "auto", "minus_one"],
+)
+def test_scrip_dask_and_eager_dedup_assign_identical_node_ids(gridpath, chunks):
+    """The SCRIP reader's eager and dask dedup paths number nodes identically.
+    (Uses ``merge_coincident_nodes=False`` intentionally, to isolate the reader's own dedup.
+    Using True would instead also check the default dedup applied to all grids; this is
+    tested elsewhere, see: ``test_scrip_dask_and_eager_grids_match_with_default_settings``.)
+    """
+    grid_file = gridpath("scrip", "outCSne8", "outCSne8.nc")
+    grid_eager = ux.open_grid(grid_file, merge_coincident_nodes=False)
+    grid_lazy = ux.open_grid(grid_file, chunks=chunks, merge_coincident_nodes=False)
+    assert isinstance(grid_lazy._ds["face_node_connectivity"].data, da.Array), (
+        f"chunks={chunks!r} did not produce a dask-backed connectivity, so this "
+        "test would silently compare the eager path against itself"
+    )
+    assert grid_lazy == grid_eager
+
+
+# TODO(#1905): remove the xfail marker once #1905 is fixed. xfail means this
+# test is expected to fail for now and doesn't break CI; strict=True makes it
+# fail if it unexpectedly passes, so the fix can't land without removing it.
+@pytest.mark.xfail(strict=True, reason="#1905")
+def test_scrip_dask_and_eager_grids_match_with_default_settings(gridpath):
+    """Opening a SCRIP grid with or without ``chunks=`` gives the same grid."""
+    grid_file = gridpath("scrip", "outCSne8", "outCSne8.nc")
+    assert ux.open_grid(grid_file) == ux.open_grid(grid_file, chunks=-1)
+
+
 def test_lookup_node_ids_preserves_input_order():
     """``_lookup_node_ids`` must return ids positionally aligned with its
     inputs, and must find every corner.
@@ -378,3 +414,22 @@ def test_open_multigrid_mask_active_value_per_grid_override(gridpath):
 
     assert grids["ocn"].n_face == expected_ocn
     assert grids["atm"].n_face == expected_atm
+
+
+def test_scrip_load_is_deterministic():
+    """Ensure loading the same SCRIP grid file repeatedly does not change results.
+    Regression test for issue #1738.
+    """
+    examples = ["scrip-ne30pg2", "scrip-outCSne8"]
+    n_faces = [21600, 384]
+    for config in ({}, {"dataframe.shuffle.method": "disk"}):
+        # "disk" can be more prone to nondeterminism than dask's default.
+        with dask.config.set(config):
+            for example, n_face in zip(examples, n_faces):
+                for kw in (dict(), dict(chunks="auto"), dict(chunks={"grid_size": n_face // 4})):
+                    # load 3 times instead of 2, to drastically reduce the odds of
+                    # non-deterministic results which "just happen" to align.
+                    gridA = ux.tutorial.open_grid(example, **kw)
+                    gridB = ux.tutorial.open_grid(example, **kw)
+                    gridC = ux.tutorial.open_grid(example, **kw)
+                    assert gridA == gridB == gridC
