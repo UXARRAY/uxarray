@@ -356,12 +356,13 @@ class _YacRemapper:
             )
             self._interpolations[collection_size] = interpolation
 
-        out = (
-            interpolation(values, frac_mask=frac_mask)
-            if frac_mask is not None
-            else interpolation(values)
-        )
-        return np.asarray(out, dtype=np.float64)
+        # YAC leaves targets without weights unwritten, so start from NaN.
+        out = np.full((collection_size, self._tgt_size), np.nan)
+        if frac_mask is not None:
+            interpolation(values, tgt=out, frac_mask=frac_mask)
+        else:
+            interpolation(values, tgt=out)
+        return out
 
 
 def _prepare_frac_mask(frac_mask, da_t, src_values, src_dim: str) -> np.ndarray:
