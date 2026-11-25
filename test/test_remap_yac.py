@@ -205,6 +205,22 @@ def test_yac_average_defaults_to_arithmetic(gridpath):
     np.testing.assert_array_equal(average.values, arithmetic.values)
 
 
+def test_yac_unreached_targets_are_nan(gridpath):
+    """Targets YAC cannot interpolate must be NaN, not uninitialized memory."""
+    src = ux.open_grid(gridpath("mpas", "QU", "480", "grid.nc"))
+    dst = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(
+        np.cos(np.deg2rad(src.face_lat.values)), dims=["n_face"], uxgrid=src
+    )
+
+    runs = [da.remap(dst, backend="yac", yac_method="average").values for _ in range(2)]
+
+    reached = ~np.isnan(runs[0])
+    assert 0 < reached.sum() < dst.n_face
+    assert np.all((runs[0][reached] >= 0.0) & (runs[0][reached] <= 1.0))
+    np.testing.assert_array_equal(runs[0], runs[1])
+
+
 def test_yac_dnn_face_remap(gridpath):
     # distance-nearest-neighbour (YAC >= 3.15); the default CELL_AREA search
     # distance requires a face-centered target.
