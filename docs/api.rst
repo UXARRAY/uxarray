@@ -99,6 +99,7 @@ Dimensions
    Grid.n_max_face_edges
    Grid.n_max_face_faces
    Grid.n_max_edge_edges
+   Grid.n_max_node_nodes
    Grid.n_max_node_faces
    Grid.n_max_node_edges
    Grid.n_nodes_per_face
@@ -532,6 +533,7 @@ Mathematical Operators
    UxDataArray.divergence
    UxDataArray.gradient
    UxDataArray.integrate
+   UxDataArray.laplacian
    UxDataArray.scalardotgradient
 
 

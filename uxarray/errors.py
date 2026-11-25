@@ -33,6 +33,10 @@ class GridsMismatchError(ValueError):
     """attempted to perform an operation involving two incompatible uxarray.Grid objects"""
 
 
+class GridStructureError(DimensionError):
+    """received structured grid/data but expected unstructured grid/data, or vice versa."""
+
+
 # # # ----- Io-type-specific Errors ----- # # #
 
 
