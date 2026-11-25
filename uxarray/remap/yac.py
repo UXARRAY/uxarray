@@ -301,6 +301,10 @@ class _YacRemapper:
             }
             stack.add_rbf(**rbf_kwargs)
         elif yac_method == "bernstein_bezier":
+            if src_dim == "n_edge":
+                raise ValueError(
+                    "YAC method 'bernstein_bezier' requires a face- or node-centered source."
+                )
             stack.add_bernstein_bezier()
         elif yac_method == "conservative":
             normalisation = _coerce_enum(
@@ -320,6 +324,10 @@ class _YacRemapper:
                 stack.add_fixed(float(fixed_value))
 
         if "creep_distance" in yac_kwargs and yac_method != "conservative":
+            if tgt_dim == "n_edge":
+                raise ValueError(
+                    "YAC option 'creep_distance' requires remap_to='faces' or 'nodes'."
+                )
             stack.add_creep(creep_distance=yac_kwargs["creep_distance"])
 
         self._weights = yac_core.compute_weights(

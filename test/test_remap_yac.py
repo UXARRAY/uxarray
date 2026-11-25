@@ -152,7 +152,7 @@ def test_yac_bilinear_matches_uxarray(gridpath):
     native = da.remap.bilinear(destination_grid=dest, remap_to="faces")
     yac = da.remap.bilinear(destination_grid=dest, remap_to="faces", backend="yac")
 
-    np.testing.assert_allclose(yac.values, native.values, atol=1e-2)
+    np.testing.assert_allclose(yac.values, native.values, atol=1e-6)
 
 
 def _yac_bilinear_source(gridpath):
@@ -265,7 +265,7 @@ def test_yac_creep_fills_unmatched_targets(gridpath):
             yac_method="dnn",
             yac_options=yac_options,
         )
-        return int((out.values == 1.0).sum())
+        return int(np.isclose(out.values, 1.0).sum())
 
     assert n_filled({**options, "creep_distance": -1}) > n_filled(options)
 
@@ -279,6 +279,31 @@ def test_yac_dnn_node_target_requires_fixed_distance(gridpath):
             remap_to="nodes",
             backend="yac",
             yac_method="dnn",
+        )
+
+
+def test_yac_bernstein_bezier_edge_source_raises(gridpath):
+    grid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(np.ones(grid.n_edge), dims=["n_edge"], uxgrid=grid)
+    with pytest.raises(ValueError, match="bernstein_bezier"):
+        da.remap(
+            destination_grid=grid,
+            remap_to="faces",
+            backend="yac",
+            yac_method="bernstein_bezier",
+        )
+
+
+def test_yac_creep_distance_edge_target_raises(gridpath):
+    grid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(np.ones(grid.n_face), dims=["n_face"], uxgrid=grid)
+    with pytest.raises(ValueError, match="creep_distance"):
+        da.remap(
+            destination_grid=grid,
+            remap_to="edges",
+            backend="yac",
+            yac_method="nnn",
+            yac_options={"creep_distance": -1},
         )
 
 
