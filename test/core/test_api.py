@@ -424,6 +424,63 @@ def test_open_grid(gridpath, mesh_constants):
 
     nt.assert_almost_equal(uxgrid.calculate_total_face_area(), mesh_constants['MESH30_AREA'], decimal=3)
 
+
+def test_open_grid_raises_when_file_not_found():
+    """open_grid() must raise FileNotFoundError for nonexistent files
+    (not a pyogrio.errors.DataSourceError)
+    """
+    for ext in ["", ".nc", ".ug", ".shp", ".SHP", ".geojson", ".GEOJSON"]:
+        filepath = f"nonexistent_file{ext}"
+        assert not os.path.exists(filepath)
+        with pytest.raises(FileNotFoundError, match=r"No such file or directory"):
+            ux.open_grid(filepath)
+
+
+def test_open_grid_geopandas(gridpath):
+    """Calling open_grid with a geopandas file must not crash (see #1754),
+    and should be equivalent to Grid.from_file(..., backend="geopandas").
+    Additionally, passing other kwargs along with a geopandas file should raise TypeError.
+    """
+    path = gridpath("shp", "cb_2018_us_nation_20m", "cb_2018_us_nation_20m.shp")
+    uxgridA = ux.open_grid(path)
+    uxgridB = ux.Grid.from_file(path, backend="geopandas")
+    assert uxgridA == uxgridB
+
+    ## passing kwargs -- special cases which do not crash:
+    # (merge_coincident_nodes is silently ignored for geopandas files)
+    for val in [True, False, None, "a completely unexpected value"]:
+        grid = ux.open_grid(path, merge_coincident_nodes=val)
+        assert grid == uxgridA
+    # (chunks must be ignored whenever chunk_grid=False)
+    chunk_vals = [{}, "auto", -1, {"n_face": 10}]
+    for val in chunk_vals + [None]:
+        grid = ux.open_grid(path, chunks=val, chunk_grid=False)
+        assert grid == uxgridA
+
+    ## passing kwargs -- other cases should crash:
+    for val in chunk_vals:
+        with pytest.raises(TypeError, match=r"geopandas .+ got unexpected keyword argument"):
+            ux.open_grid(path, chunks=val)
+    with pytest.raises(TypeError, match=r"geopandas .+ got unexpected keyword argument"):
+        ux.open_grid(path, cache=False)
+
+
+def test_open_grid_geopandas_uppercase_extension(gridpath, tmp_path):
+    """Shapefiles with uppercase extensions (e.g. from older GIS tools) must
+    also be dispatched to geopandas, rather than failing in xarray as in #1754.
+    """
+    src_dir = Path(gridpath("shp", "cb_2018_us_nation_20m", "cb_2018_us_nation_20m.shp")).parent
+    # A shapefile is several sidecar files; rename all of them to uppercase.
+    for ext in (".shp", ".shx", ".dbf", ".prj", ".cpg"):
+        src = src_dir / f"cb_2018_us_nation_20m{ext}"
+        (tmp_path / f"CB_2018_US_NATION_20M{ext.upper()}").write_bytes(src.read_bytes())
+    upper_path = tmp_path / "CB_2018_US_NATION_20M.SHP"
+
+    uxgrid = ux.open_grid(upper_path)
+    assert uxgrid == ux.Grid.from_file(str(src_dir / "cb_2018_us_nation_20m.shp"))
+    assert uxgrid.source_grid_spec == "Shapefile"
+
+
 def test_copy_dataset(gridpath, datasetpath):
     """Loads a single dataset with its grid topology file using uxarray's
     open_dataset call and make a copy of the object."""

@@ -48,13 +48,6 @@ def test_grid_init_verts_fill_values():
     assert uxgrid.n_node > 0
 
 
-def test_read_shpfile(test_data_dir):
-    """Reads a shape file and write ugrid file."""
-    shp_filename = test_data_dir / "shp" / "grid_fire.shp"
-    with pytest.raises((ValueError, FileNotFoundError, OSError)):
-        grid_shp = ux.open_grid(shp_filename)
-
-
 def test_class_methods_from_face_vertices():
     """Test class methods for creating grids from face vertices."""
     single_face_latlon = [(0.0, 90.0), (-180, 0.0), (0.0, -90)]
