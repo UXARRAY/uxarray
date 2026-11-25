@@ -21,15 +21,13 @@ def _drop_non_grid_data(ds):
     from a file that holds both the grid and its data).
 
     A variable or coordinate is dropped when any of its dimensions is not a grid
-    dimension (``ugrid.DIM_NAMES``, plus ``lat_lon`` and ``min_max`` used by the
-    cached face bounds). Scalar coordinates are dropped too; scalar data variables
-    are kept.
+    dimension. Scalar coordinates are dropped too; scalar data variables are kept.
 
     Grid coordinates, connectivity, descriptors (including MPAS
     ``boundary_node_indices``) and any CRS variable named by a ``grid_mapping``
     attribute (read by projected-grid detection) are always kept.
     """
-    grid_dims = set(ugrid.DIM_NAMES) | {"lat_lon", "min_max", "n_max_node_nodes"}
+    grid_dims = set(ugrid.DIM_NAMES)
 
     keep = (
         set(ugrid.SPHERICAL_COORD_NAMES)
