@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # adapted from https://github.com/pydata/xarray/blob/main/ci/install-upstream-wheels.sh
 
-# fail the job if anything goes wrong (e.g. if `conda remove ...` fails)
+# fail the job if anything goes wrong (e.g. if `micromamba remove ...` fails)
 # instead of silently continuing.
 set -e
 
 # forcibly remove packages to avoid artifacts
-conda remove -y --force \
+micromamba remove -y --force \
     antimeridian \
     cartopy \
     dask \
@@ -28,14 +28,14 @@ conda remove -y --force \
     xarray
 
 # solution for any packages whose latest versions are being tested here but
-# which do not appear during (the first!) `conda list` from upstream-dev-ci.yml
+# which do not appear during (the first!) `micromamba list` from upstream-dev-ci.yml
 # (currently there are none; just keeping this comment for future reference.)
 # pip uninstall -y \
-    # package1_not_in_conda_list
-    # package2_not_in_conda_list
+    # package1_not_in_micromamba_list
+    # package2_not_in_micromamba_list
 
-# conda list
-conda list
+# micromamba list
+micromamba list
 
 # if available install from scientific-python nightly wheels
 # use stable pandas (not nightly) due to geopandas incompatibility with pandas nightly internals

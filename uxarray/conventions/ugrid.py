@@ -15,19 +15,23 @@ BASE_GRID_TOPOLOGY_ATTRS = {
     "face_node_connectivity": "face_node_connectivity",
 }
 
+# standard dimension names a uxarray Grid is allowed to have
 DIM_NAMES = [
     "n_node",
     "n_edge",
     "n_face",
+    # connectivity dims
     "n_max_face_nodes",
     "n_max_face_edges",
     "n_max_face_faces",
-    "n_max_edge_nodes",
     "n_max_edge_edges",
-    "n_max_edge_faces",
+    "n_max_node_nodes",
     "n_max_node_faces",
     "n_max_node_edges",
     "two",
+    # bounds dims
+    "lat_lon",
+    "min_max",
 ]
 
 NODE_DIM = "n_node"
@@ -184,7 +188,7 @@ EDGE_NODE_CONNECTIVITY_ATTRS = {
 EDGE_NODE_CONNECTIVITY_DIMS = ["n_edge", "two"]
 
 
-# edge_edge_connectivity not yet supported
+# construction of edge_edge_connectivity not yet supported
 # EDGE_EDGE_CONNECTIVITY_ATTRS = {
 #     "cf_role": "edge_edge_connectivity",
 #     "long name": "Edges that neighbor each edge",
@@ -202,6 +206,11 @@ EDGE_FACE_CONNECTIVITY_ATTRS = {
     "_FillValue": INT_FILL_VALUE,
 }
 EDGE_FACE_CONNECTIVITY_DIMS = ["n_edge", "two"]
+
+
+# construction of node_node_connectivity is not yet supported
+# NODE_NODE_CONNECTIVITY_ATTRS = {...}
+# NODE_NODE_CONNECTIVITY_DIMS = ["n_node", "n_max_node_nodes"]
 
 
 NODE_EDGE_CONNECTIVITY_ATTRS = {
