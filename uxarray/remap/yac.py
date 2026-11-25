@@ -84,14 +84,19 @@ def _import_yac():
         ) from exc
 
 
+_YAC_METHODS = frozenset(
+    {"nnn", "dnn", "average", "ncc", "rbf", "bernstein_bezier", "conservative"}
+)
+
+
 def _normalize_yac_method(yac_method: str | None) -> _YacOptions:
     if not yac_method:
         raise ValueError(
-            "backend='yac' requires yac_method to be set to 'nnn', 'dnn', "
-            "'average', or 'conservative'."
+            "backend='yac' requires yac_method to be set to one of "
+            f"{', '.join(repr(m) for m in sorted(_YAC_METHODS))}."
         )
     method = yac_method.lower()
-    if method not in {"nnn", "dnn", "average", "conservative"}:
+    if method not in _YAC_METHODS:
         raise ValueError(f"Unsupported YAC method: {yac_method!r}")
     return _YacOptions(method=method, kwargs={})
 
@@ -249,6 +254,14 @@ class _YacRemapper:
                     yac_core.yac_interp_dnn_search_distance_type,
                     yac_kwargs["search_distance_type"],
                 )
+            if tgt_dim != "n_face" and (
+                dnn_kwargs.get("search_distance_type")
+                != yac_core.yac_interp_dnn_search_distance_type.YAC_INTERP_DNN_SEARCH_DISTANCE_FIXED
+            ):
+                raise ValueError(
+                    "YAC method 'dnn' needs yac_options={'search_distance_type': "
+                    "'FIXED', 'search_distance': ...} when remapping to nodes or edges."
+                )
             if "search_distance" in yac_kwargs:
                 dnn_kwargs["search_distance"] = yac_kwargs["search_distance"]
             if "scale" in yac_kwargs:
@@ -267,6 +280,32 @@ class _YacRemapper:
                 weight_type=reduction_type,
                 partial_coverage=yac_kwargs.get("partial_coverage", False),
             )
+        elif yac_method == "ncc":
+            if src_dim != "n_face":
+                raise ValueError("YAC method 'ncc' requires a face-centered source.")
+            weight_type = _coerce_enum(
+                yac_core.yac_interp_ncc_weight_type,
+                yac_kwargs.get("weight_type", yac_kwargs.get("reduction_type")),
+            )
+            if weight_type is None:
+                weight_type = yac_core.yac_interp_ncc_weight_type.YAC_INTERP_NCC_AVG
+            stack.add_ncc(
+                weight_type=weight_type,
+                partial_coverage=yac_kwargs.get("partial_coverage", False),
+            )
+        elif yac_method == "rbf":
+            rbf_kwargs = {
+                key: yac_kwargs[key]
+                for key in ("n", "max_search_distance", "scale")
+                if key in yac_kwargs
+            }
+            stack.add_rbf(**rbf_kwargs)
+        elif yac_method == "bernstein_bezier":
+            if src_dim == "n_edge":
+                raise ValueError(
+                    "YAC method 'bernstein_bezier' requires a face- or node-centered source."
+                )
+            stack.add_bernstein_bezier()
         elif yac_method == "conservative":
             normalisation = _coerce_enum(
                 yac_core.yac_interp_method_conserv_normalisation,
@@ -283,6 +322,13 @@ class _YacRemapper:
             fixed_value = yac_kwargs.get("fixed_value", 0.0)
             if fixed_value is not None:
                 stack.add_fixed(float(fixed_value))
+
+        if "creep_distance" in yac_kwargs and yac_method != "conservative":
+            if tgt_dim == "n_edge":
+                raise ValueError(
+                    "YAC option 'creep_distance' requires remap_to='faces' or 'nodes'."
+                )
+            stack.add_creep(creep_distance=yac_kwargs["creep_distance"])
 
         self._weights = yac_core.compute_weights(
             stack,

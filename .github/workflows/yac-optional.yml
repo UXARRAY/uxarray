@@ -10,14 +10,14 @@ on:
 
 jobs:
   yac-optional:
-    name: YAC core v3.20.2 (Ubuntu)
+    name: YAC core v3.21.0 (Ubuntu)
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -l {0}
     env:
-      YAC_VERSION: v3.20.2
-      YAXT_VERSION: v0.11.5.1
+      YAC_VERSION: v3.21.0
+      YAXT_VERSION: v0.12.2.2
       MPIEXEC: /usr/bin/mpirun
       MPIRUN: /usr/bin/mpirun
       MPICC: /usr/bin/mpicc
@@ -73,7 +73,12 @@ jobs:
           set -euxo pipefail
           YAC_PREFIX="${GITHUB_WORKSPACE}/yac_prefix"
           echo "YAC_PREFIX=${YAC_PREFIX}" >> "${GITHUB_ENV}"
-          git clone --depth 1 --branch "${YAXT_VERSION}" https://gitlab.dkrz.de/dkrz-sw/yaxt.git
+          for attempt in 1 2 3 4 5; do
+            git clone --depth 1 --branch "${YAXT_VERSION}" https://gitlab.dkrz.de/dkrz-sw/yaxt.git && break
+            [ "${attempt}" = 5 ] && exit 1
+            rm -rf yaxt
+            sleep $((attempt * 20))
+          done
           if [ ! -x yaxt/configure ]; then
             if [ -x yaxt/autogen.sh ]; then
               (cd yaxt && ./autogen.sh)
@@ -93,7 +98,12 @@ jobs:
       - name: Build and install YAC
         run: |
           set -euxo pipefail
-          git clone --depth 1 --branch "${YAC_VERSION}" https://gitlab.dkrz.de/dkrz-sw/yac.git
+          for attempt in 1 2 3 4 5; do
+            git clone --depth 1 --branch "${YAC_VERSION}" https://gitlab.dkrz.de/dkrz-sw/yac.git && break
+            [ "${attempt}" = 5 ] && exit 1
+            rm -rf yac
+            sleep $((attempt * 20))
+          done
           if [ ! -x yac/configure ]; then
             if [ -x yac/autogen.sh ]; then
               (cd yac && ./autogen.sh)
