@@ -1567,3 +1567,43 @@ class TestMoreThan1D:
         resultj2 = arr.scalardotgradient(arr0, arr0j)
         assert np.allclose(resultj1.imag, resultA, atol=0, rtol=1e-9)
         assert np.allclose(resultj2.imag, resultA, atol=0, rtol=1e-9)
+
+
+class TestCalculusUnits:
+    """Units labels and radius scaling (#1856)."""
+
+    @pytest.fixture
+    def uxds(self, gridpath, datasetpath):
+        return ux.open_dataset(
+            gridpath("mpas", "dyamond-30km", "gradient_grid_subset.nc"),
+            datasetpath("mpas", "dyamond-30km", "gradient_data_subset.nc"),
+        )
+
+    def test_units_whitespace_is_stripped(self, uxds):
+        q = uxds["gaussian"].assign_attrs(units="  K s-1 ")
+        assert q.gradient()["zonal_gradient"].attrs["units"] == "K s-1/m"
+        assert q.gradient(scale_by_radius=False)["zonal_gradient"].attrs["units"] == "K s-1/rad"
+
+        q = uxds["gaussian"].assign_attrs(units="  m/s \n")
+        assert q.gradient()["zonal_gradient"].attrs["units"] == "(m/s)/m"
+
+    def test_radius_one_gives_per_radian_units(self, uxds):
+        uxds.uxgrid.sphere_radius = 1.0
+        u = uxds["gaussian"].assign_attrs(units="K")
+        v = uxds["inverse_gaussian"].assign_attrs(units="K")
+
+        grad = u.gradient()["zonal_gradient"]
+        grad_unscaled = u.gradient(scale_by_radius=False)["zonal_gradient"]
+        assert grad.attrs["units"] == "K/rad"
+        nt.assert_allclose(grad, grad_unscaled, equal_nan=True)
+
+        assert u.curl(v).attrs["units"] == "K/rad"
+        assert u.divergence(v).attrs["units"] == "K/rad"
+        assert u.laplacian().attrs["units"] == "K/rad^2"
+
+    def test_missing_radius_warns_and_gives_per_radian_units(self, uxds):
+        uxds.uxgrid._ds.attrs.pop("sphere_radius", None)
+        q = uxds["gaussian"].assign_attrs(units="K")
+        with pytest.warns(UserWarning, match="left on the unit sphere"):
+            grad = q.gradient()["zonal_gradient"]
+        assert grad.attrs["units"] == "K/rad"
