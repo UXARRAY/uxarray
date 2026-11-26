@@ -7,7 +7,9 @@ import numpy as np
 from uxarray.constants import INT_FILL_VALUE
 from uxarray.errors import DimensionError
 from uxarray.grid.bounds import (
-    _construct_face_bounds_array,
+    _POLAR_CAP_Z,
+    _SNAP_TOL_DEG,
+    _construct_face_bounds_array_gca,
     _face_bounds_lat_degrees,
     _face_bounds_lon_degrees,
     _faces_with_nodes_within_box,
@@ -504,6 +506,6 @@ def _candidate_face_bounds(
     else:
         x, y, z = _lonlat_rad_to_xyz(np.deg2rad(lon), np.deg2rad(lat))
 
-    return _construct_face_bounds_array(
-        local_connectivity, n_nodes_per_face, x, y, z, lon, lat, False, None
+    return _construct_face_bounds_array_gca(
+        local_connectivity, n_nodes_per_face, x, y, z, _POLAR_CAP_Z, _SNAP_TOL_DEG
     )
