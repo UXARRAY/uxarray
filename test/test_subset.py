@@ -200,6 +200,33 @@ def test_da_subset(gridpath, datasetpath):
     assert len(res1) == len(res2) == len(res3) == 4
 
 
+@pytest.mark.parametrize(
+    "method, kwargs",
+    [
+        ("bounding_box", {"lon_bounds": (-0.2, 0.15), "lat_bounds": (-0.3, 0.1)}),
+        ("bounding_circle", {"center_coord": (-0.04, -0.11), "r": 0.1}),
+        ("nearest_neighbor", {"center_coord": (-0.04, -0.11), "k": 1}),
+    ],
+)
+def test_da_subset_edge_centered(gridpath, datasetpath, method, kwargs):
+    """Edge-centered data can be subset before face_edge_connectivity is built.
+    See #1888.
+    """
+    uxds = ux.open_dataset(
+        gridpath("ugrid", "quad-hexagon", "grid.nc"),
+        datasetpath("ugrid", "quad-hexagon", "random-edge-data.nc"),
+    )
+    uxda = uxds["random_data_edge"]
+    assert "face_edge_connectivity" not in uxda.uxgrid._ds
+
+    res = getattr(uxda.subset, method)(**kwargs)
+
+    # each case selects face 0, so the result holds the data on its six edges
+    assert res.uxgrid.n_face == 1
+    edges = np.unique(uxda.uxgrid.face_edge_connectivity.values[0])
+    np.testing.assert_array_equal(res.values, uxda.values[edges])
+
+
 def test_empty_subset(gridpath, datasetpath):
     """ensure that subsetting methods still return a valid UXarray object even if subset is empty.
     (The resulting object should have size=0.)
