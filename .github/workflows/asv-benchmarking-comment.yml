@@ -45,15 +45,50 @@ jobs:
               'asv-results/asv_compare_results.txt', 'utf8');
             const { owner, repo } = context.repo;
 
-            const newComment = `
-            ## ASV Benchmarking
-
-            <details>
-              <summary>Benchmark Comparison Results</summary>
-
-              ${compareResults}
-            </details>
-            `;
+            // ASV --split emits one heading and table per nonempty category.
+            // Keep unfamiliar output visible rather than silently dropping it.
+            const headings = {
+              'Benchmarks that have improved:': 'improved',
+              'Benchmarks that have stayed the same:': 'unchanged',
+              'Benchmarks that have got worse:': 'worse',
+              'Benchmarks that have gotten worse:': 'worse',
+              'Benchmarks that are not comparable:': 'other',
+            };
+            const sections = [];
+            let current = { kind: 'other', lines: [] };
+            for (const line of compareResults.split(/\r?\n/)) {
+              const kind = Object.hasOwn(headings, line.trim())
+                ? headings[line.trim()]
+                : /^Benchmarks .*:$/.test(line.trim()) ? 'other' : undefined;
+              if (kind) {
+                sections.push(current);
+                current = { kind, lines: [] };
+              }
+              current.lines.push(line);
+            }
+            sections.push(current);
+            const visible = kind => sections
+              .filter(section => section.kind === kind)
+              .map(section => section.lines.join('\n').trim())
+              .filter(Boolean);
+            const unchanged = visible('unchanged');
+            const parts = [
+              '## ASV Benchmarking',
+              ...visible('worse'),
+              ...visible('improved'),
+              ...visible('other'),
+            ];
+            if (unchanged.length) {
+              parts.push([
+                '<details>',
+                '<summary>Benchmarks that have stayed the same</summary>',
+                '',
+                ...unchanged,
+                '',
+                '</details>',
+              ].join('\n'));
+            }
+            const newComment = parts.join('\n\n');
 
             const { data: comments } = await github.rest.issues.listComments({
               owner,
