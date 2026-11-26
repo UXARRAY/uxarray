@@ -131,7 +131,6 @@ def _slice_face_indices(
         Indicates whether to store the original grids indices. Passing `True` stores the original face centers,
         other reverse indices can be stored by passing any or all of the following: (["face", "edge", "node"], True)
     """
-    from uxarray.grid import Grid
 
     ds = grid._ds
     # bookkeeping: convert scalar indexers to 1D arrays
@@ -248,11 +247,27 @@ def _slice_face_indices(
                         f"but got inverse_indices={inverse_indices}."
                     )
 
-        return Grid.from_dataset(
-            ds,
-            source_grid_spec=grid.source_grid_spec,
-            is_subset=True,
-            inverse_indices=inverse_indices_ds,
-        )
+        return _subgrid(grid, ds, inverse_indices=inverse_indices_ds)
 
-    return Grid.from_dataset(ds, source_grid_spec=grid.source_grid_spec, is_subset=True)
+    return _subgrid(grid, ds)
+
+
+def _subgrid(grid, ds, **kwargs):
+    from uxarray.grid import Grid
+
+    # A face subset only keeps nodes its faces reference, and a merged parent's
+    # faces reference canonical nodes only, so the subset has no coincident
+    # nodes. Skipping the search saves a sort and, when chunked, a graph
+    # execution to load the subset's node coordinates.
+    already_merged = grid._merge_coincident_nodes
+    sub = Grid.from_dataset(
+        ds,
+        source_grid_spec=grid.source_grid_spec,
+        is_subset=True,
+        merge_coincident_nodes=not already_merged,
+        **kwargs,
+    )
+    if already_merged:
+        sub._merge_coincident_nodes = True
+        sub._duplicate_node_map = {}
+    return sub

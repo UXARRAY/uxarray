@@ -1,3 +1,4 @@
+import dask.array as da
 import numpy as np
 import numpy.testing as nt
 import pytest
@@ -424,6 +425,72 @@ def test_chunked_dual_matches_eager_without_mutating_source(gridpath):
     nt.assert_equal(dual.face_node_connectivity.values, eager.face_node_connectivity.values)
     assert lazy.face_node_connectivity.data is original
     assert lazy.face_node_connectivity.chunks is not None
+
+
+_SEAM_LON = np.array([350.0, 0.0, 0.0, 360.0, 10.0, 360.0])
+_SEAM_LAT = np.array([0.0, 0.0, 10.0, 0.0, 0.0, 10.0])
+_SEAM_FACES = np.array([[0, 1, 2], [3, 4, 5]])
+
+
+@pytest.mark.parametrize("face_chunks", [(2, 3), (1, 3), (1, 1)])
+def test_lazy_grid_merges_coincident_nodes_like_eager(face_chunks):
+    """#1905: chunking must not change the merged topology."""
+    eager = ux.Grid.from_topology(_SEAM_LON, _SEAM_LAT, _SEAM_FACES)
+    lazy = ux.Grid.from_topology(
+        da.from_array(_SEAM_LON, chunks=2),
+        da.from_array(_SEAM_LAT, chunks=2),
+        da.from_array(_SEAM_FACES, chunks=face_chunks),
+    )
+    assert isinstance(lazy._ds["face_node_connectivity"].data, da.Array)
+    nt.assert_equal(lazy.face_node_connectivity.values, [[0, 1, 2], [1, 4, 2]])
+    assert lazy == eager
+    assert lazy.n_edge == eager.n_edge == 5
+    lazy.validate()
+
+
+@pytest.mark.parametrize(
+    "path, chunks",
+    [
+        (("ugrid", "geoflow-small", "grid.nc"), {"n_face": 1000}),
+        (("scrip", "outCSne8", "outCSne8.nc"), {"grid_size": 7}),
+        (("scrip", "outCSne8", "outCSne8.nc"), -1),
+    ],
+)
+def test_lazy_grid_with_coincident_nodes_matches_eager(gridpath, path, chunks):
+    eager = ux.open_grid(gridpath(*path))
+    lazy = ux.open_grid(gridpath(*path), chunks=chunks)
+    assert eager._duplicate_node_map
+    assert lazy._duplicate_node_map == eager._duplicate_node_map
+    assert isinstance(lazy._ds["face_node_connectivity"].data, da.Array)
+    assert lazy == eager
+    assert lazy.n_edge == eager.n_edge
+    lazy.validate()
+
+
+def test_lazy_merge_does_not_compute_face_node_connectivity():
+    """Merging must stay a lazy graph op on the connectivity; only the 1-D node
+    coordinates may be loaded for the spatial search."""
+
+    def explode(block):
+        raise AssertionError("face_node_connectivity was computed")
+
+    faces = da.from_array(_SEAM_FACES, chunks=(1, 3)).map_blocks(explode, dtype=int)
+    grid = ux.Grid.from_topology(_SEAM_LON, _SEAM_LAT, faces)
+    assert grid._duplicate_node_map == {3: 1, 5: 2}
+    with pytest.raises(AssertionError, match="was computed"):
+        grid.face_node_connectivity.values
+
+
+def test_lazy_merge_reports_global_face_index_for_bad_ring():
+    # Node 4 coincides with node 0, so face 2 becomes (0, 5, 0, 6).
+    lon = np.array([0.0, 10.0, 10.0, 0.0, 0.0, 20.0, 20.0])
+    lat = np.array([0.0, 0.0, 10.0, 10.0, 0.0, 0.0, 10.0])
+    faces = np.array([[0, 1, 2, 3], [0, 1, 2, 3], [4, 5, 0, 6]])
+    with pytest.raises(GridInvalidError, match="Face 2 "):
+        ux.Grid.from_topology(lon, lat, faces)
+    lazy = ux.Grid.from_topology(lon, lat, da.from_array(faces, chunks=(1, 2)))
+    with pytest.raises(GridInvalidError, match="Face 2 "):
+        lazy.face_node_connectivity.values
 
 
 def test_chunked_data_dual_matches_eager(gridpath):

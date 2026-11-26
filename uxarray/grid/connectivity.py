@@ -512,27 +512,9 @@ def _build_face_edge_connectivity(
     return face_edge_connectivity
 
 
-def _remap_node_connectivity(connectivity, duplicate_node_map, n_node):
-    """Return a copy of connectivity with duplicate node indices canonicalized."""
-    if not duplicate_node_map:
-        return connectivity
-
-    lookup = np.arange(n_node, dtype=INT_DTYPE)
-    keys = np.fromiter(
-        duplicate_node_map.keys(), dtype=INT_DTYPE, count=len(duplicate_node_map)
-    )
-    vals = np.fromiter(
-        duplicate_node_map.values(), dtype=INT_DTYPE, count=len(duplicate_node_map)
-    )
-    lookup[keys] = vals
-
-    remapped_connectivity = connectivity.copy()
-    valid = connectivity != INT_FILL_VALUE
-    remapped_connectivity[valid] = lookup[connectivity[valid]]
-    return remapped_connectivity
-
-
-def _collapse_repeated_face_corners(face_node_connectivity, canonical_values):
+def _collapse_repeated_face_corners(
+    face_node_connectivity, canonical_values, row_offset=0
+):
     """Collapse consecutive (cyclically) repeated corners in each face row.
 
     Remapping two originally-distinct, now-coincident corners of the same
@@ -545,6 +527,23 @@ def _collapse_repeated_face_corners(face_node_connectivity, canonical_values):
     Only rows containing a value in ``canonical_values`` (nodes that
     absorbed at least one duplicate) are inspected, since no other row can
     have gained a repeat from the remap.
+
+    Parameters
+    ----------
+    face_node_connectivity : np.ndarray
+        ``(n_face, n_max_face_nodes)`` corner indices, already remapped to
+        canonical nodes and padded with ``INT_FILL_VALUE``.
+    canonical_values : np.ndarray
+        1-D array of the canonical node indices that absorbed a duplicate.
+    row_offset : int, default=0
+        Global index of the first row, used only so the error message names
+        the right face when called on one dask block.
+
+    Returns
+    -------
+    np.ndarray
+        The input is never modified in place. A modified copy is returned if
+        any row changed, otherwise the input object itself.
     """
     if len(canonical_values) == 0:
         return face_node_connectivity
@@ -574,7 +573,7 @@ def _collapse_repeated_face_corners(face_node_connectivity, canonical_values):
             continue
         if n_distinct != len(compacted):
             raise GridInvalidError(
-                f"Face {row_index} has nonconsecutive repeated corners after "
+                f"Face {row_offset + row_index} has nonconsecutive repeated corners after "
                 "coincident-node merging."
             )
         if keep.all():
@@ -585,6 +584,65 @@ def _collapse_repeated_face_corners(face_node_connectivity, canonical_values):
         face_node_connectivity[row_index] = new_row
 
     return face_node_connectivity
+
+
+def _canonicalize_block(block, lookup, canonical_values, block_info=None):
+    """Canonicalize one block of node-index connectivity.
+
+    Parameters
+    ----------
+    block : np.ndarray
+        ``(n_rows, n_cols)`` node indices padded with ``INT_FILL_VALUE``.
+    lookup : np.ndarray
+        ``(n_node,)`` array where ``lookup[i]`` is the canonical node for ``i``.
+    canonical_values : np.ndarray or None
+        See ``_collapse_repeated_face_corners``. ``None`` skips the collapse.
+    block_info : dict, optional
+        Supplied by ``map_blocks``; gives the global row offset of ``block``.
+
+    Returns
+    -------
+    np.ndarray
+        A new array with the same shape and dtype as ``block``.
+    """
+    # Copy so the in-place remap below does not modify the caller's array.
+    out = np.array(block, copy=True)
+    valid = out != INT_FILL_VALUE
+    out[valid] = lookup[out[valid]]
+    if canonical_values is not None:
+        row_offset = block_info[0]["array-location"][0][0] if block_info else 0
+        out = _collapse_repeated_face_corners(out, canonical_values, row_offset)
+    return out
+
+
+def _canonicalize_connectivity(connectivity, lookup, canonical_values=None):
+    """Remap node indices through ``lookup`` and, if ``canonical_values`` is
+    given, collapse repeated face corners.
+
+    Both steps are row-local, so dask-backed connectivity is processed
+    blockwise and stays lazy with its row chunking preserved.
+
+    ``connectivity`` may be any 2-D node-index connectivity (numpy or dask),
+    but ``canonical_values`` should only be passed for
+    ``face_node_connectivity``, since the collapse treats rows as closed
+    rings. See ``_canonicalize_block`` for ``lookup`` and ``canonical_values``.
+    Returns an array of the same type and shape; the input is not modified.
+    """
+    if not hasattr(connectivity, "map_blocks"):
+        return _canonicalize_block(np.asarray(connectivity), lookup, canonical_values)
+
+    import dask
+
+    # A row must not be split across blocks for the corner collapse.
+    if connectivity.ndim == 2 and connectivity.numblocks[1] > 1:
+        connectivity = connectivity.rechunk({1: -1})
+    # Delayed so each array is stored once in the graph, not once per block.
+    return connectivity.map_blocks(
+        _canonicalize_block,
+        dask.delayed(lookup),
+        None if canonical_values is None else dask.delayed(canonical_values),
+        meta=np.array((), dtype=connectivity.dtype),
+    )
 
 
 # node-index-valued connectivity: safe to remap element-wise in place
@@ -633,32 +691,39 @@ def _merge_coincident_grid_ds_nodes(
     fidelity and leaves node-centered data index-aligned, at the cost of leaving
     unreferenced coordinates behind (see ``_live_node_indices``).
     """
-    from uxarray.grid.coordinates import _lonlat_rad_to_xyz
     from uxarray.grid.validation import _coincident_node_canonical_indices
 
     if "face_node_connectivity" not in grid_ds:
         return (grid_ds, {}) if return_duplicate_map else grid_ds
 
-    required = ["face_node_connectivity"]
+    # Only the 1-D node coordinates are loaded for the spatial search. Dask-backed
+    # connectivity is remapped blockwise below, so the corner table stays lazy.
     if "node_lon" in grid_ds and "node_lat" in grid_ds:
-        required.extend(["node_lon", "node_lat"])
-    else:
-        required.extend(["node_x", "node_y", "node_z"])
-    if any(
-        name in grid_ds and getattr(grid_ds[name].data, "chunks", None) is not None
-        for name in required
-    ):
-        # Preserve lazy readers such as chunked SCRIP. Canonicalization needs a
-        # global spatial search and is deferred until a duplicate-aware operation
-        # explicitly requests the map.
-        return (grid_ds, None) if return_duplicate_map else grid_ds
-
-    if "node_lon" in grid_ds and "node_lat" in grid_ds:
-        node_lon = np.asarray(grid_ds["node_lon"].values, dtype=np.float64)
-        node_lat = np.asarray(grid_ds["node_lat"].values, dtype=np.float64)
-        points_xyz = np.column_stack(
-            _lonlat_rad_to_xyz(np.deg2rad(node_lon), np.deg2rad(node_lat))
+        # One graph execution for both coordinates, not one each.
+        coords = grid_ds[["node_lon", "node_lat"]].compute()
+        lon_rad = np.deg2rad(np.asarray(coords["node_lon"].values, dtype=np.float64))
+        lat_rad = np.deg2rad(np.asarray(coords["node_lat"].values, dtype=np.float64))
+        # On the dask path these are the only degree copies; drop them first.
+        del coords
+        n_node = len(lon_rad)
+        finite = np.isfinite(lon_rad)
+        finite &= np.isfinite(lat_rad)
+        if finite.all():
+            finite = None
+        else:
+            referenced = grid_ds["face_node_connectivity"].values
+            referenced = referenced[referenced != INT_FILL_VALUE]
+            if np.any(~finite[referenced]):
+                raise ValueError(
+                    "Referenced node XYZ coordinates must contain only finite values."
+                )
+            del referenced
+        # Unused non-finite node coordinates are retained for data alignment, but
+        # stay out of the spatial search and map to themselves.
+        canonical = _coincident_node_canonical_indices(
+            lonlat_rad=(lon_rad, lat_rad), tolerance=tolerance, finite=finite
         )
+        del lon_rad, lat_rad, finite
     elif {"node_x", "node_y", "node_z"} <= set(grid_ds.variables):
         points_xyz = np.column_stack(
             (
@@ -675,6 +740,10 @@ def _merge_coincident_grid_ds_nodes(
             # geometry, where spherical coincidence matching is not defined.
             return (grid_ds, {}) if return_duplicate_map else grid_ds
         points_xyz /= norms[:, np.newaxis]
+        del norms
+        n_node = points_xyz.shape[0]
+        canonical = _coincident_node_canonical_indices(points_xyz, tolerance)
+        del points_xyz
     else:
         # Defensive: Grid construction validates minimum UGRID (node_lon,
         # node_lat, face_node_connectivity) before reaching here, so this is
@@ -690,25 +759,9 @@ def _merge_coincident_grid_ds_nodes(
         )
         return (grid_ds, {}) if return_duplicate_map else grid_ds
 
-    n_node = points_xyz.shape[0]
-    finite = np.isfinite(points_xyz).all(axis=1)
-    if not finite.all():
-        referenced = grid_ds["face_node_connectivity"].values
-        referenced = referenced[referenced != INT_FILL_VALUE]
-        if np.any(~finite[referenced]):
-            raise ValueError(
-                "Referenced node XYZ coordinates must contain only finite values."
-            )
-    # Unused node coordinates are retained for data alignment, but must not enter
-    # the spatial search. Map its results back to the original node indices.
-    finite_indices = np.flatnonzero(finite)
-    canonical = np.arange(n_node, dtype=INT_DTYPE)
-    canonical[finite_indices] = finite_indices[
-        _coincident_node_canonical_indices(points_xyz[finite], tolerance)
-    ]
+    moved = canonical != np.arange(n_node, dtype=INT_DTYPE)
     duplicate_node_map = {
-        INT_DTYPE(index): INT_DTYPE(canonical[index])
-        for index in np.flatnonzero(canonical != np.arange(n_node, dtype=INT_DTYPE))
+        INT_DTYPE(index): INT_DTYPE(canonical[index]) for index in np.flatnonzero(moved)
     }
     if not duplicate_node_map:
         # No coincident nodes: return ``grid_ds`` untouched. Everything below --
@@ -717,17 +770,16 @@ def _merge_coincident_grid_ds_nodes(
         # duplicates were actually found.
         return (grid_ds, {}) if return_duplicate_map else grid_ds
 
-    grid_ds = grid_ds.copy()
+    grid_ds = grid_ds.copy(deep=False)
+
+    lookup = canonical
+    absorbed = np.zeros(n_node, dtype=bool)
+    absorbed[canonical[moved]] = True
+    canonical_values = np.flatnonzero(absorbed)
 
     for name in _NODE_INDEX_CONNECTIVITY_TO_REMAP:
-        if name in grid_ds:
-            grid_ds[name] = grid_ds[name].copy(
-                data=_remap_node_connectivity(
-                    grid_ds[name].values, duplicate_node_map, n_node
-                )
-            )
-
-    if "face_node_connectivity" in grid_ds:
+        if name not in grid_ds:
+            continue
         # Why only face_node_connectivity is collapsed. The remap can make two
         # entries of a row identical wherever a row referenced both a duplicate
         # and its canonical node. The three groups of node-index connectivity
@@ -747,17 +799,9 @@ def _merge_coincident_grid_ds_nodes(
         #    face_edge, edge_face, face_face, node_edge, node_face) is dropped a
         #    few lines below and rebuilt lazily from the corrected rings, so a
         #    repeat introduced by the remap never survives.
-        canonical_values = np.unique(
-            np.fromiter(
-                duplicate_node_map.values(),
-                dtype=INT_DTYPE,
-                count=len(duplicate_node_map),
-            )
-        )
-        grid_ds["face_node_connectivity"] = grid_ds["face_node_connectivity"].copy(
-            data=_collapse_repeated_face_corners(
-                grid_ds["face_node_connectivity"].values, canonical_values
-            )
+        collapse = canonical_values if name == "face_node_connectivity" else None
+        grid_ds[name] = grid_ds[name].copy(
+            data=_canonicalize_connectivity(grid_ds[name].data, lookup, collapse)
         )
 
     for name in _DERIVED_CONNECTIVITY_TO_INVALIDATE:

@@ -43,8 +43,11 @@ class LazyGridConstruction:
     def track_computes_open_grid_chunked(self):
         """Dask graph executions during a chunked ``open_grid``.
 
-        Two remain after the lazy wrap, both from ``_standardize_connectivity``
-        checking connectivity for nulls.
+        Three remain after the lazy wrap: two from ``_standardize_connectivity``
+        checking connectivity for nulls, and one from
+        ``_merge_coincident_grid_ds_nodes`` loading the node coordinates for the
+        coincident-node search (#1905), which a chunked open must run to give
+        the same topology as an eager one.
         """
         counter = _CountComputes()
         with counter:
@@ -55,6 +58,8 @@ class LazyGridConstruction:
         """Dask graph executions during ``isel`` on a chunked grid.
 
         One remains, from ``_slice_face_indices`` loading the connectivity it slices by.
+        The subset of a merged grid skips the coincident-node search, since it
+        keeps only nodes its (already canonical) faces reference.
         """
         uxgrid = ux.open_grid(grid_path, chunks=CHUNKS)
         counter = _CountComputes()

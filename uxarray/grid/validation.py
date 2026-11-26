@@ -87,7 +87,9 @@ def _check_area(grid):
         return True
 
 
-def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
+def _coincident_node_canonical_indices(
+    points_xyz=None, tolerance=ERROR_TOLERANCE, *, lonlat_rad=None, finite=None
+):
     """For each point, find the lowest-indexed point within ``tolerance`` chordal
     distance on the unit sphere (a point with no coincident neighbor maps to itself).
 
@@ -99,38 +101,77 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
     At the geographic poles, only exactly equal XYZ rows are merged. Distinct
     floating representations remain separate because they can encode a face's
     locally meaningful pole longitude.
+
+    Parameters
+    ----------
+    points_xyz : np.ndarray, optional
+        ``(n, 3)`` unit vectors. Pass this or ``lonlat_rad``.
+    tolerance : float
+        Chord radius on the unit sphere.
+    lonlat_rad : tuple of np.ndarray, optional
+        ``(lon, lat)`` in radians. The search only needs x for every point and
+        |z| for the pole test, so given lon/lat it builds full XYZ rows just for
+        the candidates and poles, never the ``(n, 3)`` array.
+    finite : np.ndarray, optional
+        With ``lonlat_rad`` only: mask of points to search. The others map to
+        themselves. ``None`` requires every point to be finite.
     """
     from scipy.sparse import coo_matrix
     from scipy.sparse.csgraph import connected_components
     from scipy.spatial import KDTree
 
-    n_points = len(points_xyz)
-    canonical = np.arange(n_points, dtype=INT_DTYPE)
+    if (points_xyz is None) == (lonlat_rad is None):
+        raise TypeError("Pass exactly one of points_xyz or lonlat_rad.")
 
-    if not np.isfinite(points_xyz).all():
-        raise ValueError("Node XYZ coordinates must contain only finite values.")
-    norms = np.hypot(np.hypot(points_xyz[:, 0], points_xyz[:, 1]), points_xyz[:, 2])
-    if np.any(norms == 0.0):
-        raise ValueError("Node XYZ coordinates must be non-zero vectors.")
+    if points_xyz is not None:
+        if not np.isfinite(points_xyz).all():
+            raise ValueError("Node XYZ coordinates must contain only finite values.")
+        norms = np.hypot(np.hypot(points_xyz[:, 0], points_xyz[:, 1]), points_xyz[:, 2])
+        if np.any(norms == 0.0):
+            raise ValueError("Node XYZ coordinates must be non-zero vectors.")
+        del norms
+        n_points = len(points_xyz)
+        abs_z = np.abs(points_xyz[:, 2])
+
+        def xyz_at(indices):
+            return points_xyz[indices]
+    else:
+        lon_rad, lat_rad = lonlat_rad
+        if finite is None and not (
+            np.isfinite(lon_rad).all() and np.isfinite(lat_rad).all()
+        ):
+            raise ValueError("Node XYZ coordinates must contain only finite values.")
+        n_points = len(lon_rad)
+        abs_z = np.abs(np.sin(lat_rad))
+
+        def xyz_at(indices):
+            return np.column_stack(
+                _lonlat_rad_to_xyz(lon_rad[indices], lat_rad[indices])
+            )
 
     # ``tolerance`` is a chord radius (see the ``query_pairs`` call below), so it
     # cannot be used directly as a deviation of |z| from 1. For a point at
     # colatitude t from the pole, 1 - |z| = 1 - cos(t) = 2*sin(t/2)**2 = chord**2/2.
-    pole_mask = np.isclose(
-        np.abs(points_xyz[:, 2]), 1.0, rtol=0.0, atol=tolerance**2 / 2
-    )
+    pole_mask = np.isclose(abs_z, 1.0, rtol=0.0, atol=tolerance**2 / 2)
+    del abs_z
+    # Poles and non-finite points stay out of the tolerance search.
+    if finite is None:
+        excluded = pole_mask
+    else:
+        pole_mask &= finite
+        excluded = pole_mask | ~finite
     pole_indices = np.flatnonzero(pole_mask)
-    if len(pole_indices) > 1:
-        _, first_indices, inverse = np.unique(
-            points_xyz[pole_indices], axis=0, return_index=True, return_inverse=True
-        )
-        canonical[pole_indices] = pole_indices[first_indices[inverse.ravel()]]
-    mergeable_indices = np.flatnonzero(~pole_mask)
+    del pole_mask
+    if not excluded.any():
+        excluded = None
 
-    if len(mergeable_indices) < 2:
-        return canonical
-
-    mergeable_xyz = points_xyz[mergeable_indices]
+    # x as in ``_lonlat_rad_to_xyz``, computed alone so y and z are never built
+    # for every point.
+    x = (
+        points_xyz[:, 0]
+        if points_xyz is not None
+        else np.cos(lon_rad) * np.cos(lat_rad)
+    )
 
     # Prescreen on x before paying for a KDTree. Two points within a chord of
     # ``tolerance`` differ by at most ``tolerance`` in x, so in x-sorted order every
@@ -139,19 +180,36 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
     # coincident with anything and is dropped. This is exact -- no candidate pair is
     # lost -- and on the common case of a grid with no coincident nodes it replaces
     # the tree build entirely with one sort.
-    order = np.argsort(mergeable_xyz[:, 0], kind="stable")
-    gap_is_small = np.diff(mergeable_xyz[order, 0]) <= tolerance
+    order = np.argsort(x, kind="stable")
+    if excluded is not None:
+        # Stable sort then filter keeps the same relative order as sorting only
+        # the included points.
+        order = order[~excluded[order]]
+    del excluded
+    sorted_x = x[order]
+    del x
+    gap_is_small = np.diff(sorted_x) <= tolerance
+    del sorted_x
     is_candidate = np.zeros(len(order), dtype=bool)
     is_candidate[:-1] |= gap_is_small
     is_candidate[1:] |= gap_is_small
+    del gap_is_small
     # kept ascending so that the first member of a connected component below is
     # still the lowest-numbered node in it
     candidates = np.sort(order[is_candidate])
+    del order, is_candidate
+
+    canonical = np.arange(n_points, dtype=INT_DTYPE)
+    if len(pole_indices) > 1:
+        _, first_indices, inverse = np.unique(
+            xyz_at(pole_indices), axis=0, return_index=True, return_inverse=True
+        )
+        canonical[pole_indices] = pole_indices[first_indices[inverse.ravel()]]
 
     if len(candidates) < 2:
         return canonical
 
-    tree = KDTree(mergeable_xyz[candidates])
+    tree = KDTree(xyz_at(candidates))
     pairs = tree.query_pairs(r=tolerance, output_type="ndarray")
 
     if len(pairs) == 0:
@@ -167,23 +225,20 @@ def _coincident_node_canonical_indices(points_xyz, tolerance=ERROR_TOLERANCE):
 
     unique_labels, first_indices = np.unique(labels, return_index=True)
     sub_canonical = first_indices[np.searchsorted(unique_labels, labels)]
-    canonical[mergeable_indices[candidates]] = mergeable_indices[
-        candidates[sub_canonical]
-    ]
+    canonical[candidates] = candidates[sub_canonical]
     return canonical
 
 
 def _find_duplicate_node_map(node_lon, node_lat, tolerance=ERROR_TOLERANCE):
     """Map duplicate (within ``tolerance`` on the unit sphere) node indices to the
     lowest-indexed node sharing their location."""
-    node_lon = np.asarray(node_lon, dtype=np.float64)
-    node_lat = np.asarray(node_lat, dtype=np.float64)
-    points_xyz = np.column_stack(
-        _lonlat_rad_to_xyz(np.deg2rad(node_lon), np.deg2rad(node_lat))
+    lon_rad = np.deg2rad(np.asarray(node_lon, dtype=np.float64))
+    lat_rad = np.deg2rad(np.asarray(node_lat, dtype=np.float64))
+    canonical = _coincident_node_canonical_indices(
+        lonlat_rad=(lon_rad, lat_rad), tolerance=tolerance
     )
-    canonical = _coincident_node_canonical_indices(points_xyz, tolerance)
 
-    n_node = len(node_lon)
+    n_node = len(lon_rad)
     duplicate_indices = np.flatnonzero(canonical != np.arange(n_node, dtype=INT_DTYPE))
     return {
         INT_DTYPE(index): INT_DTYPE(canonical[index]) for index in duplicate_indices
