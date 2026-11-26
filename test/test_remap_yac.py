@@ -3,7 +3,7 @@ import pytest
 
 import uxarray as ux
 from uxarray.errors import YacNotAvailableError
-from uxarray.remap.yac import _import_yac
+from uxarray.remap.yac import _import_yac, _normalize_yac_method
 
 
 try:
@@ -141,6 +141,86 @@ def test_yac_bilinear_face_remap(gridpath):
     assert out.size == dest.n_face
 
 
+def test_yac_bilinear_matches_uxarray(gridpath):
+    src = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
+    dest = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    values = np.sin(np.deg2rad(src.face_lat.values)) + 0.3 * np.cos(
+        np.deg2rad(src.face_lon.values)
+    )
+    da = ux.UxDataArray(values, dims=["n_face"], uxgrid=src)
+
+    native = da.remap.bilinear(destination_grid=dest, remap_to="faces")
+    yac = da.remap.bilinear(destination_grid=dest, remap_to="faces", backend="yac")
+
+    np.testing.assert_allclose(yac.values, native.values, atol=1e-6)
+
+
+def _yac_bilinear_source(gridpath):
+    src = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
+    dest = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    values = np.cos(np.deg2rad(src.face_lat.values))
+    return ux.UxDataArray(values, dims=["n_face"], uxgrid=src), dest
+
+
+def test_yac_bilinear_defaults_to_barycentric(gridpath):
+    da, dest = _yac_bilinear_source(gridpath)
+
+    default = da.remap.bilinear(dest, backend="yac")
+    bary = da.remap.bilinear(
+        dest, backend="yac", yac_options={"reduction_type": "AVG_BARY"}
+    )
+    arithmetic = da.remap.bilinear(
+        dest, backend="yac", yac_options={"reduction_type": "AVG_ARITHMETIC"}
+    )
+
+    np.testing.assert_array_equal(default.values, bary.values)
+    assert not np.allclose(default.values, arithmetic.values)
+
+
+@pytest.mark.parametrize("weights", ["AVG_ARITHMETIC", "AVG_DIST"])
+def test_yac_bilinear_weight_type_overrides_default(gridpath, weights):
+    da, dest = _yac_bilinear_source(gridpath)
+
+    via_weight_type = da.remap.bilinear(
+        dest, backend="yac", yac_options={"weight_type": weights}
+    )
+    via_reduction_type = da.remap.bilinear(
+        dest, backend="yac", yac_options={"reduction_type": weights}
+    )
+
+    np.testing.assert_array_equal(via_weight_type.values, via_reduction_type.values)
+
+
+def test_yac_average_defaults_to_arithmetic(gridpath):
+    da, dest = _yac_bilinear_source(gridpath)
+
+    average = da.remap(dest, backend="yac", yac_method="average")
+    arithmetic = da.remap(
+        dest,
+        backend="yac",
+        yac_method="average",
+        yac_options={"reduction_type": "AVG_ARITHMETIC"},
+    )
+
+    np.testing.assert_array_equal(average.values, arithmetic.values)
+
+
+def test_yac_unreached_targets_are_nan(gridpath):
+    """Targets YAC cannot interpolate must be NaN, not uninitialized memory."""
+    src = ux.open_grid(gridpath("mpas", "QU", "480", "grid.nc"))
+    dst = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(
+        np.cos(np.deg2rad(src.face_lat.values)), dims=["n_face"], uxgrid=src
+    )
+
+    runs = [da.remap(dst, backend="yac", yac_method="average").values for _ in range(2)]
+
+    reached = ~np.isnan(runs[0])
+    assert 0 < reached.sum() < dst.n_face
+    assert np.all((runs[0][reached] >= 0.0) & (runs[0][reached] <= 1.0))
+    np.testing.assert_array_equal(runs[0], runs[1])
+
+
 def test_yac_dnn_face_remap(gridpath):
     # distance-nearest-neighbour (YAC >= 3.15); the default CELL_AREA search
     # distance requires a face-centered target.
@@ -156,6 +236,108 @@ def test_yac_dnn_face_remap(gridpath):
     )
 
     assert out.size == dest.n_face
+
+
+@pytest.mark.parametrize(
+    "method, options",
+    [
+        ("ncc", {}),
+        ("rbf", {}),
+        ("bernstein_bezier", {}),
+        ("nnn", {"creep_distance": -1}),
+    ],
+)
+def test_yac_additional_methods_face_remap(gridpath, method, options):
+    src = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
+    dest = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(
+        np.ones(src.n_face), dims=["n_face"], uxgrid=src, name="ones"
+    )
+
+    out = da.remap(
+        destination_grid=dest,
+        remap_to="faces",
+        backend="yac",
+        yac_method=method,
+        yac_options=options,
+    )
+
+    assert out.size == dest.n_face
+    assert np.isfinite(out.values).all()
+    np.testing.assert_allclose(out.values, 1.0, atol=1e-3)
+
+
+def test_yac_creep_fills_unmatched_targets(gridpath):
+    src = ux.open_grid(gridpath("mpas", "QU", "mesh.QU.1920km.151026.nc"))
+    dest = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(np.ones(src.n_face), dims=["n_face"], uxgrid=src)
+    options = {"search_distance_type": "FIXED", "search_distance": 0.02}
+
+    def n_filled(yac_options):
+        out = da.remap(
+            destination_grid=dest,
+            remap_to="faces",
+            backend="yac",
+            yac_method="dnn",
+            yac_options=yac_options,
+        )
+        return int(np.isclose(out.values, 1.0).sum())
+
+    assert n_filled({**options, "creep_distance": -1}) > n_filled(options)
+
+
+def test_yac_dnn_node_target_requires_fixed_distance(gridpath):
+    grid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(np.ones(grid.n_node), dims=["n_node"], uxgrid=grid)
+    with pytest.raises(ValueError, match="FIXED"):
+        da.remap(
+            destination_grid=grid,
+            remap_to="nodes",
+            backend="yac",
+            yac_method="dnn",
+        )
+
+
+def test_yac_bernstein_bezier_edge_source_raises(gridpath):
+    grid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(np.ones(grid.n_edge), dims=["n_edge"], uxgrid=grid)
+    with pytest.raises(ValueError, match="bernstein_bezier"):
+        da.remap(
+            destination_grid=grid,
+            remap_to="faces",
+            backend="yac",
+            yac_method="bernstein_bezier",
+        )
+
+
+def test_yac_creep_distance_edge_target_raises(gridpath):
+    grid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(np.ones(grid.n_face), dims=["n_face"], uxgrid=grid)
+    with pytest.raises(ValueError, match="creep_distance"):
+        da.remap(
+            destination_grid=grid,
+            remap_to="edges",
+            backend="yac",
+            yac_method="nnn",
+            yac_options={"creep_distance": -1},
+        )
+
+
+def test_yac_ncc_node_source_raises(gridpath):
+    grid = ux.open_grid(gridpath("ugrid", "outCSne30", "outCSne30.ug"))
+    da = ux.UxDataArray(np.ones(grid.n_node), dims=["n_node"], uxgrid=grid)
+    with pytest.raises(ValueError, match="face-centered"):
+        da.remap(
+            destination_grid=grid,
+            remap_to="nodes",
+            backend="yac",
+            yac_method="ncc",
+        )
+
+
+def test_yac_unknown_method_raises():
+    with pytest.raises(ValueError, match="Unsupported YAC method"):
+        _normalize_yac_method("not-a-method")
 
 
 def test_yac_bilinear_rejects_non_average_method(gridpath):
