@@ -842,12 +842,13 @@ class UxDataset(UxSupportsArithmetic, xr.Dataset):
         Open a UXarray dataset and integrate every data variable
 
         >>> import uxarray as ux
-        >>> uxds = ux.open_dataset("grid.ug", "centroid_pressure_data_ug")
+        >>> uxds = ux.tutorial.open_dataset("outCSne30-vortex")
         >>> integral = uxds.integrate()
 
-        Access the integral of a single variable
+        Access the integral of a single variable (approximately 4*pi)
 
-        >>> integral["psi"]
+        >>> float(integral["psi"])  # doctest: +NUMBER
+        12.5664
         """
         integrated_vars = {}
         skipped = []

@@ -68,6 +68,11 @@ jobs:
         run: |
           python -m pytest test
 
+      # Core I/O, data-container, and Grid examples; other modules are #1920.
+      - name: Run Doctests
+        run: |
+          python -m pytest --doctest-modules uxarray/core/api.py uxarray/core/dataarray.py uxarray/core/dataset.py uxarray/grid/grid.py
+
   link-check:
       if: github.event_name != 'pull_request'
       runs-on: ubuntu-latest
